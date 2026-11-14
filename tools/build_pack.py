@@ -87,6 +87,14 @@ def build(variant: str, meta: dict, mods: list) -> None:
     rel = "extras/servers.json"
     data = write(os.path.join(out, rel), json.dumps([{"name": s["name"], "address": s["address"]} for s in cfg_servers], indent=1) + "\n")
     entries.append((rel, sha256(data), False))
+    # The sync scripts themselves: each run swaps in the pack's copy for the next launch.
+    for n in ("pack-sync.ps1", "pack-sync.sh"):
+        data = open(os.path.join(ROOT, "clients", n), "rb").read()
+        rel = "extras/" + n
+        os.makedirs(os.path.join(out, "extras"), exist_ok=True)
+        with open(os.path.join(out, rel), "wb") as f:
+            f.write(data)
+        entries.append((rel, sha256(data), False))
     index = 'hash-format = "sha256"\n'
     for rel, h, metafile in sorted(entries):
         index += f"\n[[files]]\nfile = {toml_str(rel)}\nhash = {toml_str(h)}\n" + ("metafile = true\n" if metafile else "")

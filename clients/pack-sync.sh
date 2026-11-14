@@ -139,4 +139,11 @@ if changes:
 json.dump(state, open(sp, "w"), indent=1)
 PY
 fi
+
+# This script, from the pack: the next launch runs the pack's copy. Swapped in by rename, because bash is still reading
+# this file as it runs.
+if [ -f "$here/extras/pack-sync.sh" ] && ! cmp -s "$here/extras/pack-sync.sh" "$0"; then
+  cp "$here/extras/pack-sync.sh" "$here/pack-sync.sh.new" && chmod +x "$here/pack-sync.sh.new" && mv -f "$here/pack-sync.sh.new" "$here/pack-sync.sh" \
+    && echo "$(date '+%Y-%m-%d %H:%M:%S')  sync script updated (used from the next launch)" >> "$here/pack-sync.log"
+fi
 exit $code

@@ -159,4 +159,12 @@ if (Test-Path $want) {
         $sState | ConvertTo-Json | Set-Content -Encoding utf8 $sStatePath
     } catch { Note "server list skipped: $($_.Exception.Message)" }
 }
+# This script, from the pack: the next launch runs the pack's copy. (PowerShell has already read this file, so replacing
+# it now is safe.)
+$next = Join-Path $here 'extras/pack-sync.ps1'
+$self = $MyInvocation.MyCommand.Path
+if ((Test-Path $next) -and (Get-FileHash $next).Hash -ne (Get-FileHash $self).Hash) {
+    try { Copy-Item $next "$self.new" -Force; Move-Item "$self.new" $self -Force; Note 'sync script updated (used from the next launch)' }
+    catch { Note "sync script update skipped: $($_.Exception.Message)" }
+}
 exit $p.ExitCode

@@ -5,6 +5,14 @@ file = "config/fabric_loader_dependencies.json"
 hash = "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280"
 
 [[files]]
+file = "extras/pack-sync.ps1"
+hash = "f75a30eb554cc871fb4bb0b440e11dd85874aca18db6dfd9f900ded0969adfa4"
+
+[[files]]
+file = "extras/pack-sync.sh"
+hash = "2168c185f429cc0ec38144509d528ef68023d766a44ea569a2d201d0005f3512"
+
+[[files]]
 file = "extras/servers.json"
 hash = "cc61fa01686b849f226a84a901b0490e30c8766b6f8e90debcd55edb4fc915d4"
 
