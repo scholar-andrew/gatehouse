@@ -3,7 +3,8 @@
 One download sets everything up: Prism Launcher, the modpack (it updates itself every time you play), the server in your
 server list, and a Steam shortcut with its own library art and Steam Deck controller layout.
 
-This page covers installing, then [exactly what setup changes on your computer](#what-setup-does-to-your-computer),
+This page covers installing, [what it was tested on](#tested-on), then
+[exactly what setup changes on your computer](#what-setup-does-to-your-computer),
 [what runs each time you play](#what-runs-each-time-you-play), [what it connects to](#what-it-connects-to) and
 [how to remove it](#removing-it).
 
@@ -22,33 +23,62 @@ This page covers installing, then [exactly what setup changes on your computer](
 4. Start Steam, find **Minecraft (Prism Launcher) - your computer's name** in your library, and play. The first time
    Prism opens, sign in with your Microsoft account and pick **October Journey 26.3 (Fabric)**.
 
-## Steam Deck (or Linux)
-1. Switch to **Desktop Mode** and download
+## Linux, including Steam Deck
+1. Download (on a Steam Deck, switch to **Desktop Mode** first)
    [**october-journey-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-setup.sh).
    It's a plain script: you can open it in a text editor and read it before running it.
-2. Open **Konsole** in your Downloads folder and run:
+2. Open a terminal in your Downloads folder (on a Steam Deck: **Konsole**) and run:
    ```bash
    bash october-journey-setup.sh
    ```
-   It installs Prism Launcher from Flathub if needed and asks before closing Steam. It needs `curl`, `python3` and
-   `flatpak`, which SteamOS already has.
-3. Go back to Game Mode and play **Minecraft (Prism Launcher) - steamdeck** (or your device's name). Sign in to your
-   Microsoft account the first time Prism opens.
+   It installs Prism Launcher from Flathub if needed and asks before closing Steam. It needs `bash`, `curl`, `python3`
+   and `flatpak` (SteamOS already has them) and Steam installed at `~/.local/share/Steam`.
+3. Start Steam (on a Steam Deck, go back to Game Mode) and play **Minecraft (Prism Launcher) - your device's name**
+   (`steamdeck` on a Steam Deck). Sign in to your Microsoft account the first time Prism opens.
 
 ## Staying up to date
 Nothing to do: every launch checks for changes and installs them before the game starts. Running setup again is safe;
 it updates your setup without duplicating anything.
 
 ## Controllers
-- **Steam Deck:** its controls get the pack's layout (R4 jump, L4 crouch, trackpad as mouse). In a text box, Steam's
-  keyboard opens by itself and chat moves up above it.
-- **Steam Controller on a PC:** press **Steam + X** in a text box for Steam's keyboard; chat moves up above it. Press
+- **Linux on a Steam Deck:** the Deck's controls get the pack's layout (R4 jump, L4 crouch, trackpad as mouse). In a
+  text box, Steam's keyboard opens by itself and chat moves up above it.
+- **Windows with a Steam Controller:** press **Steam + X** in a text box for Steam's keyboard; chat moves up above it. Press
   Steam + X again to close it. Launching from Steam's normal window gives the smaller keyboard; Big Picture gives the
   larger one, and chat moves up to match either.
 - **Other controllers** work through the Controlify mod, with Controlify's own on-screen keyboard. If you use one on a
   PC, you may want to turn off Steam Input for the shortcut (Properties, Controller).
 
 ---
+
+## Tested on
+
+The pack, its update-on-launch and the controller and keyboard handling are in daily use on these three devices. All
+run Minecraft 26.3 with Fabric Loader 0.19.5 through Prism Launcher 11.1.1, launched from Steam.
+
+| | Windows desktop | Windows laptop | Linux: Steam Deck |
+| --- | --- | --- | --- |
+| **Operating system** | Windows 10 Home 22H2, 64-bit (build 19045.6466) | Windows 10 Home 22H2, 64-bit (build 19045.6466) | SteamOS 3.9.6 (build 20261112.101, beta channel), Linux 7.2.7; Steam client beta |
+| **Device** | Custom PC, ASUS TUF Gaming Z690-Plus WiFi D4 | ASUS ROG Strix 17 GL703GE | Steam Deck OLED ("Galileo"), 1 TB |
+| **CPU** | Intel Core i7-12700K | Intel Core i7-8750H | AMD Custom APU 0932 |
+| **Memory** | 32 GB | 16 GB | 16 GB |
+| **Graphics** | NVIDIA GeForce RTX 3070 Ti | NVIDIA GeForce GTX 1050 Ti + Intel UHD 630 | AMD (integrated) |
+| **Display** | 2560 × 1080 | 1920 × 1080 | 1280 × 800 |
+| **Controller** | Steam Controller | Steam Controller | Built-in controls |
+| **Prism Launcher** | Windows installer | Windows installer | Flathub (Flatpak) |
+
+What was tested where:
+
+| | Windows desktop | Windows laptop | Linux: Steam Deck |
+| --- | --- | --- | --- |
+| Playing, update on launch (mods, art, controller layout, server list, the script updating itself) | Yes | Yes | Yes |
+| Steam keyboard and chat position | Yes (Steam + X, normal and Big Picture) | Yes | Yes |
+| Installer | In test folders (`--prism-root`, `--steam-root`) | No | In test folders |
+| Uninstaller | In test folders | No | In test folders |
+
+The installers were checked in test folders rather than run start to finish on a fresh computer: the three devices
+were set up with the same steps before the installers existed. Not tested at all: Windows 11, Linux distributions
+other than SteamOS, the Steam Deck LCD model, and controllers other than Steam's.
 
 ## What setup does to your computer
 
@@ -86,7 +116,7 @@ administrator rights, installs no services and adds nothing that starts with you
      reach them.
 4. A log of every step is written to `%TEMP%\OctoberJourneySetup.log`.
 
-### Steam Deck / Linux (`october-journey-setup.sh`)
+### Linux, including Steam Deck (`october-journey-setup.sh`)
 Same steps, with these differences:
 1. **Prism Launcher** comes from Flathub: if `org.prismlauncher.PrismLauncher` isn't installed, it adds the Flathub
    remote for your user (`flatpak remote-add --user --if-not-exists flathub ...`) and runs
@@ -135,16 +165,36 @@ Prism Launcher also talks to Microsoft (sign-in), Mojang (Minecraft) and Fabric,
 in this pack sends anything about you anywhere.
 
 ## Removing it
-**Windows**
-- Remove the Steam shortcut: in Steam, right-click it, **Manage**, **Remove non-Steam game from your library**.
-- Delete the instance folder `%APPDATA%\PrismLauncher\instances\october-journey`.
-- If setup installed Prism and you don't want it: **Settings**, **Apps**, **Prism Launcher**, **Uninstall**.
-- Optional tidy-up, with Steam closed: the art files `<app ID>*.png` in `Steam\userdata\<account>\config\grid\`, and the
-  `minecraft (prism launcher) - <name>` folder under `Steam\steamapps\common\Steam Controller Configs\<account>\config\`.
+The uninstallers undo everything setup did. They ask before deleting the game instance (which holds your screenshots
+and any single-player worlds) and leave Prism Launcher installed unless you say otherwise. Steam has to be closed; they
+ask. Nothing is downloaded.
 
-**Steam Deck / Linux**
-- Remove the Steam shortcut the same way.
-- Delete `~/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/october-journey`.
-- Remove the two folder permissions: `flatpak override --user --reset org.prismlauncher.PrismLauncher` (this clears every
-  per-user Flatpak override for Prism, including any you made yourself).
-- If you don't want Prism: `flatpak uninstall --user org.prismlauncher.PrismLauncher`.
+| Operating system | Uninstaller | Source |
+| --- | --- | --- |
+| **Windows** | [OctoberJourneyUninstall.exe](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe): run it | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
+| **Linux**, including **Steam Deck** | [october-journey-uninstall.sh](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-uninstall.sh): `bash october-journey-uninstall.sh` (Steam Deck: in Desktop Mode, from Konsole) | [`october-journey-uninstall.sh`](installer/linux/october-journey-uninstall.sh) |
+
+They remove, for every Steam account on the device:
+- each Steam shortcut named **Minecraft (Prism Launcher) - ...** that starts Prism Launcher, after backing up the
+  shortcut list as `shortcuts.vdf.bak-uninstall`; other shortcuts are kept;
+- that shortcut's library art (and the `.before-pack` copies the update script kept);
+- its controller layout folder and its entry in Steam's layout list;
+- **Linux only:** the two Steam folder permissions setup gave Prism's Flatpak. Other Flatpak settings for Prism are kept.
+
+Then, after asking:
+- the instance folder (`%APPDATA%\PrismLauncher\instances\october-journey`, or
+  `~/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/october-journey`): answer No to keep it;
+- Prism Launcher itself (default No; say No if you use Prism for anything else). On Windows this runs Prism's own
+  uninstaller (`uninstall.exe /S`); on Linux, `flatpak uninstall --user org.prismlauncher.PrismLauncher`, which keeps
+  Prism's data folder. The October Journey uninstallers never delete Prism's data folder themselves, so your Prism
+  accounts and any other instances stay unless Prism's own uninstaller removes them.
+
+Options for both: `--yes` (no questions: removes everything above except Prism, and stops if Steam is running),
+`--keep-instance`, `--remove-prism`. The Windows one logs to `%TEMP%\OctoberJourneyUninstall.log`.
+
+Setup's backup of the shortcut list (`shortcuts.vdf.bak-setup`) is left in place; delete it by hand if you like.
+
+**By hand, without the uninstaller:** remove the shortcut in Steam (right-click it, **Manage**,
+**Remove non-Steam game from your library**), delete the instance folder above, and on Linux run
+`flatpak override --user --reset org.prismlauncher.PrismLauncher` (this clears every per-user Flatpak setting for Prism,
+including any of your own).

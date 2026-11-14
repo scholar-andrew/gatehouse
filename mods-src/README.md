@@ -6,10 +6,10 @@ All are client-side Fabric mods for Minecraft 26.3, except the REI patch, which 
 ## chatlift (Chat Lift)
 `chatlift/`, built with `tools/build_mod.ps1 chatlift`. Made for this pack.
 
-- **On a Steam Deck:** when chat opens, asks Steam for its on-screen keyboard (`steam://open/keyboard`) and raises the
+- **Linux on a Steam Deck:** when chat opens, asks Steam for its on-screen keyboard (`steam://open/keyboard`) and raises the
   chat box and history (by `lift_fraction`, 43% of the screen) so the keyboard doesn't cover them; closes the keyboard
   when chat closes.
-- **Elsewhere, under Steam, with a Steam controller in controller mode:** raises chat for the keyboard the player opens
+- **Windows (and other Linux devices), under Steam, with a Steam controller in controller mode:** raises chat for the keyboard the player opens
   with Steam + X: `lift_fraction_desktop` (22%) or, when the game was started from Big Picture, `lift_fraction_big_picture`
   (38%). It opens nothing itself (see [docs/how-it-works.md](../docs/how-it-works.md#steam-keyboard-and-controllers)).
 - **With Controlify present:** turns Controlify's own on-screen keyboard off for Steam controllers and on for others

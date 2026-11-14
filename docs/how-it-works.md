@@ -38,8 +38,8 @@ each device: Prism pre-launch → pack-sync.ps1 / pack-sync.sh → packwiz-insta
 | `clients/mmc-pack.json` | The Prism instance's component list (Minecraft, Fabric Loader). |
 | `clients/pack-sources.txt` | The default list of pack addresses (setup writes its own from `config.json`). |
 | `installer/config.json` | Read by both installers on every run: server list, pack addresses, Prism version and SHA-256, bootstrap SHA-256, art paths. Changing it changes the next install without a rebuild. |
-| `installer/windows/OctoberJourneySetup.cs` | Windows installer source (C# 5, .NET Framework 4). The `.exe` is gitignored and published only in releases. |
-| `installer/linux/october-journey-setup.sh` | Steam Deck / Linux installer. |
+| `installer/windows/OctoberJourneySetup.cs`, `OctoberJourneyUninstall.cs` | Windows installer and uninstaller source (C# 5, .NET Framework 4). The `.exe` files are gitignored and published only in releases. |
+| `installer/linux/october-journey-setup.sh`, `october-journey-uninstall.sh` | Linux installer and uninstaller, including the Steam Deck. |
 | `installer/art/*.png` | Steam library art, made for this pack by `tools/make_art.ps1`. |
 | `installer/steam/controller_neptune.vdf` | Steam Deck controller layout ("Minecraft - R4 jump, L4 crouch, trackpad mouse"). |
 | `dist/` | Built pack, served to devices. Generated; commit it. |
@@ -74,7 +74,7 @@ it had.
 
 ## Steam keyboard and controllers
 
-- **Steam Deck:** SDL (Minecraft 26's window layer) asks Steam for its keyboard whenever a text box is focused, and
+- **Linux on a Steam Deck:** SDL (Minecraft 26's window layer) asks Steam for its keyboard whenever a text box is focused, and
   Chat Lift raises chat by 43% of the screen while it's open.
 - **Windows with a Steam controller:** Steam ignores keyboard requests from the game here (and in Big Picture opens a
   large keyboard the trackpads can't use), so nothing is opened automatically: the player presses Steam + X. Chat Lift
@@ -113,17 +113,20 @@ their next launch; nobody has to touch a device.
 3. In `source/mods.json`, point the mod's entry at the new `filename` and `sha512`; `git rm` the old jar.
 4. Build the pack, commit, push.
 
-### Releasing the installers
+### Releasing the installers and uninstallers
 The installers download everything else at run time, so they only need a new release when their own code changes.
-1. Windows: build with the compiler that ships with Windows:
+1. Windows: build both with the compiler that ships with Windows:
    ```
    C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneySetup.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\OctoberJourneySetup.cs
+   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneyUninstall.exe /r:System.Windows.Forms.dll installer\windows\OctoberJourneyUninstall.cs
    ```
-2. Test without touching your real setup: `OctoberJourneySetup.exe --yes --prism-root=<temp dir> --steam-root=<temp dir>`
-   (the shell script takes the same flags).
-3. Upload both files to the release (`gh release upload setup-v1 installer\windows\OctoberJourneySetup.exe
-   installer\linux\october-journey-setup.sh --clobber`, or a new release). The README links to
-   `releases/latest/download/<file>`, so keep the file names.
+2. Test without touching your real setup: run setup, then the uninstaller, both with
+   `--yes --prism-root=<temp dir> --steam-root=<temp dir>` (the Linux scripts take the same flags; the temp Steam
+   folder needs a `config/loginusers.vdf` with one account). Check that only October Journey's files went.
+3. Upload all four files to the release (`gh release upload setup-v1 installer\windows\*.exe
+   installer\linux\*.sh --clobber`, or a new release). The README links to `releases/latest/download/<file>`, so keep
+   the file names.
+4. If the tested devices changed, update "Tested on" in `INSTALL.md`.
 
 ## Tools
 

@@ -1,5 +1,6 @@
 #!/bin/bash
-# October Journey setup for the Steam Deck and Linux (Flatpak Prism Launcher). Run it in Desktop Mode, from Konsole:
+# October Journey setup for Linux, including the Steam Deck (Flatpak Prism Launcher). Run it from a terminal (on a
+# Steam Deck: in Desktop Mode, from Konsole):
 #   bash october-journey-setup.sh
 # It reads installer/config.json from the GitHub repo and:
 #   1. installs Prism Launcher from Flathub if it is missing, and makes the October Journey instance with the pack sync
