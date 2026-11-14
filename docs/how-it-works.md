@@ -123,10 +123,13 @@ The installers download everything else at run time, so they only need a new rel
 2. Test without touching your real setup: run setup, then the uninstaller, both with
    `--yes --prism-root=<temp dir> --steam-root=<temp dir>` (the Linux scripts take the same flags; the temp Steam
    folder needs a `config/loginusers.vdf` with one account). Check that only October Journey's files went.
-3. Upload all four files to the release (`gh release upload setup-v1 installer\windows\*.exe
+3. If an uninstaller changed, put its new SHA-256 in `installer/config.json` (`uninstall_windows`, `uninstall_linux`):
+   setup saves the uninstaller on each device only when the hash matches, and otherwise skips it. The Linux one is
+   fetched from `main`, the Windows one from the latest release.
+4. Upload all four files to the release (`gh release upload setup-v1 installer\windows\*.exe
    installer\linux\*.sh --clobber`, or a new release). The README links to `releases/latest/download/<file>`, so keep
    the file names.
-4. If the tested devices changed, update "Tested on" in `INSTALL.md`.
+5. If the tested devices changed, update "Tested on" in `INSTALL.md`.
 
 ## Tools
 

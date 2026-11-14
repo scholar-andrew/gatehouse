@@ -31,6 +31,8 @@ In short (the full list, with every file and folder, is in
   Steam for this, and backs up the files it changes.
 - **On Linux only**, permission for Prism's Flatpak sandbox to write two Steam folders (library art and controller
   layouts).
+- **The uninstaller**, kept on your computer: in **Settings, Apps** on Windows, or as **Uninstall October Journey** in
+  the app menu on Linux.
 
 No administrator rights, no services, nothing that starts with your computer. Every time you play, the update script
 downloads changed mods (from Modrinth, each checked against a recorded hash) and keeps the art, layout and server entry

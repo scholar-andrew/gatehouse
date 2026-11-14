@@ -74,7 +74,7 @@ What was tested where:
 | Playing, update on launch (mods, art, controller layout, server list, the script updating itself) | Yes | Yes | Yes |
 | Steam keyboard and chat position | Yes (Steam + X, normal and Big Picture) | Yes | Yes |
 | Installer | In test folders (`--prism-root`, `--steam-root`) | No | In test folders |
-| Uninstaller | In test folders | No | In test folders |
+| Uninstaller (saved by setup, then run) | In test folders; the Settings, Apps entry itself not yet | No | In test folders, including the app-menu entry file |
 
 The installers were checked in test folders rather than run start to finish on a fresh computer: the three devices
 were set up with the same steps before the installers existed. Not tested at all: Windows 11, Linux distributions
@@ -114,7 +114,12 @@ administrator rights, installs no services and adds nothing that starts with you
      existing one is kept as `.bak-setup`) and lists it in `configset_controller_neptune.vdf` in the folder above.
    - Writes `steam-target.json` in the instance's `minecraft\` folder: where the art and layout live, so updates can
      reach them.
-4. A log of every step is written to `%TEMP%\OctoberJourneySetup.log`.
+4. **The uninstaller.** Downloads `OctoberJourneyUninstall.exe` from this repository's release, checks it against the
+   SHA-256 in `config.json`, saves it as `%LOCALAPPDATA%\OctoberJourney\OctoberJourneyUninstall.exe`, and lists it in
+   **Settings, Apps** as **October Journey (Minecraft modpack)** (a registry entry under
+   `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney`, for your user only). If the download
+   or check fails, setup carries on without it.
+5. A log of every step is written to `%TEMP%\OctoberJourneySetup.log`.
 
 ### Linux, including Steam Deck (`october-journey-setup.sh`)
 Same steps, with these differences:
@@ -130,7 +135,11 @@ Same steps, with these differences:
    `flatpak override --user --filesystem=...`: `~/.local/share/Steam/userdata/<account>/config/grid` and
    `~/.local/share/Steam/steamapps/common/Steam Controller Configs/<account>/config`. Nothing else of Steam's is
    opened up.
-5. Output goes to the terminal; nothing is logged to a file during setup.
+5. **The uninstaller** is saved as `~/.local/share/october-journey/uninstall.sh` (checked against the SHA-256 in
+   `config.json`), with an app-menu entry, **Uninstall October Journey**
+   (`~/.local/share/applications/october-journey-uninstall.desktop`; on a Steam Deck it shows in Desktop Mode). If the
+   download or check fails, setup carries on without it.
+6. Output goes to the terminal; nothing is logged to a file during setup.
 
 ## What runs each time you play
 
@@ -169,10 +178,12 @@ The uninstallers undo everything setup did. They ask before deleting the game in
 and any single-player worlds) and leave Prism Launcher installed unless you say otherwise. Steam has to be closed; they
 ask. Nothing is downloaded.
 
-| Operating system | Uninstaller | Source |
-| --- | --- | --- |
-| **Windows** | [OctoberJourneyUninstall.exe](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe): run it | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
-| **Linux**, including **Steam Deck** | [october-journey-uninstall.sh](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-uninstall.sh): `bash october-journey-uninstall.sh` (Steam Deck: in Desktop Mode, from Konsole) | [`october-journey-uninstall.sh`](installer/linux/october-journey-uninstall.sh) |
+| Operating system | Already installed by setup | Or download it | Source |
+| --- | --- | --- | --- |
+| **Windows** | **Settings**, **Apps**, **October Journey (Minecraft modpack)**, **Uninstall** | [OctoberJourneyUninstall.exe](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe) | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
+| **Linux**, including **Steam Deck** | **Uninstall October Journey** in the app menu (Steam Deck: Desktop Mode) | [october-journey-uninstall.sh](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-uninstall.sh), then `bash october-journey-uninstall.sh` | [`october-journey-uninstall.sh`](installer/linux/october-journey-uninstall.sh) |
+
+The downloaded copy works too on a setup made before setup saved the uninstaller.
 
 They remove, for every Steam account on the device:
 - each Steam shortcut named **Minecraft (Prism Launcher) - ...** that starts Prism Launcher, after backing up the
@@ -188,6 +199,8 @@ Then, after asking:
   uninstaller (`uninstall.exe /S`); on Linux, `flatpak uninstall --user org.prismlauncher.PrismLauncher`, which keeps
   Prism's data folder. The October Journey uninstallers never delete Prism's data folder themselves, so your Prism
   accounts and any other instances stay unless Prism's own uninstaller removes them.
+
+Last, they remove their own saved copy and their **Settings, Apps** entry (Windows) or app-menu entry (Linux).
 
 Options for both: `--yes` (no questions: removes everything above except Prism, and stops if Steam is running),
 `--keep-instance`, `--remove-prism`. The Windows one logs to `%TEMP%\OctoberJourneyUninstall.log`.
