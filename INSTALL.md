@@ -10,8 +10,7 @@ server list, and a Steam shortcut with its own library art and Steam Deck contro
 - **Steam** (optional). Without it, setup still makes the Prism instance; you just play from Prism.
 
 ## Windows
-1. Download **OctoberJourneySetup.exe** from the
-   [latest release](https://github.com/scholar-andrew/october-journey-pack/releases/latest).
+1. Download [**OctoberJourneySetup.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneySetup.exe).
 2. Run it. Windows may say "Windows protected your PC" because the file isn't code-signed: click **More info**, then
    **Run anyway**.
 3. When it asks, quit Steam (Steam menu, then Exit) and click OK.
@@ -19,8 +18,8 @@ server list, and a Steam shortcut with its own library art and Steam Deck contro
    Prism opens, sign in with your Microsoft account and pick **October Journey 26.3 (Fabric)**.
 
 ## Steam Deck (or Linux)
-1. Switch to **Desktop Mode** and download **october-journey-setup.sh** from the
-   [latest release](https://github.com/scholar-andrew/october-journey-pack/releases/latest).
+1. Switch to **Desktop Mode** and download
+   [**october-journey-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-setup.sh).
 2. Open **Konsole** in your Downloads folder and run:
    ```bash
    bash october-journey-setup.sh
