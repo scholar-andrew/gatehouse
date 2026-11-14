@@ -37,7 +37,7 @@ if (Test-Path $target) {
         $state = @{}
         if (Test-Path $statePath) { (Get-Content $statePath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $state[$_.Name] = $_.Value } }
         $sha = [Security.Cryptography.SHA256]::Create()
-        function H([byte[]]$b) { -join ($sha.ComputeHash($b) | ForEach-Object { $_.ToString('x2') }) }
+        function Get-PackHash([byte[]]$b) { -join ($sha.ComputeHash($b) | ForEach-Object { $_.ToString('x2') }) }
         $items = @(
             @('steam/art/cover.png', (Join-Path $t.grid "$($t.appid)p.png")),
             @('steam/art/hero.png', (Join-Path $t.grid "$($t.appid)_hero.png")),
@@ -54,8 +54,8 @@ if (Test-Path $target) {
                 $text = [Text.Encoding]::UTF8.GetString($bytes) -replace '"url"\s*"[^"]*"', ('"url"' + "`t`t" + '"autosave://' + ($dst -replace '\\', '/') + '"')
                 $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($text)
             }
-            $new = H $bytes
-            $have = if (Test-Path $dst) { H ([IO.File]::ReadAllBytes($dst)) } else { $null }
+            $new = Get-PackHash $bytes
+            $have = if (Test-Path $dst) { Get-PackHash ([IO.File]::ReadAllBytes($dst)) } else { $null }
             $last = $state[$i[0]]
             if ($have -eq $new) { $state[$i[0]] = $new; continue }
             if ($have -and $last -and $have -ne $last) { continue }   # changed in Steam: kept

@@ -6,7 +6,8 @@
 //   2. A Steam shortcut "Minecraft (Prism Launcher) - <this computer>" (Steam must be closed; it asks).
 //   3. Steam library art (original to this pack, from the repo).
 //   4. The Steam Deck controller layout for the shortcut.
-//   5. Every launch syncs the pack (this owner's PC over Tailscale first, then GitHub).
+//   5. Every launch syncs the pack (this owner's PC over Tailscale first, then GitHub), and with it any new library art or
+//      controller layout.
 // Flags: --yes  (no questions; stops if Steam is running)
 //        --prism-root=DIR --steam-root=DIR  (testing: use these folders instead of the real ones; Steam may stay open)
 using System;
@@ -80,6 +81,9 @@ static class Setup
             Say("Steam shortcut: " + name + " (app " + appid + ")");
             Art(Path.Combine(cfgDir, "grid"), repo, appid, (Dictionary<string, object>)cfg["art"]);
             Controller(steam, acct, name.ToLowerInvariant(), repo);
+            // Where the pack sync puts later art and layout updates for this shortcut.
+            string ctrl = Path.Combine(steam, "steamapps", "common", "Steam Controller Configs", acct, "config", name.ToLowerInvariant());
+            File.WriteAllText(Path.Combine(mc, "steam-target.json"), new JavaScriptSerializer().Serialize(new Dictionary<string, object> { { "grid", Path.Combine(cfgDir, "grid") }, { "appid", appid }, { "controller", ctrl } }));
             Done();
             return 0;
         }

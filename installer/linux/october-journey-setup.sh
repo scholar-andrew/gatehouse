@@ -7,7 +7,8 @@
 #   2. adds the Steam shortcut "Minecraft (Prism Launcher) - <this device>" (Steam must be closed; it asks);
 #   3. adds the library art (original to the pack, from the repo);
 #   4. installs the Steam Deck controller layout for the shortcut;
-#   5. every launch then syncs the pack (the owner's PC over Tailscale first, then GitHub).
+#   5. every launch then syncs the pack (the owner's PC over Tailscale first, then GitHub), and with it any new library
+#      art or controller layout.
 # Flags: --yes (no questions; stops if Steam is running), --prism-root=DIR --steam-root=DIR (testing).
 set -euo pipefail
 CONFIG_URL="https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/config.json"
@@ -48,9 +49,9 @@ if [ -z "$STEAM_ROOT" ]; then
   done
 fi
 
-python3 - "$work/config.json" "$PRISM_ROOT" "$STEAM_ROOT" "$APP" <<'PY'
+python3 - "$work/config.json" "$PRISM_ROOT" "$STEAM_ROOT" "$APP" "$work" <<'PY'
 import hashlib, json, os, re, socket, struct, sys, urllib.request, zlib, shutil
-cfg = json.load(open(sys.argv[1])); prism, steam, app = sys.argv[2], sys.argv[3], sys.argv[4]
+cfg = json.load(open(sys.argv[1])); prism, steam, app, work_dir = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 repo = cfg["repo_raw"]
 def get(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) OctoberJourneySetup/1.0"})
@@ -202,5 +203,14 @@ try:
     say("Steam Deck controller layout added.")
 except Exception as e:
     say("controller layout skipped: %s" % e)
+# Where the pack sync puts later art and layout updates for this shortcut.
+json.dump({"grid": grid, "appid": appid, "controller": os.path.join(root, name.lower())}, open(os.path.join(mc, "steam-target.json"), "w"))
+open(os.path.join(work_dir, "steam-paths"), "w").write(grid + "\n" + root + "\n")
 say("all set. Start Steam (or switch to Game Mode) and play \"%s\". The first time Prism opens, sign in with your Microsoft account. Every launch updates the mods." % name)
 PY
+
+# Prism runs sandboxed: let it write the art and controller folders (and nothing else of Steam's) so every launch can
+# keep them up to date.
+if [ -f "$work/steam-paths" ] && [ "$STEAM_ROOT" = "$HOME/.local/share/Steam" ]; then
+  while IFS= read -r d; do [ -n "$d" ] && flatpak override --user --filesystem="${d/#$HOME/~}" "$APP"; done < "$work/steam-paths"
+fi
