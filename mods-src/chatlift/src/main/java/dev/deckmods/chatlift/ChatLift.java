@@ -24,11 +24,17 @@ public final class ChatLift {
 	/** auto = under Steam, open Steam's keyboard and lift; always = lift only; never = off. */
 	private static String mode = "auto";
 	private static float fraction = 0.43f;
+	/** Off the Deck the Steam + X keyboard is a different size: Big Picture's (launched from Big Picture) or the desktop one. */
+	private static float fractionBigPicture = 0.38f;
+	private static float fractionDesktop = 0.22f;
 	private static int extraPixels = 4;
 	private static String openUrl = "steam://open/keyboard";
 	private static String closeUrl = "steam://close/keyboard";
 	private static boolean loaded;
 	private static boolean lifted;
+
+	private static final boolean DECK = isSteamDeck();
+	private static final boolean BIG_PICTURE = "1".equals(System.getenv("SteamTenfoot"));
 
 	private ChatLift() {}
 
@@ -49,6 +55,14 @@ public final class ChatLift {
 		} catch (NumberFormatException ignored) {
 		}
 		try {
+			fractionBigPicture = Math.clamp(Float.parseFloat(p.getProperty("lift_fraction_big_picture", "0.38")), 0f, 0.9f);
+		} catch (NumberFormatException ignored) {
+		}
+		try {
+			fractionDesktop = Math.clamp(Float.parseFloat(p.getProperty("lift_fraction_desktop", "0.22")), 0f, 0.9f);
+		} catch (NumberFormatException ignored) {
+		}
+		try {
 			extraPixels = Integer.parseInt(p.getProperty("extra_pixels", "4"));
 		} catch (NumberFormatException ignored) {
 		}
@@ -61,8 +75,11 @@ public final class ChatLift {
 			w.write("#       always = always lift chat, never open the keyboard\n");
 			w.write("#       never  = off\n");
 			w.write("mode=" + mode + "\n");
-			w.write("# lift_fraction: share of the screen height to raise by\n");
+			w.write("# lift_fraction: share of the screen height to raise by on a Steam Deck\n");
 			w.write("lift_fraction=" + fraction + "\n");
+			w.write("# elsewhere: when the game was started from Steam's Big Picture mode, and from the normal Steam window\n");
+			w.write("lift_fraction_big_picture=" + fractionBigPicture + "\n");
+			w.write("lift_fraction_desktop=" + fractionDesktop + "\n");
 			w.write("# extra_pixels: small extra gap above the keyboard, in GUI pixels\n");
 			w.write("extra_pixels=" + extraPixels + "\n");
 			w.write("# Steam links used to show and hide the keyboard (leave blank to skip)\n");
@@ -70,7 +87,7 @@ public final class ChatLift {
 			w.write("close_keyboard_url=" + closeUrl + "\n");
 		} catch (IOException ignored) {
 		}
-		LOG.info("[chatlift] mode={}, lift_fraction={}, under Steam={}, Steam Deck={}", mode, fraction, underSteam(), isSteamDeck());
+		LOG.info("[chatlift] mode={}, lift_fraction={}, under Steam={}, Steam Deck={}, Big Picture={}", mode, fraction, underSteam(), isSteamDeck(), "1".equals(System.getenv("SteamTenfoot")));
 	}
 
 	static String mode() {
@@ -132,7 +149,8 @@ public final class ChatLift {
 	public static float lift(int guiHeight) {
 		if (!loaded) load();
 		if (!lifted) return 0f;
-		return Math.round(guiHeight * fraction) + extraPixels;
+		float f = DECK ? fraction : BIG_PICTURE ? fractionBigPicture : fractionDesktop;
+		return Math.round(guiHeight * f) + extraPixels;
 	}
 
 	/** Opens a steam:// link with the system's handler, off the game thread. */
