@@ -1,0 +1,30 @@
+{
+  "_about": "Read by the October Journey installers each time they run. Change it here (on GitHub) and the next install uses it; no rebuild needed.",
+  "pack_name": "October Journey",
+  "instance_id": "october-journey",
+  "instance_name": "October Journey 26.3 (Fabric)",
+  "shortcut_name": "Minecraft (Prism Launcher)",
+  "repo_raw": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main",
+  "pack_sources": [
+    "http://100.91.134.102:8467",
+    "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/dist"
+  ],
+  "servers": [
+    { "name": "October Journey", "address": "100.91.134.102:25565", "note": "Through Tailscale: you need to be on (or shared into) the owner's Tailscale network." }
+  ],
+  "_servers_later": "To add a public address later, add another entry such as { \"name\": \"October Journey (public)\", \"address\": \"play.example.com\" }.",
+  "prism_windows": {
+    "version": "11.1.1",
+    "url": "https://github.com/PrismLauncher/PrismLauncher/releases/download/11.1.1/PrismLauncher-Windows-MSVC-Setup-11.1.1.exe",
+    "sha256": "AAF1F371A41D530785B679E3A2E1141DCEEC98651FC35D56DC0842B2740280AE"
+  },
+  "prism_flatpak": "org.prismlauncher.PrismLauncher",
+  "bootstrap_sha256": "A8FBB24DC604278E97F4688E82D3D91A318B98EFC08D5DBFCBCBCAB6443D116C",
+  "art": {
+    "_source": "SteamGridDB, Minecraft (game 38365). Downloaded on each install for that person's own library; not stored in this repo.",
+    "cover": "https://cdn2.steamgriddb.com/grid/a73027901f88055aaa0fd1a9e25d36c7.png",
+    "hero": "https://cdn2.steamgriddb.com/hero/ecd812da02543c0269cfc2c56ab3c3c0.png",
+    "logo": "https://cdn2.steamgriddb.com/logo/90915208c601cc8c86ad01250ee90c12.png",
+    "icon": "https://cdn2.steamgriddb.com/icon/5698620bc382e43590e89eefc3097d3e.png"
+  }
+}
