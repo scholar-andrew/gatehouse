@@ -135,3 +135,27 @@ metafile = true
 file = "mods/yacl.pw.toml"
 hash = "0387806c977cf558993d7a2cec8e694f7e055f06ce3e8c430170217ceab43f97"
 metafile = true
+
+[[files]]
+file = "steam/art/cover.png"
+hash = "ea70e98277c8db7db79ea3475aecb7041382431c26b623b7bc7fe2e9d321b9a4"
+
+[[files]]
+file = "steam/art/hero.png"
+hash = "3e8d041ec2f5f1a8dbc66cfe83439e61eac5618bb5eee8c8ca8fcdbe1a7f446e"
+
+[[files]]
+file = "steam/art/icon.png"
+hash = "7271b860bd4ed264a2099d1cfcd1f0194e5e6766c393e131d63e8fa8c8f8966a"
+
+[[files]]
+file = "steam/art/logo.png"
+hash = "d8a18fe5dd3ad044c1d0983c85921e92377e44593a701969c8bb7f85375b5165"
+
+[[files]]
+file = "steam/art/wide.png"
+hash = "0de6da09feb2376ec93e4ad3f3bbc02dcd07ada2757b84f2e9c5fdb71e9409ca"
+
+[[files]]
+file = "steam/controller_neptune.vdf"
+hash = "b268cde7fd1fd3c70a6e00655f2681228d9b781c471e9562596e80153ba81c01"

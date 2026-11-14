@@ -75,6 +75,13 @@ def build(variant: str, meta: dict, mods: list) -> None:
             with open(os.path.join(out, rel), "wb") as f:
                 f.write(data)
             entries.append((rel, sha256(data), False))
+    # Steam extras, applied by the sync after the mods: the library art and the Steam Deck controller layout.
+    for src_rel, rel in [("installer/art/" + n, "steam/art/" + n) for n in ("cover.png", "hero.png", "logo.png", "icon.png", "wide.png")] + [("installer/steam/controller_neptune.vdf", "steam/controller_neptune.vdf")]:
+        data = open(os.path.join(ROOT, src_rel), "rb").read()
+        os.makedirs(os.path.dirname(os.path.join(out, rel)), exist_ok=True)
+        with open(os.path.join(out, rel), "wb") as f:
+            f.write(data)
+        entries.append((rel, sha256(data), False))
     index = 'hash-format = "sha256"\n'
     for rel, h, metafile in sorted(entries):
         index += f"\n[[files]]\nfile = {toml_str(rel)}\nhash = {toml_str(h)}\n" + ("metafile = true\n" if metafile else "")
@@ -89,7 +96,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
         f"[versions]\nminecraft = {toml_str(meta['minecraft'])}\nfabric = {toml_str(meta['fabric'])}\n"
     )
     write(os.path.join(out, "pack.toml"), pack)
-    print(f"{variant}: {sum(1 for e in entries if e[0].startswith('mods/'))} mods, {sum(1 for e in entries if e[0].startswith('config/'))} config file(s)")
+    print(f"{variant}: {sum(1 for e in entries if e[0].startswith('mods/'))} mods, {sum(1 for e in entries if e[0].startswith('config/'))} config file(s), {sum(1 for e in entries if e[0].startswith('steam/'))} Steam file(s)")
 
 
 def main() -> None:
