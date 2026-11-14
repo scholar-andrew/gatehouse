@@ -3,60 +3,24 @@ package dev.deckmods.chatlift;
 import net.fabricmc.loader.api.FabricLoader;
 
 /**
- * Steam's floating keyboard for every text box, off the Steam Deck. On a Deck, SDL already asks Steam for its keyboard,
- * placed beside the text box, whenever the game starts text input. Elsewhere it doesn't, so this does the same when a
- * Steam controller is being used under Steam: a text box gaining focus opens the keyboard next to it, losing focus
- * closes it. Mouse and keyboard play is left alone. It also keeps Controlify's own on-screen keyboard for the other
- * controllers only (see {@link ControlifyBridge}).
+ * Steam controller handling off the Steam Deck. On a Deck, SDL asks Steam for its keyboard whenever a text box is used.
+ * On Windows the keyboard Steam opens on request is Big Picture's, which the trackpads can't reach and which covers the
+ * text box, so nothing is opened here: the player brings up Steam's own keyboard (Steam + X), and chat is lifted above
+ * it (see {@link ChatLift}). What this does keep up to date, through {@link ControlifyBridge}: Controlify's on-screen
+ * keyboard only for non-Steam controllers, and mixed input on, so Steam's keyboard can type.
  */
 public final class SteamKeyboard {
 	private static final boolean CONTROLIFY = FabricLoader.getInstance().isModLoaded("controlify");
-	private static final boolean DECK = ChatLift.isSteamDeck();
-
-	private static int x, y, w, h;
-	private static boolean hasArea;
-	private static Object owner;
-	private static int pendingTicks = -1;
-	private static boolean open;
 
 	private SteamKeyboard() {}
 
-	/** The text box's rectangle in window coordinates, as Minecraft hands it to SDL. */
-	public static void onArea(int ax, int ay, int aw, int ah) {
-		x = ax; y = ay; w = aw; h = ah; hasArea = true;
-	}
-
-	/** Text input started for a text box (owner). The keyboard opens a moment later, once the box has its final area. */
-	public static void onStart(Object newOwner) {
-		if (newOwner != owner || !open) {
-			owner = newOwner;
-			pendingTicks = 2;
-		}
-	}
-
-	public static void onStop() {
-		pendingTicks = -1;
-		owner = null;
-		if (open) {
-			open = false;
-			ChatLift.openLink(ChatLift.closeUrl());
-		}
+	/** A Steam controller is the current controller and the game is in controller mode. */
+	public static boolean steamControllerInUse() {
+		return CONTROLIFY && ControlifyBridge.steamControllerInUse();
 	}
 
 	/** Every client tick. */
 	public static void tick() {
-		boolean steamController = CONTROLIFY && ControlifyBridge.steamControllerInUse();
 		if (CONTROLIFY) ControlifyBridge.applyKeyboardPreference();
-		if (pendingTicks < 0) return;
-		if (--pendingTicks > 0) return;
-		pendingTicks = -1;
-		if (DECK || !ChatLift.underSteam() || !steamController || !"auto".equals(ChatLift.mode())) return;
-		String url = ChatLift.openUrl();
-		if (url.isEmpty()) return;
-		if (hasArea && !url.contains("?")) {
-			url += "?XPosition=" + x + "&YPosition=" + y + "&Width=" + Math.max(w, 1) + "&Height=" + Math.max(h, 1) + "&Mode=0";
-		}
-		open = true;
-		ChatLift.openLink(url);
 	}
 }

@@ -1,9 +1,9 @@
 {
 	"schemaVersion": 1,
 	"id": "chatlift",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"name": "Chat Lift",
-	"description": "Keeps Steam's on-screen keyboard out of the way. On a Steam Deck it raises the chat box and history while typing. Elsewhere, using a Steam controller under Steam, it opens Steam's keyboard beside any text box, and keeps Controlify's own keyboard for other controllers. Settings in config/chatlift.properties.",
+	"description": "Keeps Steam's on-screen keyboard out of the way. On a Steam Deck it raises the chat box and history while typing. Elsewhere, with a Steam controller under Steam, it raises chat the same way for Steam's keyboard (Steam + X), lets that keyboard type, and keeps Controlify's own keyboard for other controllers. Settings in config/chatlift.properties.",
 	"authors": ["Made for a Steam Deck setup"],
 	"license": "CC0-1.0",
 	"environment": "client",

@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Chat Lift. On a Steam Deck: when chat opens, asks Steam to show its on-screen keyboard and raises the chat so the
- * keyboard doesn't cover it; when chat closes, hides the keyboard and the chat drops back down. Everywhere else, Steam's
- * keyboard is placed next to whichever text box is in use instead (see {@link SteamKeyboard}), so chat stays where it is.
+ * keyboard doesn't cover it; when chat closes, hides the keyboard and the chat drops back down. Elsewhere under Steam,
+ * with a Steam controller in use, chat is raised the same way for the keyboard the player opens with Steam + X.
  */
 public final class ChatLift {
 	static final Logger LOG = LoggerFactory.getLogger("chatlift");
@@ -56,12 +56,12 @@ public final class ChatLift {
 		closeUrl = p.getProperty("close_keyboard_url", closeUrl).trim();
 		try (Writer w = Files.newBufferedWriter(path)) {
 			w.write("# Chat Lift: raises chat above Steam's on-screen keyboard while you type (Steam Deck).\n");
-			w.write("# Elsewhere, Steam's keyboard opens next to the text box when you use a Steam controller.\n");
+			w.write("# Elsewhere, with a Steam controller, chat is raised for the keyboard you open with Steam + X.\n");
 			w.write("# mode: auto   = under Steam, open Steam's keyboard with chat and lift only then\n");
 			w.write("#       always = always lift chat, never open the keyboard\n");
 			w.write("#       never  = off\n");
 			w.write("mode=" + mode + "\n");
-			w.write("# lift_fraction: share of the screen height to raise by (Steam Deck)\n");
+			w.write("# lift_fraction: share of the screen height to raise by\n");
 			w.write("lift_fraction=" + fraction + "\n");
 			w.write("# extra_pixels: small extra gap above the keyboard, in GUI pixels\n");
 			w.write("extra_pixels=" + extraPixels + "\n");
@@ -111,9 +111,11 @@ public final class ChatLift {
 		switch (mode) {
 			case "always" -> lifted = true;
 			case "auto" -> {
-				// Off the Deck, SteamKeyboard opens the keyboard beside the chat box, so nothing needs lifting.
-				lifted = underSteam() && isSteamDeck();
-				if (lifted) openLink(openUrl);
+				// Deck: open Steam's keyboard and lift. Elsewhere, with a Steam controller: lift only, for the keyboard the
+				// player opens with Steam + X (the one Steam opens on request can't be used with the trackpads).
+				boolean deck = isSteamDeck();
+				lifted = underSteam() && (deck || SteamKeyboard.steamControllerInUse());
+				if (lifted && deck) openLink(openUrl);
 			}
 			default -> lifted = false;
 		}
