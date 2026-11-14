@@ -34,11 +34,11 @@
   },
   "uninstall_windows": {
     "url": "https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe",
-    "sha256": "AA6CE0A2B5B8677CF9B918B30E473BC1D446DDF8F039AC5D75E10602D9AB3C37"
+    "sha256": "C7480DE9B8DC6C18E0230F94D19F4B930A8338FA10F952500E83314B8B426C1D"
   },
   "uninstall_linux": {
     "url": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/linux/october-journey-uninstall.sh",
-    "sha256": "1F562F6CC5153A95EB7D0FF11B9B9291339A8824DFB2AED6524FC0A15ED315CF"
+    "sha256": "BFD18B54B847D2E4E09CDC80F589BDDB4A094AEFAA26436F9A25456521AB111C"
   },
   "_uninstall": "Setup saves these uninstallers on the device. After changing either one, put its new SHA-256 here (and upload the exe to the release), or setup skips it."
 }

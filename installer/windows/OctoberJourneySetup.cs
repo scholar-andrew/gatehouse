@@ -1,15 +1,21 @@
 // October Journey setup for Windows. Built with the C# compiler that ships with Windows (.NET Framework 4.x):
-//   csc /target:exe /out:OctoberJourneySetup.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll OctoberJourneySetup.cs
-// What it does, reading installer/config.json from the GitHub repo each run:
-//   1. Prism Launcher (installs it if missing, checking the installer's SHA-256), the October Journey instance with the
-//      pack sync, and the server list entry.
-//   2. A Steam shortcut "Minecraft (Prism Launcher) - <this computer>" (Steam must be closed; it asks).
-//   3. Steam library art (original to this pack, from the repo).
-//   4. The Steam Deck controller layout for the shortcut.
-//   5. The uninstaller, saved to %LOCALAPPDATA%\OctoberJourney and listed in Settings > Apps (current user only).
-//   6. Every launch syncs the pack (this owner's PC over Tailscale first, then GitHub), and with it any new library art or
-//      controller layout.
-// Flags: --yes  (no questions; stops if Steam is running)
+//   csc /target:exe /out:OctoberJourneySetup.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll OctoberJourneySetup.cs Options.cs Nbt.cs
+// Reads installer/config.json from the GitHub repo each run. Always installs the October Journey modpack: a Prism
+// Launcher instance whose mods update on every launch, in Prism's own instances folder. The first screen offers a quick
+// install (everything below, in the usual folders) or choosing item by item (all on by default) and where to put Prism
+// Launcher and the saved uninstaller and installer:
+//   prism        Prism Launcher, if it isn't installed (official installer from GitHub, SHA-256 checked)
+//   server       the October Journey server in the instance's server list
+//   shortcut     a Steam shortcut "Minecraft (Prism Launcher) - <this computer>" (Steam must be closed; it asks)
+//   art          Steam library art for the shortcut (needs the shortcut)
+//   controller   the Steam Deck controller layout for the shortcut (needs the shortcut)
+//   updates      keep the server entry, art and layout up to date on each launch (pack-options.json)
+//   uninstaller  save the uninstaller to %LOCALAPPDATA%\OctoberJourney and list it in Settings > Apps
+//   installer    save this installer there too, to change these choices later (Settings > Apps > Modify)
+// Flags: --yes  (no questions: everything above; stops if Steam is running)
+//        --skip=item,item  (leave those out, e.g. --skip=prism,art)
+//        --prism-dir=DIR  (where to install Prism Launcher; default %LOCALAPPDATA%\Programs\PrismLauncher)
+//        --tools-dir=DIR  (where to save the uninstaller and installer; default %LOCALAPPDATA%\OctoberJourney)
 //        --prism-root=DIR --steam-root=DIR  (testing: use these folders instead of the real ones; Steam may stay open)
 using System;
 using System.Collections.Generic;
@@ -30,6 +36,7 @@ using Microsoft.Win32;
 static class Setup
 {
     const string ConfigUrl = "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/config.json";
+    const string Title = "October Journey setup";
     static bool quiet;
     static string prismRoot, steamRoot;
     static string Arg(string[] a, string k) { var x = a.FirstOrDefault(s => s.StartsWith(k + "=")); return x == null ? null : x.Substring(k.Length + 1); }
@@ -41,6 +48,8 @@ static class Setup
         quiet = args.Contains("--yes");
         prismRoot = Arg(args, "--prism-root");
         steamRoot = Arg(args, "--steam-root");
+        Options.ScreenshotPath = Arg(args, "--screenshot");
+        var skip = new HashSet<string>((Arg(args, "--skip") ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()));
         string logPath = Path.Combine(Path.GetTempPath(), "OctoberJourneySetup.log");
         log = new StreamWriter(logPath, false, Encoding.UTF8);
         log.AutoFlush = true;
@@ -50,11 +59,46 @@ static class Setup
             Say("October Journey setup");
             var cfg = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(Text(ConfigUrl));
             string repo = (string)cfg["repo_raw"];
+            string steam = steamRoot ?? SteamPath();
+            string prism = PrismExe();
+            string device = DeviceName();
 
-            // 1. Prism, the instance, the server list.
-            string prism = EnsurePrism((Dictionary<string, object>)cfg["prism_windows"]);
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string inst = Path.Combine(prismRoot ?? Path.Combine(appData, "PrismLauncher"), "instances", (string)cfg["instance_id"]);
+            // What to install.
+            var opts = new Options();
+            opts.Add("prism", "Prism Launcher", prism != null ? "Already installed." : "The game launcher, from Prism's official GitHub release (checked against its SHA-256).", true, prism == null);
+            opts.Add("server", "October Journey server", "Adds the server to the game's server list.", true, true);
+            opts.Add("shortcut", "Steam library shortcut", steam == null ? "Steam isn't installed." : "\"Minecraft (Prism Launcher) - " + device + "\" in your Steam library. Steam has to be closed for this.", steam != null, steam != null, "prism");
+            opts.Add("art", "Steam library art", "Cover, banner, logo and icon for the shortcut.", steam != null, steam != null, "shortcut");
+            opts.Add("controller", "Steam Deck controller layout", "The pack's layout (R4 jump, L4 crouch, trackpad mouse) for the shortcut on Steam Deck controls.", steam != null, steam != null, "shortcut");
+            opts.Add("updates", "Keep these up to date when you play", "Each launch brings the server entry, art and controller layout up to date with the pack. Changes you make yourself are kept.", true, true, "server|art|controller");
+            opts.Add("uninstaller", "Save the uninstaller", "Listed in Settings > Apps, to remove October Journey later.", true, true);
+            opts.Add("installer", "Save this installer", "Beside the uninstaller, to change these choices later (Settings > Apps > Modify).", true, true);
+            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (prism == null) opts.AddFolder("prismdir", "Prism Launcher", "where to install it.", Path.Combine(localApp, "Programs", "PrismLauncher"), "prism");
+            opts.AddFolder("toolsdir", "Uninstaller and installer", "where to save them.", prismRoot != null ? Path.Combine(prismRoot, "OctoberJourney") : Path.Combine(localApp, "OctoberJourney"), "uninstaller|installer");
+            string instances = InstancesDir();
+            opts.FixedPlaces = "Set by other programs: the game instance goes in Prism Launcher's instances folder (" + instances + "), and the Steam shortcut, art and layout go where Steam keeps them" + (steam != null ? " (" + steam + ")." : ".");
+            if (prism == null) opts.SetFolder("prismdir", Arg(args, "--prism-dir"));
+            opts.SetFolder("toolsdir", Arg(args, "--tools-dir"));
+            opts.ApplySkips(skip);
+            if (!quiet)
+            {
+                string mode = Options.AskQuick(Title, "Installs the October Journey modpack: a Prism Launcher instance whose mods update every time you play.",
+                    "Quick install (recommended)", "Prism Launcher" + (prism != null ? " (already installed)" : "") + ", the server, " + (steam != null ? "the Steam shortcut with its art and controller layout, " : "") + "updates, and the uninstaller, in the usual folders.",
+                    "Choose what to install...", "Pick the items and where Prism Launcher and the uninstaller go.");
+                if (mode == null || (mode == "custom" && !opts.ShowDialog(Title, "The October Journey modpack is always installed. Choose what else to add:", "Install"))) { Say("Cancelled."); return 1; }
+                Say("Install mode: " + mode);
+            }
+            Say("Chosen: " + string.Join(", ", opts.Chosen()));
+            foreach (var key in new[] { "prismdir", "toolsdir" })
+                if ((key != "prismdir" || prism == null) && !Options.IsFolderPath(opts.FolderOf(key))) throw new Exception("not a full folder path: " + opts.FolderOf(key));
+
+            // Prism Launcher.
+            if (opts.On("prism") && prism == null) prism = InstallPrism((Dictionary<string, object>)cfg["prism_windows"], opts.FolderOf("prismdir"));
+            if (prism == null) Say("Prism Launcher isn't installed: install it before playing, then the instance shows up in it.");
+
+            // The instance (always), in Prism's instances folder.
+            string inst = Path.Combine(instances, (string)cfg["instance_id"]);
             string mc = Path.Combine(inst, "minecraft");
             Directory.CreateDirectory(mc);
             File.WriteAllBytes(Path.Combine(inst, "mmc-pack.json"), Bytes(repo + "/clients/mmc-pack.json"));
@@ -66,75 +110,110 @@ static class Setup
             var sources = new StringBuilder("# Tried in order; the first that answers is used.\n");
             foreach (var s in (object[])cfg["pack_sources"]) sources.Append((string)s).Append('\n');
             File.WriteAllText(Path.Combine(mc, "pack-sources.txt"), sources.ToString());
-            foreach (Dictionary<string, object> srv in (object[])cfg["servers"]) Nbt.AddServer(Path.Combine(mc, "servers.dat"), (string)srv["name"], (string)srv["address"]);
             Say("Prism instance ready: " + inst);
-            AddUninstaller(cfg, prism);
 
-            // 2-4. Steam.
-            string steam = steamRoot ?? SteamPath();
-            if (steam == null) { Say("Steam is not installed, so no Steam shortcut was added. Open Prism Launcher to play."); Done(); return 0; }
-            string acct = SteamAccount(steam);
-            if (steamRoot == null) WaitForSteamClosed();
-            string name = (string)cfg["shortcut_name"] + " - " + DeviceName();
-            string cfgDir = Path.Combine(steam, "userdata", acct, "config");
-            Directory.CreateDirectory(cfgDir);
-            string iconPath = Path.Combine(cfgDir, "grid", "{0}_icon.png");
-            uint appid = Shortcuts.Upsert(Path.Combine(cfgDir, "shortcuts.vdf"), name, prism, iconPath);
-            Say("Steam shortcut: " + name + " (app " + appid + ")");
-            Art(Path.Combine(cfgDir, "grid"), repo, appid, (Dictionary<string, object>)cfg["art"]);
-            Controller(steam, acct, name.ToLowerInvariant(), repo);
-            // Where the pack sync puts later art and layout updates for this shortcut.
-            string ctrl = Path.Combine(steam, "steamapps", "common", "Steam Controller Configs", acct, "config", name.ToLowerInvariant());
-            File.WriteAllText(Path.Combine(mc, "steam-target.json"), new JavaScriptSerializer().Serialize(new Dictionary<string, object> { { "grid", Path.Combine(cfgDir, "grid") }, { "appid", appid }, { "controller", ctrl } }));
-            Done();
+            // The server entry.
+            if (opts.On("server"))
+            {
+                foreach (Dictionary<string, object> srv in (object[])cfg["servers"]) Nbt.AddServer(Path.Combine(mc, "servers.dat"), (string)srv["name"], (string)srv["address"]);
+                Say("Server added to the server list.");
+            }
+
+            // What each launch keeps up to date (read by pack-sync.ps1).
+            bool upd = opts.On("updates");
+            File.WriteAllText(Path.Combine(mc, "pack-options.json"), new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
+                { "steam_art", upd && opts.On("art") }, { "steam_controller", upd && opts.On("controller") }, { "server_entry", upd && opts.On("server") } }));
+
+            // Steam.
+            if (opts.On("shortcut") && steam != null && prism != null)
+            {
+                string acct = SteamAccount(steam);
+                if (steamRoot == null) WaitForSteamClosed();
+                string name = (string)cfg["shortcut_name"] + " - " + device;
+                string cfgDir = Path.Combine(steam, "userdata", acct, "config");
+                Directory.CreateDirectory(cfgDir);
+                string iconPath = Path.Combine(cfgDir, "grid", "{0}_icon.png");
+                uint appid = Shortcuts.Upsert(Path.Combine(cfgDir, "shortcuts.vdf"), name, prism, iconPath);
+                Say("Steam shortcut: " + name + " (app " + appid + ")");
+                if (opts.On("art")) Art(Path.Combine(cfgDir, "grid"), repo, appid, (Dictionary<string, object>)cfg["art"]);
+                if (opts.On("controller")) Controller(steam, acct, name.ToLowerInvariant(), repo);
+                // Where the pack sync puts later art and layout updates for this shortcut.
+                string ctrl = Path.Combine(steam, "steamapps", "common", "Steam Controller Configs", acct, "config", name.ToLowerInvariant());
+                File.WriteAllText(Path.Combine(mc, "steam-target.json"), new JavaScriptSerializer().Serialize(new Dictionary<string, object> { { "grid", Path.Combine(cfgDir, "grid") }, { "appid", appid }, { "controller", ctrl } }));
+            }
+            else if (opts.On("shortcut")) Say("Steam shortcut skipped: " + (steam == null ? "Steam isn't installed." : "Prism Launcher isn't installed."));
+
+            // The saved uninstaller and installer.
+            SaveTools(cfg, prism, opts.FolderOf("toolsdir"), opts.On("uninstaller"), opts.On("installer"));
+            Done(opts.On("shortcut") && steam != null && prism != null, device);
             return 0;
         }
         catch (Exception e)
         {
             Say("Setup stopped: " + e.Message);
             log.WriteLine(e.ToString());
-            if (!quiet) MessageBox.Show("Setup stopped: " + e.Message + "\n\nDetails are in " + logPath, "October Journey setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (!quiet) MessageBox.Show("Setup stopped: " + e.Message + "\n\nDetails are in " + logPath, Title, MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
     }
 
-    // The uninstaller, kept on this computer and listed in Settings > Apps for this user. Checked against config.json's
-    // SHA-256; if it can't be fetched or doesn't match, setup carries on without it (it's also on the release page).
-    static void AddUninstaller(Dictionary<string, object> cfg, string prismExe)
+    // The uninstaller and this installer, kept in %LOCALAPPDATA%\OctoberJourney. With the uninstaller saved, October
+    // Journey is listed in Settings > Apps for this user (Uninstall, and Modify when the installer is saved too). The
+    // uninstaller is checked against config.json's SHA-256; if it can't be fetched or doesn't match, setup carries on
+    // without it (it's also on the release page).
+    static void SaveTools(Dictionary<string, object> cfg, string prismExe, string dir, bool uninstaller, bool installer)
     {
-        try
+        bool testing = prismRoot != null;
+        string un = Path.Combine(dir, "OctoberJourneyUninstall.exe"), setup = Path.Combine(dir, "OctoberJourneySetup.exe");
+        if (installer)
         {
-            var u = (Dictionary<string, object>)cfg["uninstall_windows"];
-            var b = Bytes((string)u["url"]);
-            if (!Sha256(b).Equals((string)u["sha256"], StringComparison.OrdinalIgnoreCase)) throw new Exception("it does not match its checksum");
-            bool testing = prismRoot != null;
-            string dir = testing ? Path.Combine(prismRoot, "OctoberJourney") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoberJourney");
-            Directory.CreateDirectory(dir);
-            string exe = Path.Combine(dir, "OctoberJourneyUninstall.exe");
-            File.WriteAllBytes(exe, b);
-            if (testing) { Say("Uninstaller saved: " + exe + " (testing: not listed in Settings > Apps)."); return; }
-            using (var k = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney"))
+            try
             {
-                k.SetValue("DisplayName", "October Journey (Minecraft modpack)");
-                k.SetValue("Publisher", "October Journey");
-                k.SetValue("DisplayIcon", prismExe);
-                k.SetValue("InstallLocation", dir);
-                k.SetValue("UninstallString", "\"" + exe + "\"");
-                k.SetValue("QuietUninstallString", "\"" + exe + "\" --yes");
-                k.SetValue("URLInfoAbout", "https://github.com/scholar-andrew/october-journey-pack");
-                k.SetValue("NoModify", 1, RegistryValueKind.DWord);
-                k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+                Directory.CreateDirectory(dir);
+                string me = Path.GetFullPath(Application.ExecutablePath);
+                if (!me.Equals(Path.GetFullPath(setup), StringComparison.OrdinalIgnoreCase)) File.Copy(me, setup, true);
+                Say("Installer saved: " + setup);
             }
-            Say("Uninstaller saved: " + exe + ", listed in Settings > Apps as \"October Journey (Minecraft modpack)\".");
+            catch (Exception e) { Say("Installer not saved (" + e.Message + ")."); installer = false; }
         }
-        catch (Exception e) { Say("Uninstaller not added (" + e.Message + "); it can be downloaded from the release page."); }
+        if (uninstaller)
+        {
+            try
+            {
+                var u = (Dictionary<string, object>)cfg["uninstall_windows"];
+                var b = Bytes((string)u["url"]);
+                if (!Sha256(b).Equals((string)u["sha256"], StringComparison.OrdinalIgnoreCase)) throw new Exception("it does not match its checksum");
+                Directory.CreateDirectory(dir);
+                File.WriteAllBytes(un, b);
+                Say("Uninstaller saved: " + un);
+            }
+            catch (Exception e) { Say("Uninstaller not added (" + e.Message + "); it can be downloaded from the release page."); uninstaller = false; }
+        }
+        if (testing) { if (uninstaller) Say("Testing: not listed in Settings > Apps."); return; }
+        const string key = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney";
+        if (!uninstaller) return;
+        using (var k = Registry.CurrentUser.CreateSubKey(key))
+        {
+            k.SetValue("DisplayName", "October Journey (Minecraft modpack)");
+            k.SetValue("Publisher", "October Journey");
+            if (prismExe != null) k.SetValue("DisplayIcon", prismExe);
+            k.SetValue("InstallLocation", dir);
+            k.SetValue("UninstallString", "\"" + un + "\"");
+            k.SetValue("QuietUninstallString", "\"" + un + "\" --yes");
+            k.SetValue("URLInfoAbout", "https://github.com/scholar-andrew/october-journey-pack");
+            k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+            if (installer) { k.SetValue("ModifyPath", "\"" + setup + "\""); k.SetValue("NoModify", 0, RegistryValueKind.DWord); }
+            else { k.DeleteValue("ModifyPath", false); k.SetValue("NoModify", 1, RegistryValueKind.DWord); }
+        }
+        Say("Listed in Settings > Apps as \"October Journey (Minecraft modpack)\".");
     }
 
-    static void Done()
+    static void Done(bool shortcut, string device)
     {
-        string msg = "All set.\n\nStart Steam and play \"Minecraft (Prism Launcher) - " + DeviceName() + "\". The first time Prism opens, sign in with your Microsoft account. Every launch updates the mods.";
+        string msg = "All set.\n\n" + (shortcut ? "Start Steam and play \"Minecraft (Prism Launcher) - " + device + "\"." : "Open Prism Launcher and play \"October Journey 26.3 (Fabric)\".") +
+            " The first time Prism opens, sign in with your Microsoft account. Every launch updates the mods.";
         Say(msg.Replace("\n\n", " "));
-        if (!quiet) MessageBox.Show(msg, "October Journey setup", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        if (!quiet) MessageBox.Show(msg, Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     static void Say(string s) { Console.WriteLine(s); log.WriteLine(DateTime.Now.ToString("s") + "  " + s); }
@@ -152,19 +231,53 @@ static class Setup
     static string Sha256(byte[] b) { using (var h = SHA256.Create()) return BitConverter.ToString(h.ComputeHash(b)).Replace("-", ""); }
 
     // ------------------------------------------------------------------ Prism
-    static string EnsurePrism(Dictionary<string, object> p)
+    // Prism Launcher's prismlauncher.exe: the usual folder, or wherever its Windows installer recorded it.
+    static string PrismExe()
     {
         string exe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "PrismLauncher", "prismlauncher.exe");
-        if (File.Exists(exe)) { Say("Prism Launcher is already installed."); return exe; }
+        if (File.Exists(exe)) return exe;
+        foreach (var hive in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            using (var root = hive.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall"))
+                if (root != null)
+                    foreach (var name in root.GetSubKeyNames())
+                        using (var k = root.OpenSubKey(name))
+                        {
+                            if (k == null || !((k.GetValue("DisplayName") as string) ?? "").StartsWith("Prism Launcher")) continue;
+                            string dir = k.GetValue("InstallLocation") as string;
+                            if (string.IsNullOrEmpty(dir)) { var u = ((k.GetValue("UninstallString") as string) ?? "").Trim(); if (u.StartsWith("\"")) u = u.Substring(1, u.IndexOf('"', 1) - 1); dir = Path.GetDirectoryName(u); }
+                            if (!string.IsNullOrEmpty(dir) && File.Exists(Path.Combine(dir, "prismlauncher.exe"))) return Path.Combine(dir, "prismlauncher.exe");
+                        }
+        return null;
+    }
+
+    // Prism Launcher's instances folder: its data folder's "instances", unless Prism's own settings name another.
+    static string InstancesDir()
+    {
+        string data = prismRoot ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PrismLauncher");
+        string cfg = Path.Combine(data, "prismlauncher.cfg");
+        if (File.Exists(cfg))
+            foreach (var line in File.ReadAllLines(cfg))
+                if (line.StartsWith("InstanceDir="))
+                {
+                    string v = line.Substring("InstanceDir=".Length).Trim().Trim('"').Replace('/', '\\');
+                    if (v.Length > 0) return Path.IsPathRooted(v) ? v : Path.Combine(data, v);
+                }
+        return Path.Combine(data, "instances");
+    }
+
+    static string InstallPrism(Dictionary<string, object> p, string dir)
+    {
+        string exe = Path.Combine(dir, "prismlauncher.exe");
         Say("Downloading Prism Launcher " + p["version"] + "...");
         var b = Bytes((string)p["url"]);
         if (!Sha256(b).Equals((string)p["sha256"], StringComparison.OrdinalIgnoreCase)) throw new Exception("the Prism Launcher installer does not match its checksum");
         string setup = Path.Combine(Path.GetTempPath(), "PrismLauncher-Setup.exe");
         File.WriteAllBytes(setup, b);
-        var proc = Process.Start(setup, "/S");
+        // The installer takes its folder as /D=..., last and unquoted.
+        var proc = Process.Start(setup, "/S /D=" + dir);
         proc.WaitForExit();
         if (!File.Exists(exe)) throw new Exception("Prism Launcher did not install (exit " + proc.ExitCode + ")");
-        Say("Prism Launcher installed.");
+        Say("Prism Launcher installed in " + dir + ".");
         return exe;
     }
 
@@ -338,83 +451,4 @@ static class Crc32
 {
     static readonly uint[] T = Enumerable.Range(0, 256).Select(i => { uint c = (uint)i; for (int k = 0; k < 8; k++) c = (c & 1) != 0 ? 0xEDB88320u ^ (c >> 1) : c >> 1; return c; }).ToArray();
     public static uint Of(string s) { uint c = 0xFFFFFFFF; foreach (var b in Encoding.UTF8.GetBytes(s)) c = T[(c ^ b) & 0xFF] ^ (c >> 8); return c ^ 0xFFFFFFFF; }
-}
-
-// Minecraft's servers.dat (uncompressed NBT): adds a server unless one with that address is already listed.
-static class Nbt
-{
-    class Tag { public byte Type; public string Name; public object Value; public byte ListType; }
-
-    public static void AddServer(string path, string name, string address)
-    {
-        Tag root;
-        if (File.Exists(path)) using (var r = new Be(File.OpenRead(path))) { byte t = r.ReadByte(); root = new Tag { Type = t, Name = r.Str() }; root.Value = ReadPayload(r, t, root); }
-        else root = new Tag { Type = 10, Name = "", Value = new List<Tag>() };
-        var top = (List<Tag>)root.Value;
-        var servers = top.FirstOrDefault(t => t.Name == "servers");
-        if (servers == null) { servers = new Tag { Type = 9, Name = "servers", ListType = 10, Value = new List<object>() }; top.Add(servers); }
-        var list = (List<object>)servers.Value;
-        servers.ListType = 10;
-        foreach (List<Tag> s in list) if (s.Any(t => t.Name == "ip" && string.Equals((string)t.Value, address, StringComparison.OrdinalIgnoreCase))) return;
-        list.Add(new List<Tag> { new Tag { Type = 8, Name = "name", Value = name }, new Tag { Type = 8, Name = "ip", Value = address }, new Tag { Type = 1, Name = "acceptTextures", Value = (byte)1 } });
-        using (var w = new Be(File.Create(path), true)) { w.Write((byte)10); w.Str(""); WritePayload(w, root); }
-    }
-
-    static object ReadPayload(Be r, byte t, Tag owner)
-    {
-        switch (t)
-        {
-            case 1: return r.ReadByte();
-            case 2: return r.I16();
-            case 3: return r.I32();
-            case 4: return r.I64();
-            case 5: return r.I32();
-            case 6: return r.I64();
-            case 7: return r.ReadBytes(r.I32());
-            case 8: return r.Str();
-            case 9: { byte lt = r.ReadByte(); int n = r.I32(); var l = new List<object>(); if (owner != null) owner.ListType = lt; for (int i = 0; i < n; i++) l.Add(ReadPayload(r, lt, null)); return l; }
-            case 10: { var l = new List<Tag>(); while (true) { byte ct = r.ReadByte(); if (ct == 0) return l; var c = new Tag { Type = ct, Name = r.Str() }; c.Value = ReadPayload(r, ct, c); l.Add(c); } }
-            case 11: { int n = r.I32(); var a = new int[n]; for (int i = 0; i < n; i++) a[i] = r.I32(); return a; }
-            case 12: { int n = r.I32(); var a = new long[n]; for (int i = 0; i < n; i++) a[i] = r.I64(); return a; }
-        }
-        throw new Exception("unexpected NBT tag " + t);
-    }
-
-    static void WritePayload(Be w, Tag tag) { WriteValue(w, tag.Type, tag.Value, tag.ListType); }
-    static void WriteValue(Be w, byte t, object v, byte listType)
-    {
-        switch (t)
-        {
-            case 1: w.Write((byte)v); break;
-            case 2: w.I16((short)v); break;
-            case 3: case 5: w.I32((int)v); break;
-            case 4: case 6: w.I64((long)v); break;
-            case 7: { var b = (byte[])v; w.I32(b.Length); w.Write(b); break; }
-            case 8: w.Str((string)v); break;
-            case 9: { var l = (List<object>)v; w.Write(l.Count == 0 ? (byte)0 : listType); w.I32(l.Count); foreach (var x in l) WriteValue(w, listType, x, 10); break; }
-            case 10: { foreach (var c in (List<Tag>)v) { w.Write(c.Type); w.Str(c.Name); WriteValue(w, c.Type, c.Value, c.ListType); } w.Write((byte)0); break; }
-            case 11: { var a = (int[])v; w.I32(a.Length); foreach (var x in a) w.I32(x); break; }
-            case 12: { var a = (long[])v; w.I32(a.Length); foreach (var x in a) w.I64(x); break; }
-        }
-    }
-
-    // Big-endian reading and writing.
-    class Be : IDisposable
-    {
-        readonly Stream s; readonly bool writing;
-        public Be(Stream s, bool writing = false) { this.s = s; this.writing = writing; }
-        public byte ReadByte() { int b = s.ReadByte(); if (b < 0) throw new EndOfStreamException(); return (byte)b; }
-        public byte[] ReadBytes(int n) { var b = new byte[n]; int o = 0; while (o < n) { int k = s.Read(b, o, n - o); if (k <= 0) throw new EndOfStreamException(); o += k; } return b; }
-        public short I16() { var b = ReadBytes(2); return (short)(b[0] << 8 | b[1]); }
-        public int I32() { var b = ReadBytes(4); return b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3]; }
-        public long I64() { return (long)(uint)I32() << 32 | (uint)I32(); }
-        public string Str() { int n = (ushort)I16(); return Encoding.UTF8.GetString(ReadBytes(n)); }
-        public void Write(byte b) { s.WriteByte(b); }
-        public void Write(byte[] b) { s.Write(b, 0, b.Length); }
-        public void I16(short v) { Write(new[] { (byte)(v >> 8), (byte)v }); }
-        public void I32(int v) { Write(new[] { (byte)(v >> 24), (byte)(v >> 16), (byte)(v >> 8), (byte)v }); }
-        public void I64(long v) { I32((int)(v >> 32)); I32((int)v); }
-        public void Str(string v) { var b = Encoding.UTF8.GetBytes(v); I16((short)b.Length); Write(b); }
-        public void Dispose() { s.Dispose(); }
-    }
 }

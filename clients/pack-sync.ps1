@@ -29,8 +29,13 @@ Note "$url -> exit $($p.ExitCode)"
 # (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is
 # replaced only while it is still the version last installed here, so art or a layout changed in Steam is kept.
 # Steam reads both when it starts: a change shows after Steam is next restarted.
+# pack-options.json (written by setup and the uninstaller) says which of these the player wants kept up to date:
+# steam_art, steam_controller, server_entry. Missing file or key: yes.
+$opt = @{ steam_art = $true; steam_controller = $true; server_entry = $true }
+$optPath = Join-Path $here 'pack-options.json'
+if (Test-Path $optPath) { try { (Get-Content $optPath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $opt[$_.Name] = [bool]$_.Value } } catch { } }
 $target = Join-Path $here 'steam-target.json'
-if (Test-Path $target) {
+if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
     try {
         $t = Get-Content $target -Raw | ConvertFrom-Json
         $statePath = Join-Path $here 'steam-applied.json'
@@ -47,6 +52,7 @@ if (Test-Path $target) {
             @('steam/controller_neptune.vdf', (Join-Path $t.controller 'controller_neptune.vdf')))
         $changed = @()
         foreach ($i in $items) {
+            if ($i[0] -like '*.vdf') { if (-not $opt.steam_controller) { continue } } elseif (-not $opt.steam_art) { continue }
             $src = Join-Path $here $i[0]; $dst = $i[1]
             if (-not (Test-Path $src)) { continue }
             $bytes = [IO.File]::ReadAllBytes($src)
@@ -68,7 +74,7 @@ if (Test-Path $target) {
         $set = Join-Path (Split-Path $t.controller) 'configset_controller_neptune.vdf'
         $key = Split-Path $t.controller -Leaf
         $txt = if (Test-Path $set) { [IO.File]::ReadAllText($set) } else { "`"controller_config`"`n{`n}`n" }
-        if ($txt.IndexOf("`"$key`"", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+        if ($opt.steam_controller -and $txt.IndexOf("`"$key`"", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
             $end = $txt.LastIndexOf('}')
             $txt = $txt.Substring(0, $end) + "`t`"$key`"`n`t{`n`t`t`"autosave`"`t`t`"1`"`n`t}`n" + $txt.Substring($end)
             [IO.File]::WriteAllText($set, $txt); $changed += 'controller list'
@@ -82,7 +88,7 @@ if (Test-Path $target) {
 # added at the top; a wrong address is corrected while it is still the one this sync last set (or it never set one), so an
 # entry edited or deleted in the game afterwards is left alone. Other entries are kept as they are.
 $want = Join-Path $here 'extras/servers.json'
-if (Test-Path $want) {
+if ((Test-Path $want) -and $opt.server_entry) {
     try {
         $servers = @(Get-Content $want -Raw | ConvertFrom-Json | ForEach-Object { $_ })   # (5.1 hands a JSON array over as one item)
         $datPath = Join-Path $here 'servers.dat'

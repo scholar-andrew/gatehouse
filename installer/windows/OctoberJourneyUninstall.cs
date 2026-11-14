@@ -1,16 +1,23 @@
-// October Journey uninstaller for Windows: undoes what OctoberJourneySetup.exe did. Built like the installer:
-//   csc /target:exe /out:OctoberJourneyUninstall.exe /r:System.Windows.Forms.dll OctoberJourneyUninstall.cs
-// It removes, for every Steam account on this computer:
-//   - Steam shortcuts named "Minecraft (Prism Launcher)..." that start Prism Launcher (shortcuts.vdf is backed up first
-//     as shortcuts.vdf.bak-uninstall), with their library art and their controller layout folder and list entry;
-// and then, after asking:
-//   - the Prism instance %APPDATA%\PrismLauncher\instances\october-journey (screenshots and any single-player worlds
-//     in it go too; answer No to keep it);
-//   - Prism Launcher itself (default No; it is shared with any other Prism instances you have);
-// and last, its own entry in Settings > Apps and its copy in %LOCALAPPDATA%\OctoberJourney (put there by setup).
-// Steam must be closed while its files are changed; it asks. Nothing is downloaded. Log: %TEMP%\OctoberJourneyUninstall.log
-// Flags: --yes (no questions: removes the shortcut, art, layout and instance, keeps Prism; stops if Steam is running)
-//        --keep-instance  --remove-prism
+// October Journey uninstaller for Windows: undoes what OctoberJourneySetup.exe did, item by item. Built like the installer:
+//   csc /target:exe /out:OctoberJourneyUninstall.exe /r:System.Windows.Forms.dll OctoberJourneyUninstall.cs Options.cs Nbt.cs
+// The first screen offers a quick uninstall (everything it finds except Prism Launcher) or choosing item by item. It
+// finds Prism Launcher, the instance and the saved installer and uninstaller wherever setup put them (Prism's own
+// records and instances setting, the Settings > Apps entry). The items (all ticked except Prism Launcher):
+//   shortcut     Steam shortcuts "Minecraft (Prism Launcher) - ..." that start Prism (every Steam account; shortcuts.vdf is
+//                backed up first as shortcuts.vdf.bak-uninstall). Their art and controller layout go with them.
+//   art          the shortcut's library art (and the .before-pack copies the pack sync kept)
+//   controller   the shortcut's controller layout folder and its entry in Steam's layout list
+//   server       the October Journey server in the instance's server list
+//   instance     the Prism instance <Prism's instances folder>\october-journey (screenshots and any single-player
+//                worlds in it go too). Removing it removes the server entry with it.
+//   prism        Prism Launcher itself, by its own uninstaller (default off; shared with any other Prism instances)
+//   installer    the installer saved by setup (default %LOCALAPPDATA%\OctoberJourney)
+//   uninstaller  this uninstaller's saved copy and its Settings > Apps entry
+// What's kept stays as it is; with the instance kept, the pack sync is told not to put back what was removed
+// (pack-options.json). Steam must be closed while its files change; it asks. Nothing is downloaded.
+// Log: %TEMP%\OctoberJourneyUninstall.log
+// Flags: --yes (no questions: everything found except Prism; stops if Steam is running)
+//        --skip=item,item (keep those)  --keep-instance  --remove-prism
 //        --prism-root=DIR --steam-root=DIR (testing: use these folders instead of the real ones; Steam may stay open)
 using System;
 using System.Collections.Generic;
@@ -19,6 +26,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Web.Script.Serialization;
 using System.Windows.Forms;
 using Microsoft.Win32;
 
@@ -27,81 +35,135 @@ static class Uninstall
     const string ShortcutName = "Minecraft (Prism Launcher)";
     const string InstanceId = "october-journey";
     const string Title = "October Journey uninstall";
+    const string AppsKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney";
     static bool quiet;
     static StreamWriter log;
 
     static string Arg(string[] a, string k) { var x = a.FirstOrDefault(s => s.StartsWith(k + "=")); return x == null ? null : x.Substring(k.Length + 1); }
     static void Say(string s) { Console.WriteLine(s); log.WriteLine(DateTime.Now.ToString("s") + "  " + s); }
-    static bool Ask(string q, bool dflt)
-    {
-        if (quiet) return dflt;
-        return MessageBox.Show(q, Title, MessageBoxButtons.YesNo, MessageBoxIcon.Question, dflt ? MessageBoxDefaultButton.Button1 : MessageBoxDefaultButton.Button2) == DialogResult.Yes;
-    }
+
+    class Found { public string Acct, Name; public uint AppId; }
 
     [STAThread]
     static int Main(string[] args)
     {
         quiet = args.Contains("--yes");
         string prismRootArg = Arg(args, "--prism-root"), steamRoot = Arg(args, "--steam-root");
+        bool testing = prismRootArg != null;
+        Options.ScreenshotPath = Arg(args, "--screenshot");
+        var skip = new HashSet<string>((Arg(args, "--skip") ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()));
+        if (args.Contains("--keep-instance")) skip.Add("instance");
         string logPath = Path.Combine(Path.GetTempPath(), "OctoberJourneyUninstall.log");
         log = new StreamWriter(logPath, false, Encoding.UTF8) { AutoFlush = true };
         try
         {
             Say("October Journey uninstall");
-            if (!quiet && MessageBox.Show("This removes October Journey from this computer:\n\n" +
-                    "- the Steam shortcut \"" + ShortcutName + " - ...\", its library art and its controller layout\n" +
-                    "- the Prism Launcher instance \"October Journey\" (you'll be asked first)\n" +
-                    "- Prism Launcher itself, only if you say so\n\nContinue?", Title, MessageBoxButtons.OKCancel, MessageBoxIcon.Question) != DialogResult.OK)
-            { Say("Cancelled."); return 1; }
 
-            // 1. Steam: shortcut, art, controller layout.
+            // What's here.
             string steam = steamRoot ?? SteamPath();
-            if (steam == null) Say("Steam is not installed; nothing to remove there.");
-            else
+            var found = new List<Found>();
+            if (steam != null && Directory.Exists(Path.Combine(steam, "userdata")))
+                foreach (string acctDir in Directory.GetDirectories(Path.Combine(steam, "userdata")))
+                    foreach (var s in Shortcuts.Remove(Path.Combine(acctDir, "config", "shortcuts.vdf"), ShortcutName, false))
+                        found.Add(new Found { Acct = Path.GetFileName(acctDir), Name = s.Name, AppId = s.AppId });
+            Func<Found, string> grid = f => Path.Combine(steam, "userdata", f.Acct, "config", "grid");
+            Func<Found, string> layoutRoot = f => Path.Combine(steam, "steamapps", "common", "Steam Controller Configs", f.Acct, "config");
+            bool hasArt = found.Any(f => ArtFiles(grid(f), f.AppId).Any(File.Exists));
+            bool hasLayout = found.Any(f => Directory.Exists(Path.Combine(layoutRoot(f), f.Name.ToLowerInvariant())));
+            string inst = Path.Combine(InstancesDir(prismRootArg), InstanceId);
+            string mc = Path.Combine(inst, "minecraft");
+            bool hasInstance = Directory.Exists(inst);
+            var addresses = new List<string>(); var names = new List<string> { "October Journey" };
+            try
             {
-                if (steamRoot == null) WaitForSteamClosed();
-                string userdata = Path.Combine(steam, "userdata");
-                foreach (string acctDir in Directory.Exists(userdata) ? Directory.GetDirectories(userdata) : new string[0])
-                {
-                    string acct = Path.GetFileName(acctDir);
-                    string cfgDir = Path.Combine(acctDir, "config");
-                    foreach (var s in Shortcuts.Remove(Path.Combine(cfgDir, "shortcuts.vdf"), ShortcutName))
-                    {
+                foreach (Dictionary<string, object> s in (object[])new JavaScriptSerializer().DeserializeObject(File.ReadAllText(Path.Combine(mc, "extras", "servers.json"))))
+                { addresses.Add((string)s["address"]); names.Add((string)s["name"]); }
+            }
+            catch { addresses.Add("100.91.134.102:25565"); }
+            bool hasServer = hasInstance && File.Exists(Path.Combine(mc, "servers.dat"));
+            string prismDir = PrismDir();
+            string prismUninstaller = prismDir == null ? null : Path.Combine(prismDir, "uninstall.exe");
+            bool hasPrism = !testing && prismUninstaller != null && File.Exists(prismUninstaller);
+            string toolsDir = ToolsDir(prismRootArg);
+            bool hasSetup = File.Exists(Path.Combine(toolsDir, "OctoberJourneySetup.exe"));
+            bool hasSelf = File.Exists(Path.Combine(toolsDir, "OctoberJourneyUninstall.exe")) || (!testing && Registry.CurrentUser.OpenSubKey(AppsKey) != null);
+
+            // What to remove.
+            var opts = new Options();
+            string shortcutNames = string.Join(", ", found.Select(f => "\"" + f.Name + "\"").Distinct());
+            if (found.Count > 0) opts.Add("shortcut", "Steam library shortcut", shortcutNames + ". Its art and controller layout go with it.", true, true);
+            if (hasArt) opts.Add("art", "Steam library art", "The shortcut's cover, banner, logo and icon.", true, true, null, found.Count > 0 ? "shortcut" : null);
+            if (hasLayout) opts.Add("controller", "Steam Deck controller layout", "The shortcut's controller layout and its entry in Steam's list.", true, true, null, found.Count > 0 ? "shortcut" : null);
+            if (hasInstance) opts.Add("instance", "Game instance (the modpack)", inst + ". Its screenshots and any single-player worlds are deleted with it.", true, true);
+            if (hasServer) opts.Add("server", "October Journey server", "The server's entry in the game's server list.", true, true, null, "instance");
+            if (hasPrism) opts.Add("prism", "Prism Launcher", "The launcher itself, by its own uninstaller. Leave this off if you use Prism for anything else.", false, true);
+            if (hasSetup) opts.Add("installer", "Saved installer", "The copy of setup in " + toolsDir + ".", true, true);
+            if (hasSelf) opts.Add("uninstaller", "This uninstaller", "Its saved copy and its Settings > Apps entry.", true, true);
+            if (!opts.Chosen().Any() && !opts.Has("prism"))
+            {
+                Say("Nothing of October Journey was found on this computer.");
+                if (!quiet) MessageBox.Show("Nothing of October Journey was found on this computer.", Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return 0;
+            }
+            if (args.Contains("--remove-prism") && opts.Has("prism")) skip.Remove("prism");
+            opts.ApplySkips(skip);
+            if (args.Contains("--remove-prism") && hasPrism) opts.ForceOn("prism");
+            if (!quiet)
+            {
+                string mode = Options.AskQuick(Title, "Removes October Journey from this computer.",
+                    "Quick uninstall (recommended)", "Everything October Journey added that's here: " + string.Join(", ", opts.Chosen().Select(Describe)) + ". Prism Launcher stays.",
+                    "Choose what to remove...", "Pick the items; anything left unticked stays as it is.");
+                if (mode == null || (mode == "custom" && !opts.ShowDialog(Title, "Choose what to remove from this computer. Anything left unticked stays as it is.", "Remove"))) { Say("Cancelled."); return 1; }
+                Say("Uninstall mode: " + mode);
+            }
+            Say("Removing: " + string.Join(", ", opts.Chosen()));
+
+            // Steam: shortcut, art, controller layout.
+            bool steamWork = opts.On("shortcut") || opts.On("art") || opts.On("controller");
+            if (steamWork && steamRoot == null) WaitForSteamClosed();
+            if (opts.On("shortcut"))
+                foreach (string acct in found.Select(f => f.Acct).Distinct())
+                    foreach (var s in Shortcuts.Remove(Path.Combine(steam, "userdata", acct, "config", "shortcuts.vdf"), ShortcutName, true))
                         Say("Removed Steam shortcut \"" + s.Name + "\" (account " + acct + ").");
-                        RemoveArt(Path.Combine(cfgDir, "grid"), s.AppId);
-                        RemoveLayout(Path.Combine(steam, "steamapps", "common", "Steam Controller Configs", acct, "config"), s.Name.ToLowerInvariant());
-                    }
-                }
+            foreach (var f in found)
+            {
+                if (opts.On("art")) RemoveArt(grid(f), f.AppId);
+                if (opts.On("controller")) RemoveLayout(layoutRoot(f), f.Name.ToLowerInvariant());
             }
 
-            // 2. The Prism instance.
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-            string inst = Path.Combine(prismRootArg ?? Path.Combine(appData, "PrismLauncher"), "instances", InstanceId);
-            if (!Directory.Exists(inst)) Say("No October Journey instance at " + inst + ".");
-            else if (!args.Contains("--keep-instance") && Ask("Delete the October Journey instance?\n\n" + inst + "\n\nIts screenshots and any single-player worlds are deleted with it. Choose No to keep the folder.", true))
+            // The instance, or just its server entry.
+            if (opts.On("instance"))
             {
                 Directory.Delete(inst, true);
                 Say("Deleted the instance " + inst + ".");
             }
-            else Say("Kept the instance " + inst + ".");
-
-            // 3. Prism Launcher itself.
-            string prismDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "PrismLauncher");
-            string uninstaller = Path.Combine(prismDir, "uninstall.exe");
-            if (prismRootArg != null) Say("Testing: Prism Launcher left installed.");
-            else if (!File.Exists(uninstaller)) Say("Prism Launcher's own uninstaller was not found; Prism (if installed elsewhere) is left alone.");
-            else if (args.Contains("--remove-prism") || Ask("Also uninstall Prism Launcher?\n\nChoose No if you use Prism for anything else. This runs Prism's own uninstaller.", false))
+            else if (hasInstance)
             {
-                var p = Process.Start(uninstaller, "/S _?=" + prismDir);
+                if (opts.On("server")) Say("Removed " + Nbt.RemoveServers(Path.Combine(mc, "servers.dat"), addresses, names) + " server list entr(y/ies).");
+                // Tell the pack sync not to put back what was removed.
+                var po = new Dictionary<string, object> { { "steam_art", true }, { "steam_controller", true }, { "server_entry", true } };
+                string poPath = Path.Combine(mc, "pack-options.json");
+                try { foreach (var kv in (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(poPath))) po[kv.Key] = kv.Value; } catch { }
+                if (opts.On("art") || opts.On("shortcut")) po["steam_art"] = false;
+                if (opts.On("controller") || opts.On("shortcut")) po["steam_controller"] = false;
+                if (opts.On("server")) po["server_entry"] = false;
+                File.WriteAllText(poPath, new JavaScriptSerializer().Serialize(po));
+                if (opts.On("shortcut")) File.Delete(Path.Combine(mc, "steam-target.json"));
+                Say("Kept the instance; updates on launch won't put back what was removed.");
+            }
+
+            // Prism Launcher.
+            if (opts.On("prism"))
+            {
+                var p = Process.Start(prismUninstaller, "/S _?=" + prismDir);
                 p.WaitForExit();
                 Say("Prism Launcher uninstalled (exit " + p.ExitCode + ").");
             }
-            else Say("Kept Prism Launcher.");
 
-            // 4. Its own Settings > Apps entry and saved copy.
-            RemoveSelf(prismRootArg);
+            // The saved installer and this uninstaller.
+            RemoveTools(toolsDir, testing, opts.On("installer"), opts.On("uninstaller"));
 
-            string done = "October Journey has been removed. Start Steam again whenever you like.";
+            string done = "Done. " + (steamWork ? "Start Steam again whenever you like." : "");
             Say(done);
             if (!quiet) MessageBox.Show(done, Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
             return 0;
@@ -115,23 +177,116 @@ static class Uninstall
         }
     }
 
-    static void RemoveSelf(string prismRootArg)
+    static void RemoveTools(string dir, bool testing, bool installer, bool uninstaller)
     {
-        string dir = prismRootArg != null ? Path.Combine(prismRootArg, "OctoberJourney") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoberJourney");
-        if (prismRootArg == null)
+        // The whole folder is only deleted when it is our own (named OctoberJourney) and holds nothing else; a folder the
+        // player picked for these files may have been theirs already.
+        string setup = Path.Combine(dir, "OctoberJourneySetup.exe");
+        if (installer && File.Exists(setup)) { File.Delete(setup); Say("Removed the saved installer."); }
+        if (!testing)
+            using (var k = Registry.CurrentUser.OpenSubKey(AppsKey, true))
+                if (k != null)
+                {
+                    if (uninstaller) { k.Close(); Registry.CurrentUser.DeleteSubKeyTree(AppsKey, false); Say("Removed the Settings > Apps entry."); }
+                    else if (installer) { k.DeleteValue("ModifyPath", false); k.SetValue("NoModify", 1, RegistryValueKind.DWord); }
+                }
+        if (!uninstaller || !Directory.Exists(dir)) return;
+        if (Directory.GetFileSystemEntries(dir).Any(f => !Path.GetFileName(f).Equals("OctoberJourneyUninstall.exe", StringComparison.OrdinalIgnoreCase)))
         {
-            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney", false);
-            Say("Removed the Settings > Apps entry.");
+            // The installer is being kept: delete only this program.
+            DeleteLater(Path.Combine(dir, "OctoberJourneyUninstall.exe"), false);
+            return;
         }
-        if (!Directory.Exists(dir)) return;
+        DeleteLater(Path.GetFileName(dir.TrimEnd('\\')).Equals("OctoberJourney", StringComparison.OrdinalIgnoreCase) ? dir : Path.Combine(dir, "OctoberJourneyUninstall.exe"), Path.GetFileName(dir.TrimEnd('\\')).Equals("OctoberJourney", StringComparison.OrdinalIgnoreCase));
+    }
+
+    // A running program can't delete itself: when it is the one running, a hidden command deletes it a few seconds after
+    // this exits.
+    static void DeleteLater(string path, bool isDir)
+    {
         string me = Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName);
-        if (me.StartsWith(Path.GetFullPath(dir) + "\\", StringComparison.OrdinalIgnoreCase))
+        bool running = isDir ? me.StartsWith(Path.GetFullPath(path) + "\\", StringComparison.OrdinalIgnoreCase) : me.Equals(Path.GetFullPath(path), StringComparison.OrdinalIgnoreCase);
+        if (running)
         {
-            // A running program can't delete itself: a hidden command deletes the folder a few seconds after this exits.
-            Process.Start(new ProcessStartInfo("cmd.exe", "/c ping 127.0.0.1 -n 4 >nul & rmdir /s /q \"" + dir + "\"") { CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
-            Say("The saved uninstaller (" + dir + ") is deleted once this window closes.");
+            string cmd = isDir ? "rmdir /s /q \"" + path + "\"" : "del /f /q \"" + path + "\" & rmdir \"" + Path.GetDirectoryName(path) + "\" 2>nul";
+            Process.Start(new ProcessStartInfo("cmd.exe", "/c ping 127.0.0.1 -n 4 >nul & " + cmd) { CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+            Say("The saved uninstaller is deleted once this window closes.");
         }
-        else { Directory.Delete(dir, true); Say("Removed the saved uninstaller " + dir + "."); }
+        else
+        {
+            if (isDir) Directory.Delete(path, true);
+            else
+            {
+                if (File.Exists(path)) File.Delete(path);
+                string parent = Path.GetDirectoryName(path);
+                if (Directory.Exists(parent) && !Directory.EnumerateFileSystemEntries(parent).Any()) Directory.Delete(parent);   // only when empty
+            }
+            Say("Removed the saved uninstaller.");
+        }
+    }
+
+    static string Describe(string key)
+    {
+        switch (key)
+        {
+            case "shortcut": return "the Steam shortcut";
+            case "art": return "its art";
+            case "controller": return "its controller layout";
+            case "instance": return "the game instance";
+            case "server": return "the server entry";
+            case "installer": return "the saved installer";
+            case "uninstaller": return "this uninstaller";
+            default: return key;
+        }
+    }
+
+    // Prism Launcher's folder: the usual one, or wherever its Windows installer recorded it. Null when not installed.
+    static string PrismDir()
+    {
+        string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "PrismLauncher");
+        if (File.Exists(Path.Combine(dir, "uninstall.exe"))) return dir;
+        foreach (var hive in new[] { Registry.CurrentUser, Registry.LocalMachine })
+            using (var root = hive.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall"))
+                if (root != null)
+                    foreach (var name in root.GetSubKeyNames())
+                        using (var k = root.OpenSubKey(name))
+                        {
+                            if (k == null || !((k.GetValue("DisplayName") as string) ?? "").StartsWith("Prism Launcher")) continue;
+                            string d = k.GetValue("InstallLocation") as string;
+                            if (string.IsNullOrEmpty(d)) { var u = ((k.GetValue("UninstallString") as string) ?? "").Trim(); if (u.StartsWith("\"")) u = u.Substring(1, u.IndexOf('"', 1) - 1); d = Path.GetDirectoryName(u); }
+                            if (!string.IsNullOrEmpty(d) && File.Exists(Path.Combine(d, "uninstall.exe"))) return d;
+                        }
+        return null;
+    }
+
+    // Prism Launcher's instances folder: its data folder's "instances", unless Prism's own settings name another.
+    static string InstancesDir(string prismRootArg)
+    {
+        string data = prismRootArg ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PrismLauncher");
+        string cfg = Path.Combine(data, "prismlauncher.cfg");
+        if (File.Exists(cfg))
+            foreach (var line in File.ReadAllLines(cfg))
+                if (line.StartsWith("InstanceDir="))
+                {
+                    string v = line.Substring("InstanceDir=".Length).Trim().Trim('"').Replace('/', '\\');
+                    if (v.Length > 0) return Path.IsPathRooted(v) ? v : Path.Combine(data, v);
+                }
+        return Path.Combine(data, "instances");
+    }
+
+    // Where setup saved the uninstaller and installer: the Settings > Apps entry says; failing that, this program's own
+    // folder if it is the saved copy; failing that, the default.
+    static string ToolsDir(string prismRootArg)
+    {
+        if (prismRootArg == null)
+            using (var k = Registry.CurrentUser.OpenSubKey(AppsKey))
+            {
+                string d = k == null ? null : k.GetValue("InstallLocation") as string;
+                if (!string.IsNullOrEmpty(d)) return d;
+            }
+        string me = Path.GetDirectoryName(Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName));
+        if (File.Exists(Path.Combine(me, "OctoberJourneySetup.exe")) || Path.GetFileName(me).Equals("OctoberJourney", StringComparison.OrdinalIgnoreCase)) return me;
+        return prismRootArg != null ? Path.Combine(prismRootArg, "OctoberJourney") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoberJourney");
     }
 
     static string SteamPath()
@@ -148,20 +303,24 @@ static class Uninstall
         while (Process.GetProcessesByName("steam").Length > 0)
         {
             if (quiet) throw new Exception("Steam is running; quit Steam and run the uninstaller again");
-            var r = MessageBox.Show("Please quit Steam (Steam menu, then Exit), then click OK.\n\nSteam has to be closed while its shortcut list is changed.", Title, MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
+            var r = MessageBox.Show("Please quit Steam (Steam menu, then Exit), then click OK.\n\nSteam has to be closed while its files are changed.", Title, MessageBoxButtons.OKCancel, MessageBoxIcon.Information);
             if (r == DialogResult.Cancel) throw new Exception("cancelled while waiting for Steam to close");
             System.Threading.Thread.Sleep(1500);
         }
     }
 
     // The five art files setup and the pack sync put there, and the copies the sync kept of what was there before.
+    static IEnumerable<string> ArtFiles(string grid, uint appid)
+    {
+        foreach (var f in new[] { appid + "p.png", appid + "_hero.png", appid + "_logo.png", appid + "_icon.png", appid + ".png" })
+        { yield return Path.Combine(grid, f); yield return Path.Combine(grid, f + ".before-pack"); }
+    }
+
     static void RemoveArt(string grid, uint appid)
     {
         int n = 0;
-        foreach (var f in new[] { appid + "p.png", appid + "_hero.png", appid + "_logo.png", appid + "_icon.png", appid + ".png" })
-            foreach (var p in new[] { Path.Combine(grid, f), Path.Combine(grid, f + ".before-pack") })
-                if (File.Exists(p)) { File.Delete(p); n++; }
-        Say("Removed " + n + " library art file(s).");
+        foreach (var p in ArtFiles(grid, appid)) if (File.Exists(p)) { File.Delete(p); n++; }
+        if (n > 0) Say("Removed " + n + " library art file(s).");
     }
 
     static void RemoveLayout(string root, string lowerName)
@@ -211,8 +370,9 @@ static class Shortcuts
     }
     static string Field(List<Node> e, string key) { var n = e.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)); return n == null ? null : n.Value as string; }
 
-    // Removes every shortcut whose name starts with namePrefix and that starts Prism Launcher; returns what was removed.
-    public static List<Removed> Remove(string path, string namePrefix)
+    // Finds (write: false) or removes (write: true) every shortcut whose name starts with namePrefix and that starts
+    // Prism Launcher; returns them.
+    public static List<Removed> Remove(string path, string namePrefix, bool write)
     {
         var removed = new List<Removed>();
         if (!File.Exists(path)) return removed;
@@ -234,7 +394,7 @@ static class Shortcuts
             }
             else keep.Add(n);
         }
-        if (removed.Count == 0) return removed;
+        if (removed.Count == 0 || !write) return removed;
         for (int i = 0; i < keep.Count; i++) keep[i].Key = i.ToString();
         top.Value = keep;
         File.Copy(path, path + ".bak-uninstall", true);

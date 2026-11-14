@@ -26,10 +26,16 @@ echo "Pack sync ($variant): $url -> exit $code"
 # (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is
 # replaced only while it is still the version last installed here, so art or a layout changed in Steam is kept. Steam reads
 # both when it starts: a change shows after Steam is next restarted (or after switching back to Game Mode).
-if [ -f "$here/steam-target.json" ] && command -v python3 >/dev/null 2>&1; then
-python3 - "$here" <<'PY' || echo "$(date '+%Y-%m-%d %H:%M:%S')  Steam extras skipped" >> "$here/pack-sync.log"
+# pack-options.json (written by setup and the uninstaller) says which of these the player wants kept up to date:
+# steam_art, steam_controller, server_entry. Missing file or key: yes.
+opt() { python3 -c 'import json,sys
+try: print("1" if json.load(open(sys.argv[1])).get(sys.argv[2], True) else "0")
+except Exception: print("1")' "$here/pack-options.json" "$1" 2>/dev/null || echo 1; }
+OPT_ART=$(opt steam_art); OPT_CTRL=$(opt steam_controller); OPT_SERVER=$(opt server_entry)
+if [ -f "$here/steam-target.json" ] && command -v python3 >/dev/null 2>&1 && { [ "$OPT_ART" = 1 ] || [ "$OPT_CTRL" = 1 ]; }; then
+python3 - "$here" "$OPT_ART" "$OPT_CTRL" <<'PY' || echo "$(date '+%Y-%m-%d %H:%M:%S')  Steam extras skipped" >> "$here/pack-sync.log"
 import hashlib, json, os, re, shutil, sys, time
-here = sys.argv[1]
+here = sys.argv[1]; want_art, want_ctrl = sys.argv[2] == "1", sys.argv[3] == "1"
 t = json.load(open(os.path.join(here, "steam-target.json")))
 sp = os.path.join(here, "steam-applied.json")
 state = json.load(open(sp)) if os.path.exists(sp) else {}
@@ -39,6 +45,7 @@ items = [("steam/art/cover.png", os.path.join(g, a + "p.png")), ("steam/art/hero
          ("steam/art/wide.png", os.path.join(g, a + ".png")), ("steam/controller_neptune.vdf", os.path.join(t["controller"], "controller_neptune.vdf"))]
 changed = []
 for src, dst in items:
+    if not (want_ctrl if src.endswith(".vdf") else want_art): continue
     sp_ = os.path.join(here, src)
     if not os.path.exists(sp_): continue
     data = open(sp_, "rb").read()
@@ -54,7 +61,7 @@ for src, dst in items:
     open(dst, "wb").write(data); state[src] = new; changed.append(os.path.basename(src))
 cs = os.path.join(os.path.dirname(t["controller"]), "configset_controller_neptune.vdf"); key = os.path.basename(t["controller"])
 txt = open(cs).read() if os.path.exists(cs) else '"controller_config"\n{\n}\n'
-if ('"%s"' % key.lower()) not in txt.lower():
+if want_ctrl and ('"%s"' % key.lower()) not in txt.lower():
     e = txt.rindex("}"); open(cs, "w").write(txt[:e] + '\t"%s"\n\t{\n\t\t"autosave"\t\t"1"\n\t}\n' % key + txt[e:]); changed.append("controller list")
 json.dump(state, open(sp, "w"), indent=1)
 if changed:
@@ -65,7 +72,7 @@ fi
 # The pack's servers (extras/servers.json) in Minecraft's multiplayer list (servers.dat, uncompressed NBT). A missing one is
 # added at the top; a wrong address is corrected while it is still the one this sync last set (or it never set one), so an
 # entry edited or deleted in the game afterwards is left alone. Other entries are kept as they are.
-if [ -f "$here/extras/servers.json" ] && command -v python3 >/dev/null 2>&1; then
+if [ -f "$here/extras/servers.json" ] && command -v python3 >/dev/null 2>&1 && [ "$OPT_SERVER" = 1 ]; then
 python3 - "$here" <<'PY' || echo "$(date '+%Y-%m-%d %H:%M:%S')  server list skipped" >> "$here/pack-sync.log"
 import json, os, shutil, struct, sys, time
 here = sys.argv[1]

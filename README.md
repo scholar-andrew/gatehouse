@@ -20,7 +20,10 @@ What it was tested on, with hardware: [INSTALL.md: Tested on](INSTALL.md#tested-
 All versions: [Releases](https://github.com/scholar-andrew/october-journey-pack/releases).
 
 ### What it installs and runs
-In short (the full list, with every file and folder, is in
+The modpack (a Prism Launcher instance) is always installed. **Quick install** adds everything below in the usual
+folders; or you choose which of the rest you want and where Prism Launcher and the uninstaller go. The uninstaller
+likewise offers **Quick uninstall** or choosing what to remove ([INSTALL.md: Choosing what to install](INSTALL.md#choosing-what-to-install)). In short
+(the full list, with every file and folder, is in
 [INSTALL.md: What setup does to your computer](INSTALL.md#what-setup-does-to-your-computer)):
 
 - **Prism Launcher**, if you don't have it: the official installer from Prism's GitHub releases on Windows (checked
@@ -33,6 +36,7 @@ In short (the full list, with every file and folder, is in
   layouts).
 - **The uninstaller**, kept on your computer: in **Settings, Apps** on Windows, or as **Uninstall October Journey** in
   the app menu on Linux.
+- **The installer**, kept beside it, to change your choices later.
 
 No administrator rights, no services, nothing that starts with your computer. Every time you play, the update script
 downloads changed mods (from Modrinth, each checked against a recorded hash) and keeps the art, layout and server entry
@@ -46,7 +50,7 @@ current: see [What runs each time you play](INSTALL.md#what-runs-each-time-you-p
 
 | Where | What |
 | --- | --- |
-| [INSTALL.md](INSTALL.md) | For players: installing, what it was tested on, what setup changes, what runs on each launch, network use, removal. |
+| [INSTALL.md](INSTALL.md) | For players: installing, choosing what to install, what it was tested on, what setup changes, what runs on each launch, network use, removal. |
 | [docs/mods.md](docs/mods.md) | Every mod in the pack and where it comes from (generated). |
 | [docs/how-it-works.md](docs/how-it-works.md) | For the maintainer: how the pack is built, hosted and synced, the Steam keyboard setup, and how to make common changes. |
 | [mods-src/](mods-src/README.md) | Source of the pack's own mods: Chat Lift, Controller Handoff Fix, and the REI brewing patch. |

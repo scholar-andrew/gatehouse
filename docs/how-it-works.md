@@ -39,6 +39,7 @@ each device: Prism pre-launch → pack-sync.ps1 / pack-sync.sh → packwiz-insta
 | `clients/pack-sources.txt` | The default list of pack addresses (setup writes its own from `config.json`). |
 | `installer/config.json` | Read by both installers on every run: server list, pack addresses, Prism version and SHA-256, bootstrap SHA-256, art paths. Changing it changes the next install without a rebuild. |
 | `installer/windows/OctoberJourneySetup.cs`, `OctoberJourneyUninstall.cs` | Windows installer and uninstaller source (C# 5, .NET Framework 4). The `.exe` files are gitignored and published only in releases. |
+| `installer/windows/Options.cs`, `Nbt.cs` | Shared by both: the quick-or-custom first screen, the window of choices (with the dependencies between items and the folder pickers), and reading and writing Minecraft's `servers.dat`. |
 | `installer/linux/october-journey-setup.sh`, `october-journey-uninstall.sh` | Linux installer and uninstaller, including the Steam Deck. |
 | `installer/art/*.png` | Steam library art, made for this pack by `tools/make_art.ps1`. |
 | `installer/steam/controller_neptune.vdf` | Steam Deck controller layout ("Minecraft - R4 jump, L4 crouch, trackpad mouse"). |
@@ -56,7 +57,9 @@ player-facing version). In order:
 2. **packwiz-installer** (through the bootstrap, which keeps packwiz-installer itself current from GitHub) brings the
    instance in line with `index.toml`. On Windows the script swaps Prism's `javaw.exe` for the `java.exe` beside it so
    it can wait for it.
-3. **Steam extras.** With `steam-target.json` present (`{grid, appid, controller}`, written by setup), copies
+3. **Steam extras.** `pack-options.json` (written by setup and the uninstaller from the player's choices:
+   `steam_art`, `steam_controller`, `server_entry`; a missing file or key means yes) says which of steps 3 and 4 run.
+   With `steam-target.json` present (`{grid, appid, controller}`, written by setup), copies
    `steam/art/*.png` to `<grid>/<appid>p.png`, `_hero`, `_logo`, `_icon` and `<appid>.png`, and
    `steam/controller_neptune.vdf` to `<controller>/controller_neptune.vdf` (with its `url` line pointed at itself), and
    makes sure `configset_controller_neptune.vdf` lists that folder. State is in `steam-applied.json`: first apply keeps
@@ -117,12 +120,14 @@ their next launch; nobody has to touch a device.
 The installers download everything else at run time, so they only need a new release when their own code changes.
 1. Windows: build both with the compiler that ships with Windows:
    ```
-   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneySetup.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\OctoberJourneySetup.cs
-   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneyUninstall.exe /r:System.Windows.Forms.dll installer\windows\OctoberJourneyUninstall.cs
+   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneySetup.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\OctoberJourneySetup.cs installer\windows\Options.cs installer\windows\Nbt.cs
+   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneyUninstall.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\OctoberJourneyUninstall.cs installer\windows\Options.cs installer\windows\Nbt.cs
    ```
 2. Test without touching your real setup: run setup, then the uninstaller, both with
    `--yes --prism-root=<temp dir> --steam-root=<temp dir>` (the Linux scripts take the same flags; the temp Steam
-   folder needs a `config/loginusers.vdf` with one account). Check that only October Journey's files went.
+   folder needs a `config/loginusers.vdf` with one account). Also try `--skip=...` on each, and check that only the
+   chosen items were added or removed. On Windows, `--screenshot=<file.png>` saves a picture of the options window and
+   closes it, to check its layout.
 3. If an uninstaller changed, put its new SHA-256 in `installer/config.json` (`uninstall_windows`, `uninstall_linux`):
    setup saves the uninstaller on each device only when the hash matches, and otherwise skips it. The Linux one is
    fetched from `main`, the Windows one from the latest release.
