@@ -2,7 +2,7 @@
  "pack": {
   "name": "October Journey",
   "author": "Andrew",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minecraft": "26.3",
   "fabric": "0.19.5"
  },
@@ -69,8 +69,7 @@
   {
    "title": "chatlift-1.0.0",
    "filename": "chatlift-1.0.0.jar",
-   "sha512": "c2e274d77388408bf099986e31f63cbced0f38f2d64ab42a93fb3f35308ef06e06becd9e33609ba83ba0035f4758eb35cf90ad595c3473decd8552224d0fbf0d",
-   "deck": true
+   "sha512": "c2e274d77388408bf099986e31f63cbced0f38f2d64ab42a93fb3f35308ef06e06becd9e33609ba83ba0035f4758eb35cf90ad595c3473decd8552224d0fbf0d"
   },
   {
    "title": "Cloth Config API",
@@ -88,8 +87,7 @@
    "url": "https://cdn.modrinth.com/data/DOUdJVEm/versions/fo76vL20/controlify-3.5.3%2Bmc26.3-universal.jar",
    "sha512": "cd4e64a9621dff200329b249dc63fc4542ce554db16c75c4b04cfa7495bf84e1a4bca0f89a7a9d4d425f6b6f23c8df52ab8ce323ee18ae49c6cf24858697bbf7",
    "project": "DOUdJVEm",
-   "version": "fo76vL20",
-   "deck": true
+   "version": "fo76vL20"
   },
   {
    "title": "Fabric API",
@@ -121,8 +119,7 @@
   {
    "title": "handofffix-1.0.0",
    "filename": "handofffix-1.0.0.jar",
-   "sha512": "9625eda6ec3cc9780613fddf9d658434faff33528f3aefa4dcaac9b1e3956c6aa9a1cf151eaee36f57c2b7614ed0926b9840fc3c04ae5a4acdcf5fa1f1ab357f",
-   "deck": true
+   "sha512": "9625eda6ec3cc9780613fddf9d658434faff33528f3aefa4dcaac9b1e3956c6aa9a1cf151eaee36f57c2b7614ed0926b9840fc3c04ae5a4acdcf5fa1f1ab357f"
   },
   {
    "title": "libIPN",
@@ -239,8 +236,7 @@
    "url": "https://cdn.modrinth.com/data/1eAoo2KR/versions/s9SjoFu1/yet_another_config_lib_v3-3.9.7%2B26.3-fabric.jar",
    "sha512": "f3957028dd31cae78f08aee3e768f61bd12c4c8423257d357bc3c1a2172047c769d37901f99775c7ffff1e5ee794025dc72738b2869cab06f1c2811841d68b24",
    "project": "1eAoo2KR",
-   "version": "s9SjoFu1",
-   "deck": true
+   "version": "s9SjoFu1"
   }
  ],
  "server": {

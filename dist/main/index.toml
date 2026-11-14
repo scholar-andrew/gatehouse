@@ -24,8 +24,17 @@ hash = "1d1fa6fd8007c772ad75f5f60aa9b415b6c0d6adca505600edcfcc3c1e098558"
 metafile = true
 
 [[files]]
+file = "mods/chatlift-1.0.0.jar"
+hash = "483735fbfeb704ab9b87e99370c5b7492e606ef4ecfd6d9aa974e112c80edd5c"
+
+[[files]]
 file = "mods/cloth-config.pw.toml"
 hash = "018668c11c178bbcf8058ab57a85fd3736ed7b20a89d712fc720ffa13f1377b1"
+metafile = true
+
+[[files]]
+file = "mods/controlify.pw.toml"
+hash = "1a79c318635a8a3dcc9f2ef8a62dd6cc4099a1c91b1e1f384cd5b36648fc80e5"
 metafile = true
 
 [[files]]
@@ -42,6 +51,10 @@ metafile = true
 file = "mods/ferrite-core.pw.toml"
 hash = "ea06bf4ac15b6c43fad31b31866fa8c51de3109e548c8e600e6f0259c0e40230"
 metafile = true
+
+[[files]]
+file = "mods/handofffix-1.0.0.jar"
+hash = "936167729897ef636822e22b40704a1d28e830dcc7787393d70ccc95b7961af6"
 
 [[files]]
 file = "mods/inventory-profiles-next.pw.toml"
@@ -116,4 +129,9 @@ metafile = true
 [[files]]
 file = "mods/xaeros-world-map.pw.toml"
 hash = "6edda795b66f079c2e8f6a897679bfa05884fd101fb417ae3c4a9009f7793c35"
+metafile = true
+
+[[files]]
+file = "mods/yacl.pw.toml"
+hash = "0387806c977cf558993d7a2cec8e694f7e055f06ce3e8c430170217ceab43f97"
 metafile = true
