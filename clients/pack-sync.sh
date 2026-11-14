@@ -61,4 +61,82 @@ if changed:
     open(os.path.join(here, "pack-sync.log"), "a").write("%s  Steam extras updated: %s (shows after Steam restarts)\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), ", ".join(changed)))
 PY
 fi
+
+# The pack's servers (extras/servers.json) in Minecraft's multiplayer list (servers.dat, uncompressed NBT). A missing one is
+# added at the top; a wrong address is corrected while it is still the one this sync last set (or it never set one), so an
+# entry edited or deleted in the game afterwards is left alone. Other entries are kept as they are.
+if [ -f "$here/extras/servers.json" ] && command -v python3 >/dev/null 2>&1; then
+python3 - "$here" <<'PY' || echo "$(date '+%Y-%m-%d %H:%M:%S')  server list skipped" >> "$here/pack-sync.log"
+import json, os, shutil, struct, sys, time
+here = sys.argv[1]
+want = json.load(open(os.path.join(here, "extras", "servers.json")))
+dat, sp = os.path.join(here, "servers.dat"), os.path.join(here, "servers-applied.json")
+state = json.load(open(sp, encoding="utf-8-sig")) if os.path.exists(sp) else {}
+d = open(dat, "rb").read() if os.path.exists(dat) else b""
+i = 0
+def u16():
+    global i; i += 2; return struct.unpack(">H", d[i - 2:i])[0]
+def i32():
+    global i; i += 4; return struct.unpack(">i", d[i - 4:i])[0]
+def st():
+    global i; n = u16(); i += n; return d[i - n:i].decode("utf-8")
+def skip(t):
+    global i
+    if t in (1, 2, 3, 4, 5, 6): i += {1: 1, 2: 2, 3: 4, 4: 8, 5: 4, 6: 8}[t]
+    elif t == 7: n = i32(); i += n
+    elif t == 8: n = u16(); i += n
+    elif t == 9:
+        et = d[i]; i += 1
+        for _ in range(i32()): skip(et)
+    elif t == 10:
+        while d[i]: tt = d[i]; i += 1; st(); skip(tt)
+        i += 1
+    elif t == 11: i += 4 * i32()
+    elif t == 12: i += 8 * i32()
+    else: raise ValueError("unknown NBT tag %d" % t)
+def spay(s):
+    b = s.encode("utf-8"); return struct.pack(">H", len(b)) + b
+other, entries = [], []
+if d:
+    assert d[0] == 10, "servers.dat is not plain NBT"
+    i = 1; st()
+    while d[i]:
+        start, tt = i, d[i]; i += 1; nm = st()
+        if tt == 9 and nm == "servers":
+            et = d[i]; i += 1; n = i32()
+            assert n == 0 or et == 10
+            for _ in range(n):
+                fields = []
+                while d[i]:
+                    ft = d[i]; i += 1; fn = st(); ps = i; skip(ft); fields.append([ft, fn, d[ps:i]])
+                i += 1; entries.append(fields)
+        else:
+            skip(tt); other.append(d[start:i])
+val = lambda e, k: next((f[2][2:].decode("utf-8") for f in e if f[0] == 8 and f[1] == k), None)
+changes = []
+for s in want:
+    e = next((x for x in entries if val(x, "name") == s["name"]), None) or next((x for x in entries if val(x, "ip") == s["address"]), None)
+    last = state.get(s["name"])
+    if not e:
+        if last: continue  # deleted in the game: left out
+        entries.insert(0, [[8, "name", spay(s["name"])], [8, "ip", spay(s["address"])]])
+        changes.append("added %s (%s)" % (s["name"], s["address"])); state[s["name"]] = s["address"]; continue
+    ip = val(e, "ip") or ""
+    if ip == s["address"]: state[s["name"]] = ip; continue
+    if last and ip != last: continue  # changed in the game: kept
+    f = next((f for f in e if f[1] == "ip"), None)
+    if f: f[2] = spay(s["address"])
+    else: e.append([8, "ip", spay(s["address"])])
+    changes.append("%s address %s -> %s" % (s["name"], ip, s["address"])); state[s["name"]] = s["address"]
+if changes:
+    out = b"\x0a\x00\x00" + b"".join(other) + b"\x09" + spay("servers") + b"\x0a" + struct.pack(">i", len(entries))
+    for e in entries:
+        out += b"".join(bytes([f[0]]) + spay(f[1]) + f[2] for f in e) + b"\x00"
+    out += b"\x00"
+    if d and not os.path.exists(dat + ".before-pack"): shutil.copy2(dat, dat + ".before-pack")
+    open(dat, "wb").write(out)
+    open(os.path.join(here, "pack-sync.log"), "a").write("%s  server list: %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), "; ".join(changes)))
+json.dump(state, open(sp, "w"), indent=1)
+PY
+fi
 exit $code

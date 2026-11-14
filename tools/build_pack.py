@@ -82,6 +82,11 @@ def build(variant: str, meta: dict, mods: list) -> None:
         with open(os.path.join(out, rel), "wb") as f:
             f.write(data)
         entries.append((rel, sha256(data), False))
+    # The server list, from installer/config.json: the sync keeps these in Minecraft's multiplayer list.
+    cfg_servers = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8"))["servers"]
+    rel = "extras/servers.json"
+    data = write(os.path.join(out, rel), json.dumps([{"name": s["name"], "address": s["address"]} for s in cfg_servers], indent=1) + "\n")
+    entries.append((rel, sha256(data), False))
     index = 'hash-format = "sha256"\n'
     for rel, h, metafile in sorted(entries):
         index += f"\n[[files]]\nfile = {toml_str(rel)}\nhash = {toml_str(h)}\n" + ("metafile = true\n" if metafile else "")

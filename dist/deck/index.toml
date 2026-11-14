@@ -5,6 +5,10 @@ file = "config/fabric_loader_dependencies.json"
 hash = "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280"
 
 [[files]]
+file = "extras/servers.json"
+hash = "cc61fa01686b849f226a84a901b0490e30c8766b6f8e90debcd55edb4fc915d4"
+
+[[files]]
 file = "mods/RoughlyEnoughItems-26.3.824-brewingfix.1.jar"
 hash = "4d8d4fd233ca0c8d93f07d76285663cb62518a2f22b2cdca78be8950463ec754"
 

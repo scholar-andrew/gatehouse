@@ -77,4 +77,86 @@ if (Test-Path $target) {
         if ($changed) { Note ("Steam extras updated: " + ($changed -join ', ') + " (shows after Steam restarts)") }
     } catch { Note "Steam extras skipped: $($_.Exception.Message)" }
 }
+
+# The pack's servers (extras/servers.json) in Minecraft's multiplayer list (servers.dat, uncompressed NBT). A missing one is
+# added at the top; a wrong address is corrected while it is still the one this sync last set (or it never set one), so an
+# entry edited or deleted in the game afterwards is left alone. Other entries are kept as they are.
+$want = Join-Path $here 'extras/servers.json'
+if (Test-Path $want) {
+    try {
+        $servers = @(Get-Content $want -Raw | ConvertFrom-Json | ForEach-Object { $_ })   # (5.1 hands a JSON array over as one item)
+        $datPath = Join-Path $here 'servers.dat'
+        $sStatePath = Join-Path $here 'servers-applied.json'
+        $sState = @{}
+        if (Test-Path $sStatePath) { (Get-Content $sStatePath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $sState[$_.Name] = $_.Value } }
+        $d = if (Test-Path $datPath) { [IO.File]::ReadAllBytes($datPath) } else { $null }
+        $script:i = 0
+        function U16 { $v = ([int]$d[$script:i] -shl 8) -bor $d[$script:i + 1]; $script:i += 2; $v }
+        function I32 { $v = ([int]$d[$script:i] -shl 24) -bor ([int]$d[$script:i + 1] -shl 16) -bor ([int]$d[$script:i + 2] -shl 8) -bor $d[$script:i + 3]; $script:i += 4; $v }
+        function Str { $n = U16; $v = [Text.Encoding]::UTF8.GetString($d, $script:i, $n); $script:i += $n; $v }
+        function Skip($t) {
+            switch ($t) {
+                1 { $script:i += 1 } 2 { $script:i += 2 } 3 { $script:i += 4 } 4 { $script:i += 8 } 5 { $script:i += 4 } 6 { $script:i += 8 }
+                7 { $n = I32; $script:i += $n } 8 { $n = U16; $script:i += $n }
+                9 { $et = $d[$script:i]; $script:i++; $n = I32; for ($k = 0; $k -lt $n; $k++) { Skip $et } }
+                10 { while (($tt = $d[$script:i]) -ne 0) { $script:i++; [void](Str); Skip $tt }; $script:i++ }
+                11 { $n = I32; $script:i += 4 * $n } 12 { $n = I32; $script:i += 8 * $n }
+                default { throw "unknown NBT tag $t" }
+            }
+        }
+        function SPay([string]$s) { $b = [Text.Encoding]::UTF8.GetBytes($s); , [byte[]](@([byte]($b.Length -shr 8), [byte]($b.Length -band 255)) + $b) }
+        function PStr($p) { [Text.Encoding]::UTF8.GetString([byte[]]$p, 2, $p.Count - 2) }
+        $rootOther = New-Object System.Collections.ArrayList   # raw root tags other than the list
+        $entries = New-Object System.Collections.ArrayList     # each: list of @(tag type, name, payload bytes)
+        if ($d) {
+            if ($d[0] -ne 10) { throw 'servers.dat is not plain NBT' }
+            $script:i = 1; [void](Str)
+            while (($tt = $d[$script:i]) -ne 0) {
+                $start = $script:i; $script:i++; $nm = Str
+                if ($tt -eq 9 -and $nm -eq 'servers') {
+                    $et = $d[$script:i]; $script:i++; $n = I32
+                    if ($n -gt 0 -and $et -ne 10) { throw 'unexpected server list' }
+                    for ($k = 0; $k -lt $n; $k++) {
+                        $fields = New-Object System.Collections.ArrayList
+                        while (($ft = $d[$script:i]) -ne 0) { $script:i++; $fn = Str; $ps = $script:i; Skip $ft; [void]$fields.Add(@($ft, $fn, [byte[]]$d[$ps..($script:i - 1)])) }
+                        $script:i++; [void]$entries.Add($fields)
+                    }
+                } else { Skip $tt; [void]$rootOther.Add([byte[]]$d[$start..($script:i - 1)]) }
+            }
+        }
+        $changes = @()
+        foreach ($s in $servers) {
+            $e = $null; $ipf = $null
+            foreach ($x in $entries) { foreach ($f in $x) { if ($f[0] -eq 8 -and $f[1] -eq 'name' -and (PStr $f[2]) -eq $s.name) { $e = $x } }; if ($e) { break } }
+            if (-not $e) { foreach ($x in $entries) { foreach ($f in $x) { if ($f[0] -eq 8 -and $f[1] -eq 'ip' -and (PStr $f[2]) -eq $s.address) { $e = $x } }; if ($e) { break } } }
+            $last = $sState[$s.name]
+            if (-not $e) {
+                if ($last) { continue }   # deleted in the game: left out
+                $nf = New-Object System.Collections.ArrayList
+                [void]$nf.Add(@(8, 'name', (SPay $s.name))); [void]$nf.Add(@(8, 'ip', (SPay $s.address)))
+                $entries.Insert(0, $nf); $changes += "added $($s.name) ($($s.address))"; $sState[$s.name] = $s.address; continue
+            }
+            foreach ($f in $e) { if ($f[1] -eq 'ip') { $ipf = $f } }
+            $ip = if ($ipf) { PStr $ipf[2] } else { '' }
+            if ($ip -eq $s.address) { $sState[$s.name] = $s.address; continue }
+            if ($last -and $ip -ne $last) { continue }   # changed in the game: kept
+            if ($ipf) { $ipf[2] = SPay $s.address } else { [void]$e.Add(@(8, 'ip', (SPay $s.address))) }
+            $changes += "$($s.name) address $ip -> $($s.address)"; $sState[$s.name] = $s.address
+        }
+        if ($changes) {
+            $ms = New-Object IO.MemoryStream
+            function W([byte[]]$b) { $ms.Write($b, 0, $b.Length) }
+            W ([byte[]](10, 0, 0))
+            foreach ($r in $rootOther) { W $r }
+            $n = $entries.Count
+            W ([byte[]](9)); W (SPay 'servers'); W ([byte[]](10, (($n -shr 24) -band 255), (($n -shr 16) -band 255), (($n -shr 8) -band 255), ($n -band 255)))
+            foreach ($x in $entries) { foreach ($f in $x) { W ([byte[]]@($f[0])); W (SPay $f[1]); W $f[2] }; W ([byte[]](0)) }
+            W ([byte[]](0))
+            if ((Test-Path $datPath) -and -not (Test-Path "$datPath.before-pack")) { Copy-Item $datPath "$datPath.before-pack" }
+            [IO.File]::WriteAllBytes($datPath, $ms.ToArray())
+            Note ("server list: " + ($changes -join '; '))
+        }
+        $sState | ConvertTo-Json | Set-Content -Encoding utf8 $sStatePath
+    } catch { Note "server list skipped: $($_.Exception.Message)" }
+}
 exit $p.ExitCode
