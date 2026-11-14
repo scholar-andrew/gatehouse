@@ -1,3 +1,5 @@
 # Tried in order; the first that answers is used.
+# 1. This PC over Tailscale (fastest, and works whenever Tailscale is connected)
 http://100.91.134.102:8467
-# GitHub fallback: added once the repo exists
+# 2. GitHub, when this PC can't be reached
+https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/dist
