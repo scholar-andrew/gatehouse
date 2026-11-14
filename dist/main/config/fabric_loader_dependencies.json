@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "overrides": {
+    "seamless_crafting": {
+      "-depends": {
+        "fabric-api": ""
+      }
+    }
+  }
+}

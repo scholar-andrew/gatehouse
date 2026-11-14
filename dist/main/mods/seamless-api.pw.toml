@@ -1,0 +1,12 @@
+name = "SeamlessLib"
+filename = "seamless-api-2.0.2+mc26.3-fabric.jar"
+side = "client"
+
+[download]
+url = "https://cdn.modrinth.com/data/sBjtXHpE/versions/uqiqoOCi/seamless-api-2.0.2%2Bmc26.3-fabric.jar"
+hash-format = "sha512"
+hash = "a3f522b5a6f6635478f280942088babbb93d13a36e4bbaa0f144a49100d4f9d62985b33e0964eb548eef21427a42d54cfee2edbf0f281adec678307ee75f4d6f"
+
+[update.modrinth]
+mod-id = "sBjtXHpE"
+version = "uqiqoOCi"

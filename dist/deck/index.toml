@@ -1,0 +1,137 @@
+hash-format = "sha256"
+
+[[files]]
+file = "config/fabric_loader_dependencies.json"
+hash = "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280"
+
+[[files]]
+file = "mods/RoughlyEnoughItems-26.3.824-brewingfix.1.jar"
+hash = "4d8d4fd233ca0c8d93f07d76285663cb62518a2f22b2cdca78be8950463ec754"
+
+[[files]]
+file = "mods/appleskin.pw.toml"
+hash = "89ff89936069c7f318060bc0d9a35a3583f5937fcc59122f303b340524f1096a"
+metafile = true
+
+[[files]]
+file = "mods/architectury-api.pw.toml"
+hash = "2227754f6f4b407524c89906c0210570eb9a527938a493353c88bc6dd26e93fe"
+metafile = true
+
+[[files]]
+file = "mods/betterf3.pw.toml"
+hash = "1d1fa6fd8007c772ad75f5f60aa9b415b6c0d6adca505600edcfcc3c1e098558"
+metafile = true
+
+[[files]]
+file = "mods/chatlift-1.0.0.jar"
+hash = "483735fbfeb704ab9b87e99370c5b7492e606ef4ecfd6d9aa974e112c80edd5c"
+
+[[files]]
+file = "mods/cloth-config.pw.toml"
+hash = "018668c11c178bbcf8058ab57a85fd3736ed7b20a89d712fc720ffa13f1377b1"
+metafile = true
+
+[[files]]
+file = "mods/controlify.pw.toml"
+hash = "1a79c318635a8a3dcc9f2ef8a62dd6cc4099a1c91b1e1f384cd5b36648fc80e5"
+metafile = true
+
+[[files]]
+file = "mods/fabric-api.pw.toml"
+hash = "90074bdc58503762c89dad252201cb705847244fa255d43431feb83e599a8f89"
+metafile = true
+
+[[files]]
+file = "mods/fabric-language-kotlin.pw.toml"
+hash = "0d883105f1e9c58a47b212b7f9ed94ff66d7f71dbf1d521218ed5f9e8b6ebb71"
+metafile = true
+
+[[files]]
+file = "mods/ferrite-core.pw.toml"
+hash = "ea06bf4ac15b6c43fad31b31866fa8c51de3109e548c8e600e6f0259c0e40230"
+metafile = true
+
+[[files]]
+file = "mods/handofffix-1.0.0.jar"
+hash = "936167729897ef636822e22b40704a1d28e830dcc7787393d70ccc95b7961af6"
+
+[[files]]
+file = "mods/inventory-profiles-next.pw.toml"
+hash = "66babf2b90e61572ee675751c5fe69f9955d39c2d4a6d037945f458f0ddbc088"
+metafile = true
+
+[[files]]
+file = "mods/jade.pw.toml"
+hash = "d6410ef407718c261416fb958d2d5c10e1091c24e914f37c5c55c8814be35f27"
+metafile = true
+
+[[files]]
+file = "mods/libipn.pw.toml"
+hash = "d9e2455639721d485876a8916394799535719b29f434b4b9c3234e22b74a1e0a"
+metafile = true
+
+[[files]]
+file = "mods/litematica.pw.toml"
+hash = "f67bfb493f6fcbb7673554b9c537b787becb07d60a95fe0a2bcd9a9b11fbc38b"
+metafile = true
+
+[[files]]
+file = "mods/malilib.pw.toml"
+hash = "fa8700628f5b2f6911bcecc3f0d8ae4c0fd2c9035bb0a0c2b3f46521f52aff0c"
+metafile = true
+
+[[files]]
+file = "mods/modmenu.pw.toml"
+hash = "6680a463ee425d9af04668ea7fe6861322fefed8a48b1c2766bcfb3dcbe3d266"
+metafile = true
+
+[[files]]
+file = "mods/mouse-tweaks.pw.toml"
+hash = "a4f3ae5afad624f8a35b971a0c816a54b2ad6f733f259b55cd5879c2c8a9df4d"
+metafile = true
+
+[[files]]
+file = "mods/placeholder-api.pw.toml"
+hash = "099cb8928996c8bc142fe79e9e60ee5a47cb657d0843000c6ed5c4c883eb58ba"
+metafile = true
+
+[[files]]
+file = "mods/reeses-sodium-options.pw.toml"
+hash = "523e8f083550838eaef4a02c789ad5b72fe531d50c00c74fa53bb8d8a30627d2"
+metafile = true
+
+[[files]]
+file = "mods/seamless-api.pw.toml"
+hash = "62218115b0dbebb186c13eda29a415cb7df122822af8cda1f0c08b44bed76108"
+metafile = true
+
+[[files]]
+file = "mods/seamlesscrafting.pw.toml"
+hash = "655056ff5fe43f6d9d63b106f505125d295067da64cb9e043b554f60a7f484a2"
+metafile = true
+
+[[files]]
+file = "mods/sodium.pw.toml"
+hash = "d00b3a8ffc0f190fe7660fc2b0454ef310b1d776e5a9d130814f663476f0fe30"
+metafile = true
+
+[[files]]
+file = "mods/stack-to-nearby-chests.pw.toml"
+hash = "35ea7699311d5c72717591597915ae93361e0779150931eda86919f957338114"
+metafile = true
+
+[[files]]
+file = "mods/xaeros-minimap.pw.toml"
+hash = "9890bf17bb07d0c56f0e0fcfd45f4b1f81d5f4901bc3446fe53edc3fbe3b4e10"
+metafile = true
+
+[[files]]
+file = "mods/xaeros-world-map.pw.toml"
+hash = "6edda795b66f079c2e8f6a897679bfa05884fd101fb417ae3c4a9009f7793c35"
+metafile = true
+
+[[files]]
+file = "mods/yacl.pw.toml"
+hash = "0387806c977cf558993d7a2cec8e694f7e055f06ce3e8c430170217ceab43f97"
+metafile = true

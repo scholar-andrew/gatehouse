@@ -1,0 +1,17 @@
+{
+ "mods": [
+  "Jade-mc26.3-Fabric-26.3.5.jar",
+  "RoughlyEnoughItems-26.3.824-brewingfix.1.jar",
+  "appleskin-fabric-mc26.3-3.0.10.jar",
+  "architectury-fabric-22.0.5.jar",
+  "cloth-config-fabric-26.3.159.jar",
+  "fabric-api-0.163.0+26.3.jar",
+  "ferritecore-9.0.0-fabric.jar",
+  "jarvis-fabric-0.17.0.jar",
+  "krypton-0.3.2.jar",
+  "lithium-fabric-0.26.2+mc26.3.jar",
+  "seamless-api-2.0.2+mc26.3-fabric.jar",
+  "seamless-crafting-2.1.1+mc26.3-fabric.jar",
+  "spark-1.10.187-fabric.jar"
+ ]
+}

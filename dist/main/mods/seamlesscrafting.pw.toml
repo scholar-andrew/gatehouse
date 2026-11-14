@@ -1,0 +1,12 @@
+name = "Nearby Chest Crafting"
+filename = "seamless-crafting-2.1.1+mc26.3-fabric.jar"
+side = "client"
+
+[download]
+url = "https://cdn.modrinth.com/data/irEfSOdD/versions/gReDK1jp/seamless-crafting-2.1.1%2Bmc26.3-fabric.jar"
+hash-format = "sha512"
+hash = "823a7f1659b442e9c33d3bedcf353c01e8bb900bbf448205d9c087fcba1d36500fce3a4e4648eff4142bdcdef3f45e81504f141688add7ec74e702e1de0d90ba"
+
+[update.modrinth]
+mod-id = "irEfSOdD"
+version = "gReDK1jp"

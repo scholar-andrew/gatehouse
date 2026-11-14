@@ -1,0 +1,3 @@
+# Tried in order; the first that answers is used.
+http://100.91.134.102:8467
+# GitHub fallback: added once the repo exists
