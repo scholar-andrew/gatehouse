@@ -4,7 +4,7 @@
 //   1. Prism Launcher (installs it if missing, checking the installer's SHA-256), the October Journey instance with the
 //      pack sync, and the server list entry.
 //   2. A Steam shortcut "Minecraft (Prism Launcher) - <this computer>" (Steam must be closed; it asks).
-//   3. Steam library art from SteamGridDB, and the wide capsule built from it.
+//   3. Steam library art (original to this pack, from the repo).
 //   4. The Steam Deck controller layout for the shortcut.
 //   5. Every launch syncs the pack (this owner's PC over Tailscale first, then GitHub).
 // Flags: --yes  (no questions; stops if Steam is running)
@@ -78,7 +78,7 @@ static class Setup
             string iconPath = Path.Combine(cfgDir, "grid", "{0}_icon.png");
             uint appid = Shortcuts.Upsert(Path.Combine(cfgDir, "shortcuts.vdf"), name, prism, iconPath);
             Say("Steam shortcut: " + name + " (app " + appid + ")");
-            Art(Path.Combine(cfgDir, "grid"), appid, (Dictionary<string, object>)cfg["art"]);
+            Art(Path.Combine(cfgDir, "grid"), repo, appid, (Dictionary<string, object>)cfg["art"]);
             Controller(steam, acct, name.ToLowerInvariant(), repo);
             Done();
             return 0;
@@ -182,30 +182,14 @@ static class Setup
         return string.IsNullOrEmpty(n) ? Environment.MachineName : n;
     }
 
-    static void Art(string grid, uint appid, Dictionary<string, object> art)
+    // The library art, original to this pack and kept in the repo: cover, hero, logo, icon and wide capsule.
+    static void Art(string grid, string repo, uint appid, Dictionary<string, object> art)
     {
         Directory.CreateDirectory(grid);
         try
         {
-            var cover = Bytes((string)art["cover"]); var hero = Bytes((string)art["hero"]);
-            var logo = Bytes((string)art["logo"]); var icon = Bytes((string)art["icon"]);
-            File.WriteAllBytes(Path.Combine(grid, appid + "p.png"), cover);
-            File.WriteAllBytes(Path.Combine(grid, appid + "_hero.png"), hero);
-            File.WriteAllBytes(Path.Combine(grid, appid + "_logo.png"), logo);
-            File.WriteAllBytes(Path.Combine(grid, appid + "_icon.png"), icon);
-            // The wide capsule: the hero scaled to 430 high and centred on 920x430, the logo 700 wide at x=110, centred.
-            using (var h = Image.FromStream(new MemoryStream(hero)))
-            using (var l = Image.FromStream(new MemoryStream(logo)))
-            using (var canvas = new Bitmap(920, 430))
-            using (var g = Graphics.FromImage(canvas))
-            {
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                int hw = (int)Math.Round(h.Width * 430.0 / h.Height);
-                g.DrawImage(h, (920 - hw) / 2, 0, hw, 430);
-                int lh = (int)Math.Round(l.Height * 700.0 / l.Width);
-                g.DrawImage(l, 110, (430 - lh) / 2, 700, lh);
-                canvas.Save(Path.Combine(grid, appid + ".png"), ImageFormat.Png);
-            }
+            var files = new Dictionary<string, string> { { "cover", appid + "p.png" }, { "hero", appid + "_hero.png" }, { "logo", appid + "_logo.png" }, { "icon", appid + "_icon.png" }, { "wide", appid + ".png" } };
+            foreach (var f in files) File.WriteAllBytes(Path.Combine(grid, f.Value), Bytes(repo + "/" + (string)art[f.Key]));
             Say("Library art added.");
         }
         catch (Exception e) { Say("Library art skipped: " + e.Message); }
