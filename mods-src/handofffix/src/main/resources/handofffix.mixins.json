@@ -1,0 +1,7 @@
+{
+	"required": true,
+	"package": "dev.deckmods.handofffix.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": ["SDLCommonDriverMixin"],
+	"injectors": { "defaultRequire": 1 }
+}

@@ -1,0 +1,49 @@
+diff --git "a/C:\\Users\\andre\\Documents\\Codex\\2026-10-17\\files-pasted-by-the-user-codex\\work\\rei-fix\\DefaultBrewingDisplay.original.java" "b/C:\\Users\\andre\\Documents\\Codex\\2026-10-17\\files-pasted-by-the-user-codex\\work\\rei-fix\\source\\RoughlyEnoughItems-b3bc5013d33f12bbea5737bba5fb76652e2b07d8\\default-plugin\\src\\main\\java\\me\\shedaniel\\rei\\plugin\\common\\displays\\brewing\\DefaultBrewingDisplay.java"
+index d1bea99..7cde8d0 100644
+--- "a/C:\\Users\\andre\\Documents\\Codex\\2026-10-17\\files-pasted-by-the-user-codex\\work\\rei-fix\\DefaultBrewingDisplay.original.java"
++++ "b/C:\\Users\\andre\\Documents\\Codex\\2026-10-17\\files-pasted-by-the-user-codex\\work\\rei-fix\\source\\RoughlyEnoughItems-b3bc5013d33f12bbea5737bba5fb76652e2b07d8\\default-plugin\\src\\main\\java\\me\\shedaniel\\rei\\plugin\\common\\displays\\brewing\\DefaultBrewingDisplay.java"
+@@ -24,6 +24,10 @@
+ package me.shedaniel.rei.plugin.common.displays.brewing;
+ 
+ import com.google.common.collect.Lists;
++import dev.architectury.platform.Platform;
++import dev.architectury.utils.Env;
++import net.fabricmc.api.EnvType;
++import net.fabricmc.api.Environment;
+ import com.mojang.serialization.codecs.RecordCodecBuilder;
+ import me.shedaniel.rei.api.common.category.CategoryIdentifier;
+ import me.shedaniel.rei.api.common.display.Display;
+@@ -108,11 +112,25 @@ public class DefaultBrewingDisplay implements Display {
+     }
+     
+     public DefaultBrewingDisplay(EntryIngredient input, EntryIngredient reactant, EntryIngredient output) {
+-        this.input = input.map(stack -> stack.copy().tooltip(Component.translatable("category.rei.brewing.input").withStyle(ChatFormatting.YELLOW)));
+-        this.reactant = reactant.map(stack -> stack.copy().tooltip(Component.translatable("category.rei.brewing.reactant").withStyle(ChatFormatting.YELLOW)));
+-        this.output = output.map(stack -> stack.copy().tooltip(Component.translatable("category.rei.brewing.result").withStyle(ChatFormatting.YELLOW)));
++        this.input = withTooltip(input, "category.rei.brewing.input");
++        this.reactant = withTooltip(reactant, "category.rei.brewing.reactant");
++        this.output = withTooltip(output, "category.rei.brewing.result");
+     }
+     
++    // Dedicated servers do not have EntryStack.tooltip: Fabric strips that client-only API.
++    // Keep ingredients intact for display synchronization and decorate them only on clients.
++    private static EntryIngredient withTooltip(EntryIngredient ingredient, String translationKey) {
++        return Platform.getEnvironment() == Env.CLIENT
++                ? withClientTooltip(ingredient, translationKey)
++                : ingredient;
++    }
++
++    @Environment(EnvType.CLIENT)
++    private static EntryIngredient withClientTooltip(EntryIngredient ingredient, String translationKey) {
++        return ingredient.map(stack -> stack.copy().tooltip(
++                Component.translatable(translationKey).withStyle(ChatFormatting.YELLOW)));
++    }
++
+     @Override
+     public List<EntryIngredient> getInputEntries() {
+         return Lists.newArrayList(input, reactant);
+@@ -147,3 +165,4 @@ public class DefaultBrewingDisplay implements Display {
+         return stack;
+     }
+ }
++

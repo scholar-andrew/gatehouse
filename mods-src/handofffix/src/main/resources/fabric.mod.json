@@ -1,0 +1,12 @@
+{
+	"schemaVersion": 1,
+	"id": "handofffix",
+	"version": "${version}",
+	"name": "Controller Handoff Fix",
+	"description": "Fixes Controlify giving two Steam Input controllers the same ID after a reconnect, which made it drop the Steam Deck's controller when an external controller was unplugged.",
+	"authors": ["Made for a Steam Deck setup"],
+	"license": "CC0-1.0",
+	"environment": "client",
+	"mixins": ["handofffix.mixins.json"],
+	"depends": { "fabricloader": ">=0.19.5", "minecraft": "~26.3", "java": ">=25", "controlify": "*" }
+}
