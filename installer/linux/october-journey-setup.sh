@@ -8,17 +8,19 @@
 #   2. adds the Steam shortcut "Minecraft (Prism Launcher) - <this device>" (Steam must be closed; it asks);
 #   3. adds the library art (original to the pack, from the repo);
 #   4. installs the Steam Deck controller layout for the shortcut;
-#   5. every launch then syncs the pack (the owner's PC over Tailscale first, then GitHub), and with it any new library
+#   5. saves the uninstaller to ~/.local/share/october-journey/uninstall.sh and adds "Uninstall October Journey" to the
+#      app menu (Desktop Mode on a Steam Deck);
+#   6. every launch then syncs the pack (the owner's PC over Tailscale first, then GitHub), and with it any new library
 #      art or controller layout.
 # Flags: --yes (no questions; stops if Steam is running), --prism-root=DIR --steam-root=DIR (testing).
 set -euo pipefail
 CONFIG_URL="https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/config.json"
-YES=0; PRISM_ROOT=""; STEAM_ROOT=""
+YES=0; PRISM_ROOT=""; STEAM_ROOT=""; TESTING=0
 for a in "$@"; do
   case "$a" in
     --yes) YES=1 ;;
-    --prism-root=*) PRISM_ROOT="${a#*=}" ;;
-    --steam-root=*) STEAM_ROOT="${a#*=}" ;;
+    --prism-root=*) PRISM_ROOT="${a#*=}"; TESTING=1 ;;
+    --steam-root=*) STEAM_ROOT="${a#*=}"; TESTING=1 ;;
   esac
 done
 say() { echo "October Journey setup: $*"; }
@@ -214,4 +216,34 @@ PY
 # keep them up to date.
 if [ -f "$work/steam-paths" ] && [ "$STEAM_ROOT" = "$HOME/.local/share/Steam" ]; then
   while IFS= read -r d; do [ -n "$d" ] && flatpak override --user --filesystem="${d/#$HOME/~}" "$APP"; done < "$work/steam-paths"
+fi
+
+# The uninstaller, kept on this device with an app-menu entry. Checked against config.json's SHA-256; if it can't be
+# fetched or doesn't match, setup carries on without it (it's also on the release page). Testing puts both under
+# --prism-root instead.
+if [ "$TESTING" = 1 ]; then app_dir="$PRISM_ROOT/october-journey"; menu_dir="$PRISM_ROOT/applications"
+else app_dir="$HOME/.local/share/october-journey"; menu_dir="$HOME/.local/share/applications"; fi
+if python3 - "$work/config.json" "$work/uninstall.sh" <<'PY'
+import hashlib, json, sys, urllib.request
+u = json.load(open(sys.argv[1]))["uninstall_linux"]
+data = urllib.request.urlopen(urllib.request.Request(u["url"], headers={"User-Agent": "OctoberJourneySetup/1.0"}), timeout=60).read()
+if hashlib.sha256(data).hexdigest().upper() != u["sha256"].upper(): sys.exit("it does not match its checksum")
+open(sys.argv[2], "wb").write(data)
+PY
+then
+  mkdir -p "$app_dir" "$menu_dir"
+  install -m 755 "$work/uninstall.sh" "$app_dir/uninstall.sh"
+  cat > "$menu_dir/october-journey-uninstall.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=Uninstall October Journey
+Comment=Remove the October Journey Minecraft setup (Steam shortcut, art, controller layout, Prism instance)
+Exec=bash "$app_dir/uninstall.sh" --pause
+Icon=edit-delete
+Terminal=true
+Categories=Game;
+EOF
+  say "uninstaller saved: $app_dir/uninstall.sh (in the app menu as \"Uninstall October Journey\")."
+else
+  say "uninstaller not added; it can be downloaded from the release page."
 fi

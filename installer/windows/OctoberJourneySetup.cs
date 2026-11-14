@@ -6,7 +6,8 @@
 //   2. A Steam shortcut "Minecraft (Prism Launcher) - <this computer>" (Steam must be closed; it asks).
 //   3. Steam library art (original to this pack, from the repo).
 //   4. The Steam Deck controller layout for the shortcut.
-//   5. Every launch syncs the pack (this owner's PC over Tailscale first, then GitHub), and with it any new library art or
+//   5. The uninstaller, saved to %LOCALAPPDATA%\OctoberJourney and listed in Settings > Apps (current user only).
+//   6. Every launch syncs the pack (this owner's PC over Tailscale first, then GitHub), and with it any new library art or
 //      controller layout.
 // Flags: --yes  (no questions; stops if Steam is running)
 //        --prism-root=DIR --steam-root=DIR  (testing: use these folders instead of the real ones; Steam may stay open)
@@ -67,6 +68,7 @@ static class Setup
             File.WriteAllText(Path.Combine(mc, "pack-sources.txt"), sources.ToString());
             foreach (Dictionary<string, object> srv in (object[])cfg["servers"]) Nbt.AddServer(Path.Combine(mc, "servers.dat"), (string)srv["name"], (string)srv["address"]);
             Say("Prism instance ready: " + inst);
+            AddUninstaller(cfg, prism);
 
             // 2-4. Steam.
             string steam = steamRoot ?? SteamPath();
@@ -94,6 +96,38 @@ static class Setup
             if (!quiet) MessageBox.Show("Setup stopped: " + e.Message + "\n\nDetails are in " + logPath, "October Journey setup", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
+    }
+
+    // The uninstaller, kept on this computer and listed in Settings > Apps for this user. Checked against config.json's
+    // SHA-256; if it can't be fetched or doesn't match, setup carries on without it (it's also on the release page).
+    static void AddUninstaller(Dictionary<string, object> cfg, string prismExe)
+    {
+        try
+        {
+            var u = (Dictionary<string, object>)cfg["uninstall_windows"];
+            var b = Bytes((string)u["url"]);
+            if (!Sha256(b).Equals((string)u["sha256"], StringComparison.OrdinalIgnoreCase)) throw new Exception("it does not match its checksum");
+            bool testing = prismRoot != null;
+            string dir = testing ? Path.Combine(prismRoot, "OctoberJourney") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoberJourney");
+            Directory.CreateDirectory(dir);
+            string exe = Path.Combine(dir, "OctoberJourneyUninstall.exe");
+            File.WriteAllBytes(exe, b);
+            if (testing) { Say("Uninstaller saved: " + exe + " (testing: not listed in Settings > Apps)."); return; }
+            using (var k = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney"))
+            {
+                k.SetValue("DisplayName", "October Journey (Minecraft modpack)");
+                k.SetValue("Publisher", "October Journey");
+                k.SetValue("DisplayIcon", prismExe);
+                k.SetValue("InstallLocation", dir);
+                k.SetValue("UninstallString", "\"" + exe + "\"");
+                k.SetValue("QuietUninstallString", "\"" + exe + "\" --yes");
+                k.SetValue("URLInfoAbout", "https://github.com/scholar-andrew/october-journey-pack");
+                k.SetValue("NoModify", 1, RegistryValueKind.DWord);
+                k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
+            }
+            Say("Uninstaller saved: " + exe + ", listed in Settings > Apps as \"October Journey (Minecraft modpack)\".");
+        }
+        catch (Exception e) { Say("Uninstaller not added (" + e.Message + "); it can be downloaded from the release page."); }
     }
 
     static void Done()

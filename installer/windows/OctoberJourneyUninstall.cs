@@ -6,7 +6,8 @@
 // and then, after asking:
 //   - the Prism instance %APPDATA%\PrismLauncher\instances\october-journey (screenshots and any single-player worlds
 //     in it go too; answer No to keep it);
-//   - Prism Launcher itself (default No; it is shared with any other Prism instances you have).
+//   - Prism Launcher itself (default No; it is shared with any other Prism instances you have);
+// and last, its own entry in Settings > Apps and its copy in %LOCALAPPDATA%\OctoberJourney (put there by setup).
 // Steam must be closed while its files are changed; it asks. Nothing is downloaded. Log: %TEMP%\OctoberJourneyUninstall.log
 // Flags: --yes (no questions: removes the shortcut, art, layout and instance, keeps Prism; stops if Steam is running)
 //        --keep-instance  --remove-prism
@@ -97,6 +98,9 @@ static class Uninstall
             }
             else Say("Kept Prism Launcher.");
 
+            // 4. Its own Settings > Apps entry and saved copy.
+            RemoveSelf(prismRootArg);
+
             string done = "October Journey has been removed. Start Steam again whenever you like.";
             Say(done);
             if (!quiet) MessageBox.Show(done, Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -109,6 +113,25 @@ static class Uninstall
             if (!quiet) MessageBox.Show("Uninstall stopped: " + e.Message + "\n\nDetails are in " + logPath, Title, MessageBoxButtons.OK, MessageBoxIcon.Error);
             return 1;
         }
+    }
+
+    static void RemoveSelf(string prismRootArg)
+    {
+        string dir = prismRootArg != null ? Path.Combine(prismRootArg, "OctoberJourney") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoberJourney");
+        if (prismRootArg == null)
+        {
+            Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney", false);
+            Say("Removed the Settings > Apps entry.");
+        }
+        if (!Directory.Exists(dir)) return;
+        string me = Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName);
+        if (me.StartsWith(Path.GetFullPath(dir) + "\\", StringComparison.OrdinalIgnoreCase))
+        {
+            // A running program can't delete itself: a hidden command deletes the folder a few seconds after this exits.
+            Process.Start(new ProcessStartInfo("cmd.exe", "/c ping 127.0.0.1 -n 4 >nul & rmdir /s /q \"" + dir + "\"") { CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+            Say("The saved uninstaller (" + dir + ") is deleted once this window closes.");
+        }
+        else { Directory.Delete(dir, true); Say("Removed the saved uninstaller " + dir + "."); }
     }
 
     static string SteamPath()

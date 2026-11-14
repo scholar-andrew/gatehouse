@@ -10,19 +10,21 @@
 # and then, after asking:
 #   - the Prism instance ~/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/october-journey
 #     (screenshots and any single-player worlds in it go too; answer n to keep it);
-#   - Prism Launcher itself (default no; it is shared with any other Prism instances you have).
+#   - Prism Launcher itself (default no; it is shared with any other Prism instances you have);
+# and last, its own copy in ~/.local/share/october-journey and its app-menu entry (put there by setup).
 # Steam must be closed while its files are changed; it asks before closing it. Nothing is downloaded.
 # Flags: --yes (no questions: removes the shortcut, art, layout, permissions and instance, keeps Prism; stops if Steam
-#        is running)  --keep-instance  --remove-prism
+#        is running)  --keep-instance  --remove-prism  --pause (wait for Enter at the end; used by the app-menu entry)
 #        --prism-root=DIR --steam-root=DIR (testing: use these folders instead of the real ones; Flatpak is not touched)
 set -euo pipefail
 APP=org.prismlauncher.PrismLauncher
-YES=0; KEEP_INSTANCE=0; REMOVE_PRISM=0; PRISM_ROOT=""; STEAM_ROOT=""; TESTING=0
+YES=0; KEEP_INSTANCE=0; REMOVE_PRISM=0; PAUSE=0; PRISM_ROOT=""; STEAM_ROOT=""; TESTING=0
 for a in "$@"; do
   case "$a" in
     --yes) YES=1 ;;
     --keep-instance) KEEP_INSTANCE=1 ;;
     --remove-prism) REMOVE_PRISM=1 ;;
+    --pause) PAUSE=1 ;;
     --prism-root=*) PRISM_ROOT="${a#*=}"; TESTING=1 ;;
     --steam-root=*) STEAM_ROOT="${a#*=}"; TESTING=1 ;;
   esac
@@ -148,4 +150,11 @@ elif [ "$REMOVE_PRISM" = 1 ] || { [ "$YES" = 0 ] && ask "Also uninstall Prism La
   flatpak uninstall --user -y "$APP"; say "Prism Launcher uninstalled."
 else say "kept Prism Launcher."; fi
 
+# 6. Its own saved copy and app-menu entry (bash has this file open, so removing it is safe).
+if [ "$TESTING" = 1 ]; then app_dir="$PRISM_ROOT/october-journey"; menu_dir="$PRISM_ROOT/applications"
+else app_dir="$HOME/.local/share/october-journey"; menu_dir="$HOME/.local/share/applications"; fi
+if [ -f "$menu_dir/october-journey-uninstall.desktop" ]; then rm -f "$menu_dir/october-journey-uninstall.desktop"; say "removed the app-menu entry."; fi
+if [ -d "$app_dir" ]; then rm -rf "$app_dir"; say "removed the saved uninstaller."; fi
+
 say "done. Start Steam again (or switch to Game Mode) whenever you like."
+if [ "$PAUSE" = 1 ]; then read -r -p "Press Enter to close. " _ || true; fi
