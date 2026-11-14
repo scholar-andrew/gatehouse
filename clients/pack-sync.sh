@@ -15,7 +15,10 @@ while IFS= read -r s || [ -n "$s" ]; do
   [[ "$s" == \#* ]] && continue
   if curl -fsI --max-time 3 "$s/$variant/pack.toml" >/dev/null 2>&1; then url="$s/$variant/pack.toml"; break; fi
 done < "$here/pack-sources.txt"
-if [ -z "$url" ]; then echo "Pack sync: no source reachable; starting with the mods already installed."; exit 0; fi
-echo "Pack sync ($variant): $url"
+if [ -z "$url" ]; then echo "$(date '+%Y-%m-%d %H:%M:%S')  no source reachable; started with the mods already installed" >> "$here/pack-sync.log"; exit 0; fi
 cd "$here" || exit 1
-exec "${INST_JAVA:-java}" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url"
+"${INST_JAVA:-java}" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url"
+code=$?
+echo "$(date '+%Y-%m-%d %H:%M:%S')  ($variant) $url -> exit $code" >> "$here/pack-sync.log"
+echo "Pack sync ($variant): $url -> exit $code"
+exit $code
