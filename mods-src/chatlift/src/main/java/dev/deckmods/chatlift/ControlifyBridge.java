@@ -1,6 +1,9 @@
 package dev.deckmods.chatlift;
 
+import dev.isxander.controlify.Controlify;
+import dev.isxander.controlify.InputMode;
 import dev.isxander.controlify.api.ControlifyApi;
+import dev.isxander.controlify.config.settings.GlobalSettings;
 import dev.isxander.controlify.config.settings.profile.GenericControllerSettings;
 import dev.isxander.controlify.controller.ControllerEntity;
 
@@ -36,6 +39,7 @@ final class ControlifyBridge {
 	static void applyKeyboardPreference() {
 		try {
 			ControllerEntity c = ControlifyApi.get().getCurrentController().orElse(null);
+			if (c != null && isSteam(c)) allowSteamKeyboardTyping();
 			if (c == null || c == lastController) return;
 			lastController = c;
 			GenericControllerSettings.KeyboardSettings k = c.settings().generic.keyboard;
@@ -47,5 +51,23 @@ final class ControlifyBridge {
 		} catch (Throwable t) {
 			// Controlify changed shape: leave its settings alone.
 		}
+	}
+
+	/**
+	 * Steam's keyboard types by sending ordinary key presses. With Controlify's "mixed input" off, those presses flip the
+	 * game to keyboard-and-mouse mode: the text never lands and the controller stops working until you touch the mouse.
+	 * The Deck has mixed input on, which is why it works there; turn it on wherever a Steam controller is used.
+	 */
+	private static void allowSteamKeyboardTyping() {
+		Controlify ctl = Controlify.instance();
+		GlobalSettings g = ctl.config().getSettings().globalSettings();
+		if (!g.mixedInput) {
+			g.mixedInput = true;
+			ctl.config().markDirty();
+			ctl.config().saveIfDirty();
+			ChatLift.LOG.info("[chatlift] Controlify mixed input on, so Steam's keyboard can type with a Steam controller");
+		}
+		ControlifyApi api = ControlifyApi.get();
+		if (api.currentInputMode() == InputMode.CONTROLLER) api.setInputMode(InputMode.MIXED);
 	}
 }

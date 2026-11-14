@@ -36,8 +36,8 @@ hash = "1d1fa6fd8007c772ad75f5f60aa9b415b6c0d6adca505600edcfcc3c1e098558"
 metafile = true
 
 [[files]]
-file = "mods/chatlift-1.1.0.jar"
-hash = "c4a9815b164527e79e7bbe34192e6ba71fd4d54292bce72287e2779e2f781b48"
+file = "mods/chatlift-1.1.1.jar"
+hash = "e669ba13a9ac9050f597cf566d555476e58d1d59c8545f63e1a95552e0c1b294"
 
 [[files]]
 file = "mods/cloth-config.pw.toml"
