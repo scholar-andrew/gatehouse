@@ -1,0 +1,7 @@
+{
+	"required": true,
+	"package": "dev.deckmods.chatlift.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": ["ChatScreenMixin", "MinecraftMixin", "TextInputManagerMixin"],
+	"injectors": { "defaultRequire": 1 }
+}
