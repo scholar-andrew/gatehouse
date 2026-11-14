@@ -20,6 +20,10 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
 2. Run it. Windows may say "Windows protected your PC" because the file isn't code-signed: click **More info**, then
    **Run anyway**. It doesn't need administrator rights. Its full source is
    [`installer/windows/OctoberJourneySetup.cs`](installer/windows/OctoberJourneySetup.cs).
+   - **If the file disappears** and Windows says it "cannot access the specified device, path, or file", your
+     antivirus removed it. Panda Dome did this on the tested desktop without listing it in its quarantine; with Panda
+     Dome uninstalled, the same file ran normally. Allow the file in your antivirus (or check its quarantine) and
+     download it again. The same applies to the uninstaller.
 3. Click **Quick install** for everything in the usual folders, or **Choose what to install...** to tick items and pick
    folders ([Choosing what to install](#choosing-what-to-install)).
 4. If you chose the Steam shortcut, it asks you to quit Steam (Steam menu, then Exit): do that and click OK.
@@ -113,6 +117,7 @@ What was tested where:
 | Uninstaller, including keeping items (saved by setup, then run) | In test folders; the Settings, Apps entry itself not yet | No | In test folders, including the app-menu entry files and answering the questions |
 | Quick or custom; chosen folders; a moved Prism instances folder | In test folders (the quick and custom windows as pictures; Prism's own folder not, since Prism is installed here) | No | In test folders, answering the questions |
 | Update on launch respecting those choices | In a test instance | No | In a test instance |
+| Uninstaller downloaded from the release and opened by hand | Yes: first screen, item list and Cancel all worked (nothing removed) | No | No |
 
 The installers were checked in test folders rather than run start to finish on a fresh computer: the three devices
 were set up with the same steps before the installers existed. Not tested at all: Windows 11, Linux distributions
