@@ -1,5 +1,9 @@
 ﻿# October Journey
 
+A private Minecraft 26.3 (Fabric) survival server with Jarvis, a butler who farms, mines, builds and runs errands, and
+this client pack to play on it. **About the server** (settings, mods, Jarvis, and what runs with it):
+[docs/server.md](docs/server.md).
+
 ## Download
 
 | Operating system | Install | Uninstall |
@@ -51,6 +55,7 @@ current: see [What runs each time you play](INSTALL.md#what-runs-each-time-you-p
 | Where | What |
 | --- | --- |
 | [INSTALL.md](INSTALL.md) | For players: installing, choosing what to install, what it was tested on, what setup changes, what runs on each launch, network use, removal. |
+| [docs/server.md](docs/server.md) | The server: settings, its mods, Jarvis, and what runs alongside it. |
 | [docs/mods.md](docs/mods.md) | Every mod in the pack and where it comes from (generated). |
 | [docs/how-it-works.md](docs/how-it-works.md) | For the maintainer: how the pack is built, hosted and synced, the Steam keyboard setup, and how to make common changes. |
 | [mods-src/](mods-src/README.md) | Source of the pack's own mods: Chat Lift, Controller Handoff Fix, and the REI brewing patch. |
