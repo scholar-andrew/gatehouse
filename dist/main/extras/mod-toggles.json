@@ -1,0 +1,16 @@
+[
+ {
+  "slug": "seamlesscrafting",
+  "modid": "seamless_crafting",
+  "name": "Nearby Chest Crafting",
+  "description": "Craft with items from nearby chests. The server has it too; with it off you craft the usual way.",
+  "default": false
+ },
+ {
+  "slug": "stack-to-nearby-chests",
+  "modid": "stack-to-nearby-chests",
+  "name": "Stack to Nearby Chests",
+  "description": "Buttons and keys to stack your items into, or restock from, nearby chests. Only on your side.",
+  "default": false
+ }
+]

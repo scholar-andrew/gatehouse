@@ -5,12 +5,16 @@ file = "config/fabric_loader_dependencies.json"
 hash = "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280"
 
 [[files]]
+file = "extras/mod-toggles.json"
+hash = "6a3b3663a51666eb3b0fc0817555002710a4f8e5bb4d668e72f84a615c462db8"
+
+[[files]]
 file = "extras/pack-sync.ps1"
-hash = "c024a4c9791fdd7abc5532b01e76f6cab3927d78f1a58b7ebbbae1a220b37736"
+hash = "6a553f640eb10c0396cc2e3790833f37464fb02349a9ded9e6ca2d86516f5393"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "3972fe97454bf8895f279430cdf6bb2f11490c88110970a1030dc218a3010ba5"
+hash = "c3da7524bb4ae4dffdd73d44d20c736096f51c53786e64c625619b22f4fab0ea"
 
 [[files]]
 file = "extras/servers.json"
@@ -102,6 +106,10 @@ metafile = true
 file = "mods/mouse-tweaks.pw.toml"
 hash = "a4f3ae5afad624f8a35b971a0c816a54b2ad6f733f259b55cd5879c2c8a9df4d"
 metafile = true
+
+[[files]]
+file = "mods/octoberjourney-1.0.0.jar"
+hash = "99e6de2cfc0e27ce8342a1929764bfb6f508ccca9d553114ec7c760af04bc76d"
 
 [[files]]
 file = "mods/placeholder-api.pw.toml"

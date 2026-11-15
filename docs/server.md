@@ -39,7 +39,7 @@ To join, see [INSTALL.md](../INSTALL.md).
 | **Jarvis** (custom build `0.17.0+estate.74`) | The server's butler: see [Jarvis](#jarvis) below | No (server only; nothing to install) |
 | **Fabric API** 0.163.0 | The library most Fabric mods need | Yes |
 | **Roughly Enough Items** 26.3.824, brewing fix | Recipe lookup; the server side supplies recipes, including brewing ([patched](../mods-src/README.md#rei-brewingfix-roughly-enough-items-brewing-fix) so brewing recipes load) | Yes, same build |
-| **Nearby Chest Crafting** 2.1.1 with **SeamlessLib** 2.0.2 | Craft with items from nearby chests | Yes |
+| **Nearby Chest Crafting** 2.1.1 with **SeamlessLib** 2.0.2 | Craft with items from nearby chests | Yes, switched off by default; players turn it on in Mod Menu, and can join without it |
 | **Jade** 26.3.5 | Server-side data for the "what am I looking at" tooltip | Yes |
 | **AppleSkin** 3.0.10 | Server-side food and saturation data for the hunger tooltips | Yes |
 | **Architectury** 22.0.5, **Cloth Config** 26.3.159 | Libraries for other mods | Yes |

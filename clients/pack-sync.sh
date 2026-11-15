@@ -18,8 +18,53 @@ done < "$here/pack-sources.txt"
 note() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$here/pack-sync.log"; echo "Pack sync: $*"; }
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
+# Mods the player can switch on and off (Mod Menu > October Journey; the list and the pack's defaults are in
+# extras/mod-toggles.json, the player's choices under "mods" in pack-options.json). A mod that's off has its jar renamed
+# to .jar.disabled after each update (as Prism does, so the game doesn't load it), and renamed back before the next
+# update so packwiz-installer finds it intact. mods-switched-off.json remembers which jars this did.
+switches() {  # switches restore|apply
+  command -v python3 >/dev/null 2>&1 || return 0
+  python3 - "$here" "$1" <<'PY' || note "mod switches skipped"
+import json, os, sys, time
+here, mode = sys.argv[1], sys.argv[2]
+state = os.path.join(here, "mods-switched-off.json")
+def note(s):
+    open(os.path.join(here, "pack-sync.log"), "a").write("%s  %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), s)); print("Pack sync:", s)
+if mode == "restore":
+    # The list stays until "apply", which compares with it so only real changes are noted.
+    if os.path.isfile(state):
+        for jar in json.load(open(state)):
+            if os.path.isfile(jar + ".disabled") and not os.path.exists(jar): os.rename(jar + ".disabled", jar)
+    sys.exit(0)
+tp, pw = os.path.join(here, "extras", "mod-toggles.json"), os.path.join(here, "packwiz.json")
+if not (os.path.isfile(tp) and os.path.isfile(pw)): sys.exit(0)
+files = json.load(open(pw)).get("cachedFiles", {})
+try: choices = json.load(open(os.path.join(here, "pack-options.json"))).get("mods", {}) or {}
+except Exception: choices = {}
+off, changed = [], []
+try: before = set(json.load(open(state)))
+except Exception: before = set()
+for t in json.load(open(tp)):
+    want = bool(choices[t["slug"]]) if t["slug"] in choices else t["default"]
+    entry = files.get("mods/%s.pw.toml" % t["slug"])
+    if not entry: continue
+    jar = os.path.join(here, entry["cachedLocation"])
+    if not want:
+        if os.path.isfile(jar):
+            if os.path.exists(jar + ".disabled"): os.remove(jar + ".disabled")
+            os.rename(jar, jar + ".disabled")
+            if jar not in before: changed.append(t["name"] + " off")
+        if os.path.isfile(jar + ".disabled"): off.append(jar)
+    elif os.path.isfile(jar + ".disabled") and not os.path.exists(jar):
+        os.rename(jar + ".disabled", jar); changed.append(t["name"] + " on")
+    elif want and jar in before: changed.append(t["name"] + " on")
+if off: json.dump(off, open(state, "w"))
+elif os.path.exists(state): os.remove(state)
+if changed: note("mods switched: " + ", ".join(changed))
+PY
+}
 stop_if_no_mods() {  # stop_if_no_mods "why" ["advice"]
-  if ls "$here"/mods/*.jar >/dev/null 2>&1; then note "$1; starting with the mods already installed"; exit 0; fi
+  if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; note "$1; starting with the mods already installed"; exit 0; fi
   note "$1, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
   echo "October Journey couldn't install its mods yet ($1). ${2:-Check your connection (Tailscale or internet) and press Play again.}"
   exit 1
@@ -35,6 +80,7 @@ for c in "${INST_JAVA:-}" "$here"/../../../java/*/bin/java; do
 done
 [ -n "$java_bin" ] || java_bin="$(command -v java || true)"
 [ -n "$java_bin" ] || stop_if_no_mods "no Java found yet (INST_JAVA was '${INST_JAVA:-}')" "Prism Launcher is still setting up Java: press Play again."
+switches restore
 "$java_bin" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url" > "$here/pack-sync-java.log" 2>&1
 code=$?
 note "($variant) $url -> exit $code (Java: $java_bin)"
@@ -42,6 +88,7 @@ if [ "$code" != 0 ]; then
   tail -n 5 "$here/pack-sync-java.log" | while IFS= read -r l; do note "  java: $l"; done
   ls "$here"/mods/*.jar >/dev/null 2>&1 || stop_if_no_mods "the mod download failed (exit $code)"
 fi
+switches apply
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcut. steam-target.json
 # (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is

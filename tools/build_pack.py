@@ -12,7 +12,8 @@ import hashlib, json, os, shutil, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "source")
-DIST = os.path.join(ROOT, "dist")
+# OJ_DIST: build somewhere else (for testing) instead of dist/, which devices download straight away.
+DIST = os.environ.get("OJ_DIST") or os.path.join(ROOT, "dist")
 
 
 def sha256(data: bytes) -> str:
@@ -87,6 +88,14 @@ def build(variant: str, meta: dict, mods: list) -> None:
     rel = "extras/servers.json"
     data = write(os.path.join(out, rel), json.dumps([{"name": s["name"], "address": s["address"]} for s in cfg_servers], indent=1) + "\n")
     entries.append((rel, sha256(data), False))
+    # Mods players can switch on and off (Mod Menu > October Journey), with the pack's default for each. The sync
+    # scripts disable the ones that are off after each update; the October Journey mod shows the switches.
+    rel = "extras/mod-toggles.json"
+    data = write(os.path.join(out, rel), json.dumps([
+        {"slug": m["slug"], "modid": m["toggle"]["modid"], "name": m["title"], "description": m["toggle"]["description"],
+         "default": m["toggle"]["default"]}
+        for m in mods if "toggle" in m and not (m.get("deck") and variant != "deck")], indent=1) + "\n")
+    entries.append((rel, sha256(data), False))
     # The sync scripts themselves: each run swaps in the pack's copy for the next launch.
     for n in ("pack-sync.ps1", "pack-sync.sh"):
         data = open(os.path.join(ROOT, "clients", n), "rb").read()
@@ -115,6 +124,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
 OWN_MODS = {  # jars shipped in the pack itself, with where their source lives in this repo
     "chatlift": ("mods-src/chatlift", "Steam keyboard handling: lifts chat above Steam's keyboard, keeps Controlify's own keyboard for non-Steam controllers, lets Steam's keyboard type (Controlify mixed input). Made for this pack."),
     "handofffix": ("mods-src/handofffix", "Fixes Controlify losing the Steam Deck's controls after another controller is unplugged. Made for this pack."),
+    "octoberjourney": ("mods-src/octoberjourney", "The pack's own settings in Mod Menu: switch some of the pack's mods on and off. Made for this pack."),
     "RoughlyEnoughItems": ("mods-src/rei-brewingfix", "Roughly Enough Items 26.3.824 with one class patched so brewing recipes load on the server. Also installed on the server."),
 }
 
@@ -161,7 +171,8 @@ def main() -> None:
     # A record of what the server runs, kept beside the pack (a reference list; nothing checks it automatically).
     with open(os.path.join(DIST, "server-mods.json"), "w", encoding="utf-8") as f:
         json.dump(src.get("server", {}), f, indent=1)
-    write_mod_list(src["pack"], src["mods"], src.get("server", {}))
+    if not os.environ.get("OJ_DIST"):
+        write_mod_list(src["pack"], src["mods"], src.get("server", {}))
 
 
 if __name__ == "__main__":

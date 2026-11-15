@@ -1,6 +1,6 @@
 # The pack's own mods
 
-Three jars in `source/files/mods/` aren't from Modrinth. Their source is here so they can be read, rebuilt and changed.
+Four jars in `source/files/mods/` aren't from Modrinth. Their source is here so they can be read, rebuilt and changed.
 All are client-side Fabric mods for Minecraft 26.3, except the REI patch, which the server runs too.
 
 ## chatlift (Chat Lift)
@@ -20,6 +20,13 @@ All are client-side Fabric mods for Minecraft 26.3, except the REI patch, which 
 Files: `ChatLift.java` (settings, lift, opening `steam://` links), `SteamKeyboard.java` and `ControlifyBridge.java`
 (controller handling; the bridge is the only class that touches Controlify, so the mod loads without it),
 `mixin/ChatScreenMixin.java` (moves chat), `mixin/MinecraftMixin.java` (per-tick hook).
+
+## octoberjourney (October Journey pack settings)
+`octoberjourney/`, built with `tools/build_mod.ps1 octoberjourney`. Made for this pack. Adds **October Journey** to Mod
+Menu, whose settings screen has an on/off switch for each mod listed in `extras/mod-toggles.json` (with the pack's
+default and whether it's loaded right now in the tooltip). A switch saves the player's choice under `mods` in
+`pack-options.json`; the pack sync applies it before the next launch by disabling or re-enabling the mod's jar. Nothing
+happens in the running game: a loaded mod can't be unloaded.
 
 ## handofffix (Controller Handoff Fix)
 `handofffix/`, built with `tools/build_mod.ps1 handofffix`. Made for this pack. Requires Controlify.
@@ -42,7 +49,7 @@ all 279 brewing recipes failed to load on the server. The patched class adds tho
 When an official REI release fixes this, switch the pack and the server back to the Modrinth version.
 
 ## Building
-`tools/build_mod.ps1` compiles with plain `javac` against the Prism Launcher libraries and the `october-journey`
+`tools/build_mod.ps1` (chatlift, handofffix or octoberjourney) compiles with plain `javac` against the Prism Launcher libraries and the `october-journey`
 instance's mods on the owner's PC (Minecraft 26.x isn't obfuscated, so no Gradle/Loom or refmap is needed). The
 original Gradle projects for chatlift and handofffix are on the Steam Deck in `~/mcmods/`; their `gradle.properties` is
 copied here for the version numbers.

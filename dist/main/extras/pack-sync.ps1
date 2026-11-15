@@ -8,8 +8,51 @@ function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -F
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
 function HasMods { [bool](Get-ChildItem (Join-Path $here 'mods') -Filter '*.jar' -ErrorAction SilentlyContinue | Select-Object -First 1) }
+# Mods the player can switch on and off (Mod Menu > October Journey; the list and the pack's defaults are in
+# extras/mod-toggles.json, the player's choices under "mods" in pack-options.json). A mod that's off has its jar renamed
+# to .jar.disabled after each update (as Prism does, so the game doesn't load it), and renamed back before the next
+# update so packwiz-installer finds it intact. mods-switched-off.json remembers which jars this did.
+$switchState = Join-Path $here 'mods-switched-off.json'
+function RestoreSwitchedOff {
+    if (-not (Test-Path $switchState)) { return }
+    foreach ($jar in @(Get-Content $switchState -Raw | ConvertFrom-Json | ForEach-Object { $_ })) {
+        if ((Test-Path -LiteralPath "$jar.disabled") -and -not (Test-Path -LiteralPath $jar)) { Move-Item -LiteralPath "$jar.disabled" $jar }
+    }
+    # The list stays until ApplySwitches, which compares with it so only real changes are noted.
+}
+function ApplySwitches {
+    try {
+        $tp = Join-Path $here 'extras/mod-toggles.json'; $pw = Join-Path $here 'packwiz.json'
+        if (-not (Test-Path $tp) -or -not (Test-Path $pw)) { return }
+        $toggles = @(Get-Content $tp -Raw | ConvertFrom-Json | ForEach-Object { $_ })
+        $files = (Get-Content $pw -Raw | ConvertFrom-Json).cachedFiles
+        $choices = $null
+        $po = Join-Path $here 'pack-options.json'
+        if (Test-Path $po) { $choices = (Get-Content $po -Raw | ConvertFrom-Json).mods }
+        $off = @(); $changed = @()
+        $before = @(); if (Test-Path $switchState) { $before = @(Get-Content $switchState -Raw | ConvertFrom-Json | ForEach-Object { $_ }) }
+        foreach ($t in $toggles) {
+            $want = $t.default
+            if ($choices -and $null -ne $choices.($t.slug)) { $want = [bool]$choices.($t.slug) }
+            $entry = $files.("mods/$($t.slug).pw.toml")
+            if (-not $entry) { continue }
+            $jar = Join-Path $here ($entry.cachedLocation -replace '/', '\')
+            if (-not $want) {
+                if (Test-Path -LiteralPath $jar) {
+                    if (Test-Path -LiteralPath "$jar.disabled") { Remove-Item -LiteralPath "$jar.disabled" }
+                    Move-Item -LiteralPath $jar "$jar.disabled"; if ($before -notcontains $jar) { $changed += "$($t.name) off" }
+                }
+                if (Test-Path -LiteralPath "$jar.disabled") { $off += $jar }
+            } elseif ((Test-Path -LiteralPath "$jar.disabled") -and -not (Test-Path -LiteralPath $jar)) {
+                Move-Item -LiteralPath "$jar.disabled" $jar; $changed += "$($t.name) on"
+            } elseif ($want -and $before -contains $jar) { $changed += "$($t.name) on" }
+        }
+        if ($off) { ConvertTo-Json @($off) | Set-Content -Encoding utf8 $switchState } elseif (Test-Path $switchState) { Remove-Item $switchState }
+        if ($changed) { Note ("mods switched: " + ($changed -join ', ')) }
+    } catch { Note "mod switches skipped: $($_.Exception.Message)" }
+}
 function StopIfNoMods($why, $advice = 'Check your connection (Tailscale or internet) and press Play again.') {
-    if (HasMods) { Note "$why; starting with the mods already installed"; exit 0 }
+    if (HasMods) { ApplySwitches; Note "$why; starting with the mods already installed"; exit 0 }
     Note "$why, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
     Write-Host "October Journey couldn't install its mods yet ($why). $advice"
     exit 1
@@ -44,6 +87,7 @@ $jargs = @('-jar', (Join-Path $here 'packwiz-installer-bootstrap.jar'))
 if ($env:PACK_SYNC_ARGS) { $jargs += $env:PACK_SYNC_ARGS -split ' ' }
 $jargs += $url
 $javaLog = Join-Path $here 'pack-sync-java.log'
+RestoreSwitchedOff
 $code = $null
 Push-Location $here
 try {
@@ -62,6 +106,7 @@ if ($code -ne 0) {
     if (Test-Path $javaLog) { Get-Content $javaLog -Tail 5 | ForEach-Object { Note "  java: $_" } }
     if (-not (HasMods)) { StopIfNoMods "the mod download failed (exit $code)" }
 }
+ApplySwitches
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcut. steam-target.json
 # (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is

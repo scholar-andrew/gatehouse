@@ -68,9 +68,14 @@ player-facing version). In order:
 4. **Server list.** `extras/servers.json` (made from `installer/config.json`'s `servers`) is merged into `servers.dat`:
    a missing entry is added at the top; a wrong address is corrected only while it's still the one last set (state in
    `servers-applied.json`). Other entries are untouched; the first change keeps `servers.dat.before-pack`.
-5. **Self-update.** If `extras/pack-sync.ps1` / `.sh` differs from the running script, it replaces it for next time
+5. **Mod switches.** `extras/mod-toggles.json` (from mods marked `"toggle"` in `source/mods.json`) lists the mods players
+   can switch, with the pack's default; the player's choices are `mods` in `pack-options.json`, set from Mod Menu by the
+   October Journey mod. Before packwiz-installer runs, mods this script disabled (`mods-switched-off.json`) are renamed
+   back so it finds them intact; afterwards, each mod that's off has its jar (from `packwiz.json`'s `cachedLocation`)
+   renamed to `.jar.disabled`. Without a connection, the switches still apply.
+6. **Self-update.** If `extras/pack-sync.ps1` / `.sh` differs from the running script, it replaces it for next time
    (bash by write-then-rename, because bash is still reading the running file).
-6. Everything is logged to `minecraft/pack-sync.log`.
+7. Everything is logged to `minecraft/pack-sync.log`, and packwiz-installer's output to `pack-sync-java.log`.
 
 The scripts stop at step 1 if no source answers, so a device that can't reach either source just plays the last version
 it had.
@@ -98,6 +103,9 @@ their next launch; nobody has to touch a device.
   `sha512`, `project`, `version`, all from Modrinth's version page or API). If the server runs it too, update the
   server and the `server.mods` list.
 - **Remove a mod:** delete its entry. packwiz-installer removes it from devices.
+- **Let players switch a mod on and off:** give its entry a `"toggle": {"modid": "<its Fabric mod id>", "default":
+  false, "description": "..."}`. It then shows in Mod Menu > October Journey, and the pack sync disables it while it's
+  off. A mod the server also runs must still let clients join without it (no new items, blocks or menus).
 - **Change a config every device gets:** put the file under `source/files/config/`.
 - **Change the art or Deck controller layout:** edit `installer/art/*.png` (or `tools/make_art.ps1`) or
   `installer/steam/controller_neptune.vdf`.

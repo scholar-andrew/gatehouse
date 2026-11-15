@@ -80,6 +80,16 @@ installer's folder, and on Windows `--prism-dir=DIR` picks Prism Launcher's; for
 Nothing to do: every launch checks for mod changes and installs them before the game starts. Running setup again is
 safe; it updates your setup without duplicating anything.
 
+## Mods you can switch on and off
+Two mods in the pack are **off by default**:
+- **Stack to Nearby Chests**: buttons and keys to stack your items into, or restock from, nearby chests.
+- **Nearby Chest Crafting**: craft with items from nearby chests. The server has it too; with it off you craft the
+  usual way, and you can still join.
+
+To switch them on (or back off): on Minecraft's title screen, click **Mods**, pick **October Journey**, click its
+settings button, and flip the switch. It takes effect the next time you start the game. The update before each launch
+then disables the mods you've switched off (Prism shows them as disabled), so they aren't loaded at all.
+
 ## Controllers
 - **Linux on a Steam Deck:** the Deck's controls get the pack's layout (R4 jump, L4 crouch, trackpad as mouse). In a
   text box, Steam's keyboard opens by itself and chat moves up above it.
@@ -208,10 +218,13 @@ Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecra
    to keep them up to date. The first time, it keeps what
    was there as `*.before-pack`. After that it only replaces a file that's still the version it last installed, so art
    or a layout you change in Steam is kept. Steam shows these after it restarts.
-4. Makes sure the October Journey server is in your server list, if `pack-options.json` says to. If you edit or delete that entry in the game, it's
+4. Disables the mods you've switched off (see [Mods you can switch on and off](#mods-you-can-switch-on-and-off)) by
+   renaming them to `.jar.disabled`, after briefly renaming them back so the update sees them intact. Your choices are
+   under `mods` in `pack-options.json`.
+5. Makes sure the October Journey server is in your server list, if `pack-options.json` says to. If you edit or delete that entry in the game, it's
    left as you set it.
-5. Replaces itself with the pack's newest copy of the script, for the next launch.
-6. Writes one line per step to `pack-sync.log` in the instance's `minecraft` folder, and packwiz-installer's own output
+6. Replaces itself with the pack's newest copy of the script, for the next launch.
+7. Writes one line per step to `pack-sync.log` in the instance's `minecraft` folder, and packwiz-installer's own output
    to `pack-sync-java.log` beside it. If the mods ever fail to install, those two files say why.
 
 ## What it connects to
