@@ -92,7 +92,15 @@ player-facing version). In order:
    (bash by write-then-rename, because bash is still reading the running file).
 7. **Launch pop-up.** Started right after Java is found as `extras/launch-popup.jar --progress <game folder>`: a
    checklist of the steps, ticked off from the `check` lines in `pack-sync-status.txt` (the mods step shows the last
-   line of `pack-sync-java.log`). The script ends by writing `done|ok|offline|failed`, and the same window becomes the
+   line of `pack-sync-java.log`). Before packwiz-installer runs, the script writes `ask|<pack address>`; the launcher
+   fetches `update-sizes.json` from there (each indexed file's hash and download size, written by the build beside
+   `pack.toml`), compares it with `packwiz.json`, and when something would be downloaded shows the size with Download
+   and Skip this time. It answers in `pack-sync-answer.txt`: `wait` while asking, then `go` or `skip|<size>` (skip:
+   packwiz-installer isn't run this launch). Nothing to download, or the sizes unreadable: `go` at once. No answer
+   begun within 30 seconds: the update runs. The ask line ends `|self-update`: the launcher first compares its own
+   jar's SHA-256 with `extras/launch-popup.jar`'s in `update-sizes.json`; if they differ it downloads the pack's,
+   checks the hash, writes it beside itself as `launch-popup.jar.new` and exits with code 12. The script moves it into
+   place and starts the launcher again (once), and the new one answers the question. The script ends by writing `done|ok|offline|failed`, and the same window becomes the
    summary. Its exit code is the player's choice: 0 Play, 10 Quit (the script exits 1, so Prism doesn't start the
    game), 11 Restart (the script runs itself again, hidden). Without that program yet (a first install), it runs
    `extras/launch-popup.jar <game folder> ok|offline|failed` with the Java found for step 2
@@ -205,6 +213,7 @@ The installers download everything else at run time, so they only need a new rel
 | `tools/build_popup.ps1` | Builds `mods-src/launch-popup` (plain Java 17, no Minecraft code) into `source/files/launch-popup.jar`. |
 | `mods-src/launch-popup/.../ServerControl.java` | The Server controls tab: status (Minecraft's server list ping for online, ping and players; panel port; MCSS API; the host helper's port, so a PC with MCSS closed still counts as awake), Wake on LAN, Start, Stop, opening the panel, sign-in. `java -jar launch-popup.jar --server <game folder> status\|wake\|start\|stop` runs one of them from a terminal (`OJ_WAKE_TEST=host:port` also sends the wake signal there, for testing). |
 | `tools/build_host.ps1`, `tools/install_host.ps1` | Build the host helper and panel (`host/`, plain Java 17) into `host/oj-host.jar`, and install it on the server PC: `C:\Minecraft\OctoberJourneyHost`, the sign-in scheduled task and the Start menu shortcut ([docs/server.md](server.md#the-host-helper-starting-and-closing-mcss)). |
+| `tools/mod_sizes.py` | Records each Modrinth mod's download size (`size` in `source/mods.json`) from Modrinth's listing, for the launcher's update size question. Run it after adding or updating a mod; the build refuses a mod without one. |
 | `tools/server_snapshot.py` | Records what the server runs from its files (`server/state.json`) with a note for players (`server/changelog.json`); `--check` reports drift. |
 | `tools/serve.ps1` | Serves `dist/` on the Tailscale address. Run at logon by the scheduled task "Minecraft pack server"; waits for Tailscale and restarts the server if it stops. |
 | `tools/make_art.ps1` | Draws the October Journey shortcut's Steam library art into `installer/art/`. |

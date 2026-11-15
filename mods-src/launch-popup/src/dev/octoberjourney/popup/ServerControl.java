@@ -36,6 +36,14 @@ final class ServerControl {
 	String apiKey, wakeAddress, username;
 	/** This launcher's identity for the host helper: an id and a secret it made itself (kept in server-access.json). */
 	String deviceId, deviceToken;
+	/** What the owner has allowed this launcher in the host panel, as the helper last said (remembered in
+	 *  server-access.json, so it's known while the server PC is asleep and the helper can't be asked). */
+	boolean permMcss, permSleep, permServer, permAdmin;
+
+	/** A request the helper (or MCSS behind it) turned down, with its reason. */
+	static final class Refused extends IOException {
+		Refused(String why) { super(why); }
+	}
 
 	ServerControl(Path dir) {
 		this.dir = dir;
@@ -56,6 +64,7 @@ final class ServerControl {
 		username = str(a.get("username"));
 		deviceId = str(a.get("device_id"));
 		deviceToken = str(a.get("device_token"));
+		permMcss = "true".equals(str(a.get("perm_mcss"))); permSleep = "true".equals(str(a.get("perm_sleep"))); permServer = "true".equals(str(a.get("perm_server"))); permAdmin = "true".equals(str(a.get("perm_admin")));
 		if (!helperUrl.isEmpty() && (deviceId.isEmpty() || deviceToken.length() < 32)) {
 			java.security.SecureRandom r = new java.security.SecureRandom();
 			deviceId = java.util.UUID.randomUUID().toString();
@@ -69,6 +78,13 @@ final class ServerControl {
 	boolean configured() { return !panelUrl.isEmpty() || !mac.isEmpty() || !minecraft.isEmpty(); }
 	boolean canWake() { return mac.replaceAll("[^0-9A-Fa-f]", "").length() == 12; }
 	boolean hasKey() { return !apiKey.isEmpty() && !serverId.isEmpty() && !panelUrl.isEmpty(); }
+	/** Server control through the host helper: the owner allowed it, so no panel sign-in or key is needed here. */
+	boolean viaHelper() { return hasHelper() && permServer; }
+	/** Start and stop are possible: through the helper, or with this device's own panel access. */
+	boolean canControlServer() { return viaHelper() || hasKey(); }
+	/** The Server controls and Server config tabs are shown once the owner has allowed this launcher anything (or it
+	 *  has its own panel access); always when there's no host helper to ask. */
+	boolean showServerTabs() { return !hasHelper() || permMcss || permSleep || permServer || permAdmin || hasKey(); }
 	Path access() { return dir.resolve("server-access.json"); }
 
 	/** Saves this device's own settings (server-access.json, in the game folder only). */
@@ -76,7 +92,8 @@ final class ServerControl {
 		apiKey = key.trim(); wakeAddress = wake.trim();
 		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
 				+ "\", \"username\": \"" + jsonEsc(username) + "\", \"device_id\": \"" + jsonEsc(str(deviceId))
-				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\"}\n", StandardCharsets.UTF_8);
+				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\", \"perm_mcss\": " + permMcss + ", \"perm_sleep\": " + permSleep
+				+ ", \"perm_server\": " + permServer + ", \"perm_admin\": " + permAdmin + "}\n", StandardCharsets.UTF_8);
 	}
 
 	/** Signs in to the panel with the player's own account, as the panel's web page does (POST /auth), and keeps the
@@ -204,7 +221,10 @@ final class ServerControl {
 		// signed in, then still answers.
 		boolean pc = panel || (hasHelper() && answers(helperHostPort(), 2000));
 		String ping = game ? slp[0] : "", players = game ? slp[1] + " of " + slp[2] : "";
-		if (hasKey() && panel) {
+		if (viaHelper() && pc) {
+			String[] r = phase(statusCode(), ping, players);
+			if (r != null) return r;
+		} else if (hasKey() && panel) {
 			try {
 				Map<String, Object> srv = asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId, null)));
 				int st = -1;
@@ -222,22 +242,54 @@ final class ServerControl {
 			} catch (IOException ignored) { }
 		}
 		if (game) return new String[] {"ok", "Online", "online", ping, players};
-		if (panel) return new String[] {"off", "The server PC is awake, but the Minecraft server isn't answering" + (hasKey() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
+		if (panel) return new String[] {"off", "The server PC is awake, but the Minecraft server isn't answering" + (canControlServer() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
 		if (pc) return new String[] {"off", "The server PC is awake, but MCSS isn't running: start it with Start MCSS below, then the server", "nomcss", "", ""};
 		return new String[] {"off", "Not answering: the server PC is asleep or off" + (canWake() ? " (Wake server device works from the home network)" : ""), "asleep", "", ""};
 	}
 
+	private static String[] phase(int st, String ping, String players) {
+		switch (st) {
+			case 1: return new String[] {"ok", "Online", "online", ping, players};
+			case 3: return new String[] {"warn", "Starting\u2026", "starting", ping, players};
+			case 2: return new String[] {"warn", "Restarting\u2026", "starting", ping, players};
+			case 4: return new String[] {"warn", "Stopping\u2026", "stopping", ping, players};
+			case 0: return new String[] {"off", "The server PC is awake, but the Minecraft server is off: press Start server", "off", "", ""};
+			default: return null;
+		}
+	}
+
+	/** Start or stop: through the host helper when the owner allowed this launcher server control (the helper uses its
+	 *  own MCSS key), otherwise with this device's own panel access. */
+	private void serverAction(boolean start) throws IOException {
+		if (viaHelper()) {
+			Map<String, Object> r = helper("POST", "/v1/server/" + (start ? "start" : "stop"), "{}");
+			if (!"ok".equals(str(r.get("result")))) throw new Refused(str(r.get("message")).isEmpty() ? str(r.get("error")) : str(r.get("message")));
+			return;
+		}
+		api("POST", "/api/v2/servers/" + serverId + "/execute/action", "{\"action\":" + (start ? 2 : 1) + "}");
+	}
+
 	/** Asks MCSS to start the server. */
-	void start() throws IOException { api("POST", "/api/v2/servers/" + serverId + "/execute/action", "{\"action\":2}"); }
+	void start() throws IOException { serverAction(true); }
 
 	/** The server's state as MCSS reports it (0 off, 1 on, 2 restarting, 3 starting, 4 stopping), or -1 if unknown. */
 	int statusCode() {
+		if (viaHelper()) {
+			try { return (int) Double.parseDouble(str(helper("GET", "/v1/server", null).get("status"))); }
+			catch (IOException | RuntimeException e) { return -1; }
+		}
 		try { return (int) Double.parseDouble(str(asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId, null))).get("status"))); }
 		catch (IOException | RuntimeException e) { return -1; }
 	}
 
 	/** The last lines of the server's console log, oldest first. */
 	List<String> console(int lines) throws IOException {
+		if (viaHelper()) {
+			List<String> out = new ArrayList<>();
+			if (helper("GET", "/v1/server/log", null).get("lines") instanceof List<?> l) for (Object x : l) out.add(str(x));
+			else throw new IOException("the helper sent no log");
+			return out;
+		}
 		Object o = LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId + "/console?amountOfLines=" + lines + "&reversed=false", null));
 		List<String> out = new ArrayList<>();
 		if (o instanceof List<?> l) for (Object x : l) out.add(x instanceof Map<?, ?> m ? str(m.get("line") != null ? m.get("line") : m.get("text")) : str(x));
@@ -283,6 +335,13 @@ final class ServerControl {
 	Map<String, Object> mcssState() throws IOException {
 		Map<String, Object> r = helper("GET", "/v1/mcss", null);
 		if (str(r.get("_code")).equals("401")) { hello(); r = helper("GET", "/v1/mcss", null); }
+		if (str(r.get("_code")).equals("200")) {
+			boolean m = "granted".equals(str(r.get("state"))), sl = "true".equals(str(r.get("sleep"))), sv = "true".equals(str(r.get("server"))), ad = "true".equals(str(r.get("admin")));
+			if (m != permMcss || sl != permSleep || sv != permServer || ad != permAdmin) {
+				permMcss = m; permSleep = sl; permServer = sv; permAdmin = ad;
+				try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
+			}
+		}
 		return r;
 	}
 
@@ -294,7 +353,7 @@ final class ServerControl {
 	Map<String, Object> mcssClose(boolean force) throws IOException { return helper("POST", "/v1/mcss/close", force ? "{\"force\":true}" : "{}"); }
 
 	/** Asks MCSS to stop the server (action 1: a normal stop, which saves the world; not 3, kill). */
-	void stop() throws IOException { api("POST", "/api/v2/servers/" + serverId + "/execute/action", "{\"action\":1}"); }
+	void stop() throws IOException { serverAction(false); }
 
 	static final class HttpError extends IOException {
 		final int code;

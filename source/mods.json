@@ -2,7 +2,7 @@
  "pack": {
   "name": "October Journey",
   "author": "Andrew",
-  "version": "1.8.9",
+  "version": "1.9.0",
   "minecraft": "26.3",
   "fabric": "0.19.5"
  },
@@ -19,7 +19,8 @@
     "modid": "betterf3",
     "default": true,
     "description": "A cleaner, adjustable F3 debug screen."
-   }
+   },
+   "size": 719577
   },
   {
    "title": "Inventory Profiles Next",
@@ -33,7 +34,8 @@
     "modid": "inventoryprofilesnext",
     "default": true,
     "description": "Inventory sorting, auto refill, locked slots and more."
-   }
+   },
+   "size": 1485260
   },
   {
    "title": "Jade 🔍",
@@ -47,7 +49,8 @@
     "modid": "jade",
     "default": true,
     "description": "Shows what you're looking at. The server has it too."
-   }
+   },
+   "size": 1092685
   },
   {
    "title": "Mouse Tweaks",
@@ -61,7 +64,8 @@
     "modid": "mousetweaks",
     "default": true,
     "description": "Faster item dragging and scrolling in inventories."
-   }
+   },
+   "size": 74569
   },
   {
    "title": "Roughly Enough Items (brewing fix)",
@@ -86,7 +90,8 @@
     "modid": "appleskin",
     "default": true,
     "description": "Food and saturation values on the hunger bar and in tooltips. The server has it too."
-   }
+   },
+   "size": 180194
   },
   {
    "title": "Architectury API",
@@ -95,7 +100,8 @@
    "url": "https://cdn.modrinth.com/data/lhGA9TYQ/versions/1pMaB6So/architectury-fabric-22.0.5.jar",
    "sha512": "14c61af2088b80b465f06edd3b3005038fa5be1c95a2161ce712c8da408a358038b7cd7ae4acf3198f6d47c693e4fdf65d646dac7e124f7cdd7f32bbc0dcd0ce",
    "project": "lhGA9TYQ",
-   "version": "1pMaB6So"
+   "version": "1pMaB6So",
+   "size": 622542
   },
   {
    "title": "Chat Lift",
@@ -115,7 +121,8 @@
    "url": "https://cdn.modrinth.com/data/9s6osm5g/versions/fg2uyxOW/cloth-config-fabric-26.3.159.jar",
    "sha512": "8924e19d41845096724fa10f3717bc51964a0edbbbcad0ff1e6c6187a398b08f356e49579a657c2dc44a7f92e3850771f3ca70bf8c1f654de60425163b91dbb1",
    "project": "9s6osm5g",
-   "version": "fg2uyxOW"
+   "version": "fg2uyxOW",
+   "size": 1135009
   },
   {
    "title": "Controlify (Controller support)",
@@ -129,7 +136,8 @@
     "modid": "controlify",
     "default": true,
     "description": "Controller support: gamepads, Steam Controller, Steam Deck controls."
-   }
+   },
+   "size": 6410187
   },
   {
    "title": "Fabric API",
@@ -138,7 +146,8 @@
    "url": "https://cdn.modrinth.com/data/P7dR8mSH/versions/bq3SsNGk/fabric-api-0.163.0%2B26.3.jar",
    "sha512": "44fd8de10fa71ea39cf984d44d2ec4c8e9314f8af88ad95788d9a09ac7b02b5c2f796ae88f40e314bd27df677e66fed59d1a1b6784350b0cc1fd62efac9e08a3",
    "project": "P7dR8mSH",
-   "version": "bq3SsNGk"
+   "version": "bq3SsNGk",
+   "size": 1774707
   },
   {
    "title": "Fabric Language Kotlin",
@@ -147,7 +156,8 @@
    "url": "https://cdn.modrinth.com/data/Ha28R6CL/versions/SKW1BTL3/fabric-language-kotlin-1.14.2%2Bkotlin.2.4.21.jar",
    "sha512": "7fb475c4a7e7bdf8d0aca4b5798a58a354c51443d5b1fbde3e8cf34dfbf7191ef4238b5f07d08ec9490ec180b371624523326c3ad45d4ed2b2be541de9407e5d",
    "project": "Ha28R6CL",
-   "version": "SKW1BTL3"
+   "version": "SKW1BTL3",
+   "size": 8142878
   },
   {
    "title": "FerriteCore",
@@ -161,7 +171,8 @@
     "modid": "ferritecore",
     "default": true,
     "description": "Uses less memory."
-   }
+   },
+   "size": 72677
   },
   {
    "title": "Controller Handoff Fix",
@@ -184,7 +195,8 @@
    "url": "https://cdn.modrinth.com/data/onSQdWhM/versions/aKBFonyQ/libIPN-fabric-26.3-6.9.0.jar",
    "sha512": "a580af93344e21f985c34e5bfe74361767a4ba49ced96d50c917d5008d9eb32e797e0ff68c010319c6116b6859fa5fb39544f4f78dd9f7892554340d86420abd",
    "project": "onSQdWhM",
-   "version": "aKBFonyQ"
+   "version": "aKBFonyQ",
+   "size": 640902
   },
   {
    "title": "Litematica",
@@ -198,7 +210,8 @@
     "modid": "litematica",
     "default": true,
     "description": "Shows building plans (schematics) in the world."
-   }
+   },
+   "size": 1972556
   },
   {
    "title": "MaLiLib",
@@ -207,7 +220,8 @@
    "url": "https://cdn.modrinth.com/data/GcWjdA9I/versions/JX9bESec/malilib-fabric-26.3-0.30.2.jar",
    "sha512": "8f17a5d70cb2f461aeb540f4a99de01c3351f8d3678d902d3d00cfe5d10c039fdc111c1079fe23aacb7936b793ad1cd045a8dc3a9e7926865820c254d92345b8",
    "project": "GcWjdA9I",
-   "version": "JX9bESec"
+   "version": "JX9bESec",
+   "size": 2081094
   },
   {
    "title": "Mod Menu",
@@ -216,7 +230,8 @@
    "url": "https://cdn.modrinth.com/data/mOgUt4GM/versions/xckkBHD5/modmenu-21.0.1.jar",
    "sha512": "d00d52d5342728da13a6237f76c50fc5fd1c62d8112ae4e07726bbc64d2019a76130d6b2968765df81c6499225588eacee6681eebc13c0ada3cad91fc8ab2984",
    "project": "mOgUt4GM",
-   "version": "xckkBHD5"
+   "version": "xckkBHD5",
+   "size": 862761
   },
   {
    "title": "Text Placeholder API",
@@ -225,7 +240,8 @@
    "url": "https://cdn.modrinth.com/data/eXts2L7r/versions/lXytLqWj/placeholder-api-3.2.0%2B26.3.jar",
    "sha512": "eb2bb31e51068aad2581b7864ea7b11b1209ba1c2b27551cd5837d9b312b818b73bb47c06374b46b99b73401c62c6b6c115f702c55aed6afd467ad8ad6448de4",
    "project": "eXts2L7r",
-   "version": "lXytLqWj"
+   "version": "lXytLqWj",
+   "size": 254959
   },
   {
    "title": "Reese's Sodium Options",
@@ -242,7 +258,8 @@
     "needs": [
      "sodium"
     ]
-   }
+   },
+   "size": 258082
   },
   {
    "title": "SeamlessLib",
@@ -251,7 +268,8 @@
    "url": "https://cdn.modrinth.com/data/sBjtXHpE/versions/uqiqoOCi/seamless-api-2.0.2%2Bmc26.3-fabric.jar",
    "sha512": "a3f522b5a6f6635478f280942088babbb93d13a36e4bbaa0f144a49100d4f9d62985b33e0964eb548eef21427a42d54cfee2edbf0f281adec678307ee75f4d6f",
    "project": "sBjtXHpE",
-   "version": "uqiqoOCi"
+   "version": "uqiqoOCi",
+   "size": 50113
   },
   {
    "title": "Nearby Chest Crafting",
@@ -265,7 +283,8 @@
     "modid": "seamless_crafting",
     "default": false,
     "description": "Craft with items from nearby chests. The server has it too; with it off you craft the usual way."
-   }
+   },
+   "size": 163656
   },
   {
    "title": "Sodium",
@@ -279,7 +298,8 @@
     "modid": "sodium",
     "default": true,
     "description": "Faster rendering: more frames per second."
-   }
+   },
+   "size": 1908068
   },
   {
    "title": "Stack to Nearby Chests",
@@ -293,7 +313,8 @@
     "modid": "stack-to-nearby-chests",
     "default": false,
     "description": "Buttons and keys to stack your items into, or restock from, nearby chests. Only on your side."
-   }
+   },
+   "size": 586801
   },
   {
    "title": "Xaero's Minimap",
@@ -307,7 +328,8 @@
     "modid": "xaerominimap",
     "default": true,
     "description": "A minimap in the corner of the screen."
-   }
+   },
+   "size": 2233189
   },
   {
    "title": "Xaero's World Map",
@@ -321,7 +343,8 @@
     "modid": "xaeroworldmap",
     "default": true,
     "description": "A full-screen map of where you have been."
-   }
+   },
+   "size": 1488669
   },
   {
    "title": "YetAnotherConfigLib (YACL)",
@@ -330,7 +353,8 @@
    "url": "https://cdn.modrinth.com/data/1eAoo2KR/versions/s9SjoFu1/yet_another_config_lib_v3-3.9.7%2B26.3-fabric.jar",
    "sha512": "f3957028dd31cae78f08aee3e768f61bd12c4c8423257d357bc3c1a2172047c769d37901f99775c7ffff1e5ee794025dc72738b2869cab06f1c2811841d68b24",
    "project": "1eAoo2KR",
-   "version": "s9SjoFu1"
+   "version": "s9SjoFu1",
+   "size": 1125377
   },
   {
    "title": "October Journey Settings",

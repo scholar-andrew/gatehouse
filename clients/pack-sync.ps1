@@ -212,19 +212,55 @@ function RunInstaller($u) {
     # Its error output (kept apart by Start-Process) goes on the end of the log; the .err file is reused next run.
     finally { Get-Content "$javaLog.err" -ErrorAction SilentlyContinue | Add-Content $javaLog -ErrorAction SilentlyContinue }
 }
+# Before anything is downloaded the launcher says how big the update is and asks: Download, Skip this time or Quit.
+# "ask|<pack address>" in the status file starts it; the launcher works the size out from the pack's update-sizes.json
+# against what's installed here, and answers in pack-sync-answer.txt: "wait" while it's asking, then "go" or
+# "skip|<size>" (Quit closes it: exit code 10). With nothing to download it answers "go" at once. No launcher window,
+# or no answer begun within 30 seconds: no question, the update just runs.
+# The launcher updates itself first ("self-update" on the ask line says this script can handle it): if the pack has a
+# newer launch-popup.jar, it fetches and checks it, leaves it as launch-popup.jar.new and closes with exit code 12;
+# this script swaps it in and opens the new launcher, which then answers the same question. One such round at most.
+$answerFile = Join-Path $here 'pack-sync-answer.txt'
+Remove-Item $answerFile, "$popupJar.new" -Force -ErrorAction SilentlyContinue
+$skip = $false; $skipSize = ''
+foreach ($round in 1, 2) {
+    if (-not ($script:popup -and -not $script:popup.HasExited)) { break }
+    if ($round -eq 1) { Add-Content -Path $statusFile -Value ('ask|' + ($urls[0] -replace '/pack\.toml$', '') + '|self-update') -Encoding utf8 }
+    $asked = Get-Date; $answer = ''
+    while (-not $script:popup.HasExited) {
+        $answer = if (Test-Path $answerFile) { "$(Get-Content $answerFile -Raw -ErrorAction SilentlyContinue)".Trim() } else { '' }
+        if ($answer -and $answer -ne 'wait') { break }
+        if (-not $answer -and ((Get-Date) - $asked).TotalSeconds -gt 30) { Note 'the launcher gave no answer about the update size; updating'; break }
+        Start-Sleep -Milliseconds 200
+    }
+    if ($script:popup.HasExited -and $script:popup.ExitCode -eq 10) { AfterPopup 10 }
+    if ($round -eq 1 -and $script:popup.HasExited -and $script:popup.ExitCode -eq 12 -and (Test-Path "$popupJar.new")) {
+        try { Move-Item "$popupJar.new" $popupJar -Force; Note 'the launcher updated itself; opening the new one' }
+        catch { Note "couldn't swap in the new launcher: $($_.Exception.Message)" }
+        Remove-Item $answerFile -Force -ErrorAction SilentlyContinue
+        StartProgress
+        continue
+    }
+    if ($answer -like 'skip*') { $skip = $true; $skipSize = "$(($answer -split '\|', 2)[1])".Trim(); Note "update skipped in the launcher (about $skipSize waiting)" }
+    break
+}
 RestoreSwitchedOff
 # Each source that answered, in order, then the first once more: an update that fails or stalls (say the connection
 # dropped part-way) is tried again. packwiz-installer only replaces files it has fully downloaded and checked, and
 # picks up where it left off on the next try.
 $code = $null; $url = $null
-foreach ($u in @($urls) + @($urls[0])) {
+if ($skip) { $code = 0; $url = $urls[0] }
+foreach ($u in $(if ($skip) { @() } else { @($urls) + @($urls[0]) })) {
     $code = RunInstaller $u; $url = $u
     Note "$u -> exit $code (Java: $java)"
     if ("$code" -eq '0') { break }
     if (Test-Path $javaLog) { Get-Content $javaLog -Tail 5 | ForEach-Object { Note "  java: $_" } }
 }
 $where = if ($url -match 'githubusercontent') { 'GitHub' } else { "the owner's PC (Tailscale)" }
-if ("$code" -eq '0') {
+if ($skip) {
+    Status 'ok' 'Connection' $where
+    Status 'warn' 'Mods and settings' "Update skipped this time (about $skipSize waiting); playing what's installed"
+} elseif ("$code" -eq '0') {
     Status 'ok' 'Connection' $where
     Status 'ok' 'Mods and settings'   # (the pop-up adds what changed, from the records)
 } else {

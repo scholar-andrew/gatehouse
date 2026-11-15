@@ -162,6 +162,39 @@ if [ "${#urls[@]}" = 0 ]; then
   stop_if_no_mods "no source reachable" "" offline
 fi
 [ -n "$java_bin" ] || stop_if_no_mods "no Java found yet (INST_JAVA was '${INST_JAVA:-}')" "Prism Launcher is still setting up Java: press Play again."
+# Before anything is downloaded the launcher says how big the update is and asks: Download, Skip this time or Quit.
+# "ask|<pack address>" in the status file starts it; the launcher works the size out from the pack's update-sizes.json
+# against what's installed here, and answers in pack-sync-answer.txt: "wait" while it's asking, then "go" or
+# "skip|<size>" (Quit closes it: exit code 10). With nothing to download it answers "go" at once. No launcher window,
+# or no answer begun within 30 seconds: no question, the update just runs.
+# The launcher updates itself first ("self-update" on the ask line says this script can handle it): if the pack has a
+# newer launch-popup.jar, it fetches and checks it, leaves it as launch-popup.jar.new and closes with exit code 12;
+# this script swaps it in and opens the new launcher, which then answers the same question. One such round at most.
+rm -f "$here/pack-sync-answer.txt" "$here/extras/launch-popup.jar.new"
+skip=0; skip_size=""
+for round in 1 2; do
+  [ -n "$popup_pid" ] && kill -0 "$popup_pid" 2>/dev/null || break
+  [ "$round" = 1 ] && echo "ask|${urls[0]%/pack.toml}|self-update" >> "$here/pack-sync-status.txt"
+  asked=$SECONDS; answer=""
+  while kill -0 "$popup_pid" 2>/dev/null; do
+    answer="$(tr -d '\r\n' < "$here/pack-sync-answer.txt" 2>/dev/null || true)"
+    if [ -n "$answer" ] && [ "$answer" != wait ]; then break; fi
+    if [ -z "$answer" ] && [ $((SECONDS - asked)) -gt 30 ]; then note "the launcher gave no answer about the update size; updating"; break; fi
+    sleep 0.2
+  done
+  if ! kill -0 "$popup_pid" 2>/dev/null; then
+    wait "$popup_pid"; c=$?; popup_pid=""
+    [ "$c" = 10 ] && after_popup 10
+    if [ "$round" = 1 ] && [ "$c" = 12 ] && [ -f "$here/extras/launch-popup.jar.new" ]; then
+      if mv -f "$here/extras/launch-popup.jar.new" "$here/extras/launch-popup.jar"; then note "the launcher updated itself; opening the new one"; fi
+      rm -f "$here/pack-sync-answer.txt"
+      start_progress
+      continue
+    fi
+  fi
+  case "$answer" in skip*) skip=1; skip_size="${answer#skip}"; skip_size="${skip_size#|}"; note "update skipped in the launcher (about $skip_size waiting)" ;; esac
+  break
+done
 switches restore
 # packwiz-installer (the program the bootstrap runs) is pinned to one release, so it only changes when the pack changes
 # it. Once that release is here (packwiz-installer.jar's manifest says so), the bootstrap doesn't ask GitHub at all:
@@ -188,7 +221,9 @@ run_installer() {
 # dropped part-way) is tried again. packwiz-installer only replaces files it has fully downloaded and checked, and
 # picks up where it left off on the next try.
 code=1; url=""
+[ "$skip" = 1 ] && { code=0; url="${urls[0]}"; }
 for u in "${urls[@]}" "${urls[0]}"; do
+  [ "$skip" = 1 ] && break
   run_installer "$u"; code=$?; url="$u"
   note "($variant) $u -> exit $code (Java: $java_bin)"
   [ "$code" = 0 ] && break
@@ -196,7 +231,9 @@ for u in "${urls[@]}" "${urls[0]}"; do
   tail -n 5 "$here/pack-sync-java.log" | while IFS= read -r l; do note "  java: $l"; done
 done
 case "$url" in *githubusercontent*) where="GitHub" ;; *) where="the owner's PC (Tailscale)" ;; esac
-if [ "$code" = 0 ]; then
+if [ "$skip" = 1 ]; then
+  status ok "Connection" "$where"; status warn "Mods and settings" "Update skipped this time (about $skip_size waiting); playing what's installed"
+elif [ "$code" = 0 ]; then
   status ok "Connection" "$where"; status ok "Mods and settings"   # (the pop-up adds what changed, from the records)
 else
   status warn "Connection" "$where; the update didn't finish"

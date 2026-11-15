@@ -1,0 +1,210 @@
+{
+ "version": "1.9.0",
+ "files": {
+  "config/fabric_loader_dependencies.json": {
+   "hash": "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280",
+   "size": 127
+  },
+  "config/inventoryprofilesnext/inventoryprofiles.json": {
+   "hash": "6779a570710921108d142e01541a127a32fd1e1e64e0f461bb47819b8c44148b",
+   "size": 130,
+   "preserve": true
+  },
+  "extras/changelog.txt": {
+   "hash": "b975caa206ad1d4a3be555a673f30661a77dfbbabd03ae131ca96c09621f63d1",
+   "size": 8377
+  },
+  "extras/launch-popup.jar": {
+   "hash": "12434fd02caee2eed7902e1333d401b807310c7ffed9627b16e54a20bc46b276",
+   "size": 62624
+  },
+  "extras/mod-names.json": {
+   "hash": "c79765289140f7fb3b7a985ec82b4b0bffd2e62cbc48a304cf5ba72d2367d655",
+   "size": 1442
+  },
+  "extras/mod-toggles.json": {
+   "hash": "75d6134daed6501ca06c2c482269281b1a9fbe80585af0107f9d26ab1c83d69e",
+   "size": 4184
+  },
+  "extras/pack-sync.ps1": {
+   "hash": "29a31a3f5d5de0da622a93bc078b11f788aeeb0634f7ed8677e516881be135cc",
+   "size": 33285
+  },
+  "extras/pack-sync.sh": {
+   "hash": "4d77f2ead052e915c914b753a628c0603b2331d52259bb585bb976c1d2a026e5",
+   "size": 25505
+  },
+  "extras/server-changelog.txt": {
+   "hash": "9a30d689ef8e787a43ae97b7d40f2198fe7c4885beefe00631d672f6f818c140",
+   "size": 155
+  },
+  "extras/server-control.json": {
+   "hash": "893feeedde0420511e4ffa4d2672c8b364eb771472c945f7caee674d3890e10f",
+   "size": 309
+  },
+  "extras/server-state.json": {
+   "hash": "40a6ae9280b70789660041e05bdde617c1869e1300c081c5175f3e57a4946acd",
+   "size": 3285
+  },
+  "extras/servers.json": {
+   "hash": "cc61fa01686b849f226a84a901b0490e30c8766b6f8e90debcd55edb4fc915d4",
+   "size": 75
+  },
+  "mods/RoughlyEnoughItems-26.3.824-brewingfix.1.jar": {
+   "hash": "4d8d4fd233ca0c8d93f07d76285663cb62518a2f22b2cdca78be8950463ec754",
+   "size": 2399500
+  },
+  "mods/appleskin.pw.toml": {
+   "hash": "89ff89936069c7f318060bc0d9a35a3583f5937fcc59122f303b340524f1096a",
+   "size": 180194
+  },
+  "mods/architectury-api.pw.toml": {
+   "hash": "2227754f6f4b407524c89906c0210570eb9a527938a493353c88bc6dd26e93fe",
+   "size": 622542
+  },
+  "mods/betterf3.pw.toml": {
+   "hash": "1d1fa6fd8007c772ad75f5f60aa9b415b6c0d6adca505600edcfcc3c1e098558",
+   "size": 719577
+  },
+  "mods/chatlift-1.1.3.jar": {
+   "hash": "d1176727ab1c9453b69fb0cd9329058a97d2ef373b1bb4af1563a2478ec51d15",
+   "size": 10914
+  },
+  "mods/cloth-config.pw.toml": {
+   "hash": "018668c11c178bbcf8058ab57a85fd3736ed7b20a89d712fc720ffa13f1377b1",
+   "size": 1135009
+  },
+  "mods/controlify.pw.toml": {
+   "hash": "1a79c318635a8a3dcc9f2ef8a62dd6cc4099a1c91b1e1f384cd5b36648fc80e5",
+   "size": 6410187
+  },
+  "mods/fabric-api.pw.toml": {
+   "hash": "90074bdc58503762c89dad252201cb705847244fa255d43431feb83e599a8f89",
+   "size": 1774707
+  },
+  "mods/fabric-language-kotlin.pw.toml": {
+   "hash": "0d883105f1e9c58a47b212b7f9ed94ff66d7f71dbf1d521218ed5f9e8b6ebb71",
+   "size": 8142878
+  },
+  "mods/ferrite-core.pw.toml": {
+   "hash": "ea06bf4ac15b6c43fad31b31866fa8c51de3109e548c8e600e6f0259c0e40230",
+   "size": 72677
+  },
+  "mods/handofffix-1.0.0.jar": {
+   "hash": "936167729897ef636822e22b40704a1d28e830dcc7787393d70ccc95b7961af6",
+   "size": 3644
+  },
+  "mods/inventory-profiles-next.pw.toml": {
+   "hash": "66babf2b90e61572ee675751c5fe69f9955d39c2d4a6d037945f458f0ddbc088",
+   "size": 1485260
+  },
+  "mods/jade.pw.toml": {
+   "hash": "d6410ef407718c261416fb958d2d5c10e1091c24e914f37c5c55c8814be35f27",
+   "size": 1092685
+  },
+  "mods/libipn.pw.toml": {
+   "hash": "d9e2455639721d485876a8916394799535719b29f434b4b9c3234e22b74a1e0a",
+   "size": 640902
+  },
+  "mods/litematica.pw.toml": {
+   "hash": "f67bfb493f6fcbb7673554b9c537b787becb07d60a95fe0a2bcd9a9b11fbc38b",
+   "size": 1972556
+  },
+  "mods/malilib.pw.toml": {
+   "hash": "fa8700628f5b2f6911bcecc3f0d8ae4c0fd2c9035bb0a0c2b3f46521f52aff0c",
+   "size": 2081094
+  },
+  "mods/modmenu.pw.toml": {
+   "hash": "6680a463ee425d9af04668ea7fe6861322fefed8a48b1c2766bcfb3dcbe3d266",
+   "size": 862761
+  },
+  "mods/mouse-tweaks.pw.toml": {
+   "hash": "a4f3ae5afad624f8a35b971a0c816a54b2ad6f733f259b55cd5879c2c8a9df4d",
+   "size": 74569
+  },
+  "mods/octoberjourney-1.2.1.jar": {
+   "hash": "37661d3b484ccd4d4596cd830134ac85d4db89b1a090069a1f31ad12c5495d3e",
+   "size": 10238
+  },
+  "mods/placeholder-api.pw.toml": {
+   "hash": "099cb8928996c8bc142fe79e9e60ee5a47cb657d0843000c6ed5c4c883eb58ba",
+   "size": 254959
+  },
+  "mods/reeses-sodium-options.pw.toml": {
+   "hash": "523e8f083550838eaef4a02c789ad5b72fe531d50c00c74fa53bb8d8a30627d2",
+   "size": 258082
+  },
+  "mods/seamless-api.pw.toml": {
+   "hash": "62218115b0dbebb186c13eda29a415cb7df122822af8cda1f0c08b44bed76108",
+   "size": 50113
+  },
+  "mods/seamlesscrafting.pw.toml": {
+   "hash": "655056ff5fe43f6d9d63b106f505125d295067da64cb9e043b554f60a7f484a2",
+   "size": 163656
+  },
+  "mods/sodium.pw.toml": {
+   "hash": "d00b3a8ffc0f190fe7660fc2b0454ef310b1d776e5a9d130814f663476f0fe30",
+   "size": 1908068
+  },
+  "mods/stack-to-nearby-chests.pw.toml": {
+   "hash": "35ea7699311d5c72717591597915ae93361e0779150931eda86919f957338114",
+   "size": 586801
+  },
+  "mods/xaeros-minimap.pw.toml": {
+   "hash": "9890bf17bb07d0c56f0e0fcfd45f4b1f81d5f4901bc3446fe53edc3fbe3b4e10",
+   "size": 2233189
+  },
+  "mods/xaeros-world-map.pw.toml": {
+   "hash": "6edda795b66f079c2e8f6a897679bfa05884fd101fb417ae3c4a9009f7793c35",
+   "size": 1488669
+  },
+  "mods/yacl.pw.toml": {
+   "hash": "0387806c977cf558993d7a2cec8e694f7e055f06ce3e8c430170217ceab43f97",
+   "size": 1125377
+  },
+  "steam/art-prism/cover.png": {
+   "hash": "4a8f8e84606c4d4ee00a223323805a88f9bc87f9e690f045da40f4bc3266de2e",
+   "size": 60176
+  },
+  "steam/art-prism/hero.png": {
+   "hash": "90554b4cb27b69c30de985d332169b97b98c2585c5d5aeceaea62f126351ecff",
+   "size": 91881
+  },
+  "steam/art-prism/icon.png": {
+   "hash": "275fbf2e4634657b36653b2c586530b5d263a6f627f327a4870b3a134bcb1c25",
+   "size": 30499
+  },
+  "steam/art-prism/logo.png": {
+   "hash": "e3de6daae7d1268b2da29c40d97771e64b810aee3375a127e32612d2bc5b8987",
+   "size": 30425
+  },
+  "steam/art-prism/wide.png": {
+   "hash": "e929bc55d07e1e30232e3824789faf2ebc0c1533171767d9fbe9cbbbcb26d21d",
+   "size": 52281
+  },
+  "steam/art/cover.png": {
+   "hash": "ea70e98277c8db7db79ea3475aecb7041382431c26b623b7bc7fe2e9d321b9a4",
+   "size": 41642
+  },
+  "steam/art/hero.png": {
+   "hash": "3e8d041ec2f5f1a8dbc66cfe83439e61eac5618bb5eee8c8ca8fcdbe1a7f446e",
+   "size": 35568
+  },
+  "steam/art/icon.png": {
+   "hash": "7271b860bd4ed264a2099d1cfcd1f0194e5e6766c393e131d63e8fa8c8f8966a",
+   "size": 12623
+  },
+  "steam/art/logo.png": {
+   "hash": "d8a18fe5dd3ad044c1d0983c85921e92377e44593a701969c8bb7f85375b5165",
+   "size": 12357
+  },
+  "steam/art/wide.png": {
+   "hash": "0de6da09feb2376ec93e4ad3f3bbc02dcd07ada2757b84f2e9c5fdb71e9409ca",
+   "size": 23810
+  },
+  "steam/controller_neptune.vdf": {
+   "hash": "b268cde7fd1fd3c70a6e00655f2681228d9b781c471e9562596e80153ba81c01",
+   "size": 20412
+  }
+ }
+}

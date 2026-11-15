@@ -260,10 +260,62 @@ public final class HostHelper {
 			String id = x.getRequestHeaders().getFirst("X-Device"), token = x.getRequestHeaders().getFirst("X-Token");
 			Map<String, Object> d = Json.map(devs.get(id == null ? "" : id));
 			if (d.isEmpty() || token == null || !sha256(token).equals(d.get("token_sha256"))) { reply(x, 401, m("state", "unknown", "error", "say hello first")); return; }
-			// Two separate permissions, each allowed per launcher in the panel: MCSS control ("granted") and PC sleep.
-			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep"));
+			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
+			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
+			// needs no panel sign-in or key of its own).
+			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep")), canServer = Boolean.TRUE.equals(d.get("server"));
+			// A fourth, helper control: the launcher may do what the host panel does (see the launchers and the activity,
+			// switch the other three permissions, forget a launcher). Only the panel on this PC gives or removes it, and
+			// the helper's MCSS key can't be read or set from a launcher.
+			boolean canAdmin = Boolean.TRUE.equals(d.get("admin"));
 			if (path.equals("/v1/mcss") && x.getRequestMethod().equals("GET")) {
-				reply(x, 200, m("state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "sleep", canSleep));
+				reply(x, 200, m("state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(),
+						"sleep", canSleep, "server", canServer, "admin", canAdmin, "server_ready", !setting("mcss_api_key", "").isEmpty()));
+				return;
+			}
+			if (path.startsWith("/v1/admin/")) {
+				if (!canAdmin) { reply(x, 403, m("error", "this device isn't allowed to manage launchers (the owner allows it in the host panel)")); return; }
+				boolean post = x.getRequestMethod().equals("POST");
+				if (path.equals("/v1/admin/devices") && !post) {
+					Map<String, Object> all = devices();
+					for (Object v : all.values()) Json.map(v).remove("token_sha256");
+					reply(x, 200, m("devices", all, "you", id, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "has_key", !setting("mcss_api_key", "").isEmpty()));
+				} else if (path.equals("/v1/admin/log") && !post) {
+					String[] lines = read(dir.resolve("host.log")).split("\\R");
+					List<Object> last = new ArrayList<>();
+					for (int i = Math.max(0, lines.length - 100); i < lines.length; i++) if (!lines[i].isBlank()) last.add(lines[i]);
+					reply(x, 200, m("log", last));
+				} else if ((path.equals("/v1/admin/perm") || path.equals("/v1/admin/forget")) && post) {
+					Map<String, Object> b = body(x);
+					String tid = Json.str(b.get("id"));
+					Map<String, Object> t = Json.map(devs.get(tid));
+					if (t.isEmpty()) { reply(x, 404, m("error", "unknown launcher")); return; }
+					if (path.endsWith("forget")) {
+						if (tid.equals(id)) { reply(x, 403, m("error", "This is the launcher you're using: forget it in the host panel on the server PC")); return; }
+						if (Boolean.TRUE.equals(t.get("admin"))) { reply(x, 403, m("error", "That launcher has helper control: only the host panel on the server PC can forget it")); return; }
+						devs.remove(tid); log("forgot " + who(t) + " (asked by " + who(d) + ")");
+					} else {
+						String perm = Json.str(b.get("perm"));
+						boolean v = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
+						String key = perm.equals("mcss") ? "granted" : perm.equals("sleep") ? "sleep" : perm.equals("server") ? "server" : null;
+						if (key == null) { reply(x, 403, m("error", perm.equals("admin") ? "Helper control is only given or removed in the host panel on the server PC" : "unknown permission")); return; }
+						t.put(key, v);
+						log((v ? "allowed " : "removed ") + (perm.equals("mcss") ? "MCSS control" : perm.equals("sleep") ? "PC sleep" : "server control") + (v ? " for " : " from ") + who(t) + " (asked by " + who(d) + ")");
+					}
+					saveDevices(devs);
+					reply(x, 200, m("ok", true));
+				} else reply(x, 404, m("error", "no such call"));
+				return;
+			}
+			if (path.startsWith("/v1/server")) {
+				if (!canServer) { reply(x, 403, m("error", "this device isn't allowed to control the server (the owner allows it in the host panel)")); return; }
+				if (path.equals("/v1/server") && x.getRequestMethod().equals("GET")) reply(x, 200, m("status", serverStatus()));
+				else if (path.equals("/v1/server/log") && x.getRequestMethod().equals("GET")) reply(x, 200, m("lines", serverLog(80)));
+				else if ((path.equals("/v1/server/start") || path.equals("/v1/server/stop")) && x.getRequestMethod().equals("POST")) {
+					String[] r = serverAction(path.endsWith("start"));
+					log((path.endsWith("start") ? "start" : "stop") + " the Minecraft server asked by " + who(d) + ": " + r[1]);
+					reply(x, 200, m("result", r[0], "message", r[1]));
+				} else reply(x, 404, m("error", "no such call"));
 				return;
 			}
 			if (path.equals("/v1/pc/sleep") && x.getRequestMethod().equals("POST")) {
@@ -284,6 +336,51 @@ public final class HostHelper {
 			log("error: " + e);
 			try { reply(x, 500, m("error", "the helper had a problem")); } catch (IOException ignored) {}
 		}
+	}
+
+	// ------------------------------------------------------------------ the Minecraft server, through MCSS's API
+
+	/** The server's folder (host.json "server_dir"), and its id in MCSS (from mcss_server_config.json there). */
+	static Path serverDir() { return Path.of(setting("server_dir", "C:\\Minecraft\\MCSS\\servers\\octoberserver")); }
+	static String serverId() {
+		String id = setting("mcss_server", "");
+		return !id.isEmpty() ? id : Json.str(Json.map(Json.parse(read(serverDir().resolve("mcss_server_config.json")))).get("guid"));
+	}
+
+	/** One call to MCSS's own API on this PC, with the helper's key (host.json "mcss_api_key", set in the panel). */
+	static String mcssApi(String method, String path, String body) throws IOException {
+		HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + path).openConnection();
+		c.setConnectTimeout(3000); c.setReadTimeout(8000); c.setRequestMethod(method);
+		c.setRequestProperty("apiKey", setting("mcss_api_key", ""));
+		if (body != null) { c.setDoOutput(true); c.setRequestProperty("Content-Type", "application/json"); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
+		int code = c.getResponseCode();
+		if (code < 200 || code >= 300) throw new IOException("HTTP " + code);
+		try (InputStream in = c.getInputStream()) { return new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+	}
+
+	/** MCSS's state for the server: 0 off, 1 on, 2 restarting, 3 starting, 4 stopping; -1 unknown (no key, MCSS closed). */
+	static int serverStatus() {
+		try { return (int) Double.parseDouble(Json.str(Json.map(Json.parse(mcssApi("GET", "/api/v2/servers/" + serverId(), null))).get("status"))); }
+		catch (IOException | RuntimeException e) { return -1; }
+	}
+
+	static String[] serverAction(boolean start) {
+		if (setting("mcss_api_key", "").isEmpty()) return new String[] {"refused", "The helper has no MCSS key yet: the owner sets it in the host panel (Set MCSS key)"};
+		if (mcssProcesses().isEmpty()) return new String[] {"refused", "MCSS isn't running: start it first (Start MCSS)"};
+		try {
+			mcssApi("POST", "/api/v2/servers/" + serverId() + "/execute/action", "{\"action\":" + (start ? 2 : 1) + "}");
+			return new String[] {"ok", start ? "Start requested: the server takes a minute or so to come up" : "Stop requested: the server saves the world and shuts down"};
+		} catch (IOException e) {
+			return new String[] {"failed", e.getMessage().contains("401") || e.getMessage().contains("403") ? "MCSS didn't accept the helper's key (the owner checks it in the host panel)" : "MCSS said no (" + e.getMessage() + ")"};
+		}
+	}
+
+	/** The end of the server's own log file (logs/latest.log), oldest first: how a shutdown went is read from it. */
+	static List<Object> serverLog(int lines) {
+		String[] all = read(serverDir().resolve("logs").resolve("latest.log")).split("\\R");
+		List<Object> out = new ArrayList<>();
+		for (int i = Math.max(0, all.length - lines); i < all.length; i++) if (!all[i].isBlank()) out.add(all[i]);
+		return out;
 	}
 
 	/** Puts this PC to sleep a few seconds from now (so the reply gets out first). Refused while the Minecraft server
@@ -309,7 +406,14 @@ public final class HostHelper {
 			if (path.equals("/admin/devices")) {
 				Map<String, Object> devs = devices();
 				for (Object v : devs.values()) Json.map(v).remove("token_sha256");
-				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "port", port(), "bind", setting("bind", "100.91.134.102")));
+				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "port", port(), "bind", setting("bind", "100.91.134.102"),
+						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : (serverStatus() >= 0 ? "yes" : "no")));
+			} else if (path.equals("/admin/settings")) {
+				// The helper's own MCSS key, kept in host.json on this PC only.
+				cfg.put("mcss_api_key", Json.str(body(x).get("mcss_api_key")).trim());
+				Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8);
+				log(setting("mcss_api_key", "").isEmpty() ? "the helper's MCSS key was cleared" : "the helper's MCSS key was set");
+				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/grant") || path.equals("/admin/forget") || path.equals("/admin/perm")) {
 				Map<String, Object> b = body(x), devs = devices();
 				String id = Json.str(b.get("id"));
@@ -321,6 +425,8 @@ public final class HostHelper {
 					boolean v = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
 					if (perm.equals("sleep")) { d.put("sleep", v); log((v ? "allowed PC sleep for " : "removed PC sleep from ") + who(d)); }
 					else if (perm.equals("mcss")) { d.put("granted", v); log((v ? "allowed MCSS control for " : "removed MCSS control from ") + who(d)); }
+					else if (perm.equals("server")) { d.put("server", v); log((v ? "allowed server control for " : "removed server control from ") + who(d)); }
+					else if (perm.equals("admin")) { d.put("admin", v); log((v ? "allowed helper control for " : "removed helper control from ") + who(d)); }
 					else { reply(x, 400, m("error", "unknown permission")); return; }
 				}
 				else { boolean g = Boolean.TRUE.equals(b.get("granted")) || "true".equals(Json.str(b.get("granted"))); d.put("granted", g); log((g ? "allowed MCSS control for " : "revoked MCSS control from ") + who(d)); }
@@ -359,7 +465,7 @@ public final class HostHelper {
 			JLabel state = new JLabel(" ");
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(head, BorderLayout.NORTH); top.add(state, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
-			String[] cols = {"Launcher", "Tailscale device", "System", "First seen", "Last seen", "MCSS control", "PC sleep"};
+			String[] cols = {"Launcher", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable table = new JTable(model);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -369,13 +475,21 @@ public final class HostHelper {
 			log.setEditable(false);
 			log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
 			JPanel mid = new JPanel(new BorderLayout(0, 8));
-			JScrollPane ts = new JScrollPane(table); ts.setPreferredSize(new Dimension(820, 200));
+			JScrollPane ts = new JScrollPane(table); ts.setPreferredSize(new Dimension(940, 200));
 			mid.add(ts, BorderLayout.CENTER);
 			JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
-			JButton mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
-			for (JButton b : new JButton[] {mcssB, sleepB, forget, refreshB}) buttons.add(b);
-			Map<String, boolean[]> perms = new java.util.HashMap<>();   // id -> {mcss, sleep}, from the last refresh
-			mid.add(buttons, BorderLayout.SOUTH);
+			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), adminB = new JButton("Allow helper control"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
+			adminB.setToolTipText("Helper control lets that launcher manage the others' permissions from its Server config tab, as this panel does (not the MCSS key, and not helper control itself).");
+			for (JButton b : new JButton[] {serverB, mcssB, sleepB, adminB, forget, refreshB}) buttons.add(b);
+			Map<String, boolean[]> perms = new java.util.HashMap<>();   // id -> {mcss, sleep, server}, from the last refresh
+			// The helper's own MCSS key: needed for "server control" (it starts and stops the server for allowed launchers).
+			JLabel keyState = new JLabel(" ");
+			JButton keyB = new JButton("Set MCSS key\u2026");
+			JPanel keyRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+			keyRow.add(keyB); keyRow.add(keyState);
+			JPanel south = new JPanel(new BorderLayout(0, 6));
+			south.add(buttons, BorderLayout.NORTH); south.add(keyRow, BorderLayout.SOUTH);
+			mid.add(south, BorderLayout.SOUTH);
 			p.add(mid, BorderLayout.CENTER);
 			JPanel bottom = new JPanel(new BorderLayout(0, 4));
 			bottom.add(new JLabel("Activity"), BorderLayout.NORTH);
@@ -392,12 +506,18 @@ public final class HostHelper {
 						for (Map.Entry<String, Object> e : Json.map(r.get("devices")).entrySet()) {
 							Map<String, Object> d = Json.map(e.getValue());
 							ids.add(e.getKey());
-							boolean pm = Boolean.TRUE.equals(d.get("granted")), ps = Boolean.TRUE.equals(d.get("sleep"));
-							perms.put(e.getKey(), new boolean[] {pm, ps});
+							boolean pm = Boolean.TRUE.equals(d.get("granted")), ps = Boolean.TRUE.equals(d.get("sleep")), pv = Boolean.TRUE.equals(d.get("server")), pa = Boolean.TRUE.equals(d.get("admin"));
+							perms.put(e.getKey(), new boolean[] {pm, ps, pv, pa});
 							model.addRow(new Object[] {d.get("name"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
-									pm ? "Allowed" : "Not allowed", ps ? "Allowed" : "Not allowed"});
+									pv ? "Allowed" : "Not allowed", pm ? "Allowed" : "Not allowed", ps ? "Allowed" : "Not allowed", pa ? "Allowed" : "Not allowed"});
 							if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 						}
+						boolean hasKey = Boolean.TRUE.equals(r.get("has_key"));
+						String works = Json.str(r.get("key_works"));
+						keyState.setForeground(!hasKey ? new Color(0xB45309) : works.equals("no") ? new Color(0xD23C3C) : new Color(0x2E9D48));
+						keyState.setText(!hasKey ? "The helper has no MCSS key: server control won't work until it's set (make one in MCSS's panel, under API Keys)."
+								: works.equals("no") ? "The helper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)."
+								: "The helper's MCSS key is set and working.");
 						state.setForeground(new Color(0x2E9D48));
 						state.setText("Helper running on " + r.get("bind") + ":" + r.get("port") + ".  MCSS " + (Boolean.TRUE.equals(r.get("mcss")) ? "is running" : "isn't running")
 								+ ";  Minecraft server " + (Boolean.TRUE.equals(r.get("minecraft")) ? "is running" : "is off") + ".");
@@ -421,14 +541,32 @@ public final class HostHelper {
 			// Each button flips its permission for the selected launcher, and says which way it will go.
 			Runnable labels = () -> {
 				int r = table.getSelectedRow();
-				boolean[] pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[2]) : new boolean[2];
+				boolean[] pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[4]) : new boolean[4];
+				adminB.setText(pp[3] ? "Remove helper control" : "Allow helper control");
+				serverB.setText(pp[2] ? "Remove server control" : "Allow server control");
 				mcssB.setText(pp[0] ? "Remove MCSS control" : "Allow MCSS control");
 				sleepB.setText(pp[1] ? "Remove PC sleep" : "Allow PC sleep");
 			};
 			table.getSelectionModel().addListSelectionListener(e -> labels.run());
 			model.addTableModelListener(e -> SwingUtilities.invokeLater(labels));
-			mcssB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"mcss\",\"value\":" + !perms.getOrDefault(id, new boolean[2])[0] + "}"); });
-			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[2])[1] + "}"); });
+			mcssB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"mcss\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[0] + "}"); });
+			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[1] + "}"); });
+			serverB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"server\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[2] + "}"); });
+			adminB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"admin\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[3] + "}"); });
+			keyB.addActionListener(e -> {
+				javax.swing.JPasswordField key = new javax.swing.JPasswordField(36);
+				JButton paste = new JButton("Paste");
+				paste.addActionListener(ev -> {
+					try { Object c = java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().getData(java.awt.datatransfer.DataFlavor.stringFlavor); if (c != null) key.setText(c.toString().strip()); }
+					catch (Exception ignored) {}
+				});
+				JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); row.add(key); row.add(paste);
+				JPanel form = new JPanel(new BorderLayout(0, 6));
+				form.add(new JLabel("<html><div style='width:420px'>An MCSS API key for the helper (make it in MCSS's web panel, under API Keys, with permission to view, start and stop the server). It's kept in host.json on this PC only. Leave empty to clear it.</div></html>"), BorderLayout.NORTH);
+				form.add(row, BorderLayout.CENTER);
+				if (JOptionPane.showConfirmDialog(f, form, "Set MCSS key", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+				act.accept("/admin/settings", Json.write(m("mcss_api_key", new String(key.getPassword()).trim())));
+			});
 			forget.addActionListener(e -> { String id = chosen.get(); if (id != null && JOptionPane.showConfirmDialog(f, "Forget this launcher? It can ask again later.", "Forget", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) act.accept("/admin/forget", "{\"id\":\"" + id + "\"}"); });
 			refreshB.addActionListener(e -> refresh.run());
 			new Timer(3000, e -> refresh.run()).start();

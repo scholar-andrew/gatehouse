@@ -77,9 +77,18 @@ public final class LaunchPopup {
 
 	/** The progress window, reused for the summary so there's one window from start to finish. */
 	static volatile JFrame reuse;
+	/** The question before a download (how big the update is; Download or Skip this time): being asked now, and the
+	 *  size that was skipped, if it was. */
+	static volatile boolean asking;
+	static volatile String skipped;
+	static JPanel askPanel;
+	static JLabel askText;
+	static JButton askDownload, askSkip;
 	/** What the player chose: 0 play, 10 quit (cancel the launch), 11 run the update again. The sync scripts act on it. */
 	static volatile int exitCode = 0;
 	static final int QUIT = 10, RESTART = 11;
+	/** The launcher fetched a newer copy of itself (launch-popup.jar.new beside it): the sync swaps it in and opens it. */
+	static final int RELAUNCH = 12;
 	/** The update's steps, in the order the sync scripts do them (their "check" lines use these names). */
 	static final String[] STEPS = {"Connection", "Mods and settings", "Mod switches", "Steam art and controller layouts", "Server list", "Update script"};
 
@@ -96,6 +105,9 @@ public final class LaunchPopup {
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
+				case "admin-devices" -> System.out.println("admin devices: " + c.helper("GET", "/v1/admin/devices", null));
+				case "admin-perm" -> System.out.println("admin perm: " + c.helper("POST", "/v1/admin/perm", "{\"id\":\"" + args[3] + "\",\"perm\":\"" + args[4] + "\",\"value\":" + args[5] + "}"));
+				case "admin-forget" -> System.out.println("admin forget: " + c.helper("POST", "/v1/admin/forget", "{\"id\":\"" + args[3] + "\"}"));
 				case "mcss-force-close" -> System.out.println("mcss force close: " + c.mcssClose(true));
 				case "stop-watch" -> {   // stop, wait until it's off, and say whether the shutdown was smooth
 					long t0 = System.currentTimeMillis(); c.stop(); int st = -1;
@@ -119,6 +131,12 @@ public final class LaunchPopup {
 		System.setProperty("sun.java2d.noddraw", "true");
 		// Started by the sync at the beginning: the progress checklist, then (when the sync writes "done|<status>" to
 		// pack-sync-status.txt) the summary in the same window.
+		if (args.length >= 3 && args[0].equals("--size")) {   // testing: what an update from this pack address would download
+			long[] n = pending(Path.of(args[1]), fetch(args[2] + "/update-sizes.json"));
+			System.out.println("this launcher: " + sha256(Files.readAllBytes(Path.of(LaunchPopup.class.getProtectionDomain().getCodeSource().getLocation().toURI()))).substring(0, 12));
+			System.out.println(n == null ? "unknown" : sizeText(n[0]) + " (" + n[0] + " bytes), " + n[1] + " files, " + n[2] + " mods" + (n[3] == 1 ? ", first install" : ""));
+			return;
+		}
 		if (args.length >= 2 && args[0].equals("--progress")) { progress(Path.of(args[1])); System.exit(exitCode); }
 		summary(Path.of(args.length > 0 ? args[0] : "."), args.length > 1 ? args[1] : "ok");
 		System.exit(exitCode);
@@ -167,7 +185,23 @@ public final class LaunchPopup {
 			hint.setForeground(new Color(0x6B7280));
 			bottom.add(hint, BorderLayout.WEST);
 			bottom.add(quit, BorderLayout.EAST);
-			p.add(bottom, BorderLayout.SOUTH);
+			// The size question, shown above the bottom row when the sync asks before downloading.
+			askText = new JLabel(" ");
+			askText.setFont(askText.getFont().deriveFont(Font.PLAIN, 14f));
+			askDownload = new JButton("Download");
+			askSkip = new JButton("Skip this time");
+			JPanel askButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+			for (JButton b : new JButton[] {askDownload, askSkip}) { b.setFont(b.getFont().deriveFont(14f)); askButtons.add(b); }
+			askDownload.setFont(askDownload.getFont().deriveFont(Font.BOLD));
+			askPanel = new JPanel(new BorderLayout(0, 2));
+			askPanel.add(askText, BorderLayout.NORTH);
+			askPanel.add(askButtons, BorderLayout.CENTER);
+			askPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+			askPanel.setVisible(false);
+			JPanel south = new JPanel(new BorderLayout());
+			south.add(askPanel, BorderLayout.NORTH);
+			south.add(bottom, BorderLayout.SOUTH);
+			p.add(south, BorderLayout.SOUTH);
 			f.addWindowListener(new java.awt.event.WindowAdapter() {
 				@Override public void windowClosing(java.awt.event.WindowEvent e) { exitCode = QUIT; f.dispose(); }
 			});
@@ -183,6 +217,7 @@ public final class LaunchPopup {
 		long started = System.currentTimeMillis();
 		String done = null;
 		int tick = 0;
+		boolean askedOnce = false;
 		while (done == null) {
 			if (reuse != null && !reuse.isDisplayable()) return;   // quit
 			Map<String, String[]> got = new LinkedHashMap<>();
@@ -190,7 +225,16 @@ public final class LaunchPopup {
 				String[] f = l.split("\\|", 4);
 				if (f[0].equals("check") && f.length >= 3) got.put(f[2], new String[] {f[1], f.length > 3 ? f[3] : ""});
 				else if (f[0].equals("done")) done = f.length > 1 ? f[1] : "ok";
+				else if (f[0].equals("ask") && f.length >= 2 && !askedOnce) {
+					// The sync is about to download: say how much, and ask (the answer goes to pack-sync-answer.txt).
+					askedOnce = true;
+					String base = f[1].strip();
+					boolean self = f.length > 2 && f[2].strip().equals("self-update");
+					new Thread(() -> ask(dir, base, ui, self), "ask").start();
+				}
 			}
+			if (askedOnce) got.putIfAbsent("Connection", new String[] {"ok", ""});   // (the pack answered, or there'd be no question)
+			if (asking) started = System.currentTimeMillis();   // (waiting for the player isn't the sync hanging)
 			if (System.currentTimeMillis() - started > 25 * 60_000) done = "failed";   // the sync never said it finished
 			if (ui) {
 				String last = lastLine(dir.resolve("pack-sync-java.log"));
@@ -202,7 +246,7 @@ public final class LaunchPopup {
 						String[] g = got.get(STEPS[i]);
 						if (g != null) { rows[i].setIcon(mark(g[0])); rows[i].setText(html(STEPS[i], g[1])); }
 						else if (i == r) {
-							String detail = i == 0 ? "Reaching the pack (Tailscale, then GitHub)" : i == 1 ? (last.isEmpty() ? "Checking the pack's files" : last) : "";
+							String detail = i == 0 ? "Reaching the pack (Tailscale, then GitHub)" : i == 1 ? (asking ? "Waiting for your answer below" : last.isEmpty() ? "Checking the pack's files" : last) : "";
 							rows[i].setIcon(mark("running" + (k % 4))); rows[i].setText(html(STEPS[i], detail));
 						} else { rows[i].setIcon(mark("pending")); rows[i].setText(STEPS[i]); }
 					}
@@ -222,6 +266,112 @@ public final class LaunchPopup {
 			if (done == null) Thread.sleep(300);
 		}
 		summary(dir, done);
+	}
+
+	/** Before the download: works out what the update would fetch and, when there's something, shows the size in the
+	 *  checklist window with Download and Skip this time (first install: Download only), then answers the sync in
+	 *  pack-sync-answer.txt: "wait" while asking, "go" or "skip|<size>" after. Nothing to download, the size unknown,
+	 *  or no window: "go" straight away. Quit (or closing the window) leaves no answer; the sync sees the exit code. */
+	private static void ask(Path dir, String base, boolean ui, boolean selfUpdate) {
+		Path answer = dir.resolve("pack-sync-answer.txt");
+		String reply = "go";
+		try {
+			String sizes = fetch(base + "/update-sizes.json");
+			// The launcher itself first: when the pack has a different launch-popup.jar than the one running, fetch it,
+			// check it against the pack's hash, leave it beside this one as launch-popup.jar.new and close with RELAUNCH.
+			// The sync (which said "self-update", so it knows to) swaps it in and opens it; this very question is then
+			// asked by the new launcher. So a launcher fix shows on the launch that brings it, before anything else.
+			if (selfUpdate) try {
+				String want = s(asMap(asMap(asMap(parse(sizes)).get("files")).get("extras/launch-popup.jar")).get("hash"));
+				Path me = Path.of(LaunchPopup.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+				if (!want.isEmpty() && Files.isRegularFile(me) && !want.equals(sha256(Files.readAllBytes(me)))) {
+					byte[] jar = fetchBytes(base + "/extras/launch-popup.jar");
+					if (want.equals(sha256(jar))) {
+						Files.write(me.resolveSibling("launch-popup.jar.new"), jar);
+						System.exit(RELAUNCH);
+					}
+				}
+			} catch (Exception ignored) {}   // (couldn't: carry on with this launcher; the update replaces it as before)
+			long[] n = pending(dir, sizes);
+			JFrame f = reuse;
+			if (n != null && n[0] > 0 && ui && f != null) {
+				asking = true;
+				Files.writeString(answer, "wait\n", StandardCharsets.UTF_8);
+				String size = sizeText(n[0]);
+				boolean first = n[3] == 1;
+				long other = n[1] - n[2];
+				String what = join(n[2] == 0 ? null : n[2] + " mod" + (n[2] == 1 ? "" : "s"), other == 0 ? null : other + (n[2] == 0 ? "" : " other") + " file" + (other == 1 ? "" : "s"));
+				String[] choice = {null};
+				String png = System.getenv("OJ_POPUP_PNG");
+				SwingUtilities.invokeLater(() -> {
+					askText.setText(wrap((first ? "October Journey needs about " + size + " of downloads to install" : "An update is ready: about " + size + " to download")
+							+ " (" + what + ")." + (first ? "" : " Skip this time plays what's installed, which the server may not accept.")));
+					askSkip.setVisible(!first);
+					askDownload.addActionListener(e -> { synchronized (choice) { choice[0] = "go"; choice.notifyAll(); } });
+					askSkip.addActionListener(e -> { synchronized (choice) { choice[0] = "skip"; choice.notifyAll(); } });
+					askPanel.setVisible(true);
+					f.pack();
+					if (png != null) try {   // testing: a picture of the question
+						JComponent cp = (JComponent) f.getContentPane();
+						cp.validate();
+						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(cp.getWidth(), cp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D g = img.createGraphics(); cp.paint(g); g.dispose();
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + "-ask.png"));
+					} catch (IOException ignored) {}
+				});
+				synchronized (choice) {
+					while (choice[0] == null && f.isDisplayable()) {
+						choice.wait(png == null ? 300 : 1500);
+						// Testing (pictures only, nobody to click): OJ_ASK_ANSWER answers, "go" if it isn't set.
+						if (png != null && choice[0] == null) choice[0] = System.getenv("OJ_ASK_ANSWER") == null ? "go" : System.getenv("OJ_ASK_ANSWER");
+					}
+				}
+				if (choice[0] == null) { asking = false; return; }   // quit
+				if (choice[0].equals("skip")) { skipped = size; reply = "skip|" + size; }
+				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); f.pack(); });
+			}
+		} catch (Exception ignored) {}   // (size unknown: the update just runs, as it always did)
+		asking = false;
+		try { Files.writeString(answer, reply + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) {}
+	}
+
+	/** What an update would download: {bytes, files, of them mods, 1 on a first install}, from the pack's
+	 *  update-sizes.json (each file's hash in the pack index and its size) against packwiz-installer's record of what
+	 *  is installed here. A file counts when it isn't here yet or its hash differs; one the pack only supplies when
+	 *  missing ("preserve") counts only when it isn't here. Null when the sizes can't be read. */
+	static long[] pending(Path dir, String sizesJson) {
+		Map<String, Object> files = asMap(asMap(parse(sizesJson)).get("files"));
+		if (files.isEmpty()) return null;
+		String record = read(dir.resolve("packwiz.json"));
+		Map<String, Object> have = record.isBlank() ? new LinkedHashMap<>() : asMap(asMap(parse(record)).get("cachedFiles"));
+		long bytes = 0, n = 0, mods = 0;
+		for (Map.Entry<String, Object> e : files.entrySet()) {
+			Map<String, Object> f = asMap(e.getValue()), h = asMap(have.get(e.getKey()));
+			if (!h.isEmpty() && ("true".equals(s(f.get("preserve"))) || s(asMap(h.get("hash")).get("value")).equals(s(f.get("hash"))))) continue;
+			try { bytes += (long) Double.parseDouble(s(f.get("size"))); } catch (NumberFormatException ignored) {}
+			n++;
+			if (e.getKey().startsWith("mods/")) mods++;
+		}
+		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0};
+	}
+
+	static String sizeText(long bytes) {
+		return bytes < 1_000_000 ? Math.max(1, Math.round(bytes / 1000.0)) + " KB" : String.format(java.util.Locale.ROOT, "%.1f MB", bytes / 1e6);
+	}
+
+	private static String fetch(String url) throws IOException { return new String(fetchBytes(url), StandardCharsets.UTF_8); }
+
+	private static byte[] fetchBytes(String url) throws IOException {
+		java.net.URLConnection c = java.net.URI.create(url).toURL().openConnection();
+		c.setConnectTimeout(5000);
+		c.setReadTimeout(10000);
+		try (java.io.InputStream in = c.getInputStream()) { return in.readAllBytes(); }
+	}
+
+	private static String sha256(byte[] b) throws java.security.NoSuchAlgorithmException {
+		StringBuilder sb = new StringBuilder();
+		for (byte x : java.security.MessageDigest.getInstance("SHA-256").digest(b)) sb.append(String.format("%02x", x));
+		return sb.toString();
 	}
 
 	/** Ten pips for the connection: how many are lit follows the ping (more is better), coloured from red (first) to
@@ -366,7 +516,7 @@ public final class LaunchPopup {
 			if (!serverLog.isEmpty()) Files.writeString(dir.resolve("server-notes-seen.txt"), serverLog.get(0).version() + "\n", StandardCharsets.UTF_8);
 		}
 
-		boolean big = updated || somethingHappened || serverNews;
+		boolean big = updated || somethingHappened || serverNews || skipped != null;
 		boolean wanted = big ? option(options, "popup_updates") : option(options, "popup_no_updates");
 		if (current != null) Files.writeString(dir.resolve("pack-version-seen.txt"), current + "\n", StandardCharsets.UTF_8);
 		if (!wanted || GraphicsEnvironment.isHeadless()) { JFrame r = reuse; if (r != null) SwingUtilities.invokeAndWait(r::dispose); return; }
@@ -386,6 +536,11 @@ public final class LaunchPopup {
 		else if (updated || somethingHappened) sub = "Here's what this launch checked and changed.";
 		else if (serverNews) sub = "Nothing new for this device; the Server tab shows what changed on the server.";
 		else sub = "You're up to date.";
+		// The player chose Skip this time at the size question: say so, rather than "no updates".
+		if (skipped != null) {
+			headline = "October Journey" + playing + ": update skipped";
+			sub = "An update of about " + skipped + " is waiting. Restart offers it again; Play starts with what's installed.";
+		}
 
 		// The window's content, top to bottom.
 		List<Component> rows = new ArrayList<>();
@@ -475,7 +630,7 @@ public final class LaunchPopup {
 
 	/** The Server controls tab (whether the server answers, checked every few seconds; wake, start, stop; how the last
 	 *  stop went) and the Server config tab (the panel in a browser, this device's access). Returns both. */
-	private static JComponent[] controls(ServerControl c, JFrame f, Runnable hold, boolean live, java.util.function.Consumer<String[]> also) {
+	private static JComponent[] controls(ServerControl c, JFrame f, Runnable hold, boolean live, java.util.function.Consumer<String[]> also, Runnable onPerms) {
 		JPanel box = new JPanel();
 		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 		box.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
@@ -523,7 +678,7 @@ public final class LaunchPopup {
 				switch (phase) {
 					case "online" -> game = "Online";
 					case "starting", "stopping" -> game = s[1];
-					case "off" -> game = "Off" + (c.hasKey() ? ": Start server starts it" : "");
+					case "off" -> game = "Off" + (c.canControlServer() ? ": Start server starts it" : "");
 					case "nomcss" -> game = "Off: MCSS isn't running (start it above)";
 					case "asleep" -> game = "Off: the server PC is asleep or off";
 					default -> game = s[1];
@@ -531,8 +686,8 @@ public final class LaunchPopup {
 				status.setIcon(dot(phase.equals("nomcss") || asleep ? GRAY : colour(s[0])));
 				status.setText(wrap(game));
 				// Start only when the server is off (and MCSS running); Stop only while it runs; neither mid-change.
-				start.setEnabled(c.hasKey() && phase.equals("off"));
-				stop.setEnabled(c.hasKey() && phase.equals("online"));
+				start.setEnabled(c.canControlServer() && phase.equals("off"));
+				stop.setEnabled(c.canControlServer() && phase.equals("online"));
 				// Wake only while the PC isn't answering at all (neither the game server nor the panel): asleep or off.
 				wake.setEnabled(c.canWake() && phase.equals("asleep"));
 				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (works from the home network)" : "The server PC is awake");
@@ -566,6 +721,7 @@ public final class LaunchPopup {
 			new Thread(() -> {
 				String msg;
 				try { c.start(); msg = "Start requested: the server takes a minute or so to come up"; }
+				catch (ServerControl.Refused ex) { msg = ex.getMessage(); }
 				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server PC awake?"; }
 				String m = msg;
@@ -582,6 +738,7 @@ public final class LaunchPopup {
 			new Thread(() -> {
 				long t0 = System.currentTimeMillis();
 				try { c.stop(); }
+				catch (ServerControl.Refused ex) { stopResult.accept("failed", ex.getMessage()); return; }
 				catch (ServerControl.HttpError ex) { stopResult.accept("failed", ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to stop the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"); return; }
 				catch (IOException | RuntimeException ex) { stopResult.accept("failed", "Couldn't reach the panel: is the server PC awake?"); return; }
 				stopResult.accept("running", "Stopping: saving the world and shutting down\u2026");
@@ -636,6 +793,7 @@ public final class LaunchPopup {
 				mcss.setText("<html><div style='width:430px'>" + esc(tx) + "</div></html>");
 				mStart.setEnabled(g && !run);
 				mClose.setEnabled(g && run);
+				onPerms.run();   // (what the owner allows may have changed: the tabs and the access line follow)
 				// Sleep: only with the owner's PC sleep permission, and only while the Minecraft server is stopped.
 				pcSleep.setEnabled(sl && !gm);
 				pcSleep.setToolTipText(!sl ? "This device isn't allowed to sleep the PC (the owner allows it in the host panel)"
@@ -706,12 +864,15 @@ public final class LaunchPopup {
 		who.setFont(who.getFont().deriveFont(Font.PLAIN, 13f));
 		who.setIconTextGap(8);
 		Runnable showWho = () -> {
-			who.setIcon(dot(c.hasKey() ? GREEN : GRAY));
-			who.setText(c.hasKey() ? (c.username.isEmpty() ? "Panel access: an API key is saved on this device" : "Panel access: signed in as " + c.username)
+			who.setIcon(dot(c.canControlServer() ? GREEN : GRAY));
+			who.setText(c.viaHelper() ? "Server control: allowed by the owner (through the host helper; no sign-in needed)" : c.hasKey() ? (c.username.isEmpty() ? "Panel access: an API key is saved on this device" : "Panel access: signed in as " + c.username)
 					: "Panel access: not set up (needed for Start and Stop)");
 		};
 		showWho.run();
-		JButton panel = new JButton("Open server panel"), access = new JButton("Server access\u2026");
+		JButton panel = new JButton("Open server panel"), access = new JButton("Server access\u2026"), manage = new JButton("Manage launchers\u2026");
+		// Only for a device the owner allowed helper control (in the host panel on the server PC).
+		manage.setVisible(c.permAdmin);
+		manage.addActionListener(e -> { hold.run(); manageDialog(c, f); });
 		panel.setEnabled(!c.panelUrl.isEmpty());
 		panel.addActionListener(e -> {
 			hold.run();
@@ -722,7 +883,7 @@ public final class LaunchPopup {
 		});
 		access.addActionListener(e -> { hold.run(); accessDialog(c, f, cfgNote); showWho.run(); refresh.run(); });
 		JPanel cfgButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
-		for (JButton b : new JButton[] {panel, access}) { b.setFont(b.getFont().deriveFont(13f)); cfgButtons.add(b); }
+		for (JButton b : new JButton[] {panel, access, manage}) { b.setFont(b.getFont().deriveFont(13f)); cfgButtons.add(b); }
 		JLabel where = new JLabel("Server panel: " + (c.panelUrl.isEmpty() ? "not set" : c.panelUrl));
 		where.setForeground(new Color(0x6B7280));
 		for (JComponent x : new JComponent[] {who, where, cfgButtons, cfgNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
@@ -731,7 +892,7 @@ public final class LaunchPopup {
 			refresh.run();
 			if (c.hasHelper()) new Thread(() -> { try { c.hello(); } catch (IOException | RuntimeException ignored) {} mcssRefresh.run(); }, "hello").start();
 			// Every few seconds while the window is open.
-			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) { refresh.run(); if (c.hasHelper()) mcssRefresh.run(); } });
+			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) { refresh.run(); if (c.hasHelper()) mcssRefresh.run(); manage.setVisible(c.permAdmin); showWho.run(); } });
 			poll.start();
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { poll.stop(); } });
 		}
@@ -740,6 +901,113 @@ public final class LaunchPopup {
 
 	/** After a stop: was the world saved? The end of the server's log (through the panel's console) should show
 	 *  "Stopping server", "Saving worlds" and a chunk save for each dimension, with no errors after the stop began. */
+	/** Manage launchers (Server config, for a device the owner allowed helper control): what the host panel on the
+	 *  server PC does, through the helper: the launchers that have asked, their permissions (each switched for the
+	 *  selected one), Forget, and the helper's activity. Helper control itself and the helper's MCSS key stay with the
+	 *  panel on the PC. */
+	private static void manageDialog(ServerControl c, JFrame f) {
+		javax.swing.JDialog d = new javax.swing.JDialog(f, "Manage launchers", true);
+		JPanel p = new JPanel(new BorderLayout(0, 8));
+		p.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
+		JLabel state = new JLabel("Asking the host helper\u2026");
+		p.add(state, BorderLayout.NORTH);
+		String[] cols = {"Launcher", "System", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control"};
+		javax.swing.table.DefaultTableModel model = new javax.swing.table.DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
+		javax.swing.JTable table = new javax.swing.JTable(model);
+		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+		table.setRowHeight(24);
+		List<String> ids = new ArrayList<>();
+		Map<String, boolean[]> perms = new LinkedHashMap<>();   // id -> {server, mcss, sleep, helper control}
+		javax.swing.JTextArea log = new javax.swing.JTextArea(6, 60);
+		log.setEditable(false);
+		log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+		JScrollPane ts = new JScrollPane(table);
+		ts.setPreferredSize(new Dimension(760, 150));
+		JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), close = new JButton("Close");
+		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+		for (JButton b : new JButton[] {serverB, mcssB, sleepB, forget, close}) buttons.add(b);
+		JLabel note = new JLabel(" ");
+		note.setForeground(new Color(0x6B7280));
+		JPanel mid = new JPanel(new BorderLayout(0, 6));
+		mid.add(ts, BorderLayout.CENTER);
+		JPanel under = new JPanel(new BorderLayout(0, 2));
+		under.add(buttons, BorderLayout.NORTH); under.add(note, BorderLayout.SOUTH);
+		mid.add(under, BorderLayout.SOUTH);
+		p.add(mid, BorderLayout.CENTER);
+		JPanel bottom = new JPanel(new BorderLayout(0, 4));
+		bottom.add(new JLabel("Activity on the server PC"), BorderLayout.NORTH);
+		bottom.add(new JScrollPane(log), BorderLayout.CENTER);
+		p.add(bottom, BorderLayout.SOUTH);
+		Runnable labels = () -> {
+			int r = table.getSelectedRow();
+			boolean[] pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[4]) : new boolean[4];
+			serverB.setText(pp[0] ? "Remove server control" : "Allow server control");
+			mcssB.setText(pp[1] ? "Remove MCSS control" : "Allow MCSS control");
+			sleepB.setText(pp[2] ? "Remove PC sleep" : "Allow PC sleep");
+		};
+		Runnable load = () -> new Thread(() -> {
+			try {
+				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), lg = c.helper("GET", "/v1/admin/log", null);
+				SwingUtilities.invokeLater(() -> {
+					if (!"200".equals(s(r.get("_code")))) { state.setIcon(dot(RED)); state.setText(wrap(s(r.get("error")).isEmpty() ? "The host helper said no (" + s(r.get("_code")) + ")" : s(r.get("error")))); return; }
+					int sel = table.getSelectedRow();
+					String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null, you = s(r.get("you"));
+					model.setRowCount(0); ids.clear(); perms.clear();
+					for (Map.Entry<String, Object> e : asMap(r.get("devices")).entrySet()) {
+						Map<String, Object> v = asMap(e.getValue());
+						boolean[] pp = {"true".equals(s(v.get("server"))), "true".equals(s(v.get("granted"))), "true".equals(s(v.get("sleep"))), "true".equals(s(v.get("admin")))};
+						ids.add(e.getKey()); perms.put(e.getKey(), pp);
+						String ts2 = s(v.get("tailscale"));
+						model.addRow(new Object[] {s(v.get("name")) + (ts2.isEmpty() || ts2.equalsIgnoreCase(s(v.get("name"))) ? "" : " / " + ts2) + (e.getKey().equals(you) ? " (this device)" : ""), s(v.get("os")), s(v.get("last_seen")),
+								pp[0] ? "Allowed" : "Not allowed", pp[1] ? "Allowed" : "Not allowed", pp[2] ? "Allowed" : "Not allowed", pp[3] ? "Allowed" : "Not allowed"});
+						if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
+					}
+					labels.run();
+					state.setIcon(dot(GREEN));
+					state.setText("MCSS " + ("true".equals(s(r.get("mcss"))) ? "is running" : "isn't running") + ";  Minecraft server " + ("true".equals(s(r.get("minecraft"))) ? "is running" : "is off")
+							+ ("true".equals(s(r.get("has_key"))) ? "." : ";  the helper has no MCSS key yet (server control needs it; set on the server PC)."));
+					StringBuilder sb = new StringBuilder();
+					if (lg.get("log") instanceof List<?> l) for (Object x : l) sb.append(x).append('\n');
+					if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
+				});
+			} catch (IOException | RuntimeException ex) {
+				SwingUtilities.invokeLater(() -> { state.setIcon(dot(RED)); state.setText("Couldn't reach the host helper (is the server PC awake?)"); });
+			}
+		}, "manage").start();
+		java.util.function.BiConsumer<String, String> act = (path, body) -> new Thread(() -> {
+			String m;
+			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code"))) ? " " : s(r.get("error")).isEmpty() ? "The host helper said no (" + s(r.get("_code")) + ")" : s(r.get("error")); }
+			catch (IOException | RuntimeException ex) { m = "Couldn't reach the host helper"; }
+			String msg = m;
+			SwingUtilities.invokeLater(() -> note.setText(wrap(msg)));
+			load.run();
+		}, "manage-act").start();
+		java.util.function.IntConsumer flip = i -> {
+			int r = table.getSelectedRow();
+			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
+			String id = ids.get(r);
+			act.accept("/v1/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"" + new String[] {"server", "mcss", "sleep"}[i] + "\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[i] + "}");
+		};
+		serverB.addActionListener(e -> flip.accept(0));
+		mcssB.addActionListener(e -> flip.accept(1));
+		sleepB.addActionListener(e -> flip.accept(2));
+		forget.addActionListener(e -> {
+			int r = table.getSelectedRow();
+			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
+			if (javax.swing.JOptionPane.showConfirmDialog(d, "Forget this launcher? It can ask again later.", "Forget", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/forget", "{\"id\":\"" + ids.get(r) + "\"}");
+		});
+		table.getSelectionModel().addListSelectionListener(e -> labels.run());
+		close.addActionListener(e -> d.dispose());
+		Timer t = new Timer(4000, e -> load.run());
+		t.start();
+		load.run();
+		d.setContentPane(p);
+		d.pack();
+		d.setLocationRelativeTo(f);
+		d.setVisible(true);   // (modal: returns when closed)
+		t.stop();
+	}
+
 	static String[] shutdownVerdict(ServerControl c, long secs) {
 		List<String> log;
 		try { log = c.console(80); }
@@ -962,7 +1230,9 @@ public final class LaunchPopup {
 			};
 			// Server controls, a tab of their own: status, wake, start, stop, the panel, and this device's access.
 			if (control.configured()) {
-				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live);
+				Runnable[] syncTabs = {() -> {}};
+				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live, () -> syncTabs[0].run());
+				JPanel[] serverTabs = new JPanel[2];
 				for (int i = 0; i < 2; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
 					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
@@ -973,8 +1243,17 @@ public final class LaunchPopup {
 					sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 					sc.getVerticalScrollBar().setUnitIncrement(16);
 					tab.add(sc, BorderLayout.CENTER);
-					tabs.addTab(i == 0 ? "Server controls" : "Server config", tab);
+					serverTabs[i] = tab;
 				}
+				// The two tabs appear only once the owner has allowed this launcher something in the host panel (or it has
+				// its own panel access). That's remembered from the helper's last reply, so they're still there while the
+				// server PC is asleep (to wake it), and they come and go as the owner allows or removes it.
+				syncTabs[0] = () -> {
+					boolean want = control.showServerTabs(), have = tabs.indexOfComponent(serverTabs[0]) >= 0;
+					if (want && !have) { tabs.addTab("Server controls", serverTabs[0]); tabs.addTab("Server config", serverTabs[1]); }
+					else if (!want && have) { if (tabs.getSelectedIndex() >= 2) tabs.setSelectedIndex(0); tabs.remove(serverTabs[0]); tabs.remove(serverTabs[1]); }
+				};
+				syncTabs[0].run();
 			}
 			p.add(tabs, BorderLayout.CENTER);
 			JButton play = new JButton();

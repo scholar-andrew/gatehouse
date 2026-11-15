@@ -93,7 +93,9 @@ safe; it updates your setup without duplicating anything.
 
 ### Before the game starts: the launch pop-up
 From the moment you press Play, one October Journey window shows the update's steps as a checklist, each ticked off as
-it finishes (the download shows its progress), with **Quit** to cancel the launch. When the update is done, the same
+it finishes (the download shows its progress), with **Quit** to cancel the launch. When there's something to
+download, it first says about how big the update is and asks: **Download**, **Skip this time** (play with what's
+installed for now; the server may not accept it until you update) or **Quit**. When the update is done, the same
 window shows what happened, with **Play**, **Restart** (run the update again) and **Quit** (don't start the game;
 Prism then says the pre-launch step failed, which is expected). It lists everything the update
 checked, each with a coloured dot: the connection, mods and settings, your mod switches, the Steam art and controller
@@ -109,6 +111,10 @@ players, or "not answering" when its PC is asleep or off), then shows what the s
 there since you last played, with notes. When something on the server is new, the button reads **Next: server
 changes**: it takes you to that tab, and **Play** is there.
 
+The next two tabs, **Server controls** and **Server config**, appear once the owner has allowed your device something
+in the host panel on the server PC (MCSS control, PC sleep or Server control), or you have your own panel access.
+Until then your device has asked and is waiting, and the tabs stay hidden.
+
 A third tab, **Server controls**, is in three sections, each with its own status line: **Server PC** (wake, sleep),
 **MCSS** (the server software: start, close) and **Minecraft server**. It shows whether the server is online (checked every few seconds), your **ping** to
 it as ten pips from red to green (all ten at 25 ms or less, one fewer for each step up to 500 ms), and the **players**
@@ -117,7 +123,8 @@ server is off, Stop while it runs):
 - **Wake server device:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; from
   elsewhere only with an internet wake address the owner gives you (Server access).
 - **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is
-  off. It needs panel access: sign in, or an API key the owner makes for you, under **Server access**.
+  off. It needs the owner's **Server control** permission for your device (set in the host panel; nothing to sign
+  in to), or your own panel access: sign in, or an API key the owner makes for you, under **Server access**.
 - **Stop server:** stops the Minecraft server through the panel (the world is saved first). It asks before stopping,
   since anyone playing is disconnected. Same access as Start. Then it watches the shutdown and says how it went: green
   "shut down smoothly" when the server stopped and its log shows the world being saved, amber when the save couldn't
@@ -135,6 +142,9 @@ permission from the owner, separate from MCSS control, and only works while the 
 
 A fourth tab, **Server config**, shows the panel's address and whether this device has panel access, with:
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
+- **Manage launchers...** (only on a device the owner has allowed **Helper control**): the launchers that have asked
+  the server PC for access, with their permissions (Server control, MCSS control, PC sleep) switched on or off for
+  the one you select, **Forget**, and the helper's activity. Helper control itself is only given on the server PC.
 - **Server access...:** sign in with your server panel username and password (easiest: the pop-up keeps the key the
   panel gives back, not your password), or enter an API key; and an internet wake address. Each field has a **Paste** button (copy the key in the
   browser, then press Paste: the Steam Deck's on-screen keyboard can't paste) and a **Show** box for the key. They're saved in `server-access.json` in the game

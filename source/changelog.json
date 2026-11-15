@@ -1,4 +1,11 @@
 [
+ {"version": "1.9.0", "date": "2026-11-15", "notes": [
+  "Before an update downloads, the launcher says about how big it is (and how many mods and files) and asks: Download, Skip this time (play with what's installed; the server may not accept it) or Quit. With nothing to download it doesn't ask.",
+  "The Server controls and Server config tabs only appear once the owner has allowed your device something in the host panel on the server PC (or you have your own panel access). They come and go as the owner changes it.",
+  "Server control can now be given by the owner: a new Server control permission in the host panel lets your device start and stop the Minecraft server through the server PC, with no panel sign-in or key on your device.",
+  "The launcher updates itself first: when an update brings a new launcher, it fetches that before anything else and reopens straight away, so launcher changes show on the same launch (from the update after this one).",
+  "Manage launchers (Server config): for a device the owner has allowed Helper control, a window like the host panel on the server PC, to see the launchers, switch their Server control, MCSS control and PC sleep, and forget one. Helper control itself is only given on the server PC."
+ ]},
  {"version": "1.8.9", "date": "2026-11-15", "notes": [
   "Server controls are grouped in three sections: Server PC (wake, sleep), MCSS (start, close) and Minecraft server (status, ping, players, start, stop), each with its own status line."
  ]},

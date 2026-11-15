@@ -160,6 +160,18 @@ def build(variant: str, meta: dict, mods: list) -> None:
         index += f"\n[[files]]\nfile = {toml_str(rel)}\nhash = {toml_str(h)}\n" + (
             "preserve = true\n" if metafile == "preserve" else "metafile = true\n" if metafile else "")
     index_data = write(os.path.join(out, "index.toml"), index)
+    # update-sizes.json, beside the pack (not part of it): what each file in the index costs to download, so the
+    # launcher can say how big an update is, and ask, before anything is fetched. A Modrinth mod counts as its jar
+    # (the size recorded in mods.json by tools/mod_sizes.py); everything else is the file itself.
+    mod_size = {f"mods/{m['slug']}.pw.toml": m.get("size") for m in mods if "url" in m}
+    files = {}
+    for rel, h, metafile in sorted(entries):
+        if metafile is True and not mod_size.get(rel):
+            sys.exit(f"{rel}: no download size recorded in source/mods.json (run tools/mod_sizes.py)")
+        files[rel] = {"hash": h, "size": mod_size[rel] if metafile is True else os.path.getsize(os.path.join(out, rel))}
+        if metafile == "preserve":
+            files[rel]["preserve"] = True
+    write(os.path.join(out, "update-sizes.json"), json.dumps({"version": meta["version"], "files": files}, indent=1) + "\n")
     name = meta["name"] + (" (Steam Deck)" if variant == "deck" else "")
     pack = (
         f"name = {toml_str(name)}\n"

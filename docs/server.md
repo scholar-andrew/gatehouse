@@ -83,8 +83,16 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   computer name and system. The helper also asks Tailscale which device the request came from (`tailscale whois`).
   New launchers wait for permission.
 - **October Journey host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
-  seen) with their two permissions, **MCSS control** and **PC sleep**, each switched on or off for the selected
-  launcher, plus **Forget**, and shows a log of every request.
+  seen) with their four permissions, **Server control**, **MCSS control**, **PC sleep** and **Helper control**, each switched on or off
+  for the selected launcher, plus **Forget** and **Set MCSS key...**, and shows a log of every request.
+- A launcher shows its Server controls and Server config tabs only once it has at least one permission (or its own
+  panel access). It remembers what the helper last said (`perm_*` in its `server-access.json`), so the tabs are still
+  there to wake a sleeping PC.
+- Launchers allowed **Server control** start and stop the Minecraft server through the helper (`POST
+  /v1/server/start|stop`; status from `GET /v1/server`, the shutdown check from `GET /v1/server/log`, the end of
+  `logs/latest.log`), with no panel account or key on the device. The helper does it with its own MCSS API key, which
+  the owner makes in MCSS's web panel (API Keys: view, start and stop this server) and enters once with **Set MCSS
+  key...**. It's kept in `host.json` on the PC only and is never sent to launchers.
 - Allowed launchers can start MCSS, and close it. Closing is refused while the Minecraft server is running (stop it
   first). How depends on MCSS's own close setting (`mcssClosePreference` in `resources/mcss_config.json`), which the
   helper reports to launchers (`close` in `/v1/mcss`) so the button can say what it will do: with the exit choice,
@@ -95,8 +103,14 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
 - Separately, launchers the owner allows **PC sleep** (its own switch in the panel) can put the PC to sleep
   (`POST /v1/pc/sleep`): refused while the Minecraft server is running; otherwise the helper suspends the PC about 5
   seconds later (Windows' SetSuspendState, as the Start menu's Sleep). MCSS stays open; Wake on LAN wakes the PC.
+- Launchers allowed **Helper control** get **Manage launchers...** in their Server config tab: the panel's list,
+  permission switches, Forget and activity, through `GET /v1/admin/devices|log` and `POST /v1/admin/perm|forget`.
+  Three things stay with the panel on the PC: giving or removing Helper control, forgetting a launcher that has it
+  (or the one asking), and the helper's MCSS key, which is never sent anywhere. Every change is logged with who
+  asked.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
-  `minecraft`, `tailscale_exe`). It only works while the owner is signed in to Windows.
+  `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
+  `server_dir`). It only works while the owner is signed in to Windows.
 
 ## Server changes for players
 

@@ -11,11 +11,11 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "b827d5735cda04fbee5b447ee95affdb21d4d192adf795fd6765d3dd6852314e"
+hash = "b975caa206ad1d4a3be555a673f30661a77dfbbabd03ae131ca96c09621f63d1"
 
 [[files]]
 file = "extras/launch-popup.jar"
-hash = "e85c68b5e5ce69c50c2413277b54226176265548b695bb1414a6cf97b8d5dd28"
+hash = "12434fd02caee2eed7902e1333d401b807310c7ffed9627b16e54a20bc46b276"
 
 [[files]]
 file = "extras/mod-names.json"
@@ -27,11 +27,11 @@ hash = "75d6134daed6501ca06c2c482269281b1a9fbe80585af0107f9d26ab1c83d69e"
 
 [[files]]
 file = "extras/pack-sync.ps1"
-hash = "18e6cffa1d82616ec634d48b617294b68608a108829d5d313ede7480bdff016f"
+hash = "29a31a3f5d5de0da622a93bc078b11f788aeeb0634f7ed8677e516881be135cc"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "482d2792846524d396224d3cf9478f05dd670b02d7185cfdb4c35831ac94de7f"
+hash = "4d77f2ead052e915c914b753a628c0603b2331d52259bb585bb976c1d2a026e5"
 
 [[files]]
 file = "extras/server-changelog.txt"
