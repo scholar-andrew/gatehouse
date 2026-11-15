@@ -407,9 +407,34 @@ public final class HostHelper {
 				Map<String, Object> devs = devices();
 				for (Object v : devs.values()) Json.map(v).remove("token_sha256");
 				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "port", port(), "bind", setting("bind", "100.91.134.102"),
-						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : (serverStatus() >= 0 ? "yes" : "no")));
+						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : (serverStatus() >= 0 ? "yes" : "no"), "mcss_user", setting("mcss_user", "")));
+			} else if (path.equals("/admin/signin")) {
+				// The owner signs the helper in to MCSS with a panel account (typed in the host panel on this PC): MCSS's
+				// own sign-in hands back a key, and that is what's kept (host.json), never the password.
+				Map<String, Object> b = body(x);
+				String user = Json.str(b.get("username")).trim();
+				try {
+					HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + "/auth").openConnection();
+					c.setConnectTimeout(3000); c.setReadTimeout(8000); c.setRequestMethod("POST"); c.setDoOutput(true);
+					c.setRequestProperty("Content-Type", "application/json");
+					try (OutputStream o = c.getOutputStream()) { o.write(Json.write(m("username", user, "password", Json.str(b.get("password")))).getBytes(StandardCharsets.UTF_8)); }
+					int code = c.getResponseCode();
+					if (code == 401 || code == 403) { log("MCSS sign-in as " + user + " was refused"); reply(x, 200, m("result", "refused", "message", "MCSS didn't accept that username and password")); return; }
+					if (code < 200 || code >= 300) { reply(x, 200, m("result", "failed", "message", "MCSS answered " + code)); return; }
+					String key;
+					try (InputStream in = c.getInputStream()) { key = Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("apiKey")); }
+					if (key.isEmpty()) { reply(x, 200, m("result", "failed", "message", "MCSS signed in but handed back no key")); return; }
+					cfg.put("mcss_api_key", key); cfg.put("mcss_user", user);
+					Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8);
+					boolean works = serverStatus() >= 0;
+					log("the helper signed in to MCSS as " + user + (works ? "" : " (but that account can't see the server)"));
+					reply(x, 200, m("result", works ? "ok" : "failed", "message", works ? "Signed in as " + user : "Signed in as " + user + ", but that account can't see the server (give it access to it in MCSS's panel)"));
+				} catch (IOException e) {
+					reply(x, 200, m("result", "failed", "message", "MCSS's panel isn't answering (is MCSS running?)"));
+				}
 			} else if (path.equals("/admin/settings")) {
 				// The helper's own MCSS key, kept in host.json on this PC only.
+				cfg.remove("mcss_user");
 				cfg.put("mcss_api_key", Json.str(body(x).get("mcss_api_key")).trim());
 				Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8);
 				log(setting("mcss_api_key", "").isEmpty() ? "the helper's MCSS key was cleared" : "the helper's MCSS key was set");
@@ -485,8 +510,9 @@ public final class HostHelper {
 			// The helper's own MCSS key: needed for "server control" (it starts and stops the server for allowed launchers).
 			JLabel keyState = new JLabel(" ");
 			JButton keyB = new JButton("Set MCSS key\u2026");
+			JButton signB = new JButton("Sign in to MCSS\u2026");
 			JPanel keyRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
-			keyRow.add(keyB); keyRow.add(keyState);
+			keyRow.add(signB); keyRow.add(keyB); keyRow.add(keyState);
 			JPanel south = new JPanel(new BorderLayout(0, 6));
 			south.add(buttons, BorderLayout.NORTH); south.add(keyRow, BorderLayout.SOUTH);
 			mid.add(south, BorderLayout.SOUTH);
@@ -515,9 +541,10 @@ public final class HostHelper {
 						boolean hasKey = Boolean.TRUE.equals(r.get("has_key"));
 						String works = Json.str(r.get("key_works"));
 						keyState.setForeground(!hasKey ? new Color(0xB45309) : works.equals("no") ? new Color(0xD23C3C) : new Color(0x2E9D48));
-						keyState.setText(!hasKey ? "The helper has no MCSS key: server control won't work until it's set (make one in MCSS's panel, under API Keys)."
-								: works.equals("no") ? "The helper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)."
-								: "The helper's MCSS key is set and working.");
+						String as = Json.str(r.get("mcss_user"));
+						keyState.setText(!hasKey ? "The helper isn't signed in to MCSS: server control won't work until it is."
+								: works.equals("no") ? (as.isEmpty() ? "The helper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
+								: as.isEmpty() ? "The helper's MCSS key is set and working." : "Signed in to MCSS as " + as + ": working.");
 						state.setForeground(new Color(0x2E9D48));
 						state.setText("Helper running on " + r.get("bind") + ":" + r.get("port") + ".  MCSS " + (Boolean.TRUE.equals(r.get("mcss")) ? "is running" : "isn't running")
 								+ ";  Minecraft server " + (Boolean.TRUE.equals(r.get("minecraft")) ? "is running" : "is off") + ".");
@@ -553,6 +580,23 @@ public final class HostHelper {
 			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[1] + "}"); });
 			serverB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"server\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[2] + "}"); });
 			adminB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"admin\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[3] + "}"); });
+			signB.addActionListener(e -> {
+				javax.swing.JTextField user = new javax.swing.JTextField(24);
+				javax.swing.JPasswordField pass = new javax.swing.JPasswordField(24);
+				JPanel form = new JPanel(new java.awt.GridLayout(0, 1, 0, 4));
+				form.add(new JLabel("<html><div style='width:380px'>Sign the helper in to MCSS with a panel account that can view, start and stop the server. MCSS hands back a key, which is kept on this PC; the password isn't kept.</div></html>"));
+				form.add(new JLabel("Username")); form.add(user);
+				form.add(new JLabel("Password")); form.add(pass);
+				if (JOptionPane.showConfirmDialog(f, form, "Sign in to MCSS", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+				String body = Json.write(m("username", user.getText().trim(), "password", new String(pass.getPassword())));
+				new Thread(() -> {
+					String msg;
+					try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/signin", body))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
+					String m2 = msg;
+					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "Sign in to MCSS", JOptionPane.PLAIN_MESSAGE));
+					refresh.run();
+				}, "signin").start();
+			});
 			keyB.addActionListener(e -> {
 				javax.swing.JPasswordField key = new javax.swing.JPasswordField(36);
 				JButton paste = new JButton("Paste");

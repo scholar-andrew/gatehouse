@@ -92,7 +92,8 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   /v1/server/start|stop`; status from `GET /v1/server`, the shutdown check from `GET /v1/server/log`, the end of
   `logs/latest.log`), with no panel account or key on the device. The helper does it with its own MCSS API key, which
   the owner makes in MCSS's web panel (API Keys: view, start and stop this server) and enters once with **Set MCSS
-  key...**. It's kept in `host.json` on the PC only and is never sent to launchers.
+  key...**. Or, simpler, **Sign in to MCSS...** in the host panel: the owner types a panel account's username and
+  password there, the helper signs in (the panel's `POST /auth`) and keeps the key MCSS hands back, not the password. It's kept in `host.json` on the PC only and is never sent to launchers.
 - Allowed launchers can start MCSS, and close it. Closing is refused while the Minecraft server is running (stop it
   first). How depends on MCSS's own close setting (`mcssClosePreference` in `resources/mcss_config.json`), which the
   helper reports to launchers (`close` in `/v1/mcss`) so the button can say what it will do: with the exit choice,
