@@ -151,24 +151,44 @@ public final class HostHelper {
 		} catch (Exception e) { return new String[] {"failed", "Couldn't start MCSS: " + e.getMessage()}; }
 	}
 
-	/** Closes MCSS: refused while the Minecraft server runs. Asks its window to close (as the X button would), and only
-	 *  if it's still there after 20 seconds ends it. Only processes of the configured mcss.exe are touched. */
-	static String[] closeMcss() {
+	/** MCSS's own "when MCSS is closed" setting (mcssClosePreference in resources/mcss_config.json): HideToTaskbar,
+	 *  MinimizeToTaskbar, or an exit choice. Only an exit choice makes a close request quit MCSS properly. */
+	static String closePreference() {
+		Path c = mcssExe().getParent().resolve("resources").resolve("mcss_config.json");
+		return Json.str(Json.map(Json.parse(read(c))).get("mcssClosePreference"));
+	}
+
+	/** How a close works with MCSS's current setting: "close" (its X button exits MCSS, so it's asked to close) or
+	 *  "force" (its X button only hides it, so closing means ending it). The launcher labels its button by this. */
+	static String closeMode() {
+		String pref = closePreference();
+		return pref.contains("Hide") || pref.contains("Minimize") ? "force" : "close";
+	}
+
+	/** Closes MCSS: refused while the Minecraft server runs. With MCSS's exit setting it asks the window to close
+	 *  (exactly as its X button, which then quits MCSS the way the tray menu's Close does) and waits up to 30 seconds,
+	 *  never forcing. With a hide setting it ends MCSS, but only when the launcher asked for a force close (its button
+	 *  said "Force close MCSS"). Only the configured mcss.exe is touched. */
+	static String[] closeMcss(boolean force) {
 		List<ProcessHandle> ps = mcssProcesses();
 		if (ps.isEmpty()) return new String[] {"ok", "MCSS isn't running"};
 		if (minecraftRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then close MCSS"};
+		if (closeMode().equals("force")) {
+			if (!force) return new String[] {"refused", "MCSS is set to hide when closed (" + closePreference() + "), so closing it means force-closing it: use Force close MCSS. "
+					+ "(To close it properly instead, set MCSS's close option to exit MCSS, in MCSS's settings on the server PC.)"};
+			for (ProcessHandle h : ps) h.destroyForcibly();
+			try { for (int i = 0; i < 20 && !mcssProcesses().isEmpty(); i++) Thread.sleep(250); } catch (InterruptedException ignored) {}
+			return mcssProcesses().isEmpty() ? new String[] {"ok", "MCSS force-closed (its X button is set to hide it). The Minecraft server was already stopped, so the world is safe."}
+					: new String[] {"failed", "MCSS wouldn't close"};
+		}
 		try {
 			for (ProcessHandle h : ps) {
-				// Windows: ask the window to close, like its X button (taskkill without /F sends WM_CLOSE).
+				// Windows: ask the window to close, like its X button (taskkill without /F sends WM_CLOSE; never /F).
 				new ProcessBuilder("taskkill", "/PID", String.valueOf(h.pid())).redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
 			}
-			for (int i = 0; i < 40 && !mcssProcesses().isEmpty(); i++) Thread.sleep(500);
-			if (!mcssProcesses().isEmpty()) {
-				for (ProcessHandle h : mcssProcesses()) h.destroyForcibly();
-				Thread.sleep(1000);
-				return mcssProcesses().isEmpty() ? new String[] {"ok", "MCSS closed (it had to be ended: it didn't close its window)"} : new String[] {"failed", "MCSS wouldn't close"};
-			}
-			return new String[] {"ok", "MCSS closed"};
+			for (int i = 0; i < 60 && !mcssProcesses().isEmpty(); i++) Thread.sleep(500);
+			return mcssProcesses().isEmpty() ? new String[] {"ok", "MCSS closed properly"}
+					: new String[] {"failed", "MCSS was asked to close but is still open after 30 seconds (it may be asking something on the server PC's screen). It wasn't forced."};
 		} catch (Exception e) { return new String[] {"failed", "Couldn't close MCSS: " + e.getMessage()}; }
 	}
 
@@ -242,13 +262,13 @@ public final class HostHelper {
 			if (d.isEmpty() || token == null || !sha256(token).equals(d.get("token_sha256"))) { reply(x, 401, m("state", "unknown", "error", "say hello first")); return; }
 			boolean granted = Boolean.TRUE.equals(d.get("granted"));
 			if (path.equals("/v1/mcss") && x.getRequestMethod().equals("GET")) {
-				reply(x, 200, m("state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning()));
+				reply(x, 200, m("state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode()));
 				return;
 			}
 			if (!granted) { reply(x, 403, m("state", "pending", "error", "not allowed yet: the owner allows this device in the host panel")); return; }
 			String[] r;
 			if (path.equals("/v1/mcss/start") && x.getRequestMethod().equals("POST")) r = startMcss();
-			else if (path.equals("/v1/mcss/close") && x.getRequestMethod().equals("POST")) r = closeMcss();
+			else if (path.equals("/v1/mcss/close") && x.getRequestMethod().equals("POST")) r = closeMcss("true".equals(Json.str(body(x).get("force"))));
 			else { reply(x, 404, m("error", "no such call")); return; }
 			log((path.endsWith("start") ? "start" : "close") + " MCSS asked by " + who(d) + ": " + r[1]);
 			reply(x, 200, m("result", r[0], "message", r[1], "mcss", !mcssProcesses().isEmpty()));

@@ -85,7 +85,11 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
 - **October Journey host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
   seen) with **Allow MCSS control**, **Revoke** and **Forget**, and shows a log of every request.
 - Allowed launchers can start MCSS, and close it. Closing is refused while the Minecraft server is running (stop it
-  first); the helper asks MCSS's window to close and only ends it if it's still there after 20 seconds. It only
+  first). How depends on MCSS's own close setting (`mcssClosePreference` in `resources/mcss_config.json`), which the
+  helper reports to launchers (`close` in `/v1/mcss`) so the button can say what it will do: with the exit choice,
+  **Close MCSS** asks MCSS's window to close as its X button would and waits up to 30 seconds, never forcing; with
+  HideToTaskbar or MinimizeToTaskbar (the X button only hides it), the button reads **Force close MCSS** and the helper
+  ends MCSS, only when the request says force. It only
   touches the configured `mcss.exe`.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`). It only works while the owner is signed in to Windows.

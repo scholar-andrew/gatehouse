@@ -94,7 +94,8 @@ public final class LaunchPopup {
 				case "hello" -> System.out.println("hello: " + c.hello());
 				case "mcss" -> System.out.println("mcss: " + c.mcssState());
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
-				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose());
+				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
+				case "mcss-force-close" -> System.out.println("mcss force close: " + c.mcssClose(true));
 				case "stop-watch" -> {   // stop, wait until it's off, and say whether the shutdown was smooth
 					long t0 = System.currentTimeMillis(); c.stop(); int st = -1;
 					while (System.currentTimeMillis() - t0 < 120_000) { Thread.sleep(2000); st = c.statusCode(); if (st == 0) break; }
@@ -221,6 +222,9 @@ public final class LaunchPopup {
 		}
 		summary(dir, done);
 	}
+
+	/** Text for a message line, wrapped to the window's width. */
+	static String wrap(String s) { return "<html><div style='width:430px'>" + esc(s) + "</div></html>"; }
 
 	private static String html(String label, String detail) {
 		if (detail == null || detail.isEmpty()) return label;
@@ -486,7 +490,7 @@ public final class LaunchPopup {
 				try { msg = "Wake signal sent (" + c.wake().size() + " addresses)" + (c.wakeAddress.isEmpty() ? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't send the wake signal: " + ex.getMessage(); }
 				String m = msg;
-				SwingUtilities.invokeLater(() -> note.setText(m));
+				SwingUtilities.invokeLater(() -> note.setText(wrap(m)));
 				refresh.run();
 			}, "wake").start();
 		});
@@ -498,7 +502,7 @@ public final class LaunchPopup {
 				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server PC awake?"; }
 				String m = msg;
-				SwingUtilities.invokeLater(() -> note.setText(m));
+				SwingUtilities.invokeLater(() -> note.setText(wrap(m)));
 				refresh.run();
 			}, "start").start();
 		});
@@ -541,23 +545,30 @@ public final class LaunchPopup {
 		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, 13f));
 		mcss.setIconTextGap(8);
 		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS");
+		boolean[] forceMode = {false};
 		mStart.setEnabled(false); mClose.setEnabled(false);
 		JLabel mNote = new JLabel(" ");
 		mNote.setFont(mNote.getFont().deriveFont(Font.PLAIN, 12f));
 		mNote.setForeground(new Color(0x6B7280));
 		Runnable mcssRefresh = () -> new Thread(() -> {
-			String state, text; boolean granted = false, running = false;
+			String state, text, mode = "close"; boolean granted = false, running = false;
 			try {
 				Map<String, Object> r = c.mcssState();
 				state = s(r.get("state"));
 				running = "true".equals(s(r.get("mcss")));   // (this reader gives true/false back as text)
 				granted = state.equals("granted");
+				if (s(r.get("close")).equals("force")) mode = "force";
 				if (granted) text = running ? "MCSS is running" : "MCSS isn't running";
 				else text = "Waiting for the owner to allow this device (in the host panel on the server PC)";
 				state = granted ? (running ? "ok" : "off") : "warn";
 			} catch (IOException | RuntimeException e) { state = "off"; text = "The host helper isn't answering (the server PC may be asleep or signed out)"; }
-			String st = state, tx = text; boolean g = granted, run = running;
+			String st = state, tx = text, md = mode; boolean g = granted, run = running;
 			SwingUtilities.invokeLater(() -> {
+				// The button says what it will do: MCSS's X button either exits it (Close) or only hides it (Force close).
+				forceMode[0] = md.equals("force");
+				mClose.setText(forceMode[0] ? "Force close MCSS" : "Close MCSS");
+				mClose.setToolTipText(forceMode[0] ? "MCSS's X button is set to hide it, so closing it means ending it (the Minecraft server must be stopped first)"
+						: "Closes MCSS properly, like its X button (the Minecraft server must be stopped first)");
 				mcss.setIcon(dot(colour(st)));
 				mcss.setText("<html><div style='width:430px'>" + esc(tx) + "</div></html>");
 				mStart.setEnabled(g && !run);
@@ -566,15 +577,18 @@ public final class LaunchPopup {
 		}, "mcss-status").start();
 		java.util.function.Function<Boolean, Runnable> mcssAct = startIt -> () -> {
 			hold.run();
-			if (!startIt && javax.swing.JOptionPane.showConfirmDialog(f, "Close MCSS on the server PC? (It only closes once the Minecraft server is stopped.)",
-					"Close MCSS", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
+			boolean force = forceMode[0];
+			if (!startIt && javax.swing.JOptionPane.showConfirmDialog(f, force
+					? "Force close MCSS on the server PC? Its X button is set to hide it, so it will be ended rather than closed normally. (Only once the Minecraft server is stopped.)"
+					: "Close MCSS on the server PC? It closes normally, like its X button. (Only once the Minecraft server is stopped.)",
+					force ? "Force close MCSS" : "Close MCSS", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
 			mNote.setText(startIt ? "Starting MCSS\u2026" : "Closing MCSS\u2026");
 			new Thread(() -> {
 				String msg;
-				try { Map<String, Object> r = startIt ? c.mcssStart() : c.mcssClose(); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
+				try { Map<String, Object> r = startIt ? c.mcssStart() : c.mcssClose(force); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server PC awake?"; }
 				String m = msg;
-				SwingUtilities.invokeLater(() -> mNote.setText(m));
+				SwingUtilities.invokeLater(() -> mNote.setText(wrap(m)));
 				mcssRefresh.run();
 				refresh.run();
 			}, "mcss-act").start();
@@ -608,7 +622,7 @@ public final class LaunchPopup {
 			hold.run();
 			new Thread(() -> {
 				boolean opened = c.openPanel();
-				SwingUtilities.invokeLater(() -> cfgNote.setText(opened ? "Opened the server panel in your browser (sign in there)" : "Open " + c.panelUrl + " in a browser"));
+				SwingUtilities.invokeLater(() -> cfgNote.setText(wrap(opened ? "Opened the server panel in your browser (sign in there)" : "Open " + c.panelUrl + " in a browser")));
 			}, "panel").start();
 		});
 		access.addActionListener(e -> { hold.run(); accessDialog(c, f, cfgNote); showWho.run(); refresh.run(); });
@@ -833,7 +847,13 @@ public final class LaunchPopup {
 				for (int i = 0; i < 2; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
 					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
-					tab.add(parts[i], BorderLayout.NORTH);
+					JPanel inner = new JPanel(new BorderLayout());
+					inner.add(parts[i], BorderLayout.NORTH);
+					JScrollPane sc = new JScrollPane(inner);
+					sc.setBorder(null);
+					sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+					sc.getVerticalScrollBar().setUnitIncrement(16);
+					tab.add(sc, BorderLayout.CENTER);
 					tabs.addTab(i == 0 ? "Server controls" : "Server config", tab);
 				}
 			}

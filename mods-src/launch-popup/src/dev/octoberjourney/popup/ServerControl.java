@@ -239,7 +239,8 @@ final class ServerControl {
 	}
 
 	Map<String, Object> mcssStart() throws IOException { return helper("POST", "/v1/mcss/start", "{}"); }
-	Map<String, Object> mcssClose() throws IOException { return helper("POST", "/v1/mcss/close", "{}"); }
+	/** force: the button said "Force close MCSS" (MCSS is set to hide when closed, so closing it means ending it). */
+	Map<String, Object> mcssClose(boolean force) throws IOException { return helper("POST", "/v1/mcss/close", force ? "{\"force\":true}" : "{}"); }
 
 	/** Asks MCSS to stop the server (action 1: a normal stop, which saves the world; not 3, kill). */
 	void stop() throws IOException { api("POST", "/api/v2/servers/" + serverId + "/execute/action", "{\"action\":1}"); }

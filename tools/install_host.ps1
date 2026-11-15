@@ -10,8 +10,10 @@ $root = Split-Path -Parent $PSScriptRoot
 $dir = 'C:\Minecraft\OctoberJourneyHost'
 $javaw = 'C:\Program Files\Eclipse Adoptium\jdk-25.0.4.101-hotspot\bin\javaw.exe'
 New-Item -ItemType Directory -Force $dir | Out-Null
-$task = Get-ScheduledTask -TaskName 'October Journey host helper' -ErrorAction SilentlyContinue
-if ($task) { Stop-ScheduledTask -TaskName $task.TaskName -ErrorAction SilentlyContinue; Start-Sleep 2 }
+# Stop a running helper first (Windows locks its jar while it runs). schtasks, since the ScheduledTasks cmdlets can fail here.
+schtasks /end /tn "October Journey host helper" 2>$null | Out-Null
+Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | Where-Object { $_.CommandLine -like '*OctoberJourneyHost*oj-host.jar*--serve*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+Start-Sleep 2
 Copy-Item (Join-Path $root 'host\oj-host.jar') (Join-Path $dir 'oj-host.jar') -Force
 $cfg = Join-Path $dir 'host.json'
 if (-not (Test-Path $cfg)) {
@@ -22,7 +24,7 @@ $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAM
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 Register-ScheduledTask -TaskName 'October Journey host helper' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description 'Lets allowed October Journey launchers start and close MCSS (Tailscale only). Panel: Start menu, October Journey host panel.' -Force | Out-Null
-Start-ScheduledTask -TaskName 'October Journey host helper'
+schtasks /run /tn "October Journey host helper" | Out-Null
 # The Start menu shortcut, made by a one-off task in your own session.
 $lnk = @"
 `$s = (New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Programs') + '\October Journey host panel.lnk')
@@ -31,7 +33,7 @@ $lnk = @"
 $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($lnk))
 $one = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -EncodedCommand $enc"
 Register-ScheduledTask -TaskName 'October Journey host panel shortcut (one-off)' -Action $one -Principal $principal -Force | Out-Null
-Start-ScheduledTask -TaskName 'October Journey host panel shortcut (one-off)'
+schtasks /run /tn "October Journey host panel shortcut (one-off)" | Out-Null
 Start-Sleep 5
-Unregister-ScheduledTask -TaskName 'October Journey host panel shortcut (one-off)' -Confirm:$false
+schtasks /delete /tn "October Journey host panel shortcut (one-off)" /f | Out-Null
 "installed in $dir"

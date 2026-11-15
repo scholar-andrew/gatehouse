@@ -120,7 +120,10 @@ A third tab, **Server controls**, shows whether the server is online (checked ev
 
 Below them, **MCSS (the server software)** shows whether MCSS is running on the server PC, with **Start MCSS** and
 **Close MCSS**. The first time, your device asks for this and waits until the owner allows it in the host panel on the
-server PC. Close MCSS only works once the Minecraft server is stopped, so the world is never cut off mid-save.
+server PC. Closing only works once the Minecraft server is stopped, so the world is never cut off mid-save. The
+button says how it will close MCSS, from MCSS's own close option on the server PC: **Close MCSS** when MCSS's X
+button exits it (a normal close), or **Force close MCSS** when its X button only hides it to the taskbar (MCSS is
+ended instead).
 
 A fourth tab, **Server config**, shows the panel's address and whether this device has panel access, with:
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.

@@ -1,4 +1,8 @@
 [
+ {"version": "1.8.5", "date": "2026-11-15", "notes": [
+  "Server controls and Server config scroll when their content is taller than the window, and long messages wrap instead of being cut off.",
+  "The MCSS close button says what it will do: Close MCSS when MCSS's X button exits it (a normal close), Force close MCSS when its X button only hides it (MCSS is ended). Either way only once the Minecraft server is stopped."
+ ]},
  {"version": "1.8.4", "date": "2026-11-15", "notes": [
   "Fixed: Server controls said MCSS wasn't running when it was (so Close MCSS stayed greyed out)."
  ]},
