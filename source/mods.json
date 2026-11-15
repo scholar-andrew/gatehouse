@@ -2,7 +2,7 @@
  "pack": {
   "name": "October Journey",
   "author": "Andrew",
-  "version": "1.7.1",
+  "version": "1.7.2",
   "minecraft": "26.3",
   "fabric": "0.19.5"
  },
@@ -337,22 +337,5 @@
    "filename": "octoberjourney-1.2.1.jar",
    "sha512": "85c4096ffa5dc5af27c094af672a7dd0d116c5c19008f5cc7f69860d53443721b80d10ae786d7ff3df29f37cf5a529bfc20d4035a7dd408599ba4d437783afeb"
   }
- ],
- "server": {
-  "mods": [
-   "Jade-mc26.3-Fabric-26.3.5.jar",
-   "RoughlyEnoughItems-26.3.824-brewingfix.1.jar",
-   "appleskin-fabric-mc26.3-3.0.10.jar",
-   "architectury-fabric-22.0.5.jar",
-   "cloth-config-fabric-26.3.159.jar",
-   "fabric-api-0.163.0+26.3.jar",
-   "ferritecore-9.0.0-fabric.jar",
-   "jarvis-fabric-0.17.0.jar",
-   "krypton-0.3.2.jar",
-   "lithium-fabric-0.26.2+mc26.3.jar",
-   "seamless-api-2.0.2+mc26.3-fabric.jar",
-   "seamless-crafting-2.1.1+mc26.3-fabric.jar",
-   "spark-1.10.187-fabric.jar"
-  ]
- }
+ ]
 }

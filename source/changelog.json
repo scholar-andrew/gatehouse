@@ -1,4 +1,7 @@
 [
+ {"version": "1.7.2", "date": "2026-11-15", "notes": [
+  "The pop-up has a Server tab: what the server runs (game version, Jarvis, mods, settings) and what changed there since you last played. When something's new on the server, the button reads Next: server changes and takes you there before the game starts."
+ ]},
  {"version": "1.7.1", "date": "2026-11-15", "notes": [
   "The pack's settings mod is now called October Journey Settings (Mods > October Journey Settings): it has the mod switches and the pop-up switches.",
   "Devices set up before the pack hid Inventory Profiles Next's purple Auto Refill arrows on the hotbar now get that default once. Turn them back on in that mod's settings if you like them.",

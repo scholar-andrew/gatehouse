@@ -54,6 +54,13 @@ import javax.swing.WindowConstants;
  *   packwiz.json             the sync), and after it: the difference is the mods added, removed and updated
  *   pack-sync-news.txt       from syncs before pack-sync-status.txt existed: notes, one per line
  *   pack-options.json        "popup_updates" / "popup_no_updates": false turns that kind of pop-up off (default on)
+ *   extras/server-state.json what the server runs (tools/server_snapshot.py): versions, mods, settings
+ *   extras/server-changelog.txt  notes about server changes, newest first (same format as changelog.txt)
+ *   server-state-seen.json, server-notes-seen.txt  the server state and note this device last showed (written here)
+ *
+ * The Server tab shows what the server runs and, since this device last looked, its mods added, updated and removed,
+ * settings changed and new notes. When there's something new there, the button on the first tab reads "Next: server
+ * changes" and the window moves to the Server tab (on a click, Enter, or when the first tab's countdown ends).
  *
  * After an update, or when anything changed or failed, it shows each check with a coloured dot, the mods added,
  * removed and updated, mods switched on or off, notes, and the patch notes for every version since the last one seen;
@@ -131,7 +138,21 @@ public final class LaunchPopup {
 		if (updated) for (Version v : log) { if (v.version().equals(seen)) break; fresh.add(v); if (seen.isEmpty()) break; }
 		boolean somethingHappened = !added.isEmpty() || !removed.isEmpty() || !changed.isEmpty() || !switchedOn.isEmpty()
 				|| !switchedOff.isEmpty() || !notes.isEmpty() || checks.stream().anyMatch(c -> c.state().equals("updated") || c.state().equals("failed"));
-		boolean big = updated || somethingHappened;
+		// The server: what it runs now, against what this device last showed.
+		Map<String, Object> server = asMap(parse(read(dir.resolve("extras/server-state.json"))));
+		Map<String, Object> serverSeen = asMap(parse(read(dir.resolve("server-state-seen.json"))));
+		List<Version> serverLog = changelog(dir.resolve("extras/server-changelog.txt"));
+		String notesSeen = read(dir.resolve("server-notes-seen.txt")).trim();
+		List<Version> serverFresh = new ArrayList<>();
+		for (Version v : serverLog) { if (v.version().equals(notesSeen)) break; serverFresh.add(v); if (notesSeen.isEmpty()) break; }
+		List<String[]> serverChanges = serverSeen.isEmpty() || server.isEmpty() ? new ArrayList<>() : serverDiff(serverSeen, server);
+		boolean serverNews = !server.isEmpty() && (!serverFresh.isEmpty() || !serverChanges.isEmpty());
+		if (!server.isEmpty()) {
+			Files.writeString(dir.resolve("server-state-seen.json"), read(dir.resolve("extras/server-state.json")), StandardCharsets.UTF_8);
+			if (!serverLog.isEmpty()) Files.writeString(dir.resolve("server-notes-seen.txt"), serverLog.get(0).version() + "\n", StandardCharsets.UTF_8);
+		}
+
+		boolean big = updated || somethingHappened || serverNews;
 		boolean wanted = big ? option(options, "popup_updates") : option(options, "popup_no_updates");
 		if (current != null) Files.writeString(dir.resolve("pack-version-seen.txt"), current + "\n", StandardCharsets.UTF_8);
 		if (!wanted || GraphicsEnvironment.isHeadless()) return;
@@ -143,11 +164,13 @@ public final class LaunchPopup {
 		else if (updated) headline = "October Journey updated to " + current;
 		else if (status.equals("offline")) headline = "Couldn't check for updates";
 		else if (status.equals("failed")) headline = "The update didn't finish";
+		else if (!somethingHappened && serverNews) headline = "October Journey" + playing + ": server changes";
 		else headline = "October Journey" + playing + (somethingHappened ? "" : ": no updates");
 		String sub;
 		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing + " as installed.";
 		else if (status.equals("failed")) sub = "Starting with the mods already installed. Details are in pack-sync.log in the game folder.";
 		else if (updated || somethingHappened) sub = "Here's what this launch checked and changed.";
+		else if (serverNews) sub = "Nothing new for this device; the Server tab shows what changed on the server.";
 		else sub = "You're up to date.";
 
 		// The window's content, top to bottom.
@@ -175,7 +198,63 @@ public final class LaunchPopup {
 			rows.add(heading(fresh.size() > 1 || !seen.isEmpty() ? "What's new in " + v.version() + (v.date().isEmpty() ? "" : " (" + v.date() + ")") : "What's new"));
 			for (String n : v.notes()) rows.add(text("• " + n));
 		}
-		show(headline, sub, rows, big ? UPDATE_SECONDS : QUIET_SECONDS, big);
+		show(headline, sub, rows, serverRows(server, serverChanges, serverFresh, serverSeen.isEmpty()), serverNews,
+				updated || somethingHappened ? UPDATE_SECONDS : QUIET_SECONDS, updated || somethingHappened);
+	}
+
+	// ------------------------------------------------------------------ the server
+
+	private static String s(Object o) { return o == null ? "" : o.toString(); }
+
+	/** Changes from the state last shown to the current one: {colour key, text}. */
+	private static List<String[]> serverDiff(Map<String, Object> old, Map<String, Object> now) {
+		List<String[]> out = new ArrayList<>();
+		for (String[] k : new String[][] {{"minecraft", "Minecraft"}, {"fabric_loader", "Fabric Loader"}, {"java", "Java"}, {"memory", "Memory"}})
+			if (!s(old.get(k[0])).equals(s(now.get(k[0])))) out.add(new String[] {"updated", k[1] + ": " + s(old.get(k[0])) + " \u2192 " + s(now.get(k[0]))});
+		Map<String, Object> om = asMap(old.get("mods")), nm = asMap(now.get("mods"));
+		for (Map.Entry<String, Object> e : nm.entrySet()) {
+			Map<String, Object> m = asMap(e.getValue()), o = asMap(om.get(e.getKey()));
+			if (o.isEmpty()) out.add(new String[] {"ok", "Added: " + clean(s(m.get("name"))) + " " + s(m.get("version"))});
+			else if (!s(o.get("sha256")).equals(s(m.get("sha256")))) out.add(new String[] {"updated", "Updated: " + clean(s(m.get("name"))) + " " + s(o.get("version")) + " \u2192 " + s(m.get("version"))});
+		}
+		for (Map.Entry<String, Object> e : om.entrySet())
+			if (!nm.containsKey(e.getKey())) out.add(new String[] {"off", "Removed: " + clean(s(asMap(e.getValue()).get("name")))});
+		Map<String, Object> os = asMap(old.get("settings")), ns = asMap(now.get("settings"));
+		for (Map.Entry<String, Object> e : ns.entrySet())
+			if (!s(os.get(e.getKey())).equals(s(e.getValue()))) out.add(new String[] {"updated", e.getKey() + ": " + (os.containsKey(e.getKey()) ? s(os.get(e.getKey())) : "not set") + " \u2192 " + s(e.getValue())});
+		if (!s(old.get("datapacks")).equals(s(now.get("datapacks")))) out.add(new String[] {"updated", "Data packs changed"});
+		return out;
+	}
+
+	private static List<Component> serverRows(Map<String, Object> st, List<String[]> changes, List<Version> notes, boolean firstLook) {
+		List<Component> rows = new ArrayList<>();
+		if (st.isEmpty()) { rows.add(text("No server information in this version of the pack yet.")); return rows; }
+		boolean any = !changes.isEmpty();
+		java.util.function.Predicate<String> touched = w -> changes.stream().anyMatch(c -> c[1].startsWith(w));
+		Map<String, Object> mods = asMap(st.get("mods")), set = asMap(st.get("settings"));
+		Map<String, Object> jarvis = asMap(mods.get("jarvis"));
+		// (On a device's first look there's nothing to compare with: just the notes and what it runs.)
+		if (!firstLook) rows.add(heading(any ? "Since you last played" : "No server changes since you last played"));
+		for (String[] c : changes) rows.add(row(colour(c[0]), c[1], null));
+		for (Version v : notes) {
+			rows.add(heading("Server notes" + (v.date().isEmpty() ? "" : " (" + v.date() + ")")));
+			for (String n : v.notes()) rows.add(text("\u2022 " + n));
+		}
+		rows.add(heading("The server now"));
+		rows.add(row(touched.test("Minecraft") || touched.test("Fabric") ? BLUE : GREEN, "Game", "Minecraft " + s(st.get("minecraft")) + ", Fabric Loader " + s(st.get("fabric_loader"))));
+		if (!jarvis.isEmpty()) rows.add(row(touched.test("Updated: Jarvis") || touched.test("Added: Jarvis") ? BLUE : GREEN, "Jarvis", s(jarvis.get("version"))));
+		long changedMods = changes.stream().filter(c -> c[1].startsWith("Added: ") || c[1].startsWith("Updated: ") || c[1].startsWith("Removed: ")).count();
+		rows.add(row(changedMods > 0 ? BLUE : GREEN, "Mods", mods.size() + " on the server" + (changedMods > 0 ? ", " + changedMods + " changed" : "")));
+		List<String> key = new ArrayList<>();
+		for (String k : new String[] {"Difficulty", "Game mode", "PvP", "Whitelist", "Hardcore"}) if (set.containsKey(k)) key.add(k + " " + s(set.get(k)));
+		boolean settingsChanged = changes.stream().anyMatch(c -> set.keySet().stream().anyMatch(k -> c[1].startsWith(k + ":")));
+		rows.add(row(settingsChanged ? BLUE : GREEN, "Settings", String.join(", ", key)));
+		rows.add(heading("Mods on the server"));
+		List<String> names = new ArrayList<>();
+		for (Object m : mods.values()) names.add(clean(s(asMap(m).get("name"))) + "  " + s(asMap(m).get("version")));
+		names.sort(String.CASE_INSENSITIVE_ORDER);
+		for (String n : names) rows.add(row(GREEN, n, null));
+		return rows;
 	}
 
 	// ------------------------------------------------------------------ what's shown
@@ -230,7 +309,28 @@ public final class LaunchPopup {
 		return l;
 	}
 
-	private static void show(String headline, String sub, List<Component> rows, int seconds, boolean big) throws Exception {
+	private static JScrollPane scroller(List<Component> rows, boolean big) {
+		JPanel list = new JPanel();
+		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+		list.setBorder(BorderFactory.createEmptyBorder(0, 8, 8, 8));
+		for (Component c : rows) { ((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT); list.add(c); }
+		list.add(Box.createVerticalGlue());
+		JScrollPane sp = new JScrollPane(list);
+		sp.getVerticalScrollBar().setUnitIncrement(16);
+		sp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		sp.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+		Dimension want = list.getPreferredSize();
+		sp.setPreferredSize(new Dimension(Math.max(560, Math.min(640, want.width + 30)), Math.min(big ? 420 : 240, want.height + 6)));
+		return sp;
+	}
+
+	private static String plain(List<Component> rows) {
+		StringBuilder sb = new StringBuilder();
+		for (Component c : rows) if (c instanceof JLabel jl) sb.append(jl.getText().replaceAll("<[^>]+>", "").replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")).append('\n');
+		return sb.toString();
+	}
+
+	private static void show(String headline, String sub, List<Component> rows, List<Component> serverRows, boolean serverNews, int seconds, boolean big) throws Exception {
 		Object lock = new Object();
 		boolean[] done = {false};
 		SwingUtilities.invokeAndWait(() -> {
@@ -249,20 +349,13 @@ public final class LaunchPopup {
 			top.add(h, BorderLayout.NORTH);
 			top.add(s, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
-			if (!rows.isEmpty()) {
-				JPanel list = new JPanel();
-				list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-				list.setBorder(BorderFactory.createEmptyBorder(0, 8, 8, 8));
-				for (Component c : rows) { ((JComponent) c).setAlignmentX(Component.LEFT_ALIGNMENT); list.add(c); }
-				list.add(Box.createVerticalGlue());
-				JScrollPane sp = new JScrollPane(list);
-				sp.getVerticalScrollBar().setUnitIncrement(16);
-				sp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-				sp.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
-				Dimension want = list.getPreferredSize();
-				sp.setPreferredSize(new Dimension(Math.max(560, Math.min(640, want.width + 30)), Math.min(big ? 420 : 240, want.height + 6)));
-				p.add(sp, BorderLayout.CENTER);
-			}
+			// Two tabs: this device (the pack's update) and the server.
+			javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
+			tabs.setFont(tabs.getFont().deriveFont(Font.BOLD, 13f));
+			List<Component> deviceRows = rows.isEmpty() ? List.of(text("Nothing to report.")) : rows;
+			tabs.addTab("This device", scroller(deviceRows, big || serverNews));
+			tabs.addTab(serverNews ? "Server (new)" : "Server", scroller(serverRows, big || serverNews));
+			p.add(tabs, BorderLayout.CENTER);
 			JButton play = new JButton();
 			play.setFont(play.getFont().deriveFont(Font.BOLD, 15f));
 			JPanel bottom = new JPanel(new BorderLayout());
@@ -274,20 +367,30 @@ public final class LaunchPopup {
 				l.setForeground(new Color(0x6B7280));
 				legend.add(l);
 			}
-			if (!rows.isEmpty()) bottom.add(legend, BorderLayout.WEST);
+			bottom.add(legend, BorderLayout.WEST);
 			bottom.add(play, BorderLayout.EAST);
 			p.add(bottom, BorderLayout.SOUTH);
+			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
+			// "Play" after. Each tab gets its own countdown: the first tab's (5 or 90 seconds), then 90 on the server's.
 			int[] left = {seconds};
-			Runnable label = () -> play.setText("Play  (" + left[0] + ")");
+			boolean[] serverShown = {!serverNews};
+			Runnable label = () -> play.setText((serverShown[0] ? "Play" : "Next: server changes") + "  (" + left[0] + ")");
+			Runnable next = () -> {
+				if (!serverShown[0]) { serverShown[0] = true; tabs.setSelectedIndex(1); left[0] = UPDATE_SECONDS; label.run(); }
+				else f.dispose();
+			};
+			tabs.addChangeListener(e -> { if (tabs.getSelectedIndex() == 1 && !serverShown[0]) { serverShown[0] = true; left[0] = Math.max(left[0], UPDATE_SECONDS); label.run(); } });
 			label.run();
 			// Each second: the countdown, and a full repaint, so anything drawn over the window (an overlay, a notification)
 			// never leaves a smear behind.
-			Timer timer = new Timer(1000, e -> { if (--left[0] <= 0) f.dispose(); else { label.run(); f.repaint(); } });
-			play.addActionListener(e -> f.dispose());
-			// Enter, Space or Escape (keyboard, or a controller mapped to keys) also continue.
-			for (int key : new int[] {KeyEvent.VK_ENTER, KeyEvent.VK_SPACE, KeyEvent.VK_ESCAPE}) {
-				p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key, 0), "play");
-			}
+			Timer timer = new Timer(1000, e -> { if (--left[0] <= 0) next.run(); else { label.run(); f.repaint(); } });
+			play.addActionListener(e -> next.run());
+			// Enter or Space press the button; Escape starts the game straight away.
+			for (int key : new int[] {KeyEvent.VK_ENTER, KeyEvent.VK_SPACE}) p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key, 0), "next");
+			p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "play");
+			p.getActionMap().put("next", new javax.swing.AbstractAction() {
+				@Override public void actionPerformed(java.awt.event.ActionEvent e) { next.run(); }
+			});
 			p.getActionMap().put("play", new javax.swing.AbstractAction() {
 				@Override public void actionPerformed(java.awt.event.ActionEvent e) { f.dispose(); }
 			});
@@ -299,19 +402,23 @@ public final class LaunchPopup {
 			});
 			f.setContentPane(p);
 			f.pack();
-			if (rows.isEmpty()) { f.setSize(Math.max(f.getWidth(), 460), f.getHeight()); f.validate(); }
-			// Testing: OJ_POPUP_PNG=<file> saves a picture of the window there instead of showing it.
+			// Testing: OJ_POPUP_PNG=<file> saves a picture of each tab (<file>, and <file> with "-server") and their text
+			// in <file>.txt, instead of showing the window.
 			String png = System.getenv("OJ_POPUP_PNG");
 			if (png != null && !png.isEmpty()) {
 				try {
-					java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-					java.awt.Graphics2D g = img.createGraphics();
-					p.paint(g);
-					g.dispose();
-					javax.imageio.ImageIO.write(img, "png", new java.io.File(png));
-					StringBuilder sb = new StringBuilder(f.getTitle() + "\n" + headline + "\n" + sub + "\n");
-					for (Component c : rows) if (c instanceof JLabel jl) sb.append(jl.getText().replaceAll("<[^>]+>", "").replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")).append('\n');
-					Files.writeString(Path.of(png + ".txt"), sb + play.getText() + "\n", StandardCharsets.UTF_8);
+					for (int i = 0; i < 2; i++) {
+						tabs.setSelectedIndex(i);
+						if (i == 1) { serverShown[0] = true; label.run(); }
+						p.validate();
+						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D g = img.createGraphics();
+						p.paint(g);
+						g.dispose();
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(i == 0 ? png : png.replaceAll("\\.png$", "") + "-server.png"));
+						if (i == 0) Files.writeString(Path.of(png + ".txt"), f.getTitle() + "\n" + headline + "\n" + sub + "\n" + plain(deviceRows) + play.getText() + "\n", StandardCharsets.UTF_8);
+						else Files.writeString(Path.of(png + ".txt"), "---- Server tab: " + tabs.getTitleAt(1) + "\n" + plain(serverRows) + play.getText() + "\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+					}
 				} catch (IOException e) { e.printStackTrace(); }
 				f.dispose();
 				return;

@@ -1,0 +1,106 @@
+{
+ "datapacks": [],
+ "fabric_loader": "0.19.5",
+ "java": "25",
+ "memory": "2 GB starting, 4 GB maximum",
+ "minecraft": "26.3",
+ "mods": {
+  "appleskin": {
+   "file": "appleskin-fabric-mc26.3-3.0.10.jar",
+   "name": "AppleSkin",
+   "sha256": "cb05087c39f0d860611aa1fae7cf63560214d1b71378a7c903c18dc370b5c3ce",
+   "version": "3.0.10+mc26.3"
+  },
+  "architectury": {
+   "file": "architectury-fabric-22.0.5.jar",
+   "name": "Architectury",
+   "sha256": "c6a60979f75fdf07a97971711b42529bc84cd7e4c873625d2ce0faf34278ecda",
+   "version": "22.0.5"
+  },
+  "cloth-config": {
+   "file": "cloth-config-fabric-26.3.159.jar",
+   "name": "Cloth Config v26.3",
+   "sha256": "1716b9964f90d2b885f9bd3887f8824b71b55c32a4123a5853486e722f7c2e4b",
+   "version": "26.3.159"
+  },
+  "fabric-api": {
+   "file": "fabric-api-0.163.0+26.3.jar",
+   "name": "Fabric API",
+   "sha256": "4969f5197ebedaf681cc913e4258c8bd17ccb98029db52a29e9b48e998267a2d",
+   "version": "0.163.0+26.3"
+  },
+  "ferritecore": {
+   "file": "ferritecore-9.0.0-fabric.jar",
+   "name": "FerriteCore",
+   "sha256": "213966c72ed967acc7392beb28a866fba301ff56b9976c2e7801c2db7de6bf22",
+   "version": "9.0.0"
+  },
+  "jade": {
+   "file": "Jade-mc26.3-Fabric-26.3.5.jar",
+   "name": "Jade",
+   "sha256": "4899d6c60afa2af859b3a7e0824d0ef6b404f26458f831e3d877faa36be9af1c",
+   "version": "26.3.5+fabric"
+  },
+  "jarvis": {
+   "file": "jarvis-fabric-0.17.0.jar",
+   "name": "Jarvis",
+   "sha256": "db7c267702bc91bc6d2b6fceb6a97519b42c91895c87835c03f499341ad9d06a",
+   "version": "0.17.0+estate.74"
+  },
+  "krypton": {
+   "file": "krypton-0.3.2.jar",
+   "name": "Krypton",
+   "sha256": "0b4a648b9c2f048247f849712aff58b2bac5b27b60c0072bb6bf493ad8b79fef",
+   "version": "0.3.2"
+  },
+  "lithium": {
+   "file": "lithium-fabric-0.26.2+mc26.3.jar",
+   "name": "Lithium",
+   "sha256": "0be5b17ef9f6e9244cd07b24b227553a73aec0cf93158cf28099f3094c167f1b",
+   "version": "0.26.2+mc26.3"
+  },
+  "roughlyenoughitems": {
+   "file": "RoughlyEnoughItems-26.3.824-brewingfix.1.jar",
+   "name": "Roughly Enough Items",
+   "sha256": "4d8d4fd233ca0c8d93f07d76285663cb62518a2f22b2cdca78be8950463ec754",
+   "version": "26.3.824+brewingfix.1"
+  },
+  "seamless_crafting": {
+   "file": "seamless-crafting-2.1.1+mc26.3-fabric.jar",
+   "name": "Seamless Crafting",
+   "sha256": "f17abddba53b09adf05af745da11c8be3e5102f0f73e105e689a73e813078b50",
+   "version": "2.1.1+mc26.3"
+  },
+  "seamlessapi": {
+   "file": "seamless-api-2.0.2+mc26.3-fabric.jar",
+   "name": "Seamless API",
+   "sha256": "f9b98bd2551c9724ea3f3248a0216a75d12ff3ab6da3e38cc6c1864a1bbc3076",
+   "version": "2.0.2+mc26.3"
+  },
+  "spark": {
+   "file": "spark-1.10.187-fabric.jar",
+   "name": "spark",
+   "sha256": "3fc00663caa542b1e78333730609b4eb2568326628e3666a3938ad58cbc9acc6",
+   "version": "1.10.187"
+  }
+ },
+ "settings": {
+  "Command blocks": "Off",
+  "Difficulty": "Easy",
+  "Flight allowed": "Off",
+  "Game mode": "Survival",
+  "Hardcore": "Off",
+  "Idle kick (minutes, 0 = off)": "0",
+  "Max players": "20",
+  "Microsoft accounts only": "On",
+  "Monsters": "On",
+  "Nether": "On",
+  "Pauses when empty (seconds)": "60",
+  "PvP": "On",
+  "Resource pack required": "Off",
+  "Simulation distance (chunks)": "10",
+  "Spawn protection (blocks)": "16",
+  "View distance (chunks)": "10",
+  "Whitelist": "On"
+ }
+}

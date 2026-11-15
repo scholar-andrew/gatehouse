@@ -124,6 +124,15 @@ def build(variant: str, meta: dict, mods: list) -> None:
     rel = "extras/mod-toggles.json"
     data = write(os.path.join(out, rel), json.dumps(toggles, indent=1) + "\n")
     entries.append((rel, sha256(data), False))
+    # What the server runs and the notes about its changes (server/, from tools/server_snapshot.py), for the pop-up's
+    # Server tab.
+    state, slog = load_server()
+    rel = "extras/server-state.json"
+    data = write(os.path.join(out, rel), json.dumps(state, indent=1, sort_keys=True) + "\n")
+    entries.append((rel, sha256(data), False))
+    rel = "extras/server-changelog.txt"
+    data = write(os.path.join(out, rel), "".join(f"== {e['id']} | {e['date']}\n" + "".join(f"- {n}\n" for n in e["notes"]) for e in slog))
+    entries.append((rel, sha256(data), False))
     # Patch notes and the pop-up that shows them before the game starts (run by the sync scripts).
     rel = "extras/changelog.txt"
     data = write(os.path.join(out, rel), changelog_text(load_changelog(meta)))
@@ -165,6 +174,21 @@ OWN_MODS = {  # jars shipped in the pack itself, with where their source lives i
     "octoberjourney": ("mods-src/octoberjourney", "October Journey Settings: the pack's own settings in Mod Menu (switch the pack's mods and the launch pop-ups on and off). Made for this pack."),
     "RoughlyEnoughItems": ("mods-src/rei-brewingfix", "Roughly Enough Items 26.3.824 with one class patched so brewing recipes load on the server. Also installed on the server."),
 }
+
+
+def load_server() -> tuple:
+    """server/state.json and server/changelog.json. The newest note must describe the current state (its "state"
+    checksum), so a server change can't ship without a note for players."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("server_snapshot", os.path.join(ROOT, "tools", "server_snapshot.py"))
+    snap = importlib.util.module_from_spec(spec); spec.loader.exec_module(snap)
+    state = json.load(open(os.path.join(ROOT, "server", "state.json"), encoding="utf-8"))
+    log = json.load(open(os.path.join(ROOT, "server", "changelog.json"), encoding="utf-8"))
+    if not log or log[0].get("state") != snap.state_hash(state):
+        sys.exit("server/state.json changed without a note for players: run tools/server_snapshot.py --note \"...\"")
+    for w in snap.client_mismatches(state):
+        print("WARNING, client and server differ: " + w)
+    return state, log
 
 
 def load_changelog(meta: dict) -> list:
@@ -227,7 +251,8 @@ def write_mod_list(meta: dict, mods: list, server: dict) -> None:
         lines += ["", "## Mods made or patched for this pack", ""] + own
     if server.get("mods"):
         lines += ["", "## On the server", "",
-                  "The server (`dist/server-mods.json`) runs these; the client mods above that match them must stay on the same versions.", ""]
+                  "From `server/state.json` (made by `tools/server_snapshot.py` from the server's files). The client mods above that match "
+                  "these must stay on the same versions; the build warns when they don't. More in [docs/server.md](server.md).", ""]
         lines += [f"- `{n}`" for n in server["mods"]]
     os.makedirs(os.path.join(ROOT, "docs"), exist_ok=True)
     with open(os.path.join(ROOT, "docs", "mods.md"), "w", encoding="utf-8", newline="\n") as f:
@@ -240,9 +265,9 @@ def main() -> None:
         build(variant, src["pack"], src["mods"])
     # A record of what the server runs, kept beside the pack (a reference list; nothing checks it automatically).
     with open(os.path.join(DIST, "server-mods.json"), "w", encoding="utf-8") as f:
-        json.dump(src.get("server", {}), f, indent=1)
+        json.dump({"mods": sorted(m["file"] for m in load_server()[0]["mods"].values())}, f, indent=1)
     if not os.environ.get("OJ_DIST"):
-        write_mod_list(src["pack"], src["mods"], src.get("server", {}))
+        write_mod_list(src["pack"], src["mods"], {"mods": sorted(m["file"] for m in load_server()[0]["mods"].values())})
         write_changelog_md(load_changelog(src["pack"]))
 
 

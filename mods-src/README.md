@@ -33,7 +33,8 @@ disabling or re-enabling the mod's jar. Nothing happens in the running game: a l
 `launch-popup/`, built with `tools/build_popup.ps1` into `source/files/launch-popup.jar`. It isn't a Minecraft mod: it's
 a small Swing program (Java 17, no libraries) that the pack sync runs with Prism's Java before the game starts. It
 lists what the update checked (coloured dots), the mods it added, removed and updated, mod switches, notes and the
-patch notes, or "no updates", and honours the pop-up switches above.
+patch notes, or "no updates"; a Server tab shows what the server runs and what changed there. It honours the pop-up
+switches above.
 [docs/how-it-works.md](../docs/how-it-works.md) (step 7 of a launch) describes what it reads and writes.
 
 ## handofffix (Controller Handoff Fix)

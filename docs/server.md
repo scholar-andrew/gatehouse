@@ -48,8 +48,18 @@ To join, see [INSTALL.md](../INSTALL.md).
 | **Krypton** 0.3.2 | Network performance | No (server only) |
 | **spark** 1.10.187 | Performance profiler for the owner | No (server only) |
 
-The same list is kept in [`source/mods.json`](../source/mods.json) (`server.mods`) and printed in
-[docs/mods.md: On the server](mods.md#on-the-server). Mods that are on both sides have to stay on matching versions.
+The exact list, with versions and checksums, is in [`server/state.json`](../server/state.json), made from the
+server's own files by `tools/server_snapshot.py`, and printed in [docs/mods.md: On the server](mods.md#on-the-server).
+Mods that are on both sides have to stay on matching versions; the pack build warns when they don't.
+
+## Server changes for players
+
+Players see what changed on the server in the launch pop-up's **Server** tab: mods added, updated or removed, the
+Jarvis build, changed settings, and notes ([`server/changelog.json`](../server/changelog.json)). Both files ship in the
+client pack. After a server change is installed (with the server stopped), `tools/server_snapshot.py` shows what
+changed; `--note "..."` records the new state with a note for players, and the pack is rebuilt and published. The
+build refuses to run when `server/state.json` changed without a note. Only player-facing facts are recorded: never
+the world seed, passwords, keys, player lists or IP logs.
 
 ## Jarvis
 
@@ -91,6 +101,6 @@ All on the same PC:
 
 ## Changing this page
 
-Update it when the server's mods, settings, host or Jarvis build change. The server mod list also lives in
-`source/mods.json` (`server.mods`), so change both. When the server gets its own repository, this page should move
+Update it when the server's mods, settings, host or Jarvis build change, along with a server snapshot and note
+(above). When the server gets its own repository, this page should move
 there and this repository should link to it.

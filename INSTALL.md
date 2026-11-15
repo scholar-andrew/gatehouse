@@ -101,6 +101,11 @@ amber not checked (offline) and red failed. Below that:
 - **Also on this device:** anything else the update did, such as a new pack default.
 - **What's new:** the patch notes for every version since you last played.
 
+A second tab, **Server**, shows what the server runs (game version, Jarvis, mods, main settings) and what changed
+there since you last played, with notes. When something on the server is new, the button reads **Next: server
+changes**: it takes you to that tab (or goes there by itself when the first tab's countdown ends), and **Play** is
+there. Esc starts the game straight away.
+
 After an update, or when something changed or failed, press **Play** (or Enter, Space or Esc) to continue; it closes
 by itself after 90 seconds. With nothing new it shows the checks with "no updates" and closes after 5 seconds. Offline,
 it says so, and the game starts with what's already installed.
