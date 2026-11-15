@@ -375,7 +375,7 @@ static class Setup
         lines.Insert(at + 2, "OverrideCommands=true");
         lines.Insert(at + 3, "PreLaunchCommand=\"powershell -NoProfile -ExecutionPolicy Bypass -File \\\"$INST_MC_DIR\\\\pack-sync.ps1\\\"\"");
         // The launch wrapper: lets Quit in the launcher cancel a launch without Prism treating it as a failure.
-        lines.Insert(at + 4, "WrapperCommand=\"\\\"$INST_MC_DIR\\\\launch-wrapper.exe\\\"\"");
+        lines.Insert(at + 4, "WrapperCommand=\"\\\"$INST_MC_DIR/launch-wrapper.exe\\\"\"");   // (forward slash: Prism drops a backslash here)
         File.WriteAllLines(path, lines);
     }
 
