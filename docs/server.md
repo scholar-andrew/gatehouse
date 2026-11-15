@@ -64,7 +64,8 @@ The launch pop-up's Server tab can wake it, start the Minecraft server and open 
 address and the home broadcast address). Starting goes through the panel's API (`POST
 /api/v2/servers/<id>/execute/action`, action 2) with an API key the owner makes per player in the panel (API Keys),
 limited to this server and to viewing and starting. Players enter it in the pop-up's **Server access**; it stays in
-`server-access.json` on their device. The wake signal is a broadcast, so it only reaches the PC from the home
+`server-access.json` on their device. Easier: **Sign in** there with a panel account (the panel's own `POST /auth`); the
+pop-up keeps the session key the panel returns, never the password. The wake signal is a broadcast, so it only reaches the PC from the home
 network, unless a player has an internet wake address (a router that passes wake signals from the internet on to the
 home network); that address is also kept on the device, not in this public repository.
 

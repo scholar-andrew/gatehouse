@@ -17,14 +17,39 @@ note() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$here/pack-sync.log"; echo 
 rm -f "$here/pack-sync-news.txt"   # (what syncs before this one wrote)
 status() { echo "check|$1|$2|${3:-}" >> "$here/pack-sync-status.txt"; }
 if [ -f "$here/packwiz.json" ]; then cp -f "$here/packwiz.json" "$here/packwiz-before.json"; else echo "{}" > "$here/packwiz-before.json"; fi
-# The pop-up before the game starts (extras/launch-popup.jar, a small Java window; Prism waits for it): the patch notes
-# after an update, otherwise "no updates" (closing itself after 5 seconds). It reads the notes, the news above and the
-# player's pop-up settings itself.
-popup() {  # popup ok|offline|failed
+# The pop-up (extras/launch-popup.jar, a small Java window): started first thing as a checklist of this script's steps,
+# ticked off as their "check" lines arrive in pack-sync-status.txt, then (after "done|<status>") the summary in the same
+# window: what changed, patch notes, the Server tab, and Play, Restart (run this again) or Quit (cancel the launch).
+# Prism waits for it. Its exit code says what the player chose: 0 play, 10 quit, 11 restart.
+popup_pid=""
+start_progress() {
   [ -n "$java_bin" ] && [ -f "$here/extras/launch-popup.jar" ] || return 0
-  # It closes itself within 90 seconds; one that hangs is stopped after 150 so the game still starts.
-  local t=(); command -v timeout >/dev/null 2>&1 && t=(timeout 150)
-  "${t[@]}" "$java_bin" -jar "$here/extras/launch-popup.jar" "$here" "$1" >> "$here/pack-sync-java.log" 2>&1 || note "pop-up skipped (exit $?)"
+  "$java_bin" -jar "$here/extras/launch-popup.jar" --progress "$here" >> "$here/pack-sync-popup.log" 2>&1 &
+  popup_pid=$!
+}
+stop_progress() { [ -n "$popup_pid" ] && kill "$popup_pid" 2>/dev/null; popup_pid=""; }
+popup() {  # popup ok|offline|failed; returns the player's choice
+  if [ -n "$popup_pid" ] && kill -0 "$popup_pid" 2>/dev/null; then
+    echo "done|$1" >> "$here/pack-sync-status.txt"
+  else
+    if [ -n "$popup_pid" ]; then wait "$popup_pid"; local c=$?; popup_pid=""; [ "$c" = 10 ] && return 10; fi   # quit while the update ran
+    [ -n "$java_bin" ] && [ -f "$here/extras/launch-popup.jar" ] || return 0
+    "$java_bin" -jar "$here/extras/launch-popup.jar" "$here" "$1" >> "$here/pack-sync-popup.log" 2>&1 &
+    popup_pid=$!
+  fi
+  # It closes itself (90 seconds per tab at most); one that hangs is stopped after 5 minutes so the game still starts.
+  local i=0
+  while kill -0 "$popup_pid" 2>/dev/null && [ "$i" -lt 300 ]; do sleep 1; i=$((i + 1)); done
+  if kill -0 "$popup_pid" 2>/dev/null; then kill "$popup_pid" 2>/dev/null; note "pop-up stopped: it did not close"; wait "$popup_pid" 2>/dev/null; return 0; fi
+  wait "$popup_pid"
+}
+# Quit: no game this time (Prism then reports the pre-launch step failed). Restart: this script again, from the top
+# (the newest copy, if it just updated itself).
+after_popup() {
+  case "$1" in
+    10) note "launch cancelled in the pop-up (Quit)"; exit 1 ;;
+    11) note "running the update again (Restart in the pop-up)"; exec bash "$here/pack-sync.sh" ;;
+  esac
 }
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
@@ -105,9 +130,10 @@ if "ipn-hotbar-icons-off" not in have:
 PY
 }
 stop_if_no_mods() {  # stop_if_no_mods "why" ["advice"] [ok|offline|failed for the pop-up]
-  if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; defaults_once; note "$1; starting with the mods already installed"; popup "${3:-failed}"; exit 0; fi
+  if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; defaults_once; note "$1; starting with the mods already installed"; popup "${3:-failed}"; after_popup $?; exit 0; fi
   note "$1, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
   echo "October Journey couldn't install its mods yet ($1). ${2:-Check your connection (Tailscale or internet) and press Play again.}"
+  stop_progress
   exit 1
 }
 cd "$here" || exit 1
@@ -119,6 +145,7 @@ for c in "${INST_JAVA:-}" "$here"/../../../java/*/bin/java; do
   if [ -f "$c" ] && [ -x "$c" ]; then java_bin="$c"; break; fi
 done
 [ -n "$java_bin" ] || java_bin="$(command -v java || true)"
+start_progress
 # Which sources answer, in order, each given 5 seconds. If none does (after sleep or at startup the network can still be
 # coming up), one more round after 5 seconds.
 urls=()
@@ -335,4 +362,5 @@ if [ -f "$here/extras/pack-sync.sh" ] && ! cmp -s "$here/extras/pack-sync.sh" "$
   else status failed "Update script" "Couldn't replace it"; fi
 elif [ -f "$here/extras/pack-sync.sh" ]; then status ok "Update script" "Current"; fi
 if [ "$code" = 0 ]; then popup ok; else popup failed; fi
+after_popup $?
 exit 0

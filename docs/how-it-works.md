@@ -68,7 +68,8 @@ player-facing version). In order:
    release. Each run is stopped after 5 minutes (`PACK_SYNC_TIMEOUT` seconds, for testing). A failed or stopped run is
    tried with the next source that answered, then the first once more. On Windows the script uses the console
    `java.exe` beside Prism's `javaw.exe` so it can wait for it. An unexpected error anywhere in the Windows script is
-   caught: with mods installed the game still starts (exit 0).
+   caught: with mods installed the game still starts (exit 0). On Windows Java runs as `javaw` with no window, so no
+   console window opens for it.
 3. **Steam extras.** `pack-options.json` (written by setup and the uninstaller from the player's choices:
    `steam_art`, `steam_controller`, `server_entry`; a missing file or key means yes) says which of steps 3 and 4 run.
    With `steam-target.json` present (written by setup: `targets`, one `{grid, appid, controller, art}` per shortcut,
@@ -89,7 +90,12 @@ player-facing version). In order:
    renamed to `.jar.disabled`. Without a connection, the switches still apply.
 6. **Self-update.** If `extras/pack-sync.ps1` / `.sh` differs from the running script, it replaces it for next time
    (bash by write-then-rename, because bash is still reading the running file).
-7. **Launch pop-up.** Runs `extras/launch-popup.jar <game folder> ok|offline|failed` with the Java found for step 2
+7. **Launch pop-up.** Started right after Java is found as `extras/launch-popup.jar --progress <game folder>`: a
+   checklist of the steps, ticked off from the `check` lines in `pack-sync-status.txt` (the mods step shows the last
+   line of `pack-sync-java.log`). The script ends by writing `done|ok|offline|failed`, and the same window becomes the
+   summary. Its exit code is the player's choice: 0 Play, 10 Quit (the script exits 1, so Prism doesn't start the
+   game), 11 Restart (the script runs itself again, hidden). Without that program yet (a first install), it runs
+   `extras/launch-popup.jar <game folder> ok|offline|failed` with the Java found for step 2
    (`javaw.exe` on Windows, so no console opens) and waits for it, so Prism starts the game after it closes. Each step writes how it went to `pack-sync-status.txt`
    (emptied at the start of each run): `check|<ok, updated, off, warn or failed>|<what>|<detail>`,
    `switch|<on or off>|<mod>`, or `note|<text>`. At the start the script also copies packwiz-installer's file record

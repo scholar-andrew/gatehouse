@@ -16,19 +16,44 @@ function Status($state, $what, $detail = '') { Add-Content -Path $statusFile -Va
 function News($text) { Add-Content -Path $statusFile -Value "note|$text" -Encoding utf8 }
 $pwRecord = Join-Path $here 'packwiz.json'
 if (Test-Path $pwRecord) { Copy-Item $pwRecord (Join-Path $here 'packwiz-before.json') -Force } else { Set-Content (Join-Path $here 'packwiz-before.json') '{}' -Encoding ascii }
-# The pop-up before the game starts (extras/launch-popup.jar, a small Java window; Prism waits for it): the patch notes
-# after an update, otherwise "no updates" (closing itself after 5 seconds). It reads the notes, the news above and the
-# player's pop-up settings itself. javaw is used where there is one, so no console window opens beside it.
+# The pop-up (extras/launch-popup.jar, a small Java window): started first thing as a checklist of this script's steps,
+# ticked off as their "check" lines arrive in pack-sync-status.txt, then (after "done|<status>") the summary in the same
+# window: what changed, patch notes, the Server tab, and Play, Restart (run this again) or Quit (cancel the launch).
+# Prism waits for it. javaw, so no console window opens. Its exit code says what the player chose: 0 play, 10 quit,
+# 11 restart.
+$popupJar = Join-Path $here 'extras/launch-popup.jar'
+$script:popup = $null
+function StartProgress {
+    if (-not $java -or -not (Test-Path $popupJar)) { return }
+    $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'; if (-not (Test-Path -LiteralPath $w)) { $w = $java }
+    try { $script:popup = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$popupJar`"", '--progress', "`"$here`"") -PassThru; $null = $script:popup.Handle }
+    catch { Note "progress window skipped: $($_.Exception.Message)" }
+}
+function StopProgress { if ($script:popup -and -not $script:popup.HasExited) { try { $script:popup.Kill() } catch { } } }
 function ShowPopup($status) {
-    $jar = Join-Path $here 'extras/launch-popup.jar'
-    if (-not $java -or -not (Test-Path $jar)) { return }
-    $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'
-    if (-not (Test-Path -LiteralPath $w)) { $w = $java }
-    try {
-        $p = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$jar`"", "`"$here`"", $status) -PassThru
-        # It closes itself within 90 seconds; one that hangs is stopped after 150 so the game still starts.
-        if (-not $p.WaitForExit(150000)) { try { $p.Kill() } catch { }; Note 'pop-up stopped: it did not close' }
-    } catch { Note "pop-up skipped: $($_.Exception.Message)" }
+    $p = $script:popup
+    if ($p -and -not $p.HasExited) { Add-Content -Path $statusFile -Value "done|$status" -Encoding utf8 }
+    elseif ($p -and $p.ExitCode -eq 10) { return 10 }   # quit while the update ran
+    else {
+        if (-not $java -or -not (Test-Path $popupJar)) { return 0 }
+        $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'; if (-not (Test-Path -LiteralPath $w)) { $w = $java }
+        try { $p = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$popupJar`"", "`"$here`"", $status) -PassThru; $null = $p.Handle }
+        catch { Note "pop-up skipped: $($_.Exception.Message)"; return 0 }
+    }
+    # It closes itself (90 seconds per tab at most); one that hangs is stopped after 5 minutes so the game still starts.
+    if (-not $p.WaitForExit(300000)) { try { $p.Kill() } catch { }; Note 'pop-up stopped: it did not close'; return 0 }
+    $p.WaitForExit()
+    return $p.ExitCode
+}
+# Quit: no game this time (Prism then reports the pre-launch step failed). Restart: this script again, from the top
+# (the newest copy, if it just updated itself).
+function AfterPopup($c) {
+    if ($c -eq 10) { Note 'launch cancelled in the pop-up (Quit)'; exit 1 }
+    if ($c -eq 11) {
+        Note 'running the update again (Restart in the pop-up)'
+        $p = Start-Process powershell -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"") -WindowStyle Hidden -Wait -PassThru
+        exit $p.ExitCode
+    }
 }
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
@@ -37,6 +62,7 @@ function HasMods { [bool](Get-ChildItem (Join-Path $here 'mods') -Filter '*.jar'
 # start the game on a non-zero exit); it's noted, and the game starts with what's installed.
 trap {
     try { Add-Content -Path $log -Value ("{0}  unexpected error: {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $_.Exception.Message) } catch { }
+    StopProgress
     if (HasMods) { exit 0 } else { exit 1 }
 }
 # Mods the player can switch on and off (Mod Menu > October Journey; the list and the pack's defaults are in
@@ -114,9 +140,10 @@ function ApplyDefaultsOnce {
     } catch { Note "pack default skipped: $($_.Exception.Message)" }
 }
 function StopIfNoMods($why, $advice = 'Check your connection (Tailscale or internet) and press Play again.', $status = 'failed') {
-    if (HasMods) { ApplySwitches; ApplyDefaultsOnce; Note "$why; starting with the mods already installed"; ShowPopup $status; exit 0 }
+    if (HasMods) { ApplySwitches; ApplyDefaultsOnce; Note "$why; starting with the mods already installed"; AfterPopup (ShowPopup $status); exit 0 }
     Note "$why, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
     Write-Host "October Journey couldn't install its mods yet ($why). $advice"
+    StopProgress
     exit 1
 }
 # Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH. On an instance's
@@ -134,6 +161,7 @@ foreach ($c in @($env:INST_JAVA) + @(Get-ChildItem (Join-Path $here '..\..\..\ja
     if (Test-Path -LiteralPath $c -PathType Leaf) { $java = $c; break }
 }
 if (-not $java -and (Get-Command java -ErrorAction SilentlyContinue)) { $java = (Get-Command java).Source }
+StartProgress
 $variant = 'main'
 $sources = @(Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') })
 # Which sources answer, in order, each given 5 seconds. If none does (after sleep or at startup the network can still be
@@ -173,7 +201,9 @@ function RunInstaller($u) {
     $a += $u
     $quoted = $a | ForEach-Object { if ($_ -match ' ') { '"' + $_ + '"' } else { $_ } }
     try {
-        $p = Start-Process -FilePath $java -ArgumentList $quoted -WorkingDirectory $here -NoNewWindow -PassThru -RedirectStandardOutput $javaLog -RedirectStandardError "$javaLog.err"
+        # javaw with no window: java.exe would open a console window for each run.
+        $jw = Join-Path (Split-Path $java -Parent) 'javaw.exe'; if (-not (Test-Path -LiteralPath $jw)) { $jw = $java }
+        $p = Start-Process -FilePath $jw -ArgumentList $quoted -WorkingDirectory $here -WindowStyle Hidden -PassThru -RedirectStandardOutput $javaLog -RedirectStandardError "$javaLog.err"
         $null = $p.Handle   # (so the exit code is kept)
         $limit = if ($env:PACK_SYNC_TIMEOUT) { [int]$env:PACK_SYNC_TIMEOUT } else { 300 }   # seconds; the variable is for testing
         if (-not $p.WaitForExit($limit * 1000)) { try { $p.Kill() } catch { }; return 'timeout' }
@@ -367,5 +397,5 @@ if ((Test-Path $next) -and (Get-FileHash $next).Hash -ne (Get-FileHash $self).Ha
     try { Copy-Item $next "$self.new" -Force; Move-Item "$self.new" $self -Force; Note 'sync script updated (used from the next launch)'; Status 'updated' 'Update script' 'New version, used from the next launch' }
     catch { Note "sync script update skipped: $($_.Exception.Message)"; Status 'failed' 'Update script' $_.Exception.Message }
 } elseif (Test-Path $next) { Status 'ok' 'Update script' 'Current' }
-ShowPopup $(if ("$code" -eq '0') { 'ok' } else { 'failed' })
+AfterPopup (ShowPopup $(if ("$code" -eq '0') { 'ok' } else { 'failed' }))
 exit 0

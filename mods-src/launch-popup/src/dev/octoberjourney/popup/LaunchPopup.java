@@ -75,6 +75,14 @@ public final class LaunchPopup {
 	record Version(String version, String date, List<String> notes) {}
 	record Check(String state, String label, String detail) {}
 
+	/** The progress window, reused for the summary so there's one window from start to finish. */
+	static volatile JFrame reuse;
+	/** What the player chose: 0 play, 10 quit (cancel the launch), 11 run the update again. The sync scripts act on it. */
+	static volatile int exitCode = 0;
+	static final int QUIT = 10, RESTART = 11;
+	/** The update's steps, in the order the sync scripts do them (their "check" lines use these names). */
+	static final String[] STEPS = {"Connection", "Mods and settings", "Mod switches", "Steam art and controller layouts", "Server list", "Update script"};
+
 	public static void main(String[] args) throws Exception {
 		// Testing and troubleshooting: java -jar launch-popup.jar --server <game folder> status|wake|start
 		if (args.length >= 3 && args[0].equals("--server")) {
@@ -82,6 +90,7 @@ public final class LaunchPopup {
 			switch (args[2]) {
 				case "wake" -> System.out.println("wake signal sent to " + c.wake());
 				case "start" -> { c.start(); System.out.println("start requested"); }
+				case "signin" -> { c.signIn(args[3], args[4], c.wakeAddress); System.out.println("signed in as " + c.username + "; key saved"); }
 				case "clipboard-set" -> {   // testing: put args[3] on the clipboard and keep it there for 20 seconds
 					java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(args.length > 3 ? args[3] : "test"), null);
 					Thread.sleep(20_000);
@@ -96,8 +105,159 @@ public final class LaunchPopup {
 		System.setProperty("sun.java2d.d3d", "false");
 		System.setProperty("sun.java2d.opengl", "false");
 		System.setProperty("sun.java2d.noddraw", "true");
-		Path dir = Path.of(args.length > 0 ? args[0] : ".");
-		String status = args.length > 1 ? args[1] : "ok";
+		// Started by the sync at the beginning: the progress checklist, then (when the sync writes "done|<status>" to
+		// pack-sync-status.txt) the summary in the same window.
+		if (args.length >= 2 && args[0].equals("--progress")) { progress(Path.of(args[1])); System.exit(exitCode); }
+		summary(Path.of(args.length > 0 ? args[0] : "."), args.length > 1 ? args[1] : "ok");
+		System.exit(exitCode);
+	}
+
+	// ------------------------------------------------------------------ progress
+
+	/** The checklist while the sync runs: each step waiting, running (with packwiz-installer's latest line for the
+	 *  download), or done with a mark. Quit cancels the launch. Then the summary takes over the same window. */
+	static void progress(Path dir) throws Exception {
+		String options = read(dir.resolve("pack-options.json"));
+		boolean ui = !GraphicsEnvironment.isHeadless() && (option(options, "popup_updates") || option(options, "popup_no_updates"));
+		JLabel[] rows = new JLabel[STEPS.length];
+		if (ui) SwingUtilities.invokeAndWait(() -> {
+			if (System.getProperty("os.name", "").startsWith("Windows")) {
+				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+			}
+			JFrame f = new JFrame("October Journey");
+			f.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+			JPanel p = new JPanel(new BorderLayout(0, 12));
+			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
+			JLabel h = new JLabel("Getting October Journey ready");
+			h.setFont(h.getFont().deriveFont(Font.BOLD, 18f));
+			JLabel s = new JLabel("Checking for updates before the game starts.");
+			s.setFont(s.getFont().deriveFont(14f));
+			JPanel top = new JPanel(new BorderLayout(0, 4));
+			top.add(h, BorderLayout.NORTH); top.add(s, BorderLayout.SOUTH);
+			p.add(top, BorderLayout.NORTH);
+			JPanel list = new JPanel();
+			list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+			list.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)), BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+			for (int i = 0; i < STEPS.length; i++) {
+				rows[i] = new JLabel(STEPS[i], mark("pending"), JLabel.LEFT);
+				rows[i].setFont(rows[i].getFont().deriveFont(Font.PLAIN, 14f));
+				rows[i].setIconTextGap(10);
+				rows[i].setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+				rows[i].setPreferredSize(new Dimension(560, 26));
+				list.add(rows[i]);
+			}
+			p.add(list, BorderLayout.CENTER);
+			JButton quit = new JButton("Quit");
+			quit.setFont(quit.getFont().deriveFont(14f));
+			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
+			JPanel bottom = new JPanel(new BorderLayout());
+			JLabel hint = new JLabel("Quit cancels this launch.");
+			hint.setForeground(new Color(0x6B7280));
+			bottom.add(hint, BorderLayout.WEST);
+			bottom.add(quit, BorderLayout.EAST);
+			p.add(bottom, BorderLayout.SOUTH);
+			f.addWindowListener(new java.awt.event.WindowAdapter() {
+				@Override public void windowClosing(java.awt.event.WindowEvent e) { exitCode = QUIT; f.dispose(); }
+			});
+			f.setContentPane(p);
+			f.pack();
+			f.setLocationRelativeTo(null);
+			f.setAlwaysOnTop(true);
+			if (System.getenv("OJ_POPUP_PNG") == null) f.setVisible(true);   // (testing: pictures only)
+			reuse = f;
+		});
+		String png = System.getenv("OJ_POPUP_PNG");
+		boolean[] pictured = {false};
+		long started = System.currentTimeMillis();
+		String done = null;
+		int tick = 0;
+		while (done == null) {
+			if (reuse != null && !reuse.isDisplayable()) return;   // quit
+			Map<String, String[]> got = new LinkedHashMap<>();
+			for (String l : read(dir.resolve("pack-sync-status.txt")).split("\\R")) {
+				String[] f = l.split("\\|", 4);
+				if (f[0].equals("check") && f.length >= 3) got.put(f[2], new String[] {f[1], f.length > 3 ? f[3] : ""});
+				else if (f[0].equals("done")) done = f.length > 1 ? f[1] : "ok";
+			}
+			if (System.currentTimeMillis() - started > 25 * 60_000) done = "failed";   // the sync never said it finished
+			if (ui) {
+				String last = lastLine(dir.resolve("pack-sync-java.log"));
+				int running = -1;
+				for (int i = 0; i < STEPS.length; i++) if (!got.containsKey(STEPS[i])) { running = i; break; }
+				int r = running, k = tick++;
+				SwingUtilities.invokeLater(() -> {
+					for (int i = 0; i < STEPS.length; i++) {
+						String[] g = got.get(STEPS[i]);
+						if (g != null) { rows[i].setIcon(mark(g[0])); rows[i].setText(html(STEPS[i], g[1])); }
+						else if (i == r) {
+							String detail = i == 0 ? "Reaching the pack (Tailscale, then GitHub)" : i == 1 ? (last.isEmpty() ? "Checking the pack's files" : last) : "";
+							rows[i].setIcon(mark("running" + (k % 4))); rows[i].setText(html(STEPS[i], detail));
+						} else { rows[i].setIcon(mark("pending")); rows[i].setText(STEPS[i]); }
+					}
+					// Testing: a picture of the checklist while the mods step runs, beside the summary's pictures.
+					if (png != null && !pictured[0] && r >= 1) {
+						pictured[0] = true;
+						try {
+							JComponent cp = (JComponent) reuse.getContentPane();
+							cp.validate();
+							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(cp.getWidth(), cp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D g = img.createGraphics(); cp.paint(g); g.dispose();
+							javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + "-progress.png"));
+						} catch (IOException ignored) {}
+					}
+				});
+			}
+			if (done == null) Thread.sleep(300);
+		}
+		summary(dir, done);
+	}
+
+	private static String html(String label, String detail) {
+		if (detail == null || detail.isEmpty()) return label;
+		String d = detail.length() > 70 ? detail.substring(0, 67) + "..." : detail;
+		return "<html>" + esc(label) + "<font color='#6b7280'>&nbsp;&nbsp;" + esc(Character.toUpperCase(d.charAt(0)) + d.substring(1)) + "</font></html>";
+	}
+
+	/** The last line packwiz-installer wrote (its progress, such as "(12/28) Downloaded ..."). */
+	private static String lastLine(Path p) {
+		String[] ls = read(p).split("\\R");
+		for (int i = ls.length - 1; i >= 0; i--) if (!ls[i].isBlank()) return ls[i].strip();
+		return "";
+	}
+
+	/** A step's mark: waiting (hollow), running (a turning dot), done (tick), updated (blue tick), off (dash),
+	 *  not checked (!), failed (cross). */
+	static Icon mark(String state) {
+		return new Icon() {
+			public int getIconWidth() { return 18; }
+			public int getIconHeight() { return 18; }
+			public void paintIcon(Component c, Graphics g, int x, int y) {
+				Graphics2D g2 = (Graphics2D) g.create();
+				g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+				g2.setStroke(new java.awt.BasicStroke(2.2f, java.awt.BasicStroke.CAP_ROUND, java.awt.BasicStroke.JOIN_ROUND));
+				if (state.equals("pending")) { g2.setColor(GRAY); g2.drawOval(x + 2, y + 2, 14, 14); g2.dispose(); return; }
+				if (state.startsWith("running")) {
+					int k = state.length() > 7 ? state.charAt(7) - '0' : 0;
+					g2.setColor(new Color(0xE5E7EB)); g2.drawOval(x + 2, y + 2, 14, 14);
+					g2.setColor(AMBER); g2.drawArc(x + 2, y + 2, 14, 14, 90 - k * 90, -120);
+					g2.dispose(); return;
+				}
+				g2.setColor(colour(state)); g2.fillOval(x + 1, y + 1, 16, 16);
+				g2.setColor(Color.WHITE);
+				switch (state) {
+					case "ok", "updated" -> { g2.drawLine(x + 5, y + 9, x + 8, y + 12); g2.drawLine(x + 8, y + 12, x + 13, y + 6); }
+					case "failed" -> { g2.drawLine(x + 6, y + 6, x + 12, y + 12); g2.drawLine(x + 12, y + 6, x + 6, y + 12); }
+					case "warn" -> { g2.drawLine(x + 9, y + 5, x + 9, y + 10); g2.drawLine(x + 9, y + 13, x + 9, y + 13); }
+					default -> g2.drawLine(x + 6, y + 9, x + 12, y + 9);
+				}
+				g2.dispose();
+			}
+		};
+	}
+
+	// ------------------------------------------------------------------ the summary
+
+	static void summary(Path dir, String status) throws Exception {
 		List<Version> log = changelog(dir.resolve("extras/changelog.txt"));
 		String current = log.isEmpty() ? null : log.get(0).version();
 		String seen = read(dir.resolve("pack-version-seen.txt")).trim();
@@ -170,7 +330,7 @@ public final class LaunchPopup {
 		boolean big = updated || somethingHappened || serverNews;
 		boolean wanted = big ? option(options, "popup_updates") : option(options, "popup_no_updates");
 		if (current != null) Files.writeString(dir.resolve("pack-version-seen.txt"), current + "\n", StandardCharsets.UTF_8);
-		if (!wanted || GraphicsEnvironment.isHeadless()) return;
+		if (!wanted || GraphicsEnvironment.isHeadless()) { JFrame r = reuse; if (r != null) SwingUtilities.invokeAndWait(r::dispose); return; }
 
 		String playing = current == null ? "" : " " + current;
 		String headline;
@@ -380,11 +540,36 @@ public final class LaunchPopup {
 		keyRow.add(key); keyRow.add(paste.apply(key)); keyRow.add(show);
 		JPanel wakeRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
 		wakeRow.add(wake); wakeRow.add(paste.apply(wake));
+		// Easiest: sign in with your panel account; the pop-up keeps the key the panel hands back (never the password).
+		javax.swing.JTextField user = new javax.swing.JTextField(c.username, 18);
+		javax.swing.JPasswordField pass = new javax.swing.JPasswordField(18);
+		JButton signIn = new JButton("Sign in");
+		signIn.addActionListener(e -> {
+			signIn.setEnabled(false);
+			pasteNote.setText("Signing in...");
+			String u = user.getText(), pw = new String(pass.getPassword()), w = wake.getText();
+			new Thread(() -> {
+				String msg;
+				try { c.signIn(u, pw, w); msg = "Signed in as " + u.trim() + ". You can close this window."; }
+				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "The panel didn't accept that username and password." : "The panel said no (" + ex.getMessage() + ")."; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server PC awake?"; }
+				String m = msg;
+				SwingUtilities.invokeLater(() -> { pasteNote.setText(m); key.setText(c.apiKey); signIn.setEnabled(true); pass.setText(""); });
+			}, "sign-in").start();
+		});
+		JPanel signRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
+		signRow.add(new JLabel("Username")); signRow.add(user); signRow.add(new JLabel("Password")); signRow.add(pass); signRow.add(signIn);
+		JLabel signedIn = new JLabel(c.username.isEmpty() ? " " : "Signed in as " + c.username + " (sign in again if the panel stops accepting it).");
+		signedIn.setForeground(new Color(0x6B7280));
 		JPanel form = new JPanel();
 		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+		JLabel h1 = new JLabel("Sign in with your server panel account");
+		h1.setFont(h1.getFont().deriveFont(Font.BOLD));
+		JLabel h2 = new JLabel("Or use an API key made for you in the panel (under API Keys)");
+		h2.setFont(h2.getFont().deriveFont(Font.BOLD));
 		for (JComponent x : new JComponent[] {
-				text("Saved on this device only (server-access.json in the game folder)."),
-				new JLabel("API key (made for you in the server panel, under API Keys):"), keyRow,
+				text("Saved on this device only (server-access.json in the game folder). Your password isn't saved."),
+				h1, signRow, signedIn, h2, keyRow,
 				new JLabel("Internet wake address, host:port (optional; only if the owner gave you one):"), wakeRow, pasteNote}) {
 			x.setAlignmentX(Component.LEFT_ALIGNMENT); form.add(x); form.add(Box.createVerticalStrut(4));
 		}
@@ -474,7 +659,8 @@ public final class LaunchPopup {
 			if (System.getProperty("os.name", "").startsWith("Windows")) {
 				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
 			}
-			JFrame f = new JFrame("October Journey");
+			JFrame f = reuse != null ? reuse : new JFrame("October Journey");
+			for (java.awt.event.WindowListener l : f.getWindowListeners()) f.removeWindowListener(l);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
 			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
@@ -510,7 +696,16 @@ public final class LaunchPopup {
 				legend.add(l);
 			}
 			bottom.add(legend, BorderLayout.WEST);
-			bottom.add(play, BorderLayout.EAST);
+			// Beside Play: run the update again, or don't start the game.
+			JButton again = new JButton("Restart"), quit = new JButton("Quit");
+			again.setToolTipText("Run the update again");
+			quit.setToolTipText("Don't start the game");
+			again.addActionListener(e -> { exitCode = RESTART; f.dispose(); });
+			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
+			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			for (JButton b : new JButton[] {again, quit}) { b.setFont(b.getFont().deriveFont(14f)); right.add(b); }
+			right.add(play);
+			bottom.add(right, BorderLayout.EAST);
 			p.add(bottom, BorderLayout.SOUTH);
 			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
 			// "Play" after. Each tab gets its own countdown: the first tab's (5 or 90 seconds), then 90 on the server's.
@@ -549,6 +744,9 @@ public final class LaunchPopup {
 			// in <file>.txt, instead of showing the window.
 			String png = System.getenv("OJ_POPUP_PNG");
 			if (png != null && !png.isEmpty()) {
+				Path choice = dir.resolve("test-popup-choice.txt");
+				String ch = read(choice).trim();
+				if (!ch.isEmpty()) { try { Files.delete(choice); } catch (IOException ignored) {} exitCode = ch.equals("quit") ? QUIT : ch.equals("restart") ? RESTART : 0; }
 				try {
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);
@@ -574,7 +772,6 @@ public final class LaunchPopup {
 			timer.start();
 		});
 		synchronized (lock) { while (!done[0]) lock.wait(); }
-		System.exit(0);
 	}
 
 	// ------------------------------------------------------------------ mods, from packwiz-installer's records

@@ -1,4 +1,9 @@
 [
+ {"version": "1.8.0", "date": "2026-11-15", "notes": [
+  "One window from the moment you press Play: a checklist of the update's steps, ticked off as each finishes (with the download's progress), which then becomes the summary. No more windows flashing up during the update.",
+  "Beside Play: Restart runs the update again, and Quit cancels the launch.",
+  "Server access can sign you in with your server panel username and password, so there's no API key to copy. The password isn't saved."
+ ]},
  {"version": "1.7.4", "date": "2026-11-15", "notes": [
   "Server access has Paste buttons beside the API key and wake address (the Steam Deck's on-screen keyboard can't paste), and a Show box to check the key."
  ]},

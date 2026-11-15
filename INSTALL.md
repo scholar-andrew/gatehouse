@@ -92,7 +92,10 @@ Nothing to do: every launch checks for mod changes and installs them before the 
 safe; it updates your setup without duplicating anything.
 
 ### Before the game starts: the launch pop-up
-After the update, a small October Journey window opens before Minecraft starts. It lists everything the update
+From the moment you press Play, one October Journey window shows the update's steps as a checklist, each ticked off as
+it finishes (the download shows its progress), with **Quit** to cancel the launch. When the update is done, the same
+window shows what happened, with **Play**, **Restart** (run the update again) and **Quit** (don't start the game;
+Prism then says the pre-launch step failed, which is expected). It lists everything the update
 checked, each with a coloured dot: the connection, mods and settings, your mod switches, the Steam art and controller
 layouts, the server list, and the update script itself. Green means up to date, blue updated, grey off or not set up,
 amber not checked (offline) and red failed. Below that:
@@ -113,7 +116,8 @@ The top of the Server tab shows whether the server is online (checked every few 
   off. It needs an API key the owner makes for you in the panel (under API Keys), entered once under **Server
   access**.
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
-- **Server access...:** your API key and internet wake address, each with a **Paste** button (copy the key in the
+- **Server access...:** sign in with your server panel username and password (easiest: the pop-up keeps the key the
+  panel gives back, not your password), or enter an API key; and an internet wake address. Each field has a **Paste** button (copy the key in the
   browser, then press Paste: the Steam Deck's on-screen keyboard can't paste) and a **Show** box for the key. They're saved in `server-access.json` in the game
   folder on this device only, never in the pack.
 

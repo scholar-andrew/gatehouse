@@ -33,7 +33,7 @@ final class ServerControl {
 	final String panelUrl, serverId, minecraft, mac;
 	final List<String> broadcasts = new ArrayList<>();
 	final int wakePort;
-	String apiKey, wakeAddress;
+	String apiKey, wakeAddress, username;
 
 	ServerControl(Path dir) {
 		this.dir = dir;
@@ -50,6 +50,7 @@ final class ServerControl {
 		Map<String, Object> a = asMap(LaunchPopup.parseJson(LaunchPopup.readFile(access())));
 		apiKey = str(a.get("api_key"));
 		wakeAddress = str(a.get("wake_address"));
+		username = str(a.get("username"));
 	}
 
 	boolean configured() { return !panelUrl.isEmpty() || !mac.isEmpty() || !minecraft.isEmpty(); }
@@ -60,7 +61,29 @@ final class ServerControl {
 	/** Saves this device's own settings (server-access.json, in the game folder only). */
 	void save(String key, String wake) throws IOException {
 		apiKey = key.trim(); wakeAddress = wake.trim();
-		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress) + "\"}\n", StandardCharsets.UTF_8);
+		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
+				+ "\", \"username\": \"" + jsonEsc(username) + "\"}\n", StandardCharsets.UTF_8);
+	}
+
+	/** Signs in to the panel with the player's own account, as the panel's web page does (POST /auth), and keeps the
+	 *  key it hands back (a session key, used like an API key). The password is sent once and never saved. */
+	void signIn(String user, String password, String wake) throws IOException {
+		HttpURLConnection c = (HttpURLConnection) new URL(panelUrl.replaceAll("/+$", "") + "/auth").openConnection();
+		c.setConnectTimeout(3000); c.setReadTimeout(8000);
+		c.setRequestMethod("POST");
+		c.setDoOutput(true);
+		c.setRequestProperty("Content-Type", "application/json");
+		try (OutputStream o = c.getOutputStream()) {
+			o.write(("{\"username\":\"" + jsonEsc(user) + "\",\"password\":\"" + jsonEsc(password) + "\"}").getBytes(StandardCharsets.UTF_8));
+		}
+		int code = c.getResponseCode();
+		if (code < 200 || code >= 300) throw new HttpError(code);
+		String body;
+		try (InputStream in = c.getInputStream()) { body = new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+		String key = str(asMap(LaunchPopup.parseJson(body)).get("apiKey"));
+		if (key.isEmpty()) throw new IOException("the panel didn't hand back a key");
+		username = user.trim();
+		save(key, wake);
 	}
 
 	// ------------------------------------------------------------------ wake
