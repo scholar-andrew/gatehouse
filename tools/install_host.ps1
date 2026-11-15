@@ -29,6 +29,15 @@ foreach ($k in 'bind', 'port', 'mcss_exe', 'tailscale_exe', 'servers') {
         $now | Add-Member -NotePropertyName $k -NotePropertyValue $v -Force
     }
 }
+# The servers, one by one: a server host.json already has (same id, or same name from before ids) gets whatever the
+# profile says that it doesn't say yet; one it doesn't have is added.
+$have = @($now.servers | ForEach-Object { $_ })
+foreach ($ps in @($hostProfile.servers | ForEach-Object { $_ })) {
+    $hit = $have | Where-Object { ($_.id -and $_.id -eq $ps.id) -or (-not $_.id -and $_.name -eq $ps.name) } | Select-Object -First 1
+    if ($hit) { foreach ($pp in $ps.PSObject.Properties) { if ($null -eq $hit.($pp.Name) -or ("$($hit.($pp.Name))" -eq '' -and $pp.Name -eq 'id')) { $hit | Add-Member -NotePropertyName $pp.Name -NotePropertyValue $pp.Value -Force } } }
+    else { $have += $ps }
+}
+$now | Add-Member -NotePropertyName servers -NotePropertyValue @($have) -Force
 [IO.File]::WriteAllText($cfg, ($now | ConvertTo-Json -Depth 6))
 $action = New-ScheduledTaskAction -Execute $javaw -Argument "-jar `"$dir\oj-host.jar`" --serve" -WorkingDirectory $dir
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"

@@ -208,6 +208,7 @@ public final class HostHelper {
 				reply(x, 200, m("state", Boolean.TRUE.equals(d.get("granted")) ? "granted" : "pending"));
 				return;
 			}
+			SERVER.set(header(x, "X-Server"));
 			scanPlayers();
 			devs = devices();
 			String id = x.getRequestHeaders().getFirst("X-Device"), token = x.getRequestHeaders().getFirst("X-Token");
@@ -216,7 +217,7 @@ public final class HostHelper {
 			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
-			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep")), canServer = Boolean.TRUE.equals(d.get("server")) || granted;   // (MCSS control includes server control)
+			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep")), canServer = Boolean.TRUE.equals(d.get(serverKey())) || granted;   // (MCSS control includes server control)
 			// A fourth, helper control: the launcher may do what the host panel does (see the launchers and the activity,
 			// switch the other three permissions, forget a launcher). Only the panel on this PC gives or removes it, and
 			// the helper's MCSS key can't be read or set from a launcher.
@@ -288,7 +289,7 @@ public final class HostHelper {
 					} else {
 						String perm = Json.str(b.get("perm"));
 						boolean v = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
-						String key = perm.equals("mcss") ? "granted" : perm.equals("sleep") ? "sleep" : perm.equals("server") ? "server" : null;
+						String key = perm.equals("mcss") ? "granted" : perm.equals("sleep") ? "sleep" : perm.equals("server") ? serverKey() : null;
 						if (key == null) { reply(x, 403, m("error", perm.equals("admin") ? "Helper control is only given or removed in the host panel on the server PC" : "unknown permission")); return; }
 						t.put(key, v);
 						log((v ? "allowed " : "removed ") + (perm.equals("mcss") ? "MCSS control" : perm.equals("sleep") ? "PC sleep" : "server control") + (v ? " for " : " from ") + who(t) + " (asked by " + who(d) + ")");
@@ -335,9 +336,34 @@ public final class HostHelper {
 	/** The Minecraft server this helper looks after: the first entry of host.json "servers" (each: name, dir,
 	 *  minecraft, mcss_server), which tools/install_host.ps1 fills in from the server profile. Nothing about a server is
 	 *  fixed here; a host.json from before the list existed may still give server_dir / minecraft / mcss_server itself. */
+	static List<Object> servers() { return Json.list(cfg.get("servers")); }
+	/** Which of them the request being answered is about: its "id", as the launcher's profile names it (X-Server) or
+	 *  the host panel picks it (?server=). Empty or unknown: the first one. */
+	static final ThreadLocal<String> SERVER = ThreadLocal.withInitial(() -> "");
 	static Map<String, Object> server() {
-		List<Object> l = Json.list(cfg.get("servers"));
+		List<Object> l = servers();
+		String want = SERVER.get();
+		if (!want.isEmpty()) for (Object o : l) if (want.equals(Json.str(Json.map(o).get("id")))) return Json.map(o);
 		return l.isEmpty() ? new LinkedHashMap<>() : Json.map(l.get(0));
+	}
+	static boolean firstServer() {
+		List<Object> l = servers();
+		return l.isEmpty() || Json.str(server().get("id")).equals(Json.str(Json.map(l.get(0)).get("id")));
+	}
+	static String serverName() { String n = Json.str(server().get("name")); return n.isEmpty() ? "the server" : n; }
+	/** Where "server control" for the current server is kept, on a launcher or a player: "server" for the first server
+	 *  (as it always was), "server:<id>" for any other. The other permissions are about the machine, not one server. */
+	static String serverKey() { return firstServer() ? "server" : "server:" + Json.str(server().get("id")); }
+	static String dkey(String[] pm) { return pm[0].equals("server") ? serverKey() : pm[1]; }
+	static String pkey(String[] pm) { return pm[0].equals("server") ? serverKey() : pm[0]; }
+	/** Is any of this machine's Minecraft servers running? (Sleeping the machine and closing the host program wait for all.) */
+	static boolean anyServerRunning() {
+		String keep = SERVER.get();
+		try {
+			if (servers().isEmpty()) return minecraftRunning();
+			for (Object o : servers()) { SERVER.set(Json.str(Json.map(o).get("id"))); if (minecraftRunning()) return true; }
+			return false;
+		} finally { SERVER.set(keep); }
 	}
 	static String serverSetting(String key, String legacy, String def) {
 		String v = Json.str(server().get(key));
@@ -356,12 +382,20 @@ public final class HostHelper {
 	 *  address is that player's device. That's who really joined, not what a device says. A player's device then gets
 	 *  what the owner allowed that player (players.json). Only looks again when the log has changed. */
 	static synchronized void scanPlayers() {
+		String keep = SERVER.get();
+		try {
+			if (servers().isEmpty()) scanPlayersHere();
+			for (Object o : servers()) { SERVER.set(Json.str(Json.map(o).get("id"))); scanPlayersHere(); }
+		} finally { SERVER.set(keep); }
+	}
+	static final Map<String, Long> logSeenBy = new java.util.HashMap<>();
+	private static void scanPlayersHere() {
 		try {
 			Path lg = serverDir().resolve("logs").resolve("latest.log");
 			if (!Files.isRegularFile(lg)) return;
 			long stamp = Files.getLastModifiedTime(lg).toMillis() * 31 + Files.size(lg);
-			if (stamp == logSeen) return;
-			logSeen = stamp;
+			if (Long.valueOf(stamp).equals(logSeenBy.get(serverKey()))) return;
+			logSeenBy.put(serverKey(), stamp);
 			String day = java.time.LocalDate.ofInstant(Files.getLastModifiedTime(lg).toInstant(), java.time.ZoneId.systemDefault()).toString();
 			Map<String, Object> devs = devices(), defaults = players();
 			boolean changed = false;
@@ -378,7 +412,7 @@ public final class HostHelper {
 					if (!fresh) continue;
 					log("player " + name + " joined from " + who(d) + ": that launcher is now theirs");
 					Map<String, Object> pd = Json.map(defaults.get(name));
-					for (String[] pm : PERMS) if (Boolean.TRUE.equals(pd.get(pm[0])) && !Boolean.TRUE.equals(d.get(pm[1]))) { d.put(pm[1], true); log("allowed " + pm[2] + " for " + who(d) + " (allowed for player " + name + ")"); }
+					for (String[] pm : PERMS) if (Boolean.TRUE.equals(pd.get(pkey(pm))) && !Boolean.TRUE.equals(d.get(dkey(pm)))) { d.put(dkey(pm), true); log("allowed " + pm[2] + " for " + who(d) + " (allowed for player " + name + ")"); }
 				}
 			}
 			if (changed) saveDevices(devs);
@@ -403,11 +437,11 @@ public final class HostHelper {
 			Json.list(p.get("devices")).add(Json.str(d.get("name")) + (ok ? "" : " (not confirmed)"));
 			p.put(ok ? "confirmed" : "unconfirmed", ((Number) p.get(ok ? "confirmed" : "unconfirmed")).intValue() + 1);
 			if (ok && Json.str(d.get("player_seen")).compareTo(Json.str(p.get("last_seen"))) > 0) p.put("last_seen", Json.str(d.get("player_seen")));
-			if (ok) for (String[] pm : PERMS) if (Boolean.TRUE.equals(d.get(pm[1]))) p.put("has_" + pm[0], (p.get("has_" + pm[0]) instanceof Number n ? n.intValue() : 0) + 1);
+			if (ok) for (String[] pm : PERMS) if (Boolean.TRUE.equals(d.get(dkey(pm)))) p.put("has_" + pm[0], (p.get("has_" + pm[0]) instanceof Number n ? n.intValue() : 0) + 1);
 		}
 		for (Map.Entry<String, Object> e : out.entrySet()) {
 			Map<String, Object> pd = Json.map(defaults.get(e.getKey()));
-			for (String[] pm : PERMS) Json.map(e.getValue()).put("allow_" + pm[0], Boolean.TRUE.equals(pd.get(pm[0])));
+			for (String[] pm : PERMS) Json.map(e.getValue()).put("allow_" + pm[0], Boolean.TRUE.equals(pd.get(pkey(pm))));
 		}
 		return out;
 	}
@@ -421,7 +455,7 @@ public final class HostHelper {
 		Map<String, Object> defaults = players();
 		Map<String, Object> pd = Json.map(defaults.get(name));
 		if (!(defaults.get(name) instanceof Map)) defaults.put(name, pd);
-		pd.put(perm, v);
+		pd.put(pkey(pm), v);
 		Files.writeString(dir.resolve("players.json"), Json.write(defaults), StandardCharsets.UTF_8);
 		Map<String, Object> devs = devices();
 		int n = 0, waiting = 0;
@@ -429,7 +463,7 @@ public final class HostHelper {
 			Map<String, Object> d = Json.map(o);
 			if (!name.equals(Json.str(d.get("player")))) continue;
 			if (!Boolean.TRUE.equals(d.get("player_confirmed"))) { waiting++; continue; }
-			d.put(pm[1], v); n++;
+			d.put(dkey(pm), v); n++;
 		}
 		saveDevices(devs);
 		String msg = (v ? "Allowed " : "Removed ") + pm[2] + (v ? " for " : " from ") + name + ": " + n + " launcher" + (n == 1 ? "" : "s") + " changed"
@@ -454,7 +488,7 @@ public final class HostHelper {
 		if (last != null && now - last < 60_000) return new String[] {"refused", "Already asked a moment ago: the owner has been told"};
 		if (minecraftRunning()) return new String[] {"refused", "The server is already running"};
 		lastRequest.put(id, now);
-		requests.add(m("who", who(d), "player", Json.str(d.get("player")), "time", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))));
+		requests.add(m("who", who(d), "player", Json.str(d.get("player")), "server", servers().size() > 1 ? serverName() : "", "time", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))));
 		while (requests.size() > 5) requests.remove(0);
 		requestSeq++;
 		log("server requested by " + who(d) + (Json.str(d.get("player")).isEmpty() ? "" : " (" + Json.str(d.get("player")) + ")"));
@@ -520,6 +554,7 @@ public final class HostHelper {
 		for (Object v : all.values()) {
 			Map<String, Object> d = Json.map(v);
 			d.put("access_text", accessText(d));
+			d.put("server", Boolean.TRUE.equals(d.get(serverKey())));   // (as shown: for the server being looked at)
 			d.remove("token_sha256"); d.remove("issued_pending");
 		}
 		return all;
@@ -532,8 +567,8 @@ public final class HostHelper {
 	static String[] revokeAccess(Map<String, Object> d) {
 		String saved = Json.str(d.get("saved"));
 		List<String> did = new ArrayList<>();
-		if (Boolean.TRUE.equals(d.get("server")) || Boolean.TRUE.equals(d.get("granted"))) did.add("server and MCSS control switched off here");
-		d.put("server", false); d.put("granted", false);
+		if (Boolean.TRUE.equals(d.get(serverKey())) || Boolean.TRUE.equals(d.get("granted"))) did.add("server and MCSS control switched off here");
+		d.put(serverKey(), false); d.put("granted", false);
 		d.remove("issued_pending");
 		d.put("clear_access", true);
 		did.add("the launcher is told to forget what it has saved");
@@ -554,7 +589,7 @@ public final class HostHelper {
 	 *  runs: players would be left on a frozen server. MCSS can stay open; it carries on when the PC wakes.
 	 *  host.json "sleep_command" replaces the sleep itself (testing). */
 	static String[] sleepPc() {
-		if (minecraftRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then sleep the machine"};
+		if (anyServerRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then sleep the machine"};
 		String custom = setting("sleep_command", "");
 		List<String> cmd = custom.isEmpty()
 				? List.of("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
@@ -570,13 +605,17 @@ public final class HostHelper {
 	static void admin(HttpExchange x) throws IOException {
 		try {
 			String path = x.getRequestURI().getPath();
+			String query = x.getRequestURI().getQuery();
+			SERVER.set(query != null && query.startsWith("server=") ? query.substring(7).replaceAll("[^\\w.-]", "") : "");
 			if (path.equals("/admin/devices")) {
 				panelSeen = System.currentTimeMillis();
 				Map<String, Object> devs = listed();
 				List<Object> asked;
 				int seq;
 				synchronized (HostHelper.class) { asked = new ArrayList<>(requests); seq = requestSeq; }
-				reply(x, 200, m("requests", asked, "request_seq", seq, "devices", devs, "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(), "port", port(), "bind", setting("bind", ""),
+				List<Object> names = new ArrayList<>();
+				for (Object o : servers()) names.add(m("id", Json.str(Json.map(o).get("id")), "name", Json.str(Json.map(o).get("name"))));
+				reply(x, 200, m("servers", names, "server_id", Json.str(server().get("id")), "requests", asked, "request_seq", seq, "devices", devs, "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(), "port", port(), "bind", setting("bind", ""),
 						"has_key", host.hasAccess(), "key_works", !host.hasAccess() ? "" : host.accessState(), "mcss_user", host.user()));
 			} else if (path.equals("/admin/revoke")) {
 				// Revoke: everything that lets it control the server is taken away.
@@ -636,7 +675,7 @@ public final class HostHelper {
 					boolean v = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
 					if (perm.equals("sleep")) { d.put("sleep", v); log((v ? "allowed PC sleep for " : "removed PC sleep from ") + who(d)); }
 					else if (perm.equals("mcss")) { d.put("granted", v); log((v ? "allowed MCSS control for " : "removed MCSS control from ") + who(d)); }
-					else if (perm.equals("server")) { d.put("server", v); log((v ? "allowed server control for " : "removed server control from ") + who(d)); }
+					else if (perm.equals("server")) { d.put(serverKey(), v); log((v ? "allowed server control for " : "removed server control from ") + who(d)); }
 					else if (perm.equals("admin")) { d.put("admin", v); log((v ? "allowed helper control for " : "removed helper control from ") + who(d)); }
 					else { reply(x, 400, m("error", "unknown permission")); return; }
 				}
@@ -656,7 +695,10 @@ public final class HostHelper {
 
 	// ------------------------------------------------------------------ the panel
 
+	/** The server the host panel is looking at (its pick, when the machine has more than one). */
+	static volatile String panelServer = "";
 	static String call(String method, String path, String body) throws IOException {
+		if (!panelServer.isEmpty()) path += (path.contains("?") ? "&" : "?") + "server=" + panelServer;
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
 		c.setConnectTimeout(2000); c.setReadTimeout(5000); c.setRequestMethod(method);
 		if (body != null) { c.setDoOutput(true); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
@@ -689,7 +731,15 @@ public final class HostHelper {
 			reqRow.add(reqText); reqRow.add(reqStart); reqRow.add(reqClear);
 			reqRow.setVisible(false);
 			int[] seqSeen = {-1};
-			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(head, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
+			// With more than one server on this machine: which one the panel is looking at (server control, the
+			// Minecraft server's status and its Start/Stop are per server; the rest is about the machine).
+			javax.swing.JComboBox<String> serverPick = new javax.swing.JComboBox<>();
+			List<String> serverIds = new ArrayList<>();
+			JPanel pickRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			pickRow.add(new JLabel("Server:")); pickRow.add(serverPick);
+			pickRow.setVisible(false);
+			JPanel headLine = new JPanel(new BorderLayout()); headLine.add(head, BorderLayout.WEST); headLine.add(pickRow, BorderLayout.EAST);
+			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(headLine, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH);
 			p.add(top, BorderLayout.NORTH);
 			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
@@ -844,6 +894,14 @@ public final class HostHelper {
 								: !hasKey ? "The helper isn't signed in to MCSS: server control won't work until it is."
 								: works.equals("no") ? (as.isEmpty() ? "The helper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
 								: as.isEmpty() ? "The helper's MCSS key is set and working." : "Signed in to MCSS as " + as + ": working.");
+						List<Object> sv = Json.list(r.get("servers"));
+						if (sv.size() != serverIds.size()) {
+							serverIds.clear(); serverPick.removeAllItems();
+							for (Object o : sv) { serverIds.add(Json.str(Json.map(o).get("id"))); serverPick.addItem(Json.str(Json.map(o).get("name"))); }
+							int at = Math.max(0, serverIds.indexOf(Json.str(r.get("server_id"))));
+							if (!serverIds.isEmpty()) serverPick.setSelectedIndex(at);
+							pickRow.setVisible(sv.size() > 1);
+						}
 						List<Object> asked = Json.list(r.get("requests"));
 						int seq = r.get("request_seq") instanceof Number n ? n.intValue() : 0;
 						boolean serverUp = Boolean.TRUE.equals(r.get("minecraft"));
@@ -852,7 +910,7 @@ public final class HostHelper {
 						} else {
 							Map<String, Object> lastAsk = Json.map(asked.get(asked.size() - 1));
 							String by = Json.str(lastAsk.get("who")) + (Json.str(lastAsk.get("player")).isEmpty() ? "" : " (" + Json.str(lastAsk.get("player")) + ")");
-							reqText.setText(by + " asked for the server to be turned on at " + Json.str(lastAsk.get("time")) + (asked.size() > 1 ? "  (" + asked.size() + " requests)" : ""));
+							reqText.setText(by + " asked for " + (Json.str(lastAsk.get("server")).isEmpty() ? "the server" : Json.str(lastAsk.get("server"))) + " to be turned on at " + Json.str(lastAsk.get("time")) + (asked.size() > 1 ? "  (" + asked.size() + " requests)" : ""));
 							reqRow.setVisible(true);
 							f.setTitle("Server requested by " + by + " \u2013 October Journey host panel");
 							if (seq != seqSeen[0]) {   // a new one: flash the taskbar button
@@ -929,6 +987,11 @@ public final class HostHelper {
 				});
 			}
 			reqClear.addActionListener(e -> act.accept("/admin/requests/clear", "{}"));
+			serverPick.addActionListener(e -> {
+				int i = serverPick.getSelectedIndex();
+				String id = i >= 0 && i < serverIds.size() ? serverIds.get(i) : "";
+				if (!id.equals(panelServer) && serverIds.size() > 1) { panelServer = id; refresh.run(); }
+			});
 			serverRun.addActionListener(e -> {
 				boolean up = serverUpNow[0];
 				if (up && JOptionPane.showConfirmDialog(f, "Stop the Minecraft server? Anyone playing is disconnected (the world is saved first).", "Minecraft server", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;

@@ -6,7 +6,13 @@ launcher's summary text and picture, the sync's status lines and the helper's re
 after). Not yet moved: the installers' and uninstallers' own text, and the tool's own names (below). **Stage 2 is built** (helper only, no pack change): everything the helper does with MCSS is in
 `host/src/.../McssHost.java`, behind the `ServerHost` interface; the rest of the helper only uses `host.…` (checked:
 the same 41-line scenario against the helper before and after gives identical output, and the real helper's readings
-are unchanged). Stage 3 is not built. The audience for now is the owner running several servers
+are unchanged). **Stage 3, first part, is built: the helper looks after several servers.** `host.json` `servers` is a list (id, name,
+folder, game port, MCSS id); a pack's `server_control.server` names the one it is for, the launcher sends it
+(`X-Server`), and the host panel has a Server pick when there is more than one. Server control is per server
+(`server` on a launcher or player for the first server, `server:<id>` for others); MCSS control, PC sleep and helper
+control are about the machine. Sleeping the machine and closing MCSS wait for every server. Checked: with one server
+the 41-line scenario is identical to before; with two stand-in servers each launcher sees and controls only its own.
+Still to do in stage 3: several packs in the build and repo, installers that take a profile, and the tool's name. The audience for now is the owner running several servers
 for the same group; the design keeps a later move to other hosts cheap (see "Rules").
 
 ## The idea
@@ -55,8 +61,8 @@ These change only when the tool gets its own name.
    one small internal layer with MCSS as its only implementation. No change in behaviour.
 3. **More than one.**
    - Launcher and installers: several profiles, one Prism instance each.
-   - Helper: several servers on one machine; permissions (server control, MCSS control) per server; PC sleep and
-     helper control stay per machine.
+   - Helper: several servers on one machine; server control per server; MCSS control, PC sleep and helper control
+     stay per machine (MCSS is one program for all of them).
    - Build and publishing: one pack per profile.
 
 ## Rules (so a later move to other hosts stays cheap)

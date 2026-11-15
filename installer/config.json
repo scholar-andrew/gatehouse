@@ -21,6 +21,7 @@
   ],
   "server_control": {
     "_about": "For the launch pop-up's Server tab (shipped as extras/server-control.json). panel_url: the MCSS web panel. mcss_server: the server's MCSS id, for status and Start through the panel's API with a player's own API key (kept on their device, never here). minecraft: where to check the game server answers. wake: the host PC's network card (Wake on LAN), and the home network's broadcast addresses the wake signal goes to; helper_url: the host helper (host/, tools/install_host.ps1) that starts and closes MCSS for launchers the owner allows in the host panel; it only works from the home network, or through an internet wake address a player sets on their device.",
+    "server": "october-journey",
     "panel_url": "http://100.91.134.102:25560",
     "helper_url": "http://100.91.134.102:25570",
     "mcss_server": "f3a162eb-96ad-4463-9bab-0046b5197439",
@@ -32,14 +33,14 @@
     }
   },
   "host": {
-    "_about": "For the host helper on the server machine (tools/install_host.ps1 puts these into its host.json where they're missing; tools/serve.ps1 serves the pack on bind:pack_port). bind: the machine's Tailscale address. servers: the Minecraft servers it looks after, each with its folder, its game port on the machine, and its id in MCSS (empty: read from the folder's mcss_server_config.json).",
+    "_about": "For the host helper on the server machine (tools/install_host.ps1 puts these into its host.json where they're missing; tools/serve.ps1 serves the pack on bind:pack_port). bind: the machine's Tailscale address. servers: the Minecraft servers it looks after, each with its id (what a pack's server_control \"server\" says, so the helper knows which one a launcher means), its folder, its game port on the machine, and its id in MCSS (empty: read from the folder's mcss_server_config.json).",
     "bind": "100.91.134.102",
     "port": 25570,
     "pack_port": 8467,
     "mcss_exe": "C:\\Minecraft\\MCSS\\mcss.exe",
     "tailscale_exe": "C:\\Program Files\\Tailscale\\tailscale.exe",
     "servers": [
-      { "name": "October Journey", "dir": "C:\\Minecraft\\MCSS\\servers\\octoberserver", "minecraft": "127.0.0.1:25565", "mcss_server": "" }
+      { "id": "october-journey", "name": "October Journey", "dir": "C:\\Minecraft\\MCSS\\servers\\octoberserver", "minecraft": "127.0.0.1:25565", "mcss_server": "" }
     ]
   },
   "_servers_later": "To add a public address later, add another entry such as { \"name\": \"October Journey (public)\", \"address\": \"play.example.com\" }.",

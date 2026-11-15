@@ -71,7 +71,7 @@ final class McssHost implements ServerHost {
 	@Override public String[] close(boolean force) {
 		List<ProcessHandle> ps = processes();
 		if (ps.isEmpty()) return new String[] {"ok", "MCSS isn't running"};
-		if (minecraftRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then close MCSS"};
+		if (anyServerRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then close MCSS"};
 		if (closeMode().equals("force")) {
 			if (!force) return new String[] {"refused", "MCSS is set to hide when closed (" + closePreference() + "), so closing it means force-closing it: use Force close MCSS. "
 					+ "(To close it properly instead, set MCSS's close option to exit MCSS, in MCSS's settings on the server PC.)"};

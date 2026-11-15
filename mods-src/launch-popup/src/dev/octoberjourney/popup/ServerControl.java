@@ -36,6 +36,9 @@ final class ServerControl {
 	String apiKey, wakeAddress, username;
 	/** This launcher's identity for the host helper: an id and a secret it made itself (kept in server-access.json). */
 	String deviceId, deviceToken;
+	/** The profile's name for its server on the host machine (extras/server-control.json "server"), sent to the host
+	 *  helper so a machine with several servers knows which one this pack means. Empty: its first. */
+	String serverKey = "";
 	/** What the owner has allowed this launcher in the host panel, as the helper last said (remembered in
 	 *  server-access.json, so it's known while the server machine is asleep and the helper can't be asked). */
 	boolean permMcss, permSleep, permServer, permAdmin;
@@ -57,6 +60,7 @@ final class ServerControl {
 		minecraft = str(c.get("minecraft"));
 		helperUrl = str(c.get("helper_url"));
 		mac = str(w.get("mac"));
+		serverKey = str(c.get("server")).replaceAll("[^\\w.-]", "");
 		if (w.get("broadcasts") instanceof List<?> l) for (Object o : l) broadcasts.add(str(o));
 		int port = 9;
 		try { port = Integer.parseInt(str(w.get("port"))); } catch (NumberFormatException ignored) {}
@@ -346,6 +350,7 @@ final class ServerControl {
 		c.setRequestMethod(method);
 		c.setRequestProperty("X-Device", deviceId);
 		c.setRequestProperty("X-Token", deviceToken);
+		if (!serverKey.isEmpty()) c.setRequestProperty("X-Server", serverKey);   // (which of the machine's servers this pack is for)
 		c.setRequestProperty("X-Access", kind());
 		c.setRequestProperty("X-Saved", saved());
 		if (saved().equals("signin")) c.setRequestProperty("X-Access-User", username.replaceAll("[^\\x20-\\x7E]", "?"));
