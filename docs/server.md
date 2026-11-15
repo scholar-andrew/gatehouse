@@ -52,6 +52,22 @@ The exact list, with versions and checksums, is in [`server/state.json`](../serv
 server's own files by `tools/server_snapshot.py`, and printed in [docs/mods.md: On the server](mods.md#on-the-server).
 Mods that are on both sides have to stay on matching versions; the pack build warns when they don't.
 
+## Waking and starting the server
+
+The host PC listens for Wake on LAN on its wired network card (Intel I225-V; Windows allows it to wake the PC, magic
+packet only). Waking from sleep needs nothing else; waking from fully off would also need **Power On By PCI-E** in the
+motherboard's BIOS and Windows' Fast Startup turned off. A sleeping PC also takes the pack server offline; devices
+then update from GitHub.
+
+The launch pop-up's Server tab can wake it, start the Minecraft server and open the MCSS web panel
+(`installer/config.json` `server_control`: panel address, the server's MCSS id, the game address, the network card's
+address and the home broadcast address). Starting goes through the panel's API (`POST
+/api/v2/servers/<id>/execute/action`, action 2) with an API key the owner makes per player in the panel (API Keys),
+limited to this server and to viewing and starting. Players enter it in the pop-up's **Server access**; it stays in
+`server-access.json` on their device. The wake signal is a broadcast, so it only reaches the PC from the home
+network, unless a player has an internet wake address (a router that passes wake signals from the internet on to the
+home network); that address is also kept on the device, not in this public repository.
+
 ## Server changes for players
 
 Players see what changed on the server in the launch pop-up's **Server** tab: mods added, updated or removed, the

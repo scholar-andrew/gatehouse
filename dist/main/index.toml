@@ -11,11 +11,11 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "1ccb47ec1b491860ac7c744d5bc2c4465a79d4b6a4ba24616b7d593567eeb941"
+hash = "7e88f8a8a38070e4b4158b25f258dcc06140569bbe321d77f232d1fb6582f551"
 
 [[files]]
 file = "extras/launch-popup.jar"
-hash = "f47a0a046ad0714ea5f16c726a405258b15d153489e35c92b0e92f833d6608fb"
+hash = "8a30a769405351d6a9924235fc6b1b8281dda98eedf6e3a93c5b4e08af352132"
 
 [[files]]
 file = "extras/mod-names.json"
@@ -36,6 +36,10 @@ hash = "bfa2ffd5c5c6b133b52028327f0a6ed479fb23dab850c40e352c3ea0ddb0f394"
 [[files]]
 file = "extras/server-changelog.txt"
 hash = "9a30d689ef8e787a43ae97b7d40f2198fe7c4885beefe00631d672f6f818c140"
+
+[[files]]
+file = "extras/server-control.json"
+hash = "1d941cc538aca919e4acd9f64424ff3d050db9a94b251b909e95f75b814f1fcf"
 
 [[files]]
 file = "extras/server-state.json"

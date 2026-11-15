@@ -107,6 +107,11 @@ def build(variant: str, meta: dict, mods: list) -> None:
     data = write(os.path.join(out, rel), json.dumps({(f"mods/{m['slug']}.pw.toml" if "url" in m else f"mods/{m['filename']}"): m["title"]
                                                       for m in mods if not (m.get("deck") and variant != "deck")}, indent=1) + "\n")
     entries.append((rel, sha256(data), False))
+    # The Server tab's controls (installer/config.json "server_control"): panel, wake, status. No secrets in it.
+    sc = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8")).get("server_control", {})
+    rel = "extras/server-control.json"
+    data = write(os.path.join(out, rel), json.dumps({k: v for k, v in sc.items() if not k.startswith("_")}, indent=1) + "\n")
+    entries.append((rel, sha256(data), False))
     # Mods players can switch on and off (Mod Menu > October Journey), with the pack's default for each. The sync
     # scripts disable the ones that are off after each update; the October Journey mod shows the switches.
     #   key    what the player's choice is saved under (the Modrinth slug, or the mod id for a jar in the pack)

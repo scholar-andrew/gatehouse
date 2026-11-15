@@ -197,6 +197,7 @@ The installers download everything else at run time, so they only need a new rel
 | `tools/build_pack.py` | Builds `dist/` and `docs/mods.md` from `source/`, the art, the layout, `installer/config.json` and the sync scripts. |
 | `tools/build_mod.ps1 <mod>` | Builds `mods-src/chatlift`, `handofffix` or `octoberjourney` into `source/files/mods/`. |
 | `tools/build_popup.ps1` | Builds `mods-src/launch-popup` (plain Java 17, no Minecraft code) into `source/files/launch-popup.jar`. |
+| `mods-src/launch-popup/.../ServerControl.java` | The Server tab's controls: status (game port, panel port, MCSS API), Wake on LAN, Start, opening the panel. `java -jar launch-popup.jar --server <game folder> status\|wake\|start` runs one of them from a terminal (`OJ_WAKE_TEST=host:port` also sends the wake signal there, for testing). |
 | `tools/server_snapshot.py` | Records what the server runs from its files (`server/state.json`) with a note for players (`server/changelog.json`); `--check` reports drift. |
 | `tools/serve.ps1` | Serves `dist/` on the Tailscale address. Run at logon by the scheduled task "Minecraft pack server"; waits for Tailscale and restarts the server if it stops. |
 | `tools/make_art.ps1` | Draws the October Journey shortcut's Steam library art into `installer/art/`. |

@@ -18,6 +18,17 @@
       "note": "Through Tailscale: you need to be on (or shared into) the owner's Tailscale network."
     }
   ],
+  "server_control": {
+    "_about": "For the launch pop-up's Server tab (shipped as extras/server-control.json). panel_url: the MCSS web panel. mcss_server: the server's MCSS id, for status and Start through the panel's API with a player's own API key (kept on their device, never here). minecraft: where to check the game server answers. wake: the host PC's network card (Wake on LAN), and the home network's broadcast addresses the wake signal goes to; it only works from the home network, or through an internet wake address a player sets on their device.",
+    "panel_url": "http://100.91.134.102:25560",
+    "mcss_server": "f3a162eb-96ad-4463-9bab-0046b5197439",
+    "minecraft": "100.91.134.102:25565",
+    "wake": {
+      "mac": "04:42:1A:F1:30:02",
+      "broadcasts": ["192.168.0.255", "255.255.255.255"],
+      "port": 9
+    }
+  },
   "_servers_later": "To add a public address later, add another entry such as { \"name\": \"October Journey (public)\", \"address\": \"play.example.com\" }.",
   "prism_windows": {
     "version": "11.1.1",

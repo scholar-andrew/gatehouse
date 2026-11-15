@@ -76,6 +76,16 @@ public final class LaunchPopup {
 	record Check(String state, String label, String detail) {}
 
 	public static void main(String[] args) throws Exception {
+		// Testing and troubleshooting: java -jar launch-popup.jar --server <game folder> status|wake|start
+		if (args.length >= 3 && args[0].equals("--server")) {
+			ServerControl c = new ServerControl(Path.of(args[1]));
+			switch (args[2]) {
+				case "wake" -> System.out.println("wake signal sent to " + c.wake());
+				case "start" -> { c.start(); System.out.println("start requested"); }
+				default -> System.out.println(String.join(": ", c.status()));
+			}
+			return;
+		}
 		// Plain (GDI / X11) drawing, not Direct3D or OpenGL: the Steam overlay hooks those in programs Steam started, and
 		// drew its notifications over the Play button (leaving a smear when they went).
 		System.setProperty("sun.java2d.d3d", "false");
@@ -198,7 +208,7 @@ public final class LaunchPopup {
 			rows.add(heading(fresh.size() > 1 || !seen.isEmpty() ? "What's new in " + v.version() + (v.date().isEmpty() ? "" : " (" + v.date() + ")") : "What's new"));
 			for (String n : v.notes()) rows.add(text("• " + n));
 		}
-		show(headline, sub, rows, serverRows(server, serverChanges, serverFresh, serverSeen.isEmpty()), serverNews,
+		show(dir, headline, sub, rows, serverRows(server, serverChanges, serverFresh, serverSeen.isEmpty()), serverNews,
 				updated || somethingHappened ? UPDATE_SECONDS : QUIET_SECONDS, updated || somethingHappened);
 	}
 
@@ -255,6 +265,95 @@ public final class LaunchPopup {
 		names.sort(String.CASE_INSENSITIVE_ORDER);
 		for (String n : names) rows.add(row(GREEN, n, null));
 		return rows;
+	}
+
+	// ------------------------------------------------------------------ server controls
+
+	/** The top of the Server tab: whether the server answers (checked every few seconds) and the buttons. */
+	private static JComponent controls(ServerControl c, JFrame f, Runnable hold, boolean live) {
+		JPanel box = new JPanel();
+		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
+		box.setBorder(BorderFactory.createEmptyBorder(8, 6, 0, 6));
+		JLabel status = new JLabel("Checking the server\u2026", dot(GRAY), JLabel.LEFT);
+		status.setFont(status.getFont().deriveFont(Font.BOLD, 14f));
+		status.setIconTextGap(8);
+		JLabel note = new JLabel(" ");
+		note.setFont(note.getFont().deriveFont(Font.PLAIN, 12f));
+		note.setForeground(new Color(0x6B7280));
+		JButton wake = new JButton("Wake server device"), start = new JButton("Start server"), panel = new JButton("Open server panel"), access = new JButton("Server access\u2026");
+		wake.setEnabled(c.canWake());
+		start.setEnabled(c.hasKey());
+		panel.setEnabled(!c.panelUrl.isEmpty());
+		long[] wokeAt = {0};
+		Runnable refresh = () -> new Thread(() -> {
+			String[] s = c.status();
+			boolean waking = !s[0].equals("ok") && wokeAt[0] > 0 && System.currentTimeMillis() - wokeAt[0] < 180_000;
+			SwingUtilities.invokeLater(() -> {
+				status.setIcon(dot(waking && !s[1].contains("awake") ? AMBER : colour(s[0])));
+				status.setText("<html><div style='width:430px'>" + esc(waking && !s[1].contains("awake") ? "Waking the server PC\u2026 (it can take a minute)" : s[1]) + "</div></html>");
+				start.setEnabled(c.hasKey());
+			});
+		}, "server-status").start();
+		wake.addActionListener(e -> {
+			hold.run();
+			new Thread(() -> {
+				String msg;
+				try { msg = "Wake signal sent (" + c.wake().size() + " address" + "es" + ")" + (c.wakeAddress.isEmpty() ? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't send the wake signal: " + ex.getMessage(); }
+				String m = msg;
+				SwingUtilities.invokeLater(() -> note.setText(m));
+				refresh.run();
+			}, "wake").start();
+		});
+		start.addActionListener(e -> {
+			hold.run();
+			new Thread(() -> {
+				String msg;
+				try { c.start(); msg = "Start requested: the server takes a minute or so to come up"; }
+				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "Your API key isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server PC awake?"; }
+				String m = msg;
+				SwingUtilities.invokeLater(() -> note.setText(m));
+				refresh.run();
+			}, "start").start();
+		});
+		panel.addActionListener(e -> {
+			hold.run();
+			new Thread(() -> {
+				boolean ok = c.openPanel();
+				SwingUtilities.invokeLater(() -> note.setText(ok ? "Opened the server panel in your browser (sign in there)" : "Open " + c.panelUrl + " in a browser"));
+			}, "panel").start();
+		});
+		access.addActionListener(e -> { hold.run(); accessDialog(c, f, note); refresh.run(); });
+		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+		for (JButton b : new JButton[] {wake, start, panel, access}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
+		for (JComponent x : new JComponent[] {status, buttons, note}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); }
+		if (live) {
+			refresh.run();
+			// Every few seconds while the window is open.
+			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) refresh.run(); });
+			poll.start();
+			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { poll.stop(); } });
+		}
+		return box;
+	}
+
+	/** This device's own server settings: the API key from the panel, and an internet wake address. */
+	private static void accessDialog(ServerControl c, JFrame f, JLabel note) {
+		javax.swing.JPasswordField key = new javax.swing.JPasswordField(c.apiKey, 28);
+		javax.swing.JTextField wake = new javax.swing.JTextField(c.wakeAddress, 28);
+		JPanel form = new JPanel();
+		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+		for (JComponent x : new JComponent[] {
+				text("Saved on this device only (server-access.json in the game folder)."),
+				new JLabel("API key (made for you in the server panel, under API Keys):"), key,
+				new JLabel("Internet wake address, host:port (optional; only if the owner gave you one):"), wake}) {
+			x.setAlignmentX(Component.LEFT_ALIGNMENT); form.add(x); form.add(Box.createVerticalStrut(4));
+		}
+		int r = javax.swing.JOptionPane.showConfirmDialog(f, form, "Server access", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE);
+		if (r != javax.swing.JOptionPane.OK_OPTION) return;
+		try { c.save(new String(key.getPassword()), wake.getText()); note.setText("Saved"); }
+		catch (IOException e) { note.setText("Couldn't save: " + e.getMessage()); }
 	}
 
 	// ------------------------------------------------------------------ what's shown
@@ -330,7 +429,7 @@ public final class LaunchPopup {
 		return sb.toString();
 	}
 
-	private static void show(String headline, String sub, List<Component> rows, List<Component> serverRows, boolean serverNews, int seconds, boolean big) throws Exception {
+	private static void show(Path dir, String headline, String sub, List<Component> rows, List<Component> serverRows, boolean serverNews, int seconds, boolean big) throws Exception {
 		Object lock = new Object();
 		boolean[] done = {false};
 		SwingUtilities.invokeAndWait(() -> {
@@ -354,7 +453,12 @@ public final class LaunchPopup {
 			tabs.setFont(tabs.getFont().deriveFont(Font.BOLD, 13f));
 			List<Component> deviceRows = rows.isEmpty() ? List.of(text("Nothing to report.")) : rows;
 			tabs.addTab("This device", scroller(deviceRows, big || serverNews));
-			tabs.addTab(serverNews ? "Server (new)" : "Server", scroller(serverRows, big || serverNews));
+			ServerControl control = new ServerControl(dir);
+			Runnable[] hold = {() -> {}};   // set below: stops the countdown once the player uses a server control
+			JPanel serverTab = new JPanel(new BorderLayout(0, 8));
+			if (control.configured()) serverTab.add(controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null), BorderLayout.NORTH);
+			serverTab.add(scroller(serverRows, big || serverNews), BorderLayout.CENTER);
+			tabs.addTab(serverNews ? "Server (new)" : "Server", serverTab);
 			p.add(tabs, BorderLayout.CENTER);
 			JButton play = new JButton();
 			play.setFont(play.getFont().deriveFont(Font.BOLD, 15f));
@@ -384,6 +488,7 @@ public final class LaunchPopup {
 			// Each second: the countdown, and a full repaint, so anything drawn over the window (an overlay, a notification)
 			// never leaves a smear behind.
 			Timer timer = new Timer(1000, e -> { if (--left[0] <= 0) next.run(); else { label.run(); f.repaint(); } });
+			hold[0] = () -> { if (timer.isRunning()) { timer.stop(); serverShown[0] = true; play.setText("Play"); } };
 			play.addActionListener(e -> next.run());
 			// Enter or Space press the button; Escape starts the game straight away.
 			for (int key : new int[] {KeyEvent.VK_ENTER, KeyEvent.VK_SPACE}) p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key, 0), "next");
@@ -495,6 +600,9 @@ public final class LaunchPopup {
 		Matcher m = Pattern.compile("\"" + key + "\"\\s*:\\s*(true|false)").matcher(json);
 		return !m.find() || m.group(1).equals("true");
 	}
+
+	static Object parseJson(String s) { return parse(s); }
+	static String readFile(Path p) { return read(p); }
 
 	private static String read(Path p) {
 		try { return Files.readString(p, StandardCharsets.UTF_8).replace("﻿", ""); } catch (IOException | RuntimeException e) { return ""; }

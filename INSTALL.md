@@ -106,6 +106,18 @@ there since you last played, with notes. When something on the server is new, th
 changes**: it takes you to that tab (or goes there by itself when the first tab's countdown ends), and **Play** is
 there. Esc starts the game straight away.
 
+The top of the Server tab shows whether the server is online (checked every few seconds), with four buttons:
+- **Wake server device:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; from
+  elsewhere only with an internet wake address the owner gives you (Server access).
+- **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is
+  off. It needs an API key the owner makes for you in the panel (under API Keys), entered once under **Server
+  access**.
+- **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
+- **Server access...:** your API key and internet wake address. They're saved in `server-access.json` in the game
+  folder on this device only, never in the pack.
+
+Using any of them stops the countdown, so the window stays open while the server wakes or starts.
+
 After an update, or when something changed or failed, press **Play** (or Enter, Space or Esc) to continue; it closes
 by itself after 90 seconds. With nothing new it shows the checks with "no updates" and closes after 5 seconds. Offline,
 it says so, and the game starts with what's already installed.

@@ -1,3 +1,6 @@
+== 1.7.3 | 2026-11-15
+- The Server tab shows whether the server is online (and how many players are on, with a server panel key), and has buttons to wake the server's PC, start the server, and open the server panel in your browser.
+- Wake server device works from the home network. Start server needs an API key from the server panel: add it once under Server access; it's kept on your device only.
 == 1.7.2 | 2026-11-15
 - The pop-up has a Server tab: what the server runs (game version, Jarvis, mods, settings) and what changed there since you last played. When something's new on the server, the button reads Next: server changes and takes you there before the game starts.
 == 1.7.1 | 2026-11-15
