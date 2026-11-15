@@ -1,4 +1,9 @@
 [
+ {"version": "1.9.7", "date": "2026-11-15", "notes": [
+  "When the server is off, the Play button becomes Request server: it asks the owner's PC to turn the server on (it chimes there and shows who asked). The button turns back into Play by itself when the server is online. One request a minute.",
+  "The first two tabs are now Client updates and Server updates.",
+  "Restart is yellow and Quit is red."
+ ]},
  {"version": "1.9.6", "date": "2026-11-15", "notes": [
   "Server controls: the first section is now Server Machine, with Wake server machine and Sleep server machine.",
   "Server config is now just the server panel sign-in (username, password, Sign in, Sign out), right in the tab. Open server panel and the Server access window (API key, internet wake address) are gone.",

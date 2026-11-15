@@ -68,6 +68,7 @@ public final class HostHelper {
 		Files.createDirectories(dir);
 		cfg = Json.map(Json.parse(read(dir.resolve("host.json"))));
 		String mode = args.length > 0 ? args[0] : "--panel";
+		startMinimized = java.util.Arrays.asList(args).contains("--minimized");
 		if (mode.equals("--serve")) serve();
 		else panel();
 	}
@@ -279,6 +280,12 @@ public final class HostHelper {
 			// switch the other three permissions, forget a launcher). Only the panel on this PC gives or removes it, and
 			// the helper's MCSS key can't be read or set from a launcher.
 			boolean canAdmin = Boolean.TRUE.equals(d.get("admin"));
+			if (path.equals("/v1/request") && x.getRequestMethod().equals("POST")) {
+				// "Please turn the server on", from any launcher this helper knows (allowed anything or not).
+				String[] r = requestServer(d, id);
+				reply(x, 200, m("result", r[0], "message", r[1]));
+				return;
+			}
 			if (path.equals("/v1/mcss") && x.getRequestMethod().equals("GET")) {
 				// How this launcher controls the server, as it says itself: "helper" (through this helper), or with what it
 				// has saved: "signin" (a panel account), "key" (an API key from before sign-in was the only way), "none".
@@ -499,6 +506,65 @@ public final class HostHelper {
 		return new String[] {"ok", msg};
 	}
 
+	// ------------------------------------------------------------------ requests for the server
+
+	static boolean startMinimized;
+	static final List<Object> requests = new ArrayList<>();   // the last few, newest last: {who, player, time}
+	static final Map<String, Long> lastRequest = new java.util.HashMap<>();
+	static int requestSeq = 0;
+	static volatile long panelSeen = 0;   // when the host panel last asked for its list (it does every few seconds while open)
+
+	/** A launcher asks for the server to be turned on: noted for the host panel, with a chime here and the panel
+	 *  brought up minimized (its taskbar button flashes) if it isn't open. One a minute from each launcher. */
+	static synchronized String[] requestServer(Map<String, Object> d, String id) {
+		long now = System.currentTimeMillis();
+		Long last = lastRequest.get(id);
+		if (last != null && now - last < 60_000) return new String[] {"refused", "Already asked a moment ago: the owner has been told"};
+		if (minecraftRunning()) return new String[] {"refused", "The server is already running"};
+		lastRequest.put(id, now);
+		requests.add(m("who", who(d), "player", Json.str(d.get("player")), "time", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))));
+		while (requests.size() > 5) requests.remove(0);
+		requestSeq++;
+		log("server requested by " + who(d) + (Json.str(d.get("player")).isEmpty() ? "" : " (" + Json.str(d.get("player")) + ")"));
+		if (!"false".equals(setting("request_alert", "true"))) { chime(); openPanel(); }
+		return new String[] {"ok", "Asked: the owner's PC chimed and shows your request. This turns into Play when the server is online."};
+	}
+
+	/** A short, soft three-note chime (made here, no sound file): E, G sharp, B, each fading out. */
+	static void chime() {
+		Thread t = new Thread(() -> {
+			try {
+				float rate = 44100f;
+				double[] notes = {659.25, 830.61, 987.77};
+				int step = (int) (rate * 0.16), tail = (int) (rate * 0.9);
+				double[] mix = new double[step * (notes.length - 1) + tail];
+				for (int n = 0; n < notes.length; n++)
+					for (int i = 0; i < tail; i++) {
+						double time = i / rate, env = Math.min(1, time / 0.008) * Math.exp(-time * 4.2);
+						mix[n * step + i] += env * (Math.sin(2 * Math.PI * notes[n] * time) + 0.25 * Math.sin(4 * Math.PI * notes[n] * time));
+					}
+				byte[] pcm = new byte[mix.length * 2];
+				for (int i = 0; i < mix.length; i++) { int v = (int) (mix[i] * 0.22 * 32767); pcm[2 * i] = (byte) v; pcm[2 * i + 1] = (byte) (v >> 8); }
+				javax.sound.sampled.AudioFormat fmt = new javax.sound.sampled.AudioFormat(rate, 16, 1, true, false);
+				try (javax.sound.sampled.SourceDataLine line = javax.sound.sampled.AudioSystem.getSourceDataLine(fmt)) {
+					line.open(fmt); line.start(); line.write(pcm, 0, pcm.length); line.drain();
+				}
+			} catch (Exception | LinkageError e) { log("no chime: " + e); }
+		}, "chime");
+		t.setDaemon(true);
+		t.start();
+	}
+
+	/** Opens the host panel minimized, unless one is open already (an open panel sees the request itself). */
+	static void openPanel() {
+		if (System.currentTimeMillis() - panelSeen < 8000) return;
+		try {
+			String java = ProcessHandle.current().info().command().orElse("javaw");
+			String jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+			new ProcessBuilder(java, "-jar", jar, "--panel", "--minimized").start();
+		} catch (Exception e) { log("couldn't open the host panel: " + e); }
+	}
+
 	static String header(HttpExchange x, String name) {
 		String v = x.getRequestHeaders().getFirst(name);
 		v = v == null ? "" : v.replaceAll("[^\\x20-\\x7E]", "").trim();
@@ -590,8 +656,12 @@ public final class HostHelper {
 		try {
 			String path = x.getRequestURI().getPath();
 			if (path.equals("/admin/devices")) {
+				panelSeen = System.currentTimeMillis();
 				Map<String, Object> devs = listed();
-				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "port", port(), "bind", setting("bind", "100.91.134.102"),
+				List<Object> asked;
+				int seq;
+				synchronized (HostHelper.class) { asked = new ArrayList<>(requests); seq = requestSeq; }
+				reply(x, 200, m("requests", asked, "request_seq", seq, "devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "port", port(), "bind", setting("bind", "100.91.134.102"),
 						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : keyState(), "mcss_user", setting("mcss_user", "")));
 			} else if (path.equals("/admin/revoke")) {
 				// Revoke: everything that lets it control the server is taken away.
@@ -612,6 +682,16 @@ public final class HostHelper {
 			} else if (path.equals("/admin/player/perm")) {
 				Map<String, Object> b = body(x);
 				String[] r = playerPerm(Json.str(b.get("player")), Json.str(b.get("perm")), Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value"))));
+				reply(x, 200, m("result", r[0], "message", r[1]));
+			} else if (path.equals("/admin/requests/clear")) {
+				synchronized (HostHelper.class) { requests.clear(); }
+				reply(x, 200, m("ok", true));
+			} else if (path.equals("/admin/server/start")) {
+				// From the panel's request banner: MCSS first if it isn't running (it needs a moment before it takes the start).
+				String[] r;
+				if (mcssProcesses().isEmpty()) { String[] s = startMcss(); r = new String[] {s[0].equals("ok") ? "wait" : s[0], s[0].equals("ok") ? "MCSS is starting: press Start server again in a few seconds" : s[1]}; }
+				else r = serverAction(true);
+				log("start the Minecraft server from the host panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/keytest")) {
 				// Troubleshooting: what MCSS answers to the helper's key (status codes and MCSS's own error text; never the key).
@@ -719,7 +799,18 @@ public final class HostHelper {
 			boolean[] mcssUp = {false}; String[] mcssClose = {"close"};
 			JPanel stateRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
 			stateRow.add(mcssRun); stateRow.add(state);
-			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(head, BorderLayout.NORTH); top.add(stateRow, BorderLayout.SOUTH);
+			// A launcher asked for the server: a banner here, and the taskbar button flashes until it's looked at.
+			JLabel reqText = new JLabel(" ");
+			reqText.setFont(reqText.getFont().deriveFont(Font.BOLD, 14f));
+			JButton reqStart = new JButton("Start server"), reqClear = new JButton("Dismiss");
+			JPanel reqRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
+			reqRow.setBackground(new Color(0xFFF1C2));
+			reqRow.setBorder(BorderFactory.createLineBorder(new Color(0xE0A91B)));
+			reqRow.add(reqText); reqRow.add(reqStart); reqRow.add(reqClear);
+			reqRow.setVisible(false);
+			int[] seqSeen = {-1};
+			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(head, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
+			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH); top.add(stateRow, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
 			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
@@ -837,6 +928,23 @@ public final class HostHelper {
 								: !hasKey ? "The helper isn't signed in to MCSS: server control won't work until it is."
 								: works.equals("no") ? (as.isEmpty() ? "The helper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
 								: as.isEmpty() ? "The helper's MCSS key is set and working." : "Signed in to MCSS as " + as + ": working.");
+						List<Object> asked = Json.list(r.get("requests"));
+						int seq = r.get("request_seq") instanceof Number n ? n.intValue() : 0;
+						boolean serverUp = Boolean.TRUE.equals(r.get("minecraft"));
+						if (asked.isEmpty() || serverUp) {
+							if (reqRow.isVisible()) { reqRow.setVisible(false); f.setTitle("October Journey host panel"); }
+						} else {
+							Map<String, Object> lastAsk = Json.map(asked.get(asked.size() - 1));
+							String by = Json.str(lastAsk.get("who")) + (Json.str(lastAsk.get("player")).isEmpty() ? "" : " (" + Json.str(lastAsk.get("player")) + ")");
+							reqText.setText(by + " asked for the server to be turned on at " + Json.str(lastAsk.get("time")) + (asked.size() > 1 ? "  (" + asked.size() + " requests)" : ""));
+							reqRow.setVisible(true);
+							f.setTitle("Server requested by " + by + " \u2013 October Journey host panel");
+							if (seq != seqSeen[0]) {   // a new one: flash the taskbar button
+								try { if (java.awt.Taskbar.isTaskbarSupported() && java.awt.Taskbar.getTaskbar().isSupported(java.awt.Taskbar.Feature.USER_ATTENTION_WINDOW)) java.awt.Taskbar.getTaskbar().requestWindowUserAttention(f); }
+								catch (RuntimeException ignored) {}
+							}
+						}
+						seqSeen[0] = seq;
 						mcssUp[0] = Boolean.TRUE.equals(r.get("mcss")); mcssClose[0] = Json.str(r.get("close"));
 						mcssRun.setText(!mcssUp[0] ? "Start MCSS" : mcssClose[0].equals("force") ? "Force close MCSS" : "Close MCSS");
 						mcssRun.setEnabled(!mcssUp[0] || !Boolean.TRUE.equals(r.get("minecraft")));
@@ -899,6 +1007,15 @@ public final class HostHelper {
 					}, "player-perm").start();
 				});
 			}
+			reqClear.addActionListener(e -> act.accept("/admin/requests/clear", "{}"));
+			reqStart.addActionListener(e -> new Thread(() -> {
+				String msg;
+				try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/server/start", "{}"))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
+				String m2 = msg;
+				SwingUtilities.invokeLater(() -> state.setText(m2));
+				try { Thread.sleep(2500); } catch (InterruptedException ignored) {}
+				refresh.run();
+			}, "req-start").start());
 			mcssRun.addActionListener(e -> {
 				boolean up = mcssUp[0], force = mcssClose[0].equals("force");
 				if (up && JOptionPane.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead." : "Close MCSS?", "MCSS", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
@@ -951,6 +1068,7 @@ public final class HostHelper {
 			f.setContentPane(p);
 			f.pack();
 			f.setLocationRelativeTo(null);
+			if (startMinimized) f.setExtendedState(JFrame.ICONIFIED);   // (opened by the helper for a request: on the taskbar, flashing)
 			f.setVisible(true);
 		});
 	}

@@ -123,6 +123,12 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   "not confirmed" until the server sees that player join from it. What the owner allows a player (`players.json`)
   is set on all their confirmed launchers and on ones they join from later; a claim alone gets nothing. Player names
   stay in the helper's files on the PC.
+- **Requests.** Any launcher the helper knows can ask for the server to be turned on (`POST /v1/request`, the
+  launcher's Play button while the server is off; one a minute each, refused while the server runs). The helper logs
+  it, plays a short chime and, if the host panel isn't open, opens it minimized (`--panel --minimized`). The panel
+  shows who asked in a banner with **Start server** (starts MCSS first if needed) and **Dismiss**, puts it in its
+  window title and flashes its taskbar button. `request_alert` = `false` in `host.json` turns the chime and the
+  pop-up off.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.

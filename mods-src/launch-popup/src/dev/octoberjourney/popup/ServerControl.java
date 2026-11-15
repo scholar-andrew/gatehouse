@@ -384,6 +384,14 @@ final class ServerControl {
 		return r;
 	}
 
+	/** Asks the host helper to tell the owner this device wants the server turned on (a chime and the host panel on the
+	 *  server machine). Any launcher the helper knows may ask; no permission is needed. */
+	Map<String, Object> requestServer() throws IOException {
+		Map<String, Object> r = helper("POST", "/v1/request", "{}");
+		if (str(r.get("_code")).equals("401")) { hello(); r = helper("POST", "/v1/request", "{}"); }
+		return r;
+	}
+
 	/** Asks the host helper to put the server machine to sleep (needs the owner's separate "PC sleep" permission). */
 	Map<String, Object> sleepPc() throws IOException { return helper("POST", "/v1/pc/sleep", "{}"); }
 

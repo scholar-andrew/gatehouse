@@ -107,6 +107,7 @@ public final class LaunchPopup {
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
+				case "request" -> System.out.println("request: " + c.requestServer());
 				case "admin-devices" -> System.out.println("admin devices: " + c.helper("GET", "/v1/admin/devices", null));
 				case "admin-perm" -> System.out.println("admin perm: " + c.helper("POST", "/v1/admin/perm", "{\"id\":\"" + args[3] + "\",\"perm\":\"" + args[4] + "\",\"value\":" + args[5] + "}"));
 				case "admin-forget" -> System.out.println("admin forget: " + c.helper("POST", "/v1/admin/forget", "{\"id\":\"" + args[3] + "\"}"));
@@ -179,8 +180,7 @@ public final class LaunchPopup {
 				list.add(rows[i]);
 			}
 			p.add(list, BorderLayout.CENTER);
-			JButton quit = new JButton("Quit");
-			quit.setFont(quit.getFont().deriveFont(14f));
+			JButton quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
 			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
 			JPanel bottom = new JPanel(new BorderLayout());
 			JLabel hint = new JLabel("Quit cancels this launch.");
@@ -385,9 +385,13 @@ public final class LaunchPopup {
 	/** The Play button: blue when it can be pressed, grey when it can't (drawn here, since the system's own buttons
 	 *  don't take a colour). In the checklist it's also the button that accepts a download. */
 	static final class PlayButton extends JButton {
-		PlayButton(String text) {
+		private final Color base, ink;
+		PlayButton(String text) { this(text, BLUE, Color.WHITE, 15f); }
+		/** The same button in another colour (Restart is yellow, Quit red), with its text colour and size. */
+		PlayButton(String text, Color base, Color ink, float size) {
 			super(text);
-			setFont(getFont().deriveFont(Font.BOLD, 15f));
+			this.base = base; this.ink = ink;
+			setFont(getFont().deriveFont(Font.BOLD, size));
 			setContentAreaFilled(false); setBorderPainted(false); setFocusPainted(false); setOpaque(false);
 			setBorder(BorderFactory.createEmptyBorder(7, 22, 7, 22));
 		}
@@ -396,16 +400,21 @@ public final class LaunchPopup {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 			boolean on = isEnabled();
-			Color fill = !on ? new Color(0xC9CDD3) : getModel().isPressed() ? new Color(0x1F55AD) : getModel().isRollover() ? new Color(0x3E7FE6) : BLUE;
+			Color fill = !on ? new Color(0xC9CDD3) : getModel().isPressed() ? base.darker() : getModel().isRollover() ? shade(base, 1.12f) : base;
 			g2.setColor(fill);
 			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
 			if (on && isFocusOwner()) { g2.setColor(new Color(255, 255, 255, 170)); g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 6, 6); }
 			g2.setFont(getFont());
 			java.awt.FontMetrics fm = g2.getFontMetrics();
-			g2.setColor(on ? Color.WHITE : new Color(0x7B818A));
+			g2.setColor(on ? ink : new Color(0x7B818A));
 			g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2, (getHeight() - fm.getHeight()) / 2 + fm.getAscent());
 			g2.dispose();
 		}
+	}
+
+	static final Color YELLOW = new Color(0xF2C230), QUIT_RED = new Color(0xD23C3C), INK = new Color(0x3A2F00);
+	private static Color shade(Color c, float f) {
+		return new Color(Math.min(255, Math.round(c.getRed() * f)), Math.min(255, Math.round(c.getGreen() * f)), Math.min(255, Math.round(c.getBlue() * f)));
 	}
 
 	/** Ten pips for the connection: how many are lit follows the ping (more is better), coloured from red (first) to
@@ -568,7 +577,7 @@ public final class LaunchPopup {
 		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing + " as installed.";
 		else if (status.equals("failed")) sub = "Starting with the mods already installed. Details are in pack-sync.log in the game folder.";
 		else if (updated || somethingHappened) sub = "Here's what this launch checked and changed.";
-		else if (serverNews) sub = "Nothing new for this device; the Server tab shows what changed on the server.";
+		else if (serverNews) sub = "Nothing new for this device; the Server updates tab shows what changed on the server.";
 		else sub = "You're up to date.";
 		// The player chose Skip this time at the size question: say so, rather than "no updates".
 		if (skipped != null) {
@@ -1207,7 +1216,7 @@ public final class LaunchPopup {
 			javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
 			tabs.setFont(tabs.getFont().deriveFont(Font.BOLD, 13f));
 			List<Component> deviceRows = rows.isEmpty() ? List.of(text("Nothing to report.")) : rows;
-			tabs.addTab("This device", scroller(deviceRows, big || serverNews));
+			tabs.addTab("Client updates", scroller(deviceRows, big || serverNews));
 			ServerControl control = new ServerControl(dir);
 			Runnable[] hold = {() -> {}};   // set below: stops the countdown once the player uses a server control
 			// The Server tab: a live line on top (whether the server answers right now; the rest of the tab is the last
@@ -1219,7 +1228,7 @@ public final class LaunchPopup {
 			JPanel serverTab = new JPanel(new BorderLayout());
 			if (control.configured()) serverTab.add(liveLine, BorderLayout.NORTH);
 			serverTab.add(scroller(serverRows, big || serverNews), BorderLayout.CENTER);
-			tabs.addTab(serverNews ? "Server (new)" : "Server", serverTab);
+			tabs.addTab(serverNews ? "Server updates (new)" : "Server updates", serverTab);
 			// Play only works while the server is online (checked every few seconds; with no server set up for the pack
 			// there's nothing to wait for).
 			boolean[] serverLive = {!control.configured()};
@@ -1288,32 +1297,57 @@ public final class LaunchPopup {
 			}
 			bottom.add(legend, BorderLayout.WEST);
 			// Beside Play: run the update again, or don't start the game.
-			JButton again = new JButton("Restart"), quit = new JButton("Quit");
+			JButton again = new PlayButton("Restart", YELLOW, INK, 14f), quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
 			again.setToolTipText("Run the update again");
 			quit.setToolTipText("Don't start the game");
 			again.addActionListener(e -> { exitCode = RESTART; f.dispose(); });
 			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
 			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
-			right.add(playWhy);
-			for (JButton b : new JButton[] {again, quit}) { b.setFont(b.getFont().deriveFont(14f)); right.add(b); }
+			for (JButton b : new JButton[] {again, quit}) right.add(b);
 			right.add(play);
-			bottom.add(right, BorderLayout.EAST);
+			// The line about Play (why it's grey, or what a request did) sits above the buttons, wrapped to their width.
+			JPanel rightCol = new JPanel(new BorderLayout(0, 3));
+			playWhy.setHorizontalAlignment(JLabel.RIGHT);
+			rightCol.add(playWhy, BorderLayout.NORTH);
+			rightCol.add(right, BorderLayout.SOUTH);
+			bottom.add(rightCol, BorderLayout.EAST);
 			p.add(bottom, BorderLayout.SOUTH);
 			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
 			// "Play" after. Nothing happens on its own: no countdown, the game starts only when the player presses Play.
 			boolean[] serverShown = {!serverNews};
+			// While the server isn't online, the same button is "Request server": it asks the host helper on the server
+			// machine to let the owner know (a chime and the host panel there). It goes back to Play by itself when the
+			// server comes up. One request a minute.
+			long[] requestWait = {0};
+			String[] requestNote = {"The server is off. Request server asks the owner to turn it on."};
 			Runnable label = () -> {
-				play.setText(serverShown[0] ? "Play" : "Next: server changes");
+				boolean asking = serverShown[0] && !serverLive[0] && control.hasHelper();
+				play.setText(!serverShown[0] ? "Next: server updates" : asking ? "Request server" : "Play");
 				// "Next" only turns the page, so it always works; Play waits for the server.
-				boolean ready = !serverShown[0] || serverLive[0];
-				play.setEnabled(ready);
-				playWhy.setText(ready ? " " : "Play lights up when the server is online");
+				play.setEnabled(!serverShown[0] || serverLive[0] || (asking && System.currentTimeMillis() >= requestWait[0]));
+				String why = !serverShown[0] || serverLive[0] ? "" : asking ? requestNote[0] : "Play lights up when the server is online";
+				playWhy.setText(why.isEmpty() ? " " : "<html><div style='width:300px;text-align:right'>" + esc(why) + "</div></html>");
 			};
 			playState[0] = label;
 			Runnable next = () -> {
 				if (!play.isEnabled()) return;
 				if (!serverShown[0]) { serverShown[0] = true; tabs.setSelectedIndex(1); label.run(); }
-				else { exitCode = 0; f.dispose(); }
+				else if (serverLive[0] || !control.hasHelper()) { exitCode = 0; f.dispose(); }
+				else {
+					requestWait[0] = System.currentTimeMillis() + 60_000;
+					requestNote[0] = "Asking the server machine\u2026";
+					label.run();
+					new Thread(() -> {
+						String m;
+						try {
+							Map<String, Object> r = control.requestServer();
+							m = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty() ? "The server machine didn't take the request" : s(r.get("error"))) : s(r.get("message"));
+							if (!"ok".equals(s(r.get("result")))) requestWait[0] = 0;
+						} catch (IOException | RuntimeException ex) { m = "Couldn't reach the server machine (it may be asleep: Server controls can wake it, if you're allowed)"; requestWait[0] = 0; }
+						String msg = m;
+						SwingUtilities.invokeLater(() -> { requestNote[0] = msg; label.run(); });
+					}, "request").start();
+				}
 			};
 			tabs.addChangeListener(e -> { if (tabs.getSelectedIndex() == 1 && !serverShown[0]) { serverShown[0] = true; label.run(); } });
 			label.run();

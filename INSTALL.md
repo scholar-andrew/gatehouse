@@ -97,8 +97,9 @@ it finishes (the download shows its progress), with **Quit** to cancel the launc
 download, it first says about how big the update is and where it downloads from (the owner's PC over Tailscale, or
 GitHub when that isn't reachable; mods from Modrinth) and asks: the blue button reads **Download** and continues; **Quit** cancels
 the launch. When the update is done, the same
-window shows what happened, with **Play** (blue when it's ready; it only works while the server is online, and lights
-up by itself when the server comes up), **Restart** (run the update again) and **Quit** (don't start the game;
+window shows what happened, with **Play** (blue; it only works while the server is online. While the server is off
+the same button reads **Request server**: it asks the owner's PC to turn the server on, where it chimes and shows who
+asked, and it turns back into Play by itself when the server comes up), **Restart** (run the update again) and **Quit** (don't start the game;
 Prism then says the pre-launch step failed, which is expected). It lists everything the update
 checked, each with a coloured dot: the connection, mods and settings, your mod switches, the Steam art and controller
 layouts, the server list, and the update script itself. Green means up to date, blue updated, grey off or not set up,
@@ -108,10 +109,10 @@ amber not checked (offline) and red failed. Below that:
 - **Also on this device:** anything else the update did, such as a new pack default.
 - **What's new:** the patch notes for every version since you last played.
 
-A second tab, **Server**, starts with a live line saying whether the server answers right now (with ping and
+A second tab, **Server updates**, starts with a live line saying whether the server answers right now (with ping and
 players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed
 there since you last played, with notes. When something on the server is new, the button reads **Next: server
-changes**: it takes you to that tab, and **Play** is there.
+updates**: it takes you to that tab, and **Play** is there.
 
 The next two tabs, **Server controls** and **Server config**, appear once the owner has allowed your device something
 in the host panel on the server PC (MCSS control, PC sleep or Server control), or you have your own panel access.
