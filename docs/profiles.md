@@ -3,8 +3,10 @@
 Status: plan agreed 2026-11-15. **Stage 1 is built** (pack 1.9.10): the profile ships as `extras/profile.json`; the
 launcher, the sync scripts and the helper no longer have the server's name, address or folder built in (checked: the
 launcher's summary text and picture, the sync's status lines and the helper's readings are identical before and
-after). Not yet moved: the installers' and uninstallers' own text, and the tool's own names (below). Stages 2 and 3
-are not built. The audience for now is the owner running several servers
+after). Not yet moved: the installers' and uninstallers' own text, and the tool's own names (below). **Stage 2 is built** (helper only, no pack change): everything the helper does with MCSS is in
+`host/src/.../McssHost.java`, behind the `ServerHost` interface; the rest of the helper only uses `host.…` (checked:
+the same 41-line scenario against the helper before and after gives identical output, and the real helper's readings
+are unchanged). Stage 3 is not built. The audience for now is the owner running several servers
 for the same group; the design keeps a later move to other hosts cheap (see "Rules").
 
 ## The idea

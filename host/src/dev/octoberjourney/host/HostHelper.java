@@ -62,6 +62,9 @@ public final class HostHelper {
 	static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 	static Path dir;
 	static Map<String, Object> cfg;
+	/** The program that hosts the Minecraft server on this machine. Everything the helper does with it goes through
+	 *  this one object (see ServerHost); MCSS is the only kind there is so far. */
+	static ServerHost host = new McssHost();
 
 	public static void main(String[] args) throws Exception {
 		dir = Path.of(System.getenv().getOrDefault("OJ_HOST_DIR", "C:\\Minecraft\\OctoberJourneyHost"));
@@ -123,74 +126,11 @@ public final class HostHelper {
 
 	// ------------------------------------------------------------------ MCSS
 
-	static Path mcssExe() { return Path.of(setting("mcss_exe", "C:\\Minecraft\\MCSS\\mcss.exe")); }
-
-	static List<ProcessHandle> mcssProcesses() {
-		List<ProcessHandle> out = new ArrayList<>();
-		String want = mcssExe().toAbsolutePath().toString();
-		ProcessHandle.allProcesses().forEach(h -> h.info().command().ifPresent(c -> { if (c.equalsIgnoreCase(want)) out.add(h); }));
-		return out;
-	}
-
 	static boolean minecraftRunning() {
 		String hp = serverSetting("minecraft", "minecraft", "127.0.0.1:25565");
 		int c = hp.lastIndexOf(':');
 		try (Socket s = new Socket()) { s.connect(new InetSocketAddress(hp.substring(0, c), Integer.parseInt(hp.substring(c + 1))), 1500); return true; }
 		catch (IOException | RuntimeException e) { return false; }
-	}
-
-	static String[] startMcss() {
-		if (!mcssProcesses().isEmpty()) return new String[] {"ok", "MCSS is already running"};
-		try {
-			Path exe = mcssExe();
-			List<String> cmd = new ArrayList<>(List.of(exe.toString()));
-			String extra = setting("mcss_args", "");   // (testing: arguments for a stand-in program)
-			if (!extra.isEmpty()) cmd.addAll(List.of(extra.split(" ")));
-			new ProcessBuilder(cmd).directory(exe.getParent().toFile()).start();
-			for (int i = 0; i < 20 && mcssProcesses().isEmpty(); i++) Thread.sleep(500);
-			return mcssProcesses().isEmpty() ? new String[] {"failed", "MCSS didn't start"} : new String[] {"ok", "MCSS started"};
-		} catch (Exception e) { return new String[] {"failed", "Couldn't start MCSS: " + e.getMessage()}; }
-	}
-
-	/** MCSS's own "when MCSS is closed" setting (mcssClosePreference in resources/mcss_config.json): HideToTaskbar,
-	 *  MinimizeToTaskbar, or an exit choice. Only an exit choice makes a close request quit MCSS properly. */
-	static String closePreference() {
-		Path c = mcssExe().getParent().resolve("resources").resolve("mcss_config.json");
-		return Json.str(Json.map(Json.parse(read(c))).get("mcssClosePreference"));
-	}
-
-	/** How a close works with MCSS's current setting: "close" (its X button exits MCSS, so it's asked to close) or
-	 *  "force" (its X button only hides it, so closing means ending it). The launcher labels its button by this. */
-	static String closeMode() {
-		String pref = closePreference();
-		return pref.contains("Hide") || pref.contains("Minimize") ? "force" : "close";
-	}
-
-	/** Closes MCSS: refused while the Minecraft server runs. With MCSS's exit setting it asks the window to close
-	 *  (exactly as its X button, which then quits MCSS the way the tray menu's Close does) and waits up to 30 seconds,
-	 *  never forcing. With a hide setting it ends MCSS, but only when the launcher asked for a force close (its button
-	 *  said "Force close MCSS"). Only the configured mcss.exe is touched. */
-	static String[] closeMcss(boolean force) {
-		List<ProcessHandle> ps = mcssProcesses();
-		if (ps.isEmpty()) return new String[] {"ok", "MCSS isn't running"};
-		if (minecraftRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then close MCSS"};
-		if (closeMode().equals("force")) {
-			if (!force) return new String[] {"refused", "MCSS is set to hide when closed (" + closePreference() + "), so closing it means force-closing it: use Force close MCSS. "
-					+ "(To close it properly instead, set MCSS's close option to exit MCSS, in MCSS's settings on the server PC.)"};
-			for (ProcessHandle h : ps) h.destroyForcibly();
-			try { for (int i = 0; i < 20 && !mcssProcesses().isEmpty(); i++) Thread.sleep(250); } catch (InterruptedException ignored) {}
-			return mcssProcesses().isEmpty() ? new String[] {"ok", "MCSS force-closed (its X button is set to hide it). The Minecraft server was already stopped, so the world is safe."}
-					: new String[] {"failed", "MCSS wouldn't close"};
-		}
-		try {
-			for (ProcessHandle h : ps) {
-				// Windows: ask the window to close, like its X button (taskkill without /F sends WM_CLOSE; never /F).
-				new ProcessBuilder("taskkill", "/PID", String.valueOf(h.pid())).redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
-			}
-			for (int i = 0; i < 60 && !mcssProcesses().isEmpty(); i++) Thread.sleep(500);
-			return mcssProcesses().isEmpty() ? new String[] {"ok", "MCSS closed properly"}
-					: new String[] {"failed", "MCSS was asked to close but is still open after 30 seconds (it may be asking something on the server PC's screen). It wasn't forced."};
-		} catch (Exception e) { return new String[] {"failed", "Couldn't close MCSS: " + e.getMessage()}; }
 	}
 
 	// ------------------------------------------------------------------ the helper
@@ -304,8 +244,8 @@ public final class HostHelper {
 				boolean clear = Boolean.TRUE.equals(d.get("clear_access"));
 				if (clear && saved.equals("none")) { d.remove("clear_access"); clear = false; changed = true; log(who(d) + " forgot its saved server access"); }
 				if (changed) saveDevices(devs);
-				reply(x, 200, m("clear_access", clear, "state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(),
-						"sleep", canSleep, "server", canServer, "admin", canAdmin, "server_ready", !setting("mcss_api_key", "").isEmpty()));
+				reply(x, 200, m("clear_access", clear, "state", granted ? "granted" : "pending", "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(),
+						"sleep", canSleep, "server", canServer, "admin", canAdmin, "server_ready", host.hasAccess()));
 				return;
 			}
 			if (path.startsWith("/v1/admin/")) {
@@ -313,7 +253,7 @@ public final class HostHelper {
 				boolean post = x.getRequestMethod().equals("POST");
 				if (path.equals("/v1/admin/devices") && !post) {
 					Map<String, Object> all = listed();
-					reply(x, 200, m("devices", all, "you", id, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "has_key", !setting("mcss_api_key", "").isEmpty()));
+					reply(x, 200, m("devices", all, "you", id, "mcss", host.running(), "minecraft", minecraftRunning(), "has_key", host.hasAccess()));
 				} else if (path.equals("/v1/admin/log") && !post) {
 					String[] lines = read(dir.resolve("host.log")).split("\\R");
 					List<Object> last = new ArrayList<>();
@@ -360,10 +300,10 @@ public final class HostHelper {
 			}
 			if (path.startsWith("/v1/server")) {
 				if (!canServer) { reply(x, 403, m("error", "this device isn't allowed to control the server (the owner allows it in the host panel)")); return; }
-				if (path.equals("/v1/server") && x.getRequestMethod().equals("GET")) reply(x, 200, m("status", serverStatus()));
+				if (path.equals("/v1/server") && x.getRequestMethod().equals("GET")) reply(x, 200, m("status", host.serverStatus()));
 				else if (path.equals("/v1/server/log") && x.getRequestMethod().equals("GET")) reply(x, 200, m("lines", serverLog(80)));
 				else if ((path.equals("/v1/server/start") || path.equals("/v1/server/stop")) && x.getRequestMethod().equals("POST")) {
-					String[] r = serverAction(path.endsWith("start"));
+					String[] r = host.serverAction(path.endsWith("start"));
 					log((path.endsWith("start") ? "start" : "stop") + " the Minecraft server asked by " + who(d) + ": " + r[1]);
 					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else reply(x, 404, m("error", "no such call"));
@@ -378,11 +318,11 @@ public final class HostHelper {
 			}
 			if (!granted) { reply(x, 403, m("state", "pending", "error", "not allowed yet: the owner allows this device in the host panel")); return; }
 			String[] r;
-			if (path.equals("/v1/mcss/start") && x.getRequestMethod().equals("POST")) r = startMcss();
-			else if (path.equals("/v1/mcss/close") && x.getRequestMethod().equals("POST")) r = closeMcss("true".equals(Json.str(body(x).get("force"))));
+			if (path.equals("/v1/mcss/start") && x.getRequestMethod().equals("POST")) r = host.start();
+			else if (path.equals("/v1/mcss/close") && x.getRequestMethod().equals("POST")) r = host.close("true".equals(Json.str(body(x).get("force"))));
 			else { reply(x, 404, m("error", "no such call")); return; }
 			log((path.endsWith("start") ? "start" : "close") + " MCSS asked by " + who(d) + ": " + r[1]);
-			reply(x, 200, m("result", r[0], "message", r[1], "mcss", !mcssProcesses().isEmpty()));
+			reply(x, 200, m("result", r[0], "message", r[1], "mcss", host.running()));
 		} catch (Exception e) {
 			log("error: " + e);
 			try { reply(x, 500, m("error", "the helper had a problem")); } catch (IOException ignored) {}
@@ -404,35 +344,6 @@ public final class HostHelper {
 		return !v.isEmpty() ? v : setting(legacy, def);
 	}
 	static Path serverDir() { return Path.of(serverSetting("dir", "server_dir", "")); }
-	static String serverId() {
-		String id = serverSetting("mcss_server", "mcss_server", "");
-		return !id.isEmpty() ? id : Json.str(Json.map(Json.parse(read(serverDir().resolve("mcss_server_config.json")))).get("guid"));
-	}
-
-	/** One call to MCSS's own API on this PC, with the helper's key (host.json "mcss_api_key", set in the panel). */
-	static String mcssApi(String method, String path, String body) throws IOException {
-		HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + path).openConnection();
-		c.setConnectTimeout(3000); c.setReadTimeout(8000); c.setRequestMethod(method);
-		c.setRequestProperty("apiKey", setting("mcss_api_key", ""));
-		if (body != null) { c.setDoOutput(true); c.setRequestProperty("Content-Type", "application/json"); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
-		int code = c.getResponseCode();
-		if (code < 200 || code >= 300) throw new IOException("HTTP " + code);
-		try (InputStream in = c.getInputStream()) { return new String(in.readAllBytes(), StandardCharsets.UTF_8); }
-	}
-
-	/** MCSS's state for the server: 0 off, 1 on, 2 restarting, 3 starting, 4 stopping; -1 unknown (no key, MCSS closed). */
-	static int serverStatus() {
-		try { return (int) Double.parseDouble(Json.str(Json.map(Json.parse(mcssApi("GET", "/api/v2/servers/" + serverId(), null))).get("status"))); }
-		catch (IOException | RuntimeException e) { return -1; }
-	}
-
-	/** How MCSS takes the helper's key: "yes" (it can see the server), "forbidden" (MCSS knows the key, but it has no
-	 *  right to this server), "unknown" (MCSS doesn't know the key), "no" (MCSS isn't answering). */
-	static String keyState() {
-		try { mcssApi("GET", "/api/v2/servers/" + serverId(), null); return "yes"; }
-		catch (IOException e) { return String.valueOf(e.getMessage()).contains("403") ? "forbidden" : String.valueOf(e.getMessage()).contains("401") ? "unknown" : "no"; }
-	}
-
 	// ------------------------------------------------------------------ players
 
 	static final String[][] PERMS = {{"server", "server", "server control"}, {"mcss", "granted", "MCSS control"}, {"sleep", "sleep", "PC sleep"}, {"admin", "admin", "helper control"}};
@@ -619,33 +530,16 @@ public final class HostHelper {
 	 *  whatever sign-in or key it has saved. A sign-in or key it got elsewhere still exists in MCSS: only removing that
 	 *  account or key there blocks it for good, and the message says so. */
 	static String[] revokeAccess(Map<String, Object> d) {
-		String saved = Json.str(d.get("saved")), kid = Json.str(d.get("issued_key_id"));
+		String saved = Json.str(d.get("saved"));
 		List<String> did = new ArrayList<>();
 		if (Boolean.TRUE.equals(d.get("server")) || Boolean.TRUE.equals(d.get("granted"))) did.add("server and MCSS control switched off here");
 		d.put("server", false); d.put("granted", false);
 		d.remove("issued_pending");
-		if (!kid.isEmpty()) {
-			try { mcssApi("DELETE", "/api/v2/keys/" + kid, null); d.remove("issued_key_id"); d.remove("issued_name"); did.add("its issued key deleted in MCSS"); }
-			catch (IOException e) { did.add("its issued key could NOT be deleted in MCSS (" + e.getMessage() + "): delete \"" + Json.str(d.get("issued_name")) + "\" there"); }
-		}
 		d.put("clear_access", true);
 		did.add("the launcher is told to forget what it has saved");
 		String more = saved.equals("signin") ? " Its panel account" + (Json.str(d.get("access_user")).isEmpty() ? "" : " (" + Json.str(d.get("access_user")) + ")") + " still exists in MCSS: remove or change it there (Users) to block it for good."
 				: saved.equals("key") ? " The API key it typed in still exists in MCSS: delete it there (API Keys) to block it for good." : "";
 		return new String[] {"ok", Character.toUpperCase(String.join("; ", did).charAt(0)) + String.join("; ", did).substring(1) + "." + more};
-	}
-
-	static String[] serverAction(boolean start) {
-		if (setting("mcss_api_key", "").isEmpty()) return new String[] {"refused", "The helper has no MCSS key yet: the owner sets it in the host panel (Set MCSS key)"};
-		if (mcssProcesses().isEmpty()) return new String[] {"refused", "MCSS isn't running: start it first (Start MCSS)"};
-		try {
-			mcssApi("POST", "/api/v2/servers/" + serverId() + "/execute/action", "{\"action\":" + (start ? 2 : 1) + "}");
-			return new String[] {"ok", start ? "Start requested: the server takes a minute or so to come up" : "Stop requested: the server saves the world and shuts down"};
-		} catch (IOException e) {
-			return new String[] {"failed", e.getMessage().contains("401") ? "MCSS doesn't know the helper's key (the owner sets it again in the host panel)"
-					: e.getMessage().contains("403") ? "The helper's MCSS key isn't allowed to " + (start ? "start" : "stop") + " this server (the owner gives the key that permission in MCSS's panel, under API Keys)"
-					: "MCSS said no (" + e.getMessage() + ")"};
-		}
 	}
 
 	/** The end of the server's own log file (logs/latest.log), oldest first: how a shutdown went is read from it. */
@@ -682,8 +576,8 @@ public final class HostHelper {
 				List<Object> asked;
 				int seq;
 				synchronized (HostHelper.class) { asked = new ArrayList<>(requests); seq = requestSeq; }
-				reply(x, 200, m("requests", asked, "request_seq", seq, "devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "port", port(), "bind", setting("bind", ""),
-						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : keyState(), "mcss_user", setting("mcss_user", "")));
+				reply(x, 200, m("requests", asked, "request_seq", seq, "devices", devs, "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(), "port", port(), "bind", setting("bind", ""),
+						"has_key", host.hasAccess(), "key_works", !host.hasAccess() ? "" : host.accessState(), "mcss_user", host.user()));
 			} else if (path.equals("/admin/revoke")) {
 				// Revoke: everything that lets it control the server is taken away.
 				Map<String, Object> devs = devices();
@@ -695,7 +589,7 @@ public final class HostHelper {
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/mcss/start") || path.equals("/admin/mcss/close")) {
 				// MCSS itself, from the panel on this PC: the same start and close the launchers ask for.
-				String[] r = path.endsWith("start") ? startMcss() : closeMcss("true".equals(Json.str(body(x).get("force"))));
+				String[] r = path.endsWith("start") ? host.start() : host.close("true".equals(Json.str(body(x).get("force"))));
 				log((path.endsWith("start") ? "start" : "close") + " MCSS from the host panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/players")) {
@@ -708,67 +602,28 @@ public final class HostHelper {
 				synchronized (HostHelper.class) { requests.clear(); }
 				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/server/stop")) {
-				String[] r = serverAction(false);
+				String[] r = host.serverAction(false);
 				log("stop the Minecraft server from the host panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/server/start")) {
 				// From the panel's request banner: MCSS first if it isn't running (it needs a moment before it takes the start).
 				String[] r;
-				if (mcssProcesses().isEmpty()) { String[] s = startMcss(); r = new String[] {s[0].equals("ok") ? "wait" : s[0], s[0].equals("ok") ? "MCSS is starting: press Start server again in a few seconds" : s[1]}; }
-				else r = serverAction(true);
+				if (!host.running()) { String[] s = host.start(); r = new String[] {s[0].equals("ok") ? "wait" : s[0], s[0].equals("ok") ? "MCSS is starting: press Start server again in a few seconds" : s[1]}; }
+				else r = host.serverAction(true);
 				log("start the Minecraft server from the host panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/keytest")) {
-				// Troubleshooting: what MCSS answers to the helper's key (status codes and MCSS's own error text; never the key).
-				Map<String, Object> out = new LinkedHashMap<>();
-				out.put("server_id", serverId());
-				for (String q : new String[] {"/api/v2/servers", "/api/v2/servers/" + serverId(), "/api/v2/keys"}) {
-					try {
-						HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + q).openConnection();
-						c.setConnectTimeout(3000); c.setReadTimeout(8000);
-						c.setRequestProperty("apiKey", setting("mcss_api_key", ""));
-						int code = c.getResponseCode();
-						String bodyText = "";
-						if (code >= 400) try (InputStream in = c.getErrorStream()) { if (in != null) bodyText = new String(in.readAllBytes(), StandardCharsets.UTF_8); }
-						else if (q.equals("/api/v2/servers")) try (InputStream in = c.getInputStream()) {
-							String list = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-							out.put("servers_listed", Json.list(Json.parse(list)).size());
-							out.put("this_server_listed", list.contains(serverId()));
-						}
-						out.put(q, code + (bodyText.isEmpty() ? "" : " " + (bodyText.length() > 200 ? bodyText.substring(0, 200) : bodyText)) + " " + String.valueOf(c.getHeaderField("WWW-Authenticate")));
-					} catch (IOException e) { out.put(q, "error: " + e); }
-				}
-				reply(x, 200, out);
+				// Troubleshooting: what the host program answers to the helper's access (never the access itself).
+				reply(x, 200, host.diagnose());
 			} else if (path.equals("/admin/signin")) {
-				// The owner signs the helper in to MCSS with a panel account (typed in the host panel on this PC): MCSS's
-				// own sign-in hands back a key, and that is what's kept (host.json), never the password.
+				// The owner signs the helper in to the host program with an account there (typed in the host panel on this
+				// PC). What it hands back is kept; the password never is.
 				Map<String, Object> b = body(x);
-				String user = Json.str(b.get("username")).trim();
-				try {
-					HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + "/auth").openConnection();
-					c.setConnectTimeout(3000); c.setReadTimeout(8000); c.setRequestMethod("POST"); c.setDoOutput(true);
-					c.setRequestProperty("Content-Type", "application/json");
-					try (OutputStream o = c.getOutputStream()) { o.write(Json.write(m("username", user, "password", Json.str(b.get("password")))).getBytes(StandardCharsets.UTF_8)); }
-					int code = c.getResponseCode();
-					if (code == 401 || code == 403) { log("MCSS sign-in as " + user + " was refused"); reply(x, 200, m("result", "refused", "message", "MCSS didn't accept that username and password")); return; }
-					if (code < 200 || code >= 300) { reply(x, 200, m("result", "failed", "message", "MCSS answered " + code)); return; }
-					String key;
-					try (InputStream in = c.getInputStream()) { key = Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("apiKey")); }
-					if (key.isEmpty()) { reply(x, 200, m("result", "failed", "message", "MCSS signed in but handed back no key")); return; }
-					cfg.put("mcss_api_key", key); cfg.put("mcss_user", user);
-					Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8);
-					boolean works = serverStatus() >= 0;
-					log("the helper signed in to MCSS as " + user + (works ? "" : " (but that account can't see the server)"));
-					reply(x, 200, m("result", works ? "ok" : "failed", "message", works ? "Signed in as " + user : "Signed in as " + user + ", but that account can't see the server (give it access to it in MCSS's panel)"));
-				} catch (IOException e) {
-					reply(x, 200, m("result", "failed", "message", "MCSS's panel isn't answering (is MCSS running?)"));
-				}
+				String[] r = host.signIn(Json.str(b.get("username")).trim(), Json.str(b.get("password")));
+				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/settings")) {
-				// The helper's own MCSS key, kept in host.json on this PC only.
-				cfg.remove("mcss_user");
-				cfg.put("mcss_api_key", Json.str(body(x).get("mcss_api_key")).trim());
-				Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8);
-				log(setting("mcss_api_key", "").isEmpty() ? "the helper's MCSS key was cleared" : "the helper's MCSS key was set");
+				// The helper's own key for the host program, kept on this PC only.
+				host.setKey(Json.str(body(x).get("mcss_api_key")).trim());
 				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/grant") || path.equals("/admin/forget") || path.equals("/admin/perm")) {
 				Map<String, Object> b = body(x), devs = devices();

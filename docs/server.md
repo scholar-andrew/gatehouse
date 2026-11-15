@@ -134,6 +134,9 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   Minecraft server (Start/Stop) and the activity log. A launcher with Helper control has the same split in its
   **Remote host panel** tab, as **Manage access** and **Host activity** (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
   control itself). `OJ_PANEL_PNG=<file>` saves pictures of the panel's tabs instead of showing it (testing).
+- In the code, everything about MCSS is one file, `McssHost.java`, behind the `ServerHost` interface (running, start,
+  close, the server's state, start/stop, and the helper's own access). The rest of the helper never reaches MCSS any
+  other way, so another host program would be a second implementation of that interface.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.
