@@ -21,7 +21,9 @@ try {
     if ($at -lt 0) { throw 'the instance has no pre-launch command (not set up by October Journey setup?)' }
     # A forward slash before the file name: Prism reads a backslash inside a wrapper command's quotes as an escape and
     # drops it (unlike in the pre-launch command), which made the path wrong and every launch fail at once.
-    $new = 'WrapperCommand="\"$INST_MC_DIR/launch-wrapper.exe\""'
+    # The full path, not $INST_MC_DIR: the wrapper ran fine with Prism's own start command outside Prism, yet Prism
+    # failed the launch at once with the placeholder in the setting, so it isn't relied on here.
+    $new = 'WrapperCommand="\"' + ((Join-Path $Instance 'minecraft') -replace '\\', '/') + '/launch-wrapper.exe\""'
     $lines = @($lines[0..$at]) + $new + @(if ($at + 1 -lt $lines.Count) { $lines[($at + 1)..($lines.Count - 1)] })
     if (-not ($lines -match '^OverrideCommands=true')) { $lines = @($lines[0]) + 'OverrideCommands=true' + @($lines[1..($lines.Count - 1)]) }
     [IO.File]::WriteAllLines($cfg, [string[]]$lines)
