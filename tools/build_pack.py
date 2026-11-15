@@ -102,6 +102,11 @@ def build(variant: str, meta: dict, mods: list) -> None:
     rel = "extras/servers.json"
     data = write(os.path.join(out, rel), json.dumps([{"name": s["name"], "address": s["address"]} for s in cfg_servers], indent=1) + "\n")
     entries.append((rel, sha256(data), False))
+    # Each mod's entry in the pack index and its name, so the launch pop-up can name mods added, removed and updated.
+    rel = "extras/mod-names.json"
+    data = write(os.path.join(out, rel), json.dumps({(f"mods/{m['slug']}.pw.toml" if "url" in m else f"mods/{m['filename']}"): m["title"]
+                                                      for m in mods if not (m.get("deck") and variant != "deck")}, indent=1) + "\n")
+    entries.append((rel, sha256(data), False))
     # Mods players can switch on and off (Mod Menu > October Journey), with the pack's default for each. The sync
     # scripts disable the ones that are off after each update; the October Journey mod shows the switches.
     #   key    what the player's choice is saved under (the Modrinth slug, or the mod id for a jar in the pack)
@@ -157,7 +162,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
 OWN_MODS = {  # jars shipped in the pack itself, with where their source lives in this repo
     "chatlift": ("mods-src/chatlift", "Steam keyboard handling: lifts chat above Steam's keyboard, keeps Controlify's own keyboard for non-Steam controllers, lets Steam's keyboard type (Controlify mixed input). Made for this pack."),
     "handofffix": ("mods-src/handofffix", "Fixes Controlify losing the Steam Deck's controls after another controller is unplugged. Made for this pack."),
-    "octoberjourney": ("mods-src/octoberjourney", "The pack's own settings in Mod Menu: switch some of the pack's mods on and off. Made for this pack."),
+    "octoberjourney": ("mods-src/octoberjourney", "October Journey Settings: the pack's own settings in Mod Menu (switch the pack's mods and the launch pop-ups on and off). Made for this pack."),
     "RoughlyEnoughItems": ("mods-src/rei-brewingfix", "Roughly Enough Items 26.3.824 with one class patched so brewing recipes load on the server. Also installed on the server."),
 }
 

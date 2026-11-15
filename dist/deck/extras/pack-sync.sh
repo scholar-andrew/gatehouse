@@ -9,14 +9,22 @@ case "$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null)" in
   Jupiter|Galileo) variant=deck ;;
 esac
 note() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$here/pack-sync.log"; echo "Pack sync: $*"; }
-# What this launch changed on the device, for the pop-up (pack-sync-news.txt, started afresh each launch).
-: > "$here/pack-sync-news.txt"
+# For the pop-up: what this launch checked and how it went (pack-sync-status.txt, started afresh each launch), one line
+# each: "check|<ok, updated, off, warn or failed>|<what>|<detail>", "switch|<on or off>|<mod>" or "note|<text>". And
+# packwiz-installer's record of the installed files as it was before this launch's update (packwiz-before.json; "{}" on
+# a first install), which the pop-up compares with the record afterwards to list the mods added, removed and updated.
+: > "$here/pack-sync-status.txt"
+rm -f "$here/pack-sync-news.txt"   # (what syncs before this one wrote)
+status() { echo "check|$1|$2|${3:-}" >> "$here/pack-sync-status.txt"; }
+if [ -f "$here/packwiz.json" ]; then cp -f "$here/packwiz.json" "$here/packwiz-before.json"; else echo "{}" > "$here/packwiz-before.json"; fi
 # The pop-up before the game starts (extras/launch-popup.jar, a small Java window; Prism waits for it): the patch notes
 # after an update, otherwise "no updates" (closing itself after 5 seconds). It reads the notes, the news above and the
 # player's pop-up settings itself.
 popup() {  # popup ok|offline|failed
   [ -n "$java_bin" ] && [ -f "$here/extras/launch-popup.jar" ] || return 0
-  "$java_bin" -jar "$here/extras/launch-popup.jar" "$here" "$1" >> "$here/pack-sync-java.log" 2>&1 || note "pop-up skipped (exit $?)"
+  # It closes itself within 90 seconds; one that hangs is stopped after 150 so the game still starts.
+  local t=(); command -v timeout >/dev/null 2>&1 && t=(timeout 150)
+  "${t[@]}" "$java_bin" -jar "$here/extras/launch-popup.jar" "$here" "$1" >> "$here/pack-sync-java.log" 2>&1 || note "pop-up skipped (exit $?)"
 }
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
@@ -67,13 +75,37 @@ for t in toggles:
     elif jar in before: changed.append(t["name"] + " on")
 if off: json.dump(off, open(state, "w"))
 elif os.path.exists(state): os.remove(state)
+st = open(os.path.join(here, "pack-sync-status.txt"), "a")
 if changed:
     note("mods switched: " + ", ".join(changed))
-    open(os.path.join(here, "pack-sync-news.txt"), "a").write("Mods switched: %s (change them in Mods > October Journey)\n" % ", ".join(changed))
+    for c in changed: st.write("switch|%s|%s\n" % ("on" if c.endswith(" on") else "off", c.rsplit(" ", 1)[0]))
+    st.write("check|updated|Mod switches|%d changed; %d off\n" % (len(changed), len(off)))
+else:
+    st.write("check|ok|Mod switches|%s\n" % ("As set; %d off" % len(off) if off else "All on"))
+PY
+}
+# Defaults the pack added later, applied once to devices that already had the setting (a new install gets them from the
+# pack's config-defaults). pack-defaults-applied.txt lists the ones done; after that the player's own choice stays.
+#   ipn-hotbar-icons-off  Inventory Profiles Next's Auto Refill arrows on the hotbar hidden (pack 1.5.0 default)
+defaults_once() {
+  command -v python3 >/dev/null 2>&1 || return 0
+  python3 - "$here" <<'PY' || note "pack default skipped"
+import json, os, sys, time
+here = sys.argv[1]; done = os.path.join(here, "pack-defaults-applied.txt")
+have = open(done).read().split() if os.path.exists(done) else []
+if "ipn-hotbar-icons-off" not in have:
+    f = os.path.join(here, "config", "inventoryprofilesnext", "inventoryprofiles.json")
+    if os.path.exists(f):
+        o = json.load(open(f, encoding="utf-8-sig"))
+        o.setdefault("AutoRefillSettings", {})["auto_refill_enable_horbar_indicator_icons"] = {"value": False}
+        json.dump(o, open(f, "w"), indent=4)
+        open(os.path.join(here, "pack-sync.log"), "a").write("%s  pack default applied once: Inventory Profiles Next hotbar arrows hidden\n" % time.strftime("%Y-%m-%d %H:%M:%S"))
+        open(os.path.join(here, "pack-sync-status.txt"), "a").write("note|Inventory Profiles Next: the purple Auto Refill arrows on the hotbar are now hidden (the pack default; change it in that mod's settings)\n")
+    open(done, "a").write("ipn-hotbar-icons-off\n")
 PY
 }
 stop_if_no_mods() {  # stop_if_no_mods "why" ["advice"] [ok|offline|failed for the pop-up]
-  if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; note "$1; starting with the mods already installed"; popup "${3:-failed}"; exit 0; fi
+  if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; defaults_once; note "$1; starting with the mods already installed"; popup "${3:-failed}"; exit 0; fi
   note "$1, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
   echo "October Journey couldn't install its mods yet ($1). ${2:-Check your connection (Tailscale or internet) and press Play again.}"
   exit 1
@@ -87,24 +119,70 @@ for c in "${INST_JAVA:-}" "$here"/../../../java/*/bin/java; do
   if [ -f "$c" ] && [ -x "$c" ]; then java_bin="$c"; break; fi
 done
 [ -n "$java_bin" ] || java_bin="$(command -v java || true)"
-url=""
-while IFS= read -r s || [ -n "$s" ]; do
-  s="${s%%$'\r'}"; s="${s%/}"
-  [ -z "$s" ] && continue
-  [[ "$s" == \#* ]] && continue
-  if curl -fsI --max-time 3 "$s/$variant/pack.toml" >/dev/null 2>&1; then url="$s/$variant/pack.toml"; break; fi
-done < "$here/pack-sources.txt"
-[ -n "$url" ] || stop_if_no_mods "no source reachable" "" offline
+# Which sources answer, in order, each given 5 seconds. If none does (after sleep or at startup the network can still be
+# coming up), one more round after 5 seconds.
+urls=()
+reachable() {
+  urls=()
+  while IFS= read -r s || [ -n "$s" ]; do
+    s="${s%%$'\r'}"; s="${s%/}"
+    [ -z "$s" ] && continue
+    [[ "$s" == \#* ]] && continue
+    curl -fsI --max-time 5 "$s/$variant/pack.toml" >/dev/null 2>&1 && urls+=("$s/$variant/pack.toml")
+  done < "$here/pack-sources.txt"
+}
+reachable
+if [ "${#urls[@]}" = 0 ]; then note "no source answered; trying again in 5 seconds"; sleep 5; reachable; fi
+if [ "${#urls[@]}" = 0 ]; then
+  status warn "Connection" "No pack source answered (Tailscale or internet)"; status warn "Mods and settings" "Not checked; playing what's installed"
+  stop_if_no_mods "no source reachable" "" offline
+fi
 [ -n "$java_bin" ] || stop_if_no_mods "no Java found yet (INST_JAVA was '${INST_JAVA:-}')" "Prism Launcher is still setting up Java: press Play again."
 switches restore
-"$java_bin" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url" > "$here/pack-sync-java.log" 2>&1
-code=$?
-note "($variant) $url -> exit $code (Java: $java_bin)"
-if [ "$code" != 0 ]; then
+# packwiz-installer (the program the bootstrap runs) is pinned to one release, so it only changes when the pack changes
+# it. Once that release is here (packwiz-installer.jar's manifest says so), the bootstrap doesn't ask GitHub at all:
+# one less connection that can fail, and no GitHub rate limit. Otherwise it fetches exactly that release.
+installer_tag="v0.5.14"
+installer_release="https://api.github.com/repos/packwiz/packwiz-installer/releases/tags/$installer_tag"
+installer_here() {
+  command -v python3 >/dev/null 2>&1 || return 1
+  python3 -c 'import re, sys, zipfile
+m = zipfile.ZipFile(sys.argv[1]).read("META-INF/MANIFEST.MF").decode("utf-8", "replace")
+sys.exit(0 if re.search(r"Implementation-Version:\s*" + re.escape(sys.argv[2]) + r"\s", m) else 1)' "$here/packwiz-installer.jar" "$installer_tag" 2>/dev/null
+}
+# One run of packwiz-installer against one source, stopped if it hasn't finished in 5 minutes (a stalled download would
+# otherwise hold the launch forever; exit 124 then). Its output goes to pack-sync-java.log.
+run_installer() {
+  # -g: no windows. Otherwise a failed download waits on an error dialog (Quit / Continue) for someone to click,
+  # holding the launch; without them a failure just ends the run, and the next source is tried.
+  local a=(-jar "$here/packwiz-installer-bootstrap.jar" -g) t=()
+  if installer_here; then a+=(--bootstrap-no-update); else a+=(--bootstrap-update-url "$installer_release"); fi
+  command -v timeout >/dev/null 2>&1 && t=(timeout "${PACK_SYNC_TIMEOUT:-300}")   # seconds; the variable is for testing
+  "${t[@]}" "$java_bin" "${a[@]}" ${PACK_SYNC_ARGS} "$1" > "$here/pack-sync-java.log" 2>&1
+}
+# Each source that answered, in order, then the first once more: an update that fails or stalls (say the connection
+# dropped part-way) is tried again. packwiz-installer only replaces files it has fully downloaded and checked, and
+# picks up where it left off on the next try.
+code=1; url=""
+for u in "${urls[@]}" "${urls[0]}"; do
+  run_installer "$u"; code=$?; url="$u"
+  note "($variant) $u -> exit $code (Java: $java_bin)"
+  [ "$code" = 0 ] && break
+  [ "$code" = 124 ] && note "  stopped: not finished after 5 minutes"
   tail -n 5 "$here/pack-sync-java.log" | while IFS= read -r l; do note "  java: $l"; done
+done
+case "$url" in *githubusercontent*) where="GitHub" ;; *) where="the owner's PC (Tailscale)" ;; esac
+if [ "$code" = 0 ]; then
+  status ok "Connection" "$where"; status ok "Mods and settings"   # (the pop-up adds what changed, from the records)
+else
+  status warn "Connection" "$where; the update didn't finish"
+  status failed "Mods and settings" "Didn't finish (exit $code); playing what's installed. Details: pack-sync.log"
+fi
+if [ "$code" != 0 ]; then
   ls "$here"/mods/*.jar >/dev/null 2>&1 || stop_if_no_mods "the mod download failed (exit $code)"
 fi
 switches apply
+defaults_once
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcuts.
 # steam-target.json (written by setup) says where: "targets", one per shortcut, each with its grid folder, app id,
@@ -120,8 +198,10 @@ opt() { python3 -c 'import json,sys
 try: print("1" if json.load(open(sys.argv[1], encoding="utf-8-sig")).get(sys.argv[2], True) else "0")
 except Exception: print("1")' "$here/pack-options.json" "$1" 2>/dev/null || echo 1; }
 OPT_ART=$(opt steam_art); OPT_CTRL=$(opt steam_controller); OPT_SERVER=$(opt server_entry)
+if [ ! -f "$here/steam-target.json" ]; then status off "Steam art and controller layouts" "No Steam shortcut set up by setup"
+elif [ "$OPT_ART$OPT_CTRL" = 00 ]; then status off "Steam art and controller layouts" "Not kept up to date (your choice at setup)"; fi
 if [ -f "$here/steam-target.json" ] && command -v python3 >/dev/null 2>&1 && { [ "$OPT_ART" = 1 ] || [ "$OPT_CTRL" = 1 ]; }; then
-python3 - "$here" "$OPT_ART" "$OPT_CTRL" <<'PY' || echo "$(date '+%Y-%m-%d %H:%M:%S')  Steam extras skipped" >> "$here/pack-sync.log"
+python3 - "$here" "$OPT_ART" "$OPT_CTRL" <<'PY' || { echo "$(date '+%Y-%m-%d %H:%M:%S')  Steam extras skipped" >> "$here/pack-sync.log"; status failed "Steam art and controller layouts" "Skipped after an error (pack-sync.log)"; }
 import hashlib, json, os, re, shutil, sys, time
 here = sys.argv[1]; want_art, want_ctrl = sys.argv[2] == "1", sys.argv[3] == "1"
 st = json.load(open(os.path.join(here, "steam-target.json")))
@@ -158,15 +238,18 @@ for t in targets:
 json.dump(state, open(sp, "w"), indent=1)
 if changed:
     open(os.path.join(here, "pack-sync.log"), "a").write("%s  Steam extras updated: %s (shows after Steam restarts)\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), ", ".join(changed)))
-    open(os.path.join(here, "pack-sync-news.txt"), "a").write("Steam library art or controller layout updated (shows after Steam restarts)\n")
+    open(os.path.join(here, "pack-sync-status.txt"), "a").write("check|updated|Steam art and controller layouts|%d updated for %d shortcut(s); shows after Steam restarts\n" % (len(changed), len(targets)))
+else:
+    open(os.path.join(here, "pack-sync-status.txt"), "a").write("check|ok|Steam art and controller layouts|Up to date (%d shortcut%s)\n" % (len(targets), "" if len(targets) == 1 else "s"))
 PY
 fi
 
 # The pack's servers (extras/servers.json) in Minecraft's multiplayer list (servers.dat, uncompressed NBT). A missing one is
 # added at the top; a wrong address is corrected while it is still the one this sync last set (or it never set one), so an
 # entry edited or deleted in the game afterwards is left alone. Other entries are kept as they are.
+[ "$OPT_SERVER" = 1 ] || status off "Server list" "Not kept up to date (your choice at setup)"
 if [ -f "$here/extras/servers.json" ] && command -v python3 >/dev/null 2>&1 && [ "$OPT_SERVER" = 1 ]; then
-python3 - "$here" <<'PY' || echo "$(date '+%Y-%m-%d %H:%M:%S')  server list skipped" >> "$here/pack-sync.log"
+python3 - "$here" <<'PY' || { echo "$(date '+%Y-%m-%d %H:%M:%S')  server list skipped" >> "$here/pack-sync.log"; status failed "Server list" "Skipped after an error (pack-sync.log)"; }
 import json, os, shutil, struct, sys, time
 here = sys.argv[1]
 want = json.load(open(os.path.join(here, "extras", "servers.json")))
@@ -236,7 +319,9 @@ if changes:
     if d and not os.path.exists(dat + ".before-pack"): shutil.copy2(dat, dat + ".before-pack")
     open(dat, "wb").write(out)
     open(os.path.join(here, "pack-sync.log"), "a").write("%s  server list: %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), "; ".join(changes)))
-    open(os.path.join(here, "pack-sync-news.txt"), "a").write("Server list: %s\n" % "; ".join(changes))
+    open(os.path.join(here, "pack-sync-status.txt"), "a").write("check|updated|Server list|%s\n" % "; ".join(changes))
+else:
+    open(os.path.join(here, "pack-sync-status.txt"), "a").write("check|ok|Server list|October Journey is listed\n")
 json.dump(state, open(sp, "w"), indent=1)
 PY
 fi
@@ -244,8 +329,10 @@ fi
 # This script, from the pack: the next launch runs the pack's copy. Swapped in by rename, because bash is still reading
 # this file as it runs.
 if [ -f "$here/extras/pack-sync.sh" ] && ! cmp -s "$here/extras/pack-sync.sh" "$0"; then
-  cp "$here/extras/pack-sync.sh" "$here/pack-sync.sh.new" && chmod +x "$here/pack-sync.sh.new" && mv -f "$here/pack-sync.sh.new" "$here/pack-sync.sh" \
-    && echo "$(date '+%Y-%m-%d %H:%M:%S')  sync script updated (used from the next launch)" >> "$here/pack-sync.log"
-fi
+  if cp "$here/extras/pack-sync.sh" "$here/pack-sync.sh.new" && chmod +x "$here/pack-sync.sh.new" && mv -f "$here/pack-sync.sh.new" "$here/pack-sync.sh"; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S')  sync script updated (used from the next launch)" >> "$here/pack-sync.log"
+    status updated "Update script" "New version, used from the next launch"
+  else status failed "Update script" "Couldn't replace it"; fi
+elif [ -f "$here/extras/pack-sync.sh" ]; then status ok "Update script" "Current"; fi
 if [ "$code" = 0 ]; then popup ok; else popup failed; fi
 exit 0

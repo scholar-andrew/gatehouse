@@ -1,4 +1,12 @@
 [
+ {"version": "1.7.1", "date": "2026-11-15", "notes": [
+  "The pack's settings mod is now called October Journey Settings (Mods > October Journey Settings): it has the mod switches and the pop-up switches.",
+  "Devices set up before the pack hid Inventory Profiles Next's purple Auto Refill arrows on the hotbar now get that default once. Turn them back on in that mod's settings if you like them.",
+  "The program that installs the pack's updates now stays on a fixed version, so it only changes when the pack does.",
+  "The update before each launch copes better with a bad connection: if the network isn't up yet it waits and tries again, a download that fails or stalls is tried again from the other source, a stalled one is stopped after 5 minutes, and it never stops to show its own error window.",
+  "Steam's overlay notifications no longer cover the pop-up's Play button.",
+  "The pop-up now lists everything the update checked, with a coloured dot for how each went, and the mods it added, removed or updated."
+ ]},
  {"version": "1.7.0", "date": "2026-11-14", "notes": [
   "New Steam shortcut, October Journey: it updates the pack, starts the game and joins the server in one go. To add it, close Steam, run the setup again and pick Add the October Journey shortcut.",
   "The Prism Launcher shortcut now shows Prism Launcher's own logo, and both shortcuts get the Steam Deck controller layout.",

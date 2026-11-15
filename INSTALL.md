@@ -92,14 +92,20 @@ Nothing to do: every launch checks for mod changes and installs them before the 
 safe; it updates your setup without duplicating anything.
 
 ### Before the game starts: the launch pop-up
-After the update, a small October Journey window opens before Minecraft starts:
-- **After a pack update:** the new version and its patch notes. If you missed several updates, you see the notes for
-  each. It also lists anything the update changed on your device, such as mods switched off or new Steam art. Press
-  **Play** (or Enter, Space or Esc) to continue. It closes by itself after 90 seconds.
-- **No update:** "no updates" and the version you're on. It closes by itself after 5 seconds.
-- **Offline:** if the pack couldn't be reached, it says so, and the game starts with what's already installed.
+After the update, a small October Journey window opens before Minecraft starts. It lists everything the update
+checked, each with a coloured dot: the connection, mods and settings, your mod switches, the Steam art and controller
+layouts, the server list, and the update script itself. Green means up to date, blue updated, grey off or not set up,
+amber not checked (offline) and red failed. Below that:
+- **Mods:** each mod added (green), updated (blue, with its old and new file) or removed (grey) by this update.
+- **Mod switches:** mods switched on or off this launch.
+- **Also on this device:** anything else the update did, such as a new pack default.
+- **What's new:** the patch notes for every version since you last played.
 
-Turn either pop-up off in **Mods > October Journey** (**Update pop-up**, **No-update pop-up**). All the patch notes
+After an update, or when something changed or failed, press **Play** (or Enter, Space or Esc) to continue; it closes
+by itself after 90 seconds. With nothing new it shows the checks with "no updates" and closes after 5 seconds. Offline,
+it says so, and the game starts with what's already installed.
+
+Turn either pop-up off in **Mods > October Journey Settings** (**Update pop-up**, **No-update pop-up**). All the patch notes
 are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Mods you can switch on and off
@@ -110,7 +116,7 @@ default except two:
 - **Nearby Chest Crafting**: craft with items from nearby chests. The server has it too; with it off you craft the
   usual way, and you can still join.
 
-To switch a mod: on Minecraft's title screen, click **Mods**, pick **October Journey**, click its settings button, and
+To switch a mod: on Minecraft's title screen, click **Mods**, pick **October Journey Settings**, click its settings button, and
 flip the switch (hover a switch to see what the mod does). The same screen has the two launch pop-up switches. It takes effect the next time you start the game. The
 update before each launch then disables the mods you've switched off (Prism shows them as disabled), so they aren't
 loaded at all. Some mods need another: Reese's Sodium Options needs Sodium, and Controller Handoff Fix needs
@@ -153,14 +159,22 @@ What was tested where:
 | --- | --- | --- | --- |
 | Playing, update on launch (mods, art, controller layout, server list, the script updating itself) | Yes | Yes | Yes |
 | Steam keyboard and chat position | Yes (Steam + X, normal and Big Picture) | Yes | Yes |
-| Installer, including leaving items out | In test folders (`--prism-root`, `--steam-root`) | No | In test folders |
+| Installer, including leaving items out | In test folders (`--prism-root`, `--steam-root`) | Yes: a clean install on the real laptop (uninstall, setup, first launch installed the mods, joined the server) | In test folders |
+| Adding the October Journey shortcut to an existing setup (setup's first choice), then playing from it: the update, the pop-up, the game starting and joining the server | Yes | Yes | Yes (Game Mode) |
+| Two shortcuts: art (October Journey's and Prism's), layouts, updates keeping both, uninstall removing both | In test folders | No | In test folders |
+| Launch pop-up (update, no update, offline, switched off) | Yes, real window; the cases as pictures | Yes | Yes (Game Mode: in front, Play works with the controller) |
 | Uninstaller, including keeping items (saved by setup, then run) | In test folders; the Settings, Apps entry itself not yet | No | In test folders, including the app-menu entry files and answering the questions |
 | Quick or custom; chosen folders; a moved Prism instances folder | In test folders (the quick and custom windows as pictures; Prism's own folder not, since Prism is installed here) | No | In test folders, answering the questions |
 | Update on launch respecting those choices | In a test instance | No | In a test instance |
 | Uninstaller downloaded from the release and opened by hand | Yes: first screen, item list and Cancel all worked (nothing removed) | No | No |
 
-The installers were checked in test folders rather than run start to finish on a fresh computer: the three devices
-were set up with the same steps before the installers existed. Not tested at all: Windows 11, Linux distributions
+Also checked in play: Steam shows the game as running until Minecraft quits; the Mods > October Journey Settings
+screen (pages, mod switches, pop-up switches); joining the server with Nearby Chest Crafting, and with Jade, switched
+off.
+
+Apart from the laptop's clean install, the installers were checked in test folders rather than run start to finish on
+a fresh computer: the desktop and the Steam Deck were set up by hand before the installers existed, and all three have
+since run setup's "Add the October Journey shortcut". Not tested at all: Windows 11, Linux distributions
 other than SteamOS, the Steam Deck LCD model, and controllers other than Steam's.
 
 ## What setup does to your computer
@@ -243,11 +257,14 @@ Same steps, with these differences:
 When you press Play, Prism runs the instance's update script ([`clients/pack-sync.ps1`](clients/pack-sync.ps1) on
 Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecraft starts. It:
 
-1. Tries each address in `pack-sources.txt` in order (the owner's PC over Tailscale, then GitHub) and uses the first
-   that answers. If none answers, the game starts with what's already installed, except on the very first launch:
+1. Checks each address in `pack-sources.txt` (the owner's PC over Tailscale, then GitHub), giving each 5 seconds. If
+   none answers (the network may still be coming up after sleep), it waits 5 seconds and checks again. If none answers
+   then, the game starts with what's already installed, except on the very first launch:
    with no mods installed yet, it stops the launch with a message instead of starting a Minecraft that can't join the
    server. Press Play again once you're online.
-2. Runs packwiz-installer (with Prism's own Java, or another it finds), which compares your instance with the pack's file list and downloads, checks (SHA-256 or
+2. Runs packwiz-installer (with Prism's own Java, or another it finds; always the same pinned version, v0.5.14,
+   without its own windows), with the first address that answered. If that fails or stalls (a run is stopped after 5
+   minutes), it tries the next address, then the first once more. packwiz-installer compares your instance with the pack's file list and downloads, checks (SHA-256 or
    SHA-512) and installs anything new or changed: mods, their configs, and a few pack files. Mods that were removed
    from the pack are removed from your instance; files you added yourself are left alone.
 3. Copies new library art and controller layout into Steam, using `steam-target.json`, if `pack-options.json` says

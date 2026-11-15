@@ -5,10 +5,17 @@
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $log = Join-Path $here 'pack-sync.log'
 function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $text); Write-Host "Pack sync: $text" }
-# What this launch changed on the device, for the pop-up (pack-sync-news.txt, started afresh each launch).
-$news = Join-Path $here 'pack-sync-news.txt'
-Set-Content -Path $news -Value $null -Encoding utf8
-function News($text) { Add-Content -Path $news -Value $text -Encoding utf8 }
+# For the pop-up: what this launch checked and how it went (pack-sync-status.txt, started afresh each launch), one line
+# each: "check|<ok, updated, off, warn or failed>|<what>|<detail>", "switch|<on or off>|<mod>" or "note|<text>". And
+# packwiz-installer's record of the installed files as it was before this launch's update (packwiz-before.json; "{}" on
+# a first install), which the pop-up compares with the record afterwards to list the mods added, removed and updated.
+$statusFile = Join-Path $here 'pack-sync-status.txt'
+Set-Content -Path $statusFile -Value $null -Encoding utf8
+Remove-Item (Join-Path $here 'pack-sync-news.txt') -ErrorAction SilentlyContinue   # (what syncs before this one wrote)
+function Status($state, $what, $detail = '') { Add-Content -Path $statusFile -Value "check|$state|$what|$detail" -Encoding utf8 }
+function News($text) { Add-Content -Path $statusFile -Value "note|$text" -Encoding utf8 }
+$pwRecord = Join-Path $here 'packwiz.json'
+if (Test-Path $pwRecord) { Copy-Item $pwRecord (Join-Path $here 'packwiz-before.json') -Force } else { Set-Content (Join-Path $here 'packwiz-before.json') '{}' -Encoding ascii }
 # The pop-up before the game starts (extras/launch-popup.jar, a small Java window; Prism waits for it): the patch notes
 # after an update, otherwise "no updates" (closing itself after 5 seconds). It reads the notes, the news above and the
 # player's pop-up settings itself. javaw is used where there is one, so no console window opens beside it.
@@ -17,12 +24,21 @@ function ShowPopup($status) {
     if (-not $java -or -not (Test-Path $jar)) { return }
     $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'
     if (-not (Test-Path -LiteralPath $w)) { $w = $java }
-    try { [void](Start-Process -FilePath $w -ArgumentList @('-jar', "`"$jar`"", "`"$here`"", $status) -Wait -PassThru) }
-    catch { Note "pop-up skipped: $($_.Exception.Message)" }
+    try {
+        $p = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$jar`"", "`"$here`"", $status) -PassThru
+        # It closes itself within 90 seconds; one that hangs is stopped after 150 so the game still starts.
+        if (-not $p.WaitForExit(150000)) { try { $p.Kill() } catch { }; Note 'pop-up stopped: it did not close' }
+    } catch { Note "pop-up skipped: $($_.Exception.Message)" }
 }
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
 function HasMods { [bool](Get-ChildItem (Join-Path $here 'mods') -Filter '*.jar' -ErrorAction SilentlyContinue | Select-Object -First 1) }
+# Safety net: an unexpected error anywhere below never stops a launch that already has its mods (Prism would refuse to
+# start the game on a non-zero exit); it's noted, and the game starts with what's installed.
+trap {
+    try { Add-Content -Path $log -Value ("{0}  unexpected error: {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $_.Exception.Message) } catch { }
+    if (HasMods) { exit 0 } else { exit 1 }
+}
 # Mods the player can switch on and off (Mod Menu > October Journey; the list and the pack's defaults are in
 # extras/mod-toggles.json, the player's choices under "mods" in pack-options.json). A mod that's off has its jar renamed
 # to .jar.disabled after each update (as Prism does, so the game doesn't load it), and renamed back before the next
@@ -68,11 +84,37 @@ function ApplySwitches {
             } elseif ($before -contains $jar) { $changed += "$($t.name) on" }
         }
         if ($off) { ConvertTo-Json @($off) | Set-Content -Encoding utf8 $switchState } elseif (Test-Path $switchState) { Remove-Item $switchState }
-        if ($changed) { Note ("mods switched: " + ($changed -join ', ')); News ("Mods switched: " + ($changed -join ', ') + ' (change them in Mods > October Journey)') }
-    } catch { Note "mod switches skipped: $($_.Exception.Message)" }
+        if ($changed) {
+            Note ("mods switched: " + ($changed -join ', '))
+            foreach ($c in $changed) { Add-Content -Path $statusFile -Value ("switch|{0}|{1}" -f $(if ($c.EndsWith(' on')) { 'on' } else { 'off' }), $c.Substring(0, $c.LastIndexOf(' '))) -Encoding utf8 }
+            Status 'updated' 'Mod switches' ("{0} changed; {1} off" -f $changed.Count, $off.Count)
+        } else { Status 'ok' 'Mod switches' $(if ($off) { "As set; $($off.Count) off" } else { 'All on' }) }
+    } catch { Note "mod switches skipped: $($_.Exception.Message)"; Status 'failed' 'Mod switches' $_.Exception.Message }
+}
+# Defaults the pack added later, applied once to devices that already had the setting (a new install gets them from the
+# pack's config-defaults). pack-defaults-applied.txt lists the ones done; after that the player's own choice stays.
+#   ipn-hotbar-icons-off  Inventory Profiles Next's Auto Refill arrows on the hotbar hidden (pack 1.5.0 default)
+function ApplyDefaultsOnce {
+    $done = Join-Path $here 'pack-defaults-applied.txt'
+    $have = @(); if (Test-Path $done) { $have = @(Get-Content $done) }
+    if ($have -contains 'ipn-hotbar-icons-off') { return }
+    try {
+        $f = Join-Path $here 'config\inventoryprofilesnext\inventoryprofiles.json'
+        if (Test-Path $f) {
+            Add-Type -AssemblyName System.Web.Extensions
+            $js = New-Object System.Web.Script.Serialization.JavaScriptSerializer
+            $o = $js.DeserializeObject([IO.File]::ReadAllText($f))
+            if (-not $o.ContainsKey('AutoRefillSettings')) { $o['AutoRefillSettings'] = @{} }
+            $o['AutoRefillSettings']['auto_refill_enable_horbar_indicator_icons'] = @{ value = $false }
+            [IO.File]::WriteAllText($f, $js.Serialize($o))
+            Note 'pack default applied once: Inventory Profiles Next hotbar arrows hidden'
+            News 'Inventory Profiles Next: the purple Auto Refill arrows on the hotbar are now hidden (the pack default; change it in that mod''s settings)'
+        }
+        Add-Content -Path $done -Value 'ipn-hotbar-icons-off'
+    } catch { Note "pack default skipped: $($_.Exception.Message)" }
 }
 function StopIfNoMods($why, $advice = 'Check your connection (Tailscale or internet) and press Play again.', $status = 'failed') {
-    if (HasMods) { ApplySwitches; Note "$why; starting with the mods already installed"; ShowPopup $status; exit 0 }
+    if (HasMods) { ApplySwitches; ApplyDefaultsOnce; Note "$why; starting with the mods already installed"; ShowPopup $status; exit 0 }
     Note "$why, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
     Write-Host "October Journey couldn't install its mods yet ($why). $advice"
     exit 1
@@ -93,40 +135,76 @@ foreach ($c in @($env:INST_JAVA) + @(Get-ChildItem (Join-Path $here '..\..\..\ja
 }
 if (-not $java -and (Get-Command java -ErrorAction SilentlyContinue)) { $java = (Get-Command java).Source }
 $variant = 'main'
-$sources = Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') }
-$url = $null
-foreach ($s in $sources) {
-    try {
-        $r = Invoke-WebRequest "$s/$variant/pack.toml" -UseBasicParsing -TimeoutSec 3 -Method Head
-        if ($r.StatusCode -eq 200) { $url = "$s/$variant/pack.toml"; break }
-    } catch { }
-}
-if (-not $url) { StopIfNoMods 'no source reachable' -status 'offline' }
-if (-not $java) { StopIfNoMods "no Java found yet (INST_JAVA was '$env:INST_JAVA')" 'Prism Launcher is still setting up Java: press Play again.' }
-$jargs = @('-jar', (Join-Path $here 'packwiz-installer-bootstrap.jar'))
-if ($env:PACK_SYNC_ARGS) { $jargs += $env:PACK_SYNC_ARGS -split ' ' }
-$jargs += $url
-$javaLog = Join-Path $here 'pack-sync-java.log'
-RestoreSwitchedOff
-$code = $null
-Push-Location $here
-try {
-    if ($java -like '*javaw.exe') {
-        # Only javaw found: started and waited on, without its output.
-        $code = (Start-Process -FilePath $java -ArgumentList ($jargs | ForEach-Object { if ($_ -match ' ') { '"' + $_ + '"' } else { $_ } }) -WorkingDirectory $here -Wait -PassThru).ExitCode
-    } else {
-        $ErrorActionPreference = 'Continue'
-        & $java @jargs 2>&1 | ForEach-Object { "$_" } | Set-Content -Encoding utf8 $javaLog
-        $code = $LASTEXITCODE
+$sources = @(Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') })
+# Which sources answer, in order, each given 5 seconds. If none does (after sleep or at startup the network can still be
+# coming up), one more round after 5 seconds.
+function Reachable {
+    foreach ($s in $sources) {
+        try { $r = Invoke-WebRequest "$s/$variant/pack.toml" -UseBasicParsing -TimeoutSec 5 -Method Head; if ($r.StatusCode -eq 200) { "$s/$variant/pack.toml" } } catch { }
     }
-} catch { Note "couldn't run Java ($java): $($_.Exception.Message)" }
-Pop-Location
-Note "$url -> exit $code (Java: $java)"
-if ($code -ne 0) {
-    if (Test-Path $javaLog) { Get-Content $javaLog -Tail 5 | ForEach-Object { Note "  java: $_" } }
-    if (-not (HasMods)) { StopIfNoMods "the mod download failed (exit $code)" }
 }
+$urls = @(Reachable)
+if (-not $urls) { Note 'no source answered; trying again in 5 seconds'; Start-Sleep -Seconds 5; $urls = @(Reachable) }
+if (-not $urls) { Status 'warn' 'Connection' 'No pack source answered (Tailscale or internet)'; Status 'warn' 'Mods and settings' "Not checked; playing what's installed"; StopIfNoMods 'no source reachable' -status 'offline' }
+if (-not $java) { StopIfNoMods "no Java found yet (INST_JAVA was '$env:INST_JAVA')" 'Prism Launcher is still setting up Java: press Play again.' }
+# packwiz-installer (the program the bootstrap runs) is pinned to one release, so it only changes when the pack changes
+# it. Once that release is here (packwiz-installer.jar's manifest says so), the bootstrap doesn't ask GitHub at all:
+# one less connection that can fail, and no GitHub rate limit. Otherwise it fetches exactly that release.
+$installerTag = 'v0.5.14'
+$installerRelease = "https://api.github.com/repos/packwiz/packwiz-installer/releases/tags/$installerTag"
+function InstallerHere {
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $z = [IO.Compression.ZipFile]::OpenRead((Join-Path $here 'packwiz-installer.jar'))
+        try { $m = (New-Object IO.StreamReader($z.GetEntry('META-INF/MANIFEST.MF').Open())).ReadToEnd() } finally { $z.Dispose() }
+        return [bool]($m -match ('Implementation-Version:\s*' + [regex]::Escape($installerTag) + '\s'))
+    } catch { return $false }
+}
+$javaLog = Join-Path $here 'pack-sync-java.log'
+# One run of packwiz-installer against one source. Stopped if it hasn't finished in 5 minutes, since a stalled download
+# would otherwise hold the launch forever. Returns its exit code, 'timeout' or 'error'. Its output goes to
+# pack-sync-java.log.
+function RunInstaller($u) {
+    # -g: no windows. Otherwise a failed download waits on an error dialog (Quit / Continue) for someone to click,
+    # holding the launch; without them a failure just ends the run, and the next source is tried.
+    $a = @('-jar', (Join-Path $here 'packwiz-installer-bootstrap.jar'), '-g')
+    if (InstallerHere) { $a += '--bootstrap-no-update' } else { $a += @('--bootstrap-update-url', $installerRelease) }
+    if ($env:PACK_SYNC_ARGS) { $a += $env:PACK_SYNC_ARGS -split ' ' }
+    $a += $u
+    $quoted = $a | ForEach-Object { if ($_ -match ' ') { '"' + $_ + '"' } else { $_ } }
+    try {
+        $p = Start-Process -FilePath $java -ArgumentList $quoted -WorkingDirectory $here -NoNewWindow -PassThru -RedirectStandardOutput $javaLog -RedirectStandardError "$javaLog.err"
+        $null = $p.Handle   # (so the exit code is kept)
+        $limit = if ($env:PACK_SYNC_TIMEOUT) { [int]$env:PACK_SYNC_TIMEOUT } else { 300 }   # seconds; the variable is for testing
+        if (-not $p.WaitForExit($limit * 1000)) { try { $p.Kill() } catch { }; return 'timeout' }
+        $p.WaitForExit()
+        return $p.ExitCode
+    } catch { Note "couldn't run Java ($java): $($_.Exception.Message)"; return 'error' }
+    # Its error output (kept apart by Start-Process) goes on the end of the log; the .err file is reused next run.
+    finally { Get-Content "$javaLog.err" -ErrorAction SilentlyContinue | Add-Content $javaLog -ErrorAction SilentlyContinue }
+}
+RestoreSwitchedOff
+# Each source that answered, in order, then the first once more: an update that fails or stalls (say the connection
+# dropped part-way) is tried again. packwiz-installer only replaces files it has fully downloaded and checked, and
+# picks up where it left off on the next try.
+$code = $null; $url = $null
+foreach ($u in @($urls) + @($urls[0])) {
+    $code = RunInstaller $u; $url = $u
+    Note "$u -> exit $code (Java: $java)"
+    if ("$code" -eq '0') { break }
+    if (Test-Path $javaLog) { Get-Content $javaLog -Tail 5 | ForEach-Object { Note "  java: $_" } }
+}
+$where = if ($url -match 'githubusercontent') { 'GitHub' } else { "the owner's PC (Tailscale)" }
+if ("$code" -eq '0') {
+    Status 'ok' 'Connection' $where
+    Status 'ok' 'Mods and settings'   # (the pop-up adds what changed, from the records)
+} else {
+    Status 'warn' 'Connection' "$where; the update didn't finish"
+    Status 'failed' 'Mods and settings' "Didn't finish (exit $code); playing what's installed. Details: pack-sync.log"
+}
+if ("$code" -ne '0' -and -not (HasMods)) { StopIfNoMods "the mod download failed (exit $code)" }
 ApplySwitches
+ApplyDefaultsOnce
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcuts.
 # steam-target.json (written by setup) says where: "targets", one per shortcut, each with its grid folder, app id,
@@ -141,11 +219,13 @@ $opt = @{ steam_art = $true; steam_controller = $true; server_entry = $true }
 $optPath = Join-Path $here 'pack-options.json'
 if (Test-Path $optPath) { try { (Get-Content $optPath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { if ($_.Value -is [bool]) { $opt[$_.Name] = $_.Value } } } catch { } }
 $target = Join-Path $here 'steam-target.json'
+if (-not (Test-Path $target)) { Status 'off' 'Steam art and controller layouts' 'No Steam shortcut set up by setup' }
+elseif (-not ($opt.steam_art -or $opt.steam_controller)) { Status 'off' 'Steam art and controller layouts' 'Not kept up to date (your choice at setup)' }
 if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
     try {
         $st = Get-Content $target -Raw | ConvertFrom-Json
         $legacy = -not $st.targets
-        $targets = if ($legacy) { @([pscustomobject]@{ grid = $st.grid; appid = $st.appid; controller = $st.controller; art = 'pack' }) } else { @($st.targets | ForEach-Object { $_ }) }
+        $targets = @(if ($legacy) { @([pscustomobject]@{ grid = $st.grid; appid = $st.appid; controller = $st.controller; art = 'pack' }) } else { @($st.targets | ForEach-Object { $_ }) })
         $statePath = Join-Path $here 'steam-applied.json'
         $state = @{}
         if (Test-Path $statePath) { (Get-Content $statePath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $state[$_.Name] = $_.Value } }
@@ -192,14 +272,16 @@ if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
             }
         }
         $state | ConvertTo-Json | Set-Content -Encoding utf8 $statePath
-        if ($changed) { Note ("Steam extras updated: " + ($changed -join ', ') + " (shows after Steam restarts)"); News 'Steam library art or controller layout updated (shows after Steam restarts)' }
-    } catch { Note "Steam extras skipped: $($_.Exception.Message)" }
+        if ($changed) { Note ("Steam extras updated: " + ($changed -join ', ') + " (shows after Steam restarts)"); Status 'updated' 'Steam art and controller layouts' "$($changed.Count) updated for $($targets.Count) shortcut(s); shows after Steam restarts" }
+        else { Status 'ok' 'Steam art and controller layouts' "Up to date ($($targets.Count) shortcut$(if ($targets.Count -ne 1) { 's' }))" }
+    } catch { Note "Steam extras skipped: $($_.Exception.Message)"; Status 'failed' 'Steam art and controller layouts' $_.Exception.Message }
 }
 
 # The pack's servers (extras/servers.json) in Minecraft's multiplayer list (servers.dat, uncompressed NBT). A missing one is
 # added at the top; a wrong address is corrected while it is still the one this sync last set (or it never set one), so an
 # entry edited or deleted in the game afterwards is left alone. Other entries are kept as they are.
 $want = Join-Path $here 'extras/servers.json'
+if (-not $opt.server_entry) { Status 'off' 'Server list' 'Not kept up to date (your choice at setup)' }
 if ((Test-Path $want) -and $opt.server_entry) {
     try {
         $servers = @(Get-Content $want -Raw | ConvertFrom-Json | ForEach-Object { $_ })   # (5.1 hands a JSON array over as one item)
@@ -272,18 +354,18 @@ if ((Test-Path $want) -and $opt.server_entry) {
             W ([byte[]](0))
             if ((Test-Path $datPath) -and -not (Test-Path "$datPath.before-pack")) { Copy-Item $datPath "$datPath.before-pack" }
             [IO.File]::WriteAllBytes($datPath, $ms.ToArray())
-            Note ("server list: " + ($changes -join '; ')); News ("Server list: " + ($changes -join '; '))
-        }
+            Note ("server list: " + ($changes -join '; ')); Status 'updated' 'Server list' ($changes -join '; ')
+        } else { Status 'ok' 'Server list' 'October Journey is listed' }
         $sState | ConvertTo-Json | Set-Content -Encoding utf8 $sStatePath
-    } catch { Note "server list skipped: $($_.Exception.Message)" }
+    } catch { Note "server list skipped: $($_.Exception.Message)"; Status 'failed' 'Server list' $_.Exception.Message }
 }
 # This script, from the pack: the next launch runs the pack's copy. (PowerShell has already read this file, so replacing
 # it now is safe.)
 $next = Join-Path $here 'extras/pack-sync.ps1'
 $self = $MyInvocation.MyCommand.Path
 if ((Test-Path $next) -and (Get-FileHash $next).Hash -ne (Get-FileHash $self).Hash) {
-    try { Copy-Item $next "$self.new" -Force; Move-Item "$self.new" $self -Force; Note 'sync script updated (used from the next launch)' }
-    catch { Note "sync script update skipped: $($_.Exception.Message)" }
-}
-ShowPopup $(if ($code -eq 0) { 'ok' } else { 'failed' })
+    try { Copy-Item $next "$self.new" -Force; Move-Item "$self.new" $self -Force; Note 'sync script updated (used from the next launch)'; Status 'updated' 'Update script' 'New version, used from the next launch' }
+    catch { Note "sync script update skipped: $($_.Exception.Message)"; Status 'failed' 'Update script' $_.Exception.Message }
+} elseif (Test-Path $next) { Status 'ok' 'Update script' 'Current' }
+ShowPopup $(if ("$code" -eq '0') { 'ok' } else { 'failed' })
 exit 0

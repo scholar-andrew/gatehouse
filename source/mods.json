@@ -2,7 +2,7 @@
  "pack": {
   "name": "October Journey",
   "author": "Andrew",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "minecraft": "26.3",
   "fabric": "0.19.5"
  },
@@ -333,9 +333,9 @@
    "version": "s9SjoFu1"
   },
   {
-   "title": "October Journey (pack settings)",
-   "filename": "octoberjourney-1.2.0.jar",
-   "sha512": "e9ee034e935668ce52ddc900a75c956caab231b72c5e6556f41ebbb38d8037f4de942dd2c5a4c3afa7f0059f934d95ed59622dc2092ea22ead132d350e8ef7c6"
+   "title": "October Journey Settings",
+   "filename": "octoberjourney-1.2.1.jar",
+   "sha512": "85c4096ffa5dc5af27c094af672a7dd0d116c5c19008f5cc7f69860d53443721b80d10ae786d7ff3df29f37cf5a529bfc20d4035a7dd408599ba4d437783afeb"
   }
  ],
  "server": {

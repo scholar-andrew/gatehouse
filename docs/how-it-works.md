@@ -57,11 +57,17 @@ each device: Prism pre-launch → pack-sync.ps1 / pack-sync.sh → packwiz-insta
 Prism's pre-launch command runs the sync script in the instance's `minecraft` folder (`INSTALL.md` has the
 player-facing version). In order:
 
-1. **Pick a source:** the first address in `pack-sources.txt` whose `<variant>/pack.toml` answers within three seconds.
-   None: log it and start the game anyway.
-2. **packwiz-installer** (through the bootstrap, which keeps packwiz-installer itself current from GitHub) brings the
-   instance in line with `index.toml`. On Windows the script swaps Prism's `javaw.exe` for the `java.exe` beside it so
-   it can wait for it.
+1. **Sources:** every address in `pack-sources.txt` whose `<variant>/pack.toml` answers within 5 seconds, in order.
+   None: wait 5 seconds and check again (the network can still be coming up); still none: log it and start the game
+   with what's installed (the pop-up says it couldn't check).
+2. **packwiz-installer** (through the bootstrap) brings the instance in line with `index.toml`, with `-g` (no windows:
+   with them, a failed download waits on an error dialog for a click). It's pinned to one release (`installerTag` /
+   `installer_tag` in the scripts, now v0.5.14): while `packwiz-installer.jar`'s manifest shows that version the
+   bootstrap gets `--bootstrap-no-update` and doesn't contact GitHub; otherwise `--bootstrap-update-url` with that
+   release. Each run is stopped after 5 minutes (`PACK_SYNC_TIMEOUT` seconds, for testing). A failed or stopped run is
+   tried with the next source that answered, then the first once more. On Windows the script uses the console
+   `java.exe` beside Prism's `javaw.exe` so it can wait for it. An unexpected error anywhere in the Windows script is
+   caught: with mods installed the game still starts (exit 0).
 3. **Steam extras.** `pack-options.json` (written by setup and the uninstaller from the player's choices:
    `steam_art`, `steam_controller`, `server_entry`; a missing file or key means yes) says which of steps 3 and 4 run.
    With `steam-target.json` present (written by setup: `targets`, one `{grid, appid, controller, art}` per shortcut,
@@ -83,12 +89,16 @@ player-facing version). In order:
 6. **Self-update.** If `extras/pack-sync.ps1` / `.sh` differs from the running script, it replaces it for next time
    (bash by write-then-rename, because bash is still reading the running file).
 7. **Launch pop-up.** Runs `extras/launch-popup.jar <game folder> ok|offline|failed` with the Java found for step 2
-   (`javaw.exe` on Windows, so no console opens) and waits for it, so Prism starts the game after it closes. Steps 3 to
-   5 write what they changed to `pack-sync-news.txt` (emptied at the start of each run). The pop-up compares the top
-   version in `extras/changelog.txt` with `pack-version-seen.txt`, and then writes the new version there. A new version,
-   or any news, shows the notes for every version since the one seen (just the newest when none was seen) and closes
-   after 90 seconds. Otherwise it says "no updates", or that the pack couldn't be reached, and closes after 5. The
-   top-level `popup_updates` and `popup_no_updates` in `pack-options.json` (set in Mod Menu > October Journey; missing
+   (`javaw.exe` on Windows, so no console opens) and waits for it, so Prism starts the game after it closes. Each step writes how it went to `pack-sync-status.txt`
+   (emptied at the start of each run): `check|<ok, updated, off, warn or failed>|<what>|<detail>`,
+   `switch|<on or off>|<mod>`, or `note|<text>`. At the start the script also copies packwiz-installer's file record
+   `packwiz.json` to `packwiz-before.json` (`{}` on a first install). The pop-up compares the two records to list the
+   mods added, removed and updated, naming them from `extras/mod-names.json` (written by the build: each mod's index
+   path and title). It shows the checks with coloured dots, then those lists, switches, notes and patch notes, using a
+   small JSON reader of its own. It also compares the top version in `extras/changelog.txt` with
+   `pack-version-seen.txt`, and then writes the new version there. A new version, or anything changed or failed, shows
+   the notes for every version since the one seen (just the newest when none was seen) and closes after 90 seconds. Otherwise it says "no updates", or that the pack couldn't be reached, and closes after 5. The
+   top-level `popup_updates` and `popup_no_updates` in `pack-options.json` (set in Mod Menu > October Journey Settings; missing
    means on) turn either kind off. With no display it just records the version. For testing, `OJ_POPUP_PNG=<file>`
    saves a picture of the window (and its text in `<file>.txt`) instead of showing it.
 8. Everything is logged to `minecraft/pack-sync.log`, and packwiz-installer's output to `pack-sync-java.log`.
