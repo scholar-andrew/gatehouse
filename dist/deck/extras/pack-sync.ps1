@@ -29,15 +29,20 @@ function ApplySwitches {
         $choices = $null
         $po = Join-Path $here 'pack-options.json'
         if (Test-Path $po) { $choices = (Get-Content $po -Raw | ConvertFrom-Json).mods }
+        # What each mod should be: the player's choice, else the pack's default; and off whenever a mod it needs is off.
+        $want = @{}
+        foreach ($t in $toggles) { $want[$t.key] = [bool]$t.default; if ($choices -and $null -ne $choices.($t.key)) { $want[$t.key] = [bool]$choices.($t.key) } }
+        for ($pass = 0; $pass -lt $toggles.Count; $pass++) {
+            foreach ($t in $toggles) { foreach ($n in @($t.needs)) { if ($n -and $want.ContainsKey($n) -and -not $want[$n]) { $want[$t.key] = $false } } }
+        }
         $off = @(); $changed = @()
         $before = @(); if (Test-Path $switchState) { $before = @(Get-Content $switchState -Raw | ConvertFrom-Json | ForEach-Object { $_ }) }
         foreach ($t in $toggles) {
-            $want = $t.default
-            if ($choices -and $null -ne $choices.($t.slug)) { $want = [bool]$choices.($t.slug) }
-            $entry = $files.("mods/$($t.slug).pw.toml")
+            $entry = $files.($t.file)
             if (-not $entry) { continue }
-            $jar = Join-Path $here ($entry.cachedLocation -replace '/', '\')
-            if (-not $want) {
+            $loc = if ($entry.cachedLocation) { $entry.cachedLocation } else { $t.file }
+            $jar = Join-Path $here ($loc -replace '/', '\')
+            if (-not $want[$t.key]) {
                 if (Test-Path -LiteralPath $jar) {
                     if (Test-Path -LiteralPath "$jar.disabled") { Remove-Item -LiteralPath "$jar.disabled" }
                     Move-Item -LiteralPath $jar "$jar.disabled"; if ($before -notcontains $jar) { $changed += "$($t.name) off" }
@@ -45,7 +50,7 @@ function ApplySwitches {
                 if (Test-Path -LiteralPath "$jar.disabled") { $off += $jar }
             } elseif ((Test-Path -LiteralPath "$jar.disabled") -and -not (Test-Path -LiteralPath $jar)) {
                 Move-Item -LiteralPath "$jar.disabled" $jar; $changed += "$($t.name) on"
-            } elseif ($want -and $before -contains $jar) { $changed += "$($t.name) on" }
+            } elseif ($before -contains $jar) { $changed += "$($t.name) on" }
         }
         if ($off) { ConvertTo-Json @($off) | Set-Content -Encoding utf8 $switchState } elseif (Test-Path $switchState) { Remove-Item $switchState }
         if ($changed) { Note ("mods switched: " + ($changed -join ', ')) }

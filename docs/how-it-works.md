@@ -30,7 +30,8 @@ each device: Prism pre-launch → pack-sync.ps1 / pack-sync.sh → packwiz-insta
 | Path | What it is |
 | --- | --- |
 | `source/mods.json` | The pack definition: name, version, Minecraft and Fabric versions, every mod (Modrinth URL and SHA-512, or a file in `source/files/mods`), and the server's mod list. |
-| `source/files/config/` | Config files shipped as they are (into the instance's `config/`). |
+| `source/files/config/` | Config files shipped as they are (into the instance's `config/`), kept in line with the pack on every update. |
+| `source/files/config-defaults/` | Default settings, written only where the file doesn't exist yet (`preserve` in the index), so a player's own changes stay. Now: Inventory Profiles Next's hotbar Auto Refill icons hidden. |
 | `source/files/mods/` | Mod jars that aren't on Modrinth: the pack's own and patched mods (see below). |
 | `mods-src/` | Source for those jars. See [mods-src/README.md](../mods-src/README.md). |
 | `clients/pack-sync.ps1`, `clients/pack-sync.sh` | The update script each device runs before every launch (Windows / Linux). Also shipped in the pack, so devices update it themselves. |
@@ -103,9 +104,13 @@ their next launch; nobody has to touch a device.
   `sha512`, `project`, `version`, all from Modrinth's version page or API). If the server runs it too, update the
   server and the `server.mods` list.
 - **Remove a mod:** delete its entry. packwiz-installer removes it from devices.
-- **Let players switch a mod on and off:** give its entry a `"toggle": {"modid": "<its Fabric mod id>", "default":
-  false, "description": "..."}`. It then shows in Mod Menu > October Journey, and the pack sync disables it while it's
-  off. A mod the server also runs must still let clients join without it (no new items, blocks or menus).
+- **Let players switch a mod on and off:** give its entry a `"toggle": {"modid": "<its Fabric mod id>",
+  "description": "...", "default": true, "needs": ["<key of a switchable mod it requires>"]}` (`default` and `needs`
+  are optional; a bundled jar can also set `"name"`). Every mod that isn't a library has one now. It shows in Mod Menu >
+  October Journey, and the pack sync disables it while it, or a mod it needs, is off. A mod the server also runs must
+  still let clients join without it (no new items, blocks or menus). Libraries stay unswitchable: other mods would
+  fail to start without them.
+- **Ship a default setting** that players can still change: put the file under `source/files/config-defaults/`.
 - **Change a config every device gets:** put the file under `source/files/config/`.
 - **Change the art or Deck controller layout:** edit `installer/art/*.png` (or `tools/make_art.ps1`) or
   `installer/steam/controller_neptune.vdf`.

@@ -81,14 +81,22 @@ Nothing to do: every launch checks for mod changes and installs them before the 
 safe; it updates your setup without duplicating anything.
 
 ## Mods you can switch on and off
-Two mods in the pack are **off by default**:
+Every mod in the pack that isn't a library other mods need can be switched off: maps, recipe lookup, inventory
+helpers, performance mods, controller support and so on. [docs/mods.md](docs/mods.md) lists which ones. All are on by
+default except two:
 - **Stack to Nearby Chests**: buttons and keys to stack your items into, or restock from, nearby chests.
 - **Nearby Chest Crafting**: craft with items from nearby chests. The server has it too; with it off you craft the
   usual way, and you can still join.
 
-To switch them on (or back off): on Minecraft's title screen, click **Mods**, pick **October Journey**, click its
-settings button, and flip the switch. It takes effect the next time you start the game. The update before each launch
-then disables the mods you've switched off (Prism shows them as disabled), so they aren't loaded at all.
+To switch a mod: on Minecraft's title screen, click **Mods**, pick **October Journey**, click its settings button, and
+flip the switch (hover a switch to see what the mod does). It takes effect the next time you start the game. The
+update before each launch then disables the mods you've switched off (Prism shows them as disabled), so they aren't
+loaded at all. Some mods need another: Reese's Sodium Options needs Sodium, and Controller Handoff Fix needs
+Controlify, so switching off the second switches off the first too.
+
+The pack also sets one default: Inventory Profiles Next's Auto Refill arrows are hidden on the hotbar. Change it in
+Inventory Profiles Next's own settings (Auto Refill, **Also Show Icons in the Hotbar**); the pack only sets it on a
+new install and never changes it back.
 
 ## Controllers
 - **Linux on a Steam Deck:** the Deck's controls get the pack's layout (R4 jump, L4 crouch, trackpad as mouse). In a

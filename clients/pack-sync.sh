@@ -41,15 +41,20 @@ if not (os.path.isfile(tp) and os.path.isfile(pw)): sys.exit(0)
 files = json.load(open(pw)).get("cachedFiles", {})
 try: choices = json.load(open(os.path.join(here, "pack-options.json"))).get("mods", {}) or {}
 except Exception: choices = {}
+toggles = json.load(open(tp))
+# What each mod should be: the player's choice, else the pack's default; and off whenever a mod it needs is off.
+want = {t["key"]: bool(choices[t["key"]]) if t["key"] in choices else t["default"] for t in toggles}
+for _ in toggles:
+    for t in toggles:
+        if any(not want.get(n, True) for n in t.get("needs", [])): want[t["key"]] = False
 off, changed = [], []
 try: before = set(json.load(open(state)))
 except Exception: before = set()
-for t in json.load(open(tp)):
-    want = bool(choices[t["slug"]]) if t["slug"] in choices else t["default"]
-    entry = files.get("mods/%s.pw.toml" % t["slug"])
+for t in toggles:
+    entry = files.get(t["file"])
     if not entry: continue
-    jar = os.path.join(here, entry["cachedLocation"])
-    if not want:
+    jar = os.path.join(here, entry.get("cachedLocation") or t["file"])
+    if not want[t["key"]]:
         if os.path.isfile(jar):
             if os.path.exists(jar + ".disabled"): os.remove(jar + ".disabled")
             os.rename(jar, jar + ".disabled")
@@ -57,7 +62,7 @@ for t in json.load(open(tp)):
         if os.path.isfile(jar + ".disabled"): off.append(jar)
     elif os.path.isfile(jar + ".disabled") and not os.path.exists(jar):
         os.rename(jar + ".disabled", jar); changed.append(t["name"] + " on")
-    elif want and jar in before: changed.append(t["name"] + " on")
+    elif jar in before: changed.append(t["name"] + " on")
 if off: json.dump(off, open(state, "w"))
 elif os.path.exists(state): os.remove(state)
 if changed: note("mods switched: " + ", ".join(changed))

@@ -76,6 +76,18 @@ def build(variant: str, meta: dict, mods: list) -> None:
             with open(os.path.join(out, rel), "wb") as f:
                 f.write(data)
             entries.append((rel, sha256(data), False))
+    # Default settings (source/files/config-defaults/): written only where the file doesn't exist yet ("preserve"), so
+    # new installs get them and a player's own changes are never overwritten.
+    defaults = os.path.join(SRC, "files", "config-defaults")
+    for base, _, names in os.walk(defaults):
+        for n in sorted(names):
+            p = os.path.join(base, n)
+            rel = "config/" + os.path.relpath(p, defaults).replace(os.sep, "/")
+            data = open(p, "rb").read()
+            os.makedirs(os.path.dirname(os.path.join(out, rel)), exist_ok=True)
+            with open(os.path.join(out, rel), "wb") as f:
+                f.write(data)
+            entries.append((rel, sha256(data), "preserve"))
     # Steam extras, applied by the sync after the mods: the library art and the Steam Deck controller layout.
     for src_rel, rel in [("installer/art/" + n, "steam/art/" + n) for n in ("cover.png", "hero.png", "logo.png", "icon.png", "wide.png")] + [("installer/steam/controller_neptune.vdf", "steam/controller_neptune.vdf")]:
         data = open(os.path.join(ROOT, src_rel), "rb").read()
@@ -90,11 +102,20 @@ def build(variant: str, meta: dict, mods: list) -> None:
     entries.append((rel, sha256(data), False))
     # Mods players can switch on and off (Mod Menu > October Journey), with the pack's default for each. The sync
     # scripts disable the ones that are off after each update; the October Journey mod shows the switches.
+    #   key    what the player's choice is saved under (the Modrinth slug, or the mod id for a jar in the pack)
+    #   file   the mod's entry in the pack index (packwiz.json on the device maps it to the installed jar)
+    #   needs  keys of switchable mods this one can't run without: it's off whenever one of them is off
+    toggles = []
+    for m in mods:
+        if "toggle" not in m or (m.get("deck") and variant != "deck"):
+            continue
+        tg = m["toggle"]
+        toggles.append({"key": m.get("slug") or tg["modid"],
+                        "file": f"mods/{m['slug']}.pw.toml" if "url" in m else f"mods/{m['filename']}",
+                        "modid": tg["modid"], "name": tg.get("name", m["title"]), "description": tg["description"],
+                        "default": tg.get("default", True), "needs": tg.get("needs", [])})
     rel = "extras/mod-toggles.json"
-    data = write(os.path.join(out, rel), json.dumps([
-        {"slug": m["slug"], "modid": m["toggle"]["modid"], "name": m["title"], "description": m["toggle"]["description"],
-         "default": m["toggle"]["default"]}
-        for m in mods if "toggle" in m and not (m.get("deck") and variant != "deck")], indent=1) + "\n")
+    data = write(os.path.join(out, rel), json.dumps(toggles, indent=1) + "\n")
     entries.append((rel, sha256(data), False))
     # The sync scripts themselves: each run swaps in the pack's copy for the next launch.
     for n in ("pack-sync.ps1", "pack-sync.sh"):
@@ -106,7 +127,8 @@ def build(variant: str, meta: dict, mods: list) -> None:
         entries.append((rel, sha256(data), False))
     index = 'hash-format = "sha256"\n'
     for rel, h, metafile in sorted(entries):
-        index += f"\n[[files]]\nfile = {toml_str(rel)}\nhash = {toml_str(h)}\n" + ("metafile = true\n" if metafile else "")
+        index += f"\n[[files]]\nfile = {toml_str(rel)}\nhash = {toml_str(h)}\n" + (
+            "preserve = true\n" if metafile == "preserve" else "metafile = true\n" if metafile else "")
     index_data = write(os.path.join(out, "index.toml"), index)
     name = meta["name"] + (" (Steam Deck)" if variant == "deck" else "")
     pack = (
@@ -140,17 +162,23 @@ def write_mod_list(meta: dict, mods: list, server: dict) -> None:
         "Every device gets every mod. Mods from Modrinth are downloaded from Modrinth's CDN and checked against the SHA-512 "
         "recorded here; the others are stored in this repo (`source/files/mods/`).",
         "",
-        "| Mod | File | From |",
-        "| --- | --- | --- |",
+        "| Mod | File | From | Switch (Mod Menu > October Journey) |",
+        "| --- | --- | --- | --- |",
     ]
     own = []
+    def switch(m):
+        if "toggle" not in m:
+            return "always on (needed by other mods, or the pack itself)"
+        tg = m["toggle"]
+        s = "on by default" if tg.get("default", True) else "**off by default**"
+        return s + (f"; off while {', '.join(tg['needs'])} is off" if tg.get("needs") else "")
     for m in sorted(mods, key=lambda m: m["title"].lower()):
         if "url" in m:
-            lines.append(f"| {m['title']} | `{m['filename']}` | [Modrinth](https://modrinth.com/mod/{m['slug']}) |")
+            lines.append(f"| {m['title']} | `{m['filename']}` | [Modrinth](https://modrinth.com/mod/{m['slug']}) | {switch(m)} |")
         else:
             key = next((k for k in OWN_MODS if m["filename"].startswith(k)), None)
             where = f"this repo, source in [`{OWN_MODS[key][0]}`](../{OWN_MODS[key][0]})" if key else "this repo"
-            lines.append(f"| {m['title']} | `{m['filename']}` | {where} |")
+            lines.append(f"| {m['title']} | `{m['filename']}` | {where} | {switch(m)} |")
             if key:
                 own.append(f"- **{m['filename']}**: {OWN_MODS[key][1]}")
     if own:

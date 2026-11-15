@@ -5,16 +5,21 @@ file = "config/fabric_loader_dependencies.json"
 hash = "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280"
 
 [[files]]
+file = "config/inventoryprofilesnext/inventoryprofiles.json"
+hash = "6779a570710921108d142e01541a127a32fd1e1e64e0f461bb47819b8c44148b"
+preserve = true
+
+[[files]]
 file = "extras/mod-toggles.json"
-hash = "6a3b3663a51666eb3b0fc0817555002710a4f8e5bb4d668e72f84a615c462db8"
+hash = "75d6134daed6501ca06c2c482269281b1a9fbe80585af0107f9d26ab1c83d69e"
 
 [[files]]
 file = "extras/pack-sync.ps1"
-hash = "6a553f640eb10c0396cc2e3790833f37464fb02349a9ded9e6ca2d86516f5393"
+hash = "460165456872d76e4ee76f4cf9e1e79739becf66a0b649803a3edd3bfc4c5e2c"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "c3da7524bb4ae4dffdd73d44d20c736096f51c53786e64c625619b22f4fab0ea"
+hash = "fb53cdcde72d15ee3d2bbdd08c0be23ff40c113ae7a7f3f1df49d6be193f5ff2"
 
 [[files]]
 file = "extras/servers.json"
@@ -108,8 +113,8 @@ hash = "a4f3ae5afad624f8a35b971a0c816a54b2ad6f733f259b55cd5879c2c8a9df4d"
 metafile = true
 
 [[files]]
-file = "mods/octoberjourney-1.0.0.jar"
-hash = "99e6de2cfc0e27ce8342a1929764bfb6f508ccca9d553114ec7c760af04bc76d"
+file = "mods/octoberjourney-1.1.0.jar"
+hash = "9d398df7e455b3477ca1cbdc3747e15c0efdccfe3027d515060c4eef6c4ce008"
 
 [[files]]
 file = "mods/placeholder-api.pw.toml"

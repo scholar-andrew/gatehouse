@@ -1,16 +1,159 @@
 [
  {
-  "slug": "seamlesscrafting",
+  "key": "betterf3",
+  "file": "mods/betterf3.pw.toml",
+  "modid": "betterf3",
+  "name": "BetterF3",
+  "description": "A cleaner, adjustable F3 debug screen.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "inventory-profiles-next",
+  "file": "mods/inventory-profiles-next.pw.toml",
+  "modid": "inventoryprofilesnext",
+  "name": "Inventory Profiles Next",
+  "description": "Inventory sorting, auto refill, locked slots and more.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "jade",
+  "file": "mods/jade.pw.toml",
+  "modid": "jade",
+  "name": "Jade \ud83d\udd0d",
+  "description": "Shows what you're looking at. The server has it too.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "mouse-tweaks",
+  "file": "mods/mouse-tweaks.pw.toml",
+  "modid": "mousetweaks",
+  "name": "Mouse Tweaks",
+  "description": "Faster item dragging and scrolling in inventories.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "roughlyenoughitems",
+  "file": "mods/RoughlyEnoughItems-26.3.824-brewingfix.1.jar",
+  "modid": "roughlyenoughitems",
+  "name": "Roughly Enough Items",
+  "description": "Recipe and item lookup. The server has it too.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "appleskin",
+  "file": "mods/appleskin.pw.toml",
+  "modid": "appleskin",
+  "name": "AppleSkin",
+  "description": "Food and saturation values on the hunger bar and in tooltips. The server has it too.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "chatlift",
+  "file": "mods/chatlift-1.1.3.jar",
+  "modid": "chatlift",
+  "name": "Chat Lift",
+  "description": "Steam keyboard handling: chat moves up above Steam's on-screen keyboard.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "controlify",
+  "file": "mods/controlify.pw.toml",
+  "modid": "controlify",
+  "name": "Controlify (Controller support)",
+  "description": "Controller support: gamepads, Steam Controller, Steam Deck controls.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "ferrite-core",
+  "file": "mods/ferrite-core.pw.toml",
+  "modid": "ferritecore",
+  "name": "FerriteCore",
+  "description": "Uses less memory.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "handofffix",
+  "file": "mods/handofffix-1.0.0.jar",
+  "modid": "handofffix",
+  "name": "Controller Handoff Fix",
+  "description": "Keeps the Steam Deck's controls working after another controller is unplugged. Needs Controlify.",
+  "default": true,
+  "needs": [
+   "controlify"
+  ]
+ },
+ {
+  "key": "litematica",
+  "file": "mods/litematica.pw.toml",
+  "modid": "litematica",
+  "name": "Litematica",
+  "description": "Shows building plans (schematics) in the world.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "reeses-sodium-options",
+  "file": "mods/reeses-sodium-options.pw.toml",
+  "modid": "reeses-sodium-options",
+  "name": "Reese's Sodium Options",
+  "description": "A better video settings screen for Sodium. Needs Sodium.",
+  "default": true,
+  "needs": [
+   "sodium"
+  ]
+ },
+ {
+  "key": "seamlesscrafting",
+  "file": "mods/seamlesscrafting.pw.toml",
   "modid": "seamless_crafting",
   "name": "Nearby Chest Crafting",
   "description": "Craft with items from nearby chests. The server has it too; with it off you craft the usual way.",
-  "default": false
+  "default": false,
+  "needs": []
  },
  {
-  "slug": "stack-to-nearby-chests",
+  "key": "sodium",
+  "file": "mods/sodium.pw.toml",
+  "modid": "sodium",
+  "name": "Sodium",
+  "description": "Faster rendering: more frames per second.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "stack-to-nearby-chests",
+  "file": "mods/stack-to-nearby-chests.pw.toml",
   "modid": "stack-to-nearby-chests",
   "name": "Stack to Nearby Chests",
   "description": "Buttons and keys to stack your items into, or restock from, nearby chests. Only on your side.",
-  "default": false
+  "default": false,
+  "needs": []
+ },
+ {
+  "key": "xaeros-minimap",
+  "file": "mods/xaeros-minimap.pw.toml",
+  "modid": "xaerominimap",
+  "name": "Xaero's Minimap",
+  "description": "A minimap in the corner of the screen.",
+  "default": true,
+  "needs": []
+ },
+ {
+  "key": "xaeros-world-map",
+  "file": "mods/xaeros-world-map.pw.toml",
+  "modid": "xaeroworldmap",
+  "name": "Xaero's World Map",
+  "description": "A full-screen map of where you have been.",
+  "default": true,
+  "needs": []
  }
 ]
