@@ -1,0 +1,46 @@
+{
+  "_profile": "An example server profile (docs/profiles.md): copy this folder to profiles/<your id>/, change the names and addresses, add mods to source/mods.json, and build it with: python tools/build_pack.py --profile <your id>. Nothing here is a real server.",
+  "pack_name": "Example Realm",
+  "instance_id": "example-realm",
+  "instance_name": "Example Realm 26.3 (Fabric)",
+  "shortcut_name": "Minecraft (Prism Launcher)",
+  "game_shortcut_name": "Example Realm",
+  "pack_sources": [
+    "http://127.0.0.1:8467/example"
+  ],
+  "servers": [
+    {
+      "name": "Example Realm",
+      "address": "127.0.0.1:25566",
+      "note": "Example only."
+    }
+  ],
+  "server_control": {
+    "server": "example-realm",
+    "helper_url": "http://127.0.0.1:25570",
+    "panel_url": "",
+    "mcss_server": "",
+    "minecraft": "127.0.0.1:25566",
+    "wake": {
+      "mac": "",
+      "broadcasts": [],
+      "port": 9
+    }
+  },
+  "host": {
+    "bind": "127.0.0.1",
+    "port": 25570,
+    "pack_port": 8467,
+    "mcss_exe": "",
+    "tailscale_exe": "",
+    "servers": [
+      {
+        "id": "example-realm",
+        "name": "Example Realm",
+        "dir": "C:\\Minecraft\\MCSS\\servers\\example",
+        "minecraft": "127.0.0.1:25566",
+        "mcss_server": ""
+      }
+    ]
+  }
+}

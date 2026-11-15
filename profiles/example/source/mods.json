@@ -1,0 +1,10 @@
+{
+ "pack": {
+  "name": "Example Realm",
+  "author": "Andrew",
+  "version": "0.1.0",
+  "minecraft": "26.3",
+  "fabric": "0.19.5"
+ },
+ "mods": []
+}

@@ -11,9 +11,24 @@ stored here. Also writes docs/mods.md (the mod list). Run: python tools/build_pa
 import hashlib, json, os, shutil, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SRC = os.path.join(ROOT, "source")
+# Which server profile to build (docs/profiles.md). Without --profile it is the first one, October Journey, whose files
+# are where they always were: source/, installer/config.json, server/, built into dist/main and dist/deck.
+# --profile <id> builds another from profiles/<id>/: config.json (the profile), source/ (mods.json, changelog.json,
+# files/), optionally art/ (its own Steam art) and server/ (what its server runs), into dist/<id>/main and
+# dist/<id>/deck, with its mod list and patch notes written beside its config. The launcher, the sync scripts and the
+# shared art are the tool's, the same for every profile.
+PROFILE = next((sys.argv[i + 1] for i, a in enumerate(sys.argv[:-1]) if a == "--profile"), None)
+PDIR = os.path.join(ROOT, "profiles", PROFILE) if PROFILE else ROOT
+if PROFILE and not os.path.isfile(os.path.join(PDIR, "config.json")):
+    sys.exit(f"no such profile: profiles/{PROFILE}/config.json is missing")
+SRC = os.path.join(PDIR, "source")
+CONFIG = os.path.join(PDIR, "config.json") if PROFILE else os.path.join(ROOT, "installer", "config.json")
+SERVER = os.path.join(PDIR, "server")
+TOOL_FILES = os.path.join(ROOT, "source", "files")   # (where the built launcher is kept)
 # OJ_DIST: build somewhere else (for testing) instead of dist/, which devices download straight away.
 DIST = os.environ.get("OJ_DIST") or os.path.join(ROOT, "dist")
+if PROFILE:
+    DIST = os.path.join(DIST, PROFILE)
 
 
 def sha256(data: bytes) -> str:
@@ -92,13 +107,15 @@ def build(variant: str, meta: dict, mods: list) -> None:
     # Prism Launcher's logo art goes to the shortcut that opens Prism; the pack's own to the one that starts the game.
     arts = ("cover.png", "hero.png", "logo.png", "icon.png", "wide.png")
     for src_rel, rel in [("installer/art/" + n, "steam/art/" + n) for n in arts] + [("installer/art-prism/" + n, "steam/art-prism/" + n) for n in arts] + [("installer/steam/controller_neptune.vdf", "steam/controller_neptune.vdf")]:
-        data = open(os.path.join(ROOT, src_rel), "rb").read()
+        # (a profile's own art, profiles/<id>/art/, when it has it; otherwise the shared files)
+        own = os.path.join(PDIR, "art", os.path.basename(src_rel)) if PROFILE and src_rel.startswith("installer/art/") else None
+        data = open(own if own and os.path.isfile(own) else os.path.join(ROOT, src_rel), "rb").read()
         os.makedirs(os.path.dirname(os.path.join(out, rel)), exist_ok=True)
         with open(os.path.join(out, rel), "wb") as f:
             f.write(data)
         entries.append((rel, sha256(data), False))
     # The server list, from installer/config.json: the sync keeps these in Minecraft's multiplayer list.
-    cfg_servers = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8"))["servers"]
+    cfg_servers = json.load(open(CONFIG, encoding="utf-8"))["servers"]
     rel = "extras/servers.json"
     data = write(os.path.join(out, rel), json.dumps([{"name": s["name"], "address": s["address"]} for s in cfg_servers], indent=1) + "\n")
     entries.append((rel, sha256(data), False))
@@ -109,12 +126,12 @@ def build(variant: str, meta: dict, mods: list) -> None:
     entries.append((rel, sha256(data), False))
     # The profile, as far as a device needs it (installer/config.json is the whole of it; see docs/profiles.md): the
     # name the launcher and the sync scripts show, and the instance it belongs to.
-    prof = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8"))
+    prof = json.load(open(CONFIG, encoding="utf-8"))
     rel = "extras/profile.json"
     data = write(os.path.join(out, rel), json.dumps({"name": prof["pack_name"], "instance_id": prof["instance_id"]}, indent=1) + "\n")
     entries.append((rel, sha256(data), False))
     # The Server tab's controls (installer/config.json "server_control"): panel, wake, status. No secrets in it.
-    sc = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8")).get("server_control", {})
+    sc = json.load(open(CONFIG, encoding="utf-8")).get("server_control", {})
     rel = "extras/server-control.json"
     data = write(os.path.join(out, rel), json.dumps({k: v for k, v in sc.items() if not k.startswith("_")}, indent=1) + "\n")
     entries.append((rel, sha256(data), False))
@@ -148,7 +165,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
     rel = "extras/changelog.txt"
     data = write(os.path.join(out, rel), changelog_text(load_changelog(meta)))
     entries.append((rel, sha256(data), False))
-    data = open(os.path.join(SRC, "files", "launch-popup.jar"), "rb").read()
+    data = open(os.path.join(TOOL_FILES, "launch-popup.jar"), "rb").read()
     rel = "extras/launch-popup.jar"
     with open(os.path.join(out, rel), "wb") as f:
         f.write(data)
@@ -206,8 +223,10 @@ def load_server() -> tuple:
     import importlib.util
     spec = importlib.util.spec_from_file_location("server_snapshot", os.path.join(ROOT, "tools", "server_snapshot.py"))
     snap = importlib.util.module_from_spec(spec); spec.loader.exec_module(snap)
-    state = json.load(open(os.path.join(ROOT, "server", "state.json"), encoding="utf-8"))
-    log = json.load(open(os.path.join(ROOT, "server", "changelog.json"), encoding="utf-8"))
+    if not os.path.isfile(os.path.join(SERVER, "state.json")):
+        return {}, []   # (a profile with no record of its server yet: the launcher's Server updates tab stays empty)
+    state = json.load(open(os.path.join(SERVER, "state.json"), encoding="utf-8"))
+    log = json.load(open(os.path.join(SERVER, "changelog.json"), encoding="utf-8"))
     if not log or log[0].get("state") != snap.state_hash(state):
         sys.exit("server/state.json changed without a note for players: run tools/server_snapshot.py --note \"...\"")
     for w in snap.client_mismatches(state):
@@ -237,7 +256,7 @@ def write_changelog_md(log: list) -> None:
              "`source/changelog.json`; players see the same notes in the pop-up before the game starts after an update.", ""]
     for v in log:
         lines += [f"## {v['version']}" + (f" ({v['date']})" if v.get("date") else ""), ""] + [f"- {n}" for n in v["notes"]] + [""]
-    with open(os.path.join(ROOT, "CHANGELOG.md"), "w", encoding="utf-8", newline="\n") as f:
+    with open(os.path.join(PDIR, "CHANGELOG.md"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines))
 
 
@@ -279,7 +298,7 @@ def write_mod_list(meta: dict, mods: list, server: dict) -> None:
                   "these must stay on the same versions; the build warns when they don't. More in [docs/server.md](server.md).", ""]
         lines += [f"- `{n}`" for n in server["mods"]]
     os.makedirs(os.path.join(ROOT, "docs"), exist_ok=True)
-    with open(os.path.join(ROOT, "docs", "mods.md"), "w", encoding="utf-8", newline="\n") as f:
+    with open(os.path.join(PDIR, "MODS.md") if PROFILE else os.path.join(ROOT, "docs", "mods.md"), "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(lines) + "\n")
 
 
@@ -289,9 +308,10 @@ def main() -> None:
         build(variant, src["pack"], src["mods"])
     # A record of what the server runs, kept beside the pack (a reference list; nothing checks it automatically).
     with open(os.path.join(DIST, "server-mods.json"), "w", encoding="utf-8") as f:
-        json.dump({"mods": sorted(m["file"] for m in load_server()[0]["mods"].values())}, f, indent=1)
+        json.dump({"mods": sorted(m["file"] for m in load_server()[0].get("mods", {}).values())}, f, indent=1)
+    os.makedirs(DIST, exist_ok=True)
     if not os.environ.get("OJ_DIST"):
-        write_mod_list(src["pack"], src["mods"], {"mods": sorted(m["file"] for m in load_server()[0]["mods"].values())})
+        write_mod_list(src["pack"], src["mods"], {"mods": sorted(m["file"] for m in load_server()[0].get("mods", {}).values())})
         write_changelog_md(load_changelog(src["pack"]))
 
 

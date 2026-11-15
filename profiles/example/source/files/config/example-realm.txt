@@ -1,0 +1,1 @@
+A settings file shipped by the example profile.

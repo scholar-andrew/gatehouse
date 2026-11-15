@@ -12,7 +12,17 @@ folder, game port, MCSS id); a pack's `server_control.server` names the one it i
 (`server` on a launcher or player for the first server, `server:<id>` for others); MCSS control, PC sleep and helper
 control are about the machine. Sleeping the machine and closing MCSS wait for every server. Checked: with one server
 the 41-line scenario is identical to before; with two stand-in servers each launcher sees and controls only its own.
-Still to do in stage 3: several packs in the build and repo, installers that take a profile, and the tool's name. The audience for now is the owner running several servers
+**Stage 3, second part, is built: the build makes a pack per profile.** `python tools/build_pack.py --profile <id>`
+builds `profiles/<id>/` (its `config.json`, `source/`, optional `art/` and `server/`) into `dist/<id>/main` and
+`dist/<id>/deck`. Without `--profile` it builds October Journey from where its files always were, and that pack comes
+out byte-for-byte the same as before (115 files compared). `profiles/example/` is a made-up second profile to copy;
+its pack installs into a fresh folder and the launcher shows its name and adds its server to the game's list.
+
+Still to do in stage 3, waiting for a real second server:
+- the installers' and uninstallers' own wording still says October Journey (a second profile installs today with
+  `--config=<its config.json address>`, but the messages name the wrong pack);
+- publishing a second pack (its `dist/<id>/` isn't built into the repo, and its pack sources would point there);
+- the tool's own name. The audience for now is the owner running several servers
 for the same group; the design keeps a later move to other hosts cheap (see "Rules").
 
 ## The idea
