@@ -1,9 +1,9 @@
 {
 	"schemaVersion": 1,
 	"id": "octoberjourney",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"name": "October Journey",
-	"description": "The October Journey pack's own settings: switch the pack's mods on and off (applies the next time you start the game). Open it from Mod Menu.",
+	"description": "The October Journey pack's own settings: switch the pack's mods and its launch pop-ups on and off (applies the next time you start the game). Open it from Mod Menu.",
 	"authors": ["October Journey"],
 	"contact": { "sources": "https://github.com/scholar-andrew/october-journey-pack" },
 	"license": "CC0-1.0",

@@ -57,6 +57,7 @@ current: see [What runs each time you play](INSTALL.md#what-runs-each-time-you-p
 | [INSTALL.md](INSTALL.md) | For players: installing, choosing what to install, what it was tested on, what setup changes, what runs on each launch, network use, removal. |
 | [docs/server.md](docs/server.md) | The server: settings, its mods, Jarvis, and what runs alongside it. |
 | [docs/mods.md](docs/mods.md) | Every mod in the pack and where it comes from (generated). |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each version (the same notes the launch pop-up shows). |
 | [docs/how-it-works.md](docs/how-it-works.md) | For the maintainer: how the pack is built, hosted and synced, the Steam keyboard setup, and how to make common changes. |
 | [mods-src/](mods-src/README.md) | Source of the pack's own mods: Chat Lift, Controller Handoff Fix, and the REI brewing patch. |
 | `source/` | The pack definition (`mods.json`) and files shipped as they are. |

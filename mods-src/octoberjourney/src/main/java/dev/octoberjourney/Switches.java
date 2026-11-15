@@ -26,10 +26,17 @@ import net.fabricmc.loader.api.FabricLoader;
  * disables the mods that are off (and any mod whose required mod is off), so a change takes effect on the next start.
  */
 final class Switches {
-	record Toggle(String key, String modId, String name, String description, boolean pack, Boolean choice, List<String> needs) {
+	/** A mod's switch, or (setting true, modId null) one of the pack's own settings saved at the top of pack-options.json. */
+	record Toggle(String key, String modId, String name, String description, boolean pack, Boolean choice, List<String> needs, boolean setting) {
 		boolean wanted() { return choice != null ? choice : pack; }
-		boolean loaded() { return FabricLoader.getInstance().isModLoaded(modId); }
+		boolean loaded() { return modId != null && FabricLoader.getInstance().isModLoaded(modId); }
 	}
+
+	/** The pop-up the pack sync shows before the game starts (read there by extras/launch-popup.jar). */
+	private static final String[][] SETTINGS = {
+		{"popup_updates", "Update pop-up", "Before the game starts after the pack updates, show what's new (and anything the update changed on this device)."},
+		{"popup_no_updates", "No-update pop-up", "Before the game starts, also say when there's nothing new. It closes itself after 5 seconds."},
+	};
 
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -39,6 +46,11 @@ final class Switches {
 
 	static List<Toggle> load() {
 		List<Toggle> out = new ArrayList<>();
+		JsonObject opts = options();
+		for (String[] s : SETTINGS) {
+			Boolean choice = opts.has(s[0]) && opts.get(s[0]).isJsonPrimitive() ? opts.get(s[0]).getAsBoolean() : null;
+			out.add(new Toggle(s[0], null, s[1], s[2], true, choice, List.of(), true));
+		}
 		JsonObject choices = options().has("mods") && options().get("mods").isJsonObject() ? options().getAsJsonObject("mods") : new JsonObject();
 		try (Reader r = Files.newBufferedReader(dir().resolve("extras/mod-toggles.json"), StandardCharsets.UTF_8)) {
 			JsonArray list = JsonParser.parseReader(r).getAsJsonArray();
@@ -49,10 +61,10 @@ final class Switches {
 				List<String> needs = new ArrayList<>();
 				if (o.has("needs")) for (JsonElement n : o.getAsJsonArray("needs")) needs.add(n.getAsString());
 				out.add(new Toggle(key, o.get("modid").getAsString(), o.get("name").getAsString(),
-						o.get("description").getAsString(), o.get("default").getAsBoolean(), choice, needs));
+						o.get("description").getAsString(), o.get("default").getAsBoolean(), choice, needs, false));
 			}
 		} catch (IOException | RuntimeException e) {
-			// No list yet (the pack hasn't synced): nothing to show.
+			// No list yet (the pack hasn't synced): only the settings to show.
 		}
 		return out;
 	}
@@ -81,12 +93,16 @@ final class Switches {
 		return new JsonObject();
 	}
 
-	/** Saves the player's choice for one mod, keeping everything else in pack-options.json. */
-	static void save(String key, boolean on) {
+	/** Saves the player's choice for one mod (under "mods") or setting (at the top), keeping everything else in pack-options.json. */
+	static void save(Toggle t, boolean on) {
 		JsonObject opts = options();
-		JsonObject mods = opts.has("mods") && opts.get("mods").isJsonObject() ? opts.getAsJsonObject("mods") : new JsonObject();
-		mods.addProperty(key, on);
-		opts.add("mods", mods);
+		if (t.setting()) {
+			opts.addProperty(t.key(), on);
+		} else {
+			JsonObject mods = opts.has("mods") && opts.get("mods").isJsonObject() ? opts.getAsJsonObject("mods") : new JsonObject();
+			mods.addProperty(t.key(), on);
+			opts.add("mods", mods);
+		}
 		try (Writer w = Files.newBufferedWriter(dir().resolve("pack-options.json"), StandardCharsets.UTF_8)) {
 			GSON.toJson(opts, w);
 		} catch (IOException e) {

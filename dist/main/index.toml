@@ -10,16 +10,24 @@ hash = "6779a570710921108d142e01541a127a32fd1e1e64e0f461bb47819b8c44148b"
 preserve = true
 
 [[files]]
+file = "extras/changelog.txt"
+hash = "791b9763e19bee67337f224093344477a7210a8a4f27e3f3e8c6461ea192ff15"
+
+[[files]]
+file = "extras/launch-popup.jar"
+hash = "d5373ae5988d1228a4cef531d5b5318897682197f713d78e36654ba4f5031c9f"
+
+[[files]]
 file = "extras/mod-toggles.json"
 hash = "75d6134daed6501ca06c2c482269281b1a9fbe80585af0107f9d26ab1c83d69e"
 
 [[files]]
 file = "extras/pack-sync.ps1"
-hash = "460165456872d76e4ee76f4cf9e1e79739becf66a0b649803a3edd3bfc4c5e2c"
+hash = "85a902f65b6b33a45ab17fb52842f2295144724f201703ac909423a4c2053c27"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "fb53cdcde72d15ee3d2bbdd08c0be23ff40c113ae7a7f3f1df49d6be193f5ff2"
+hash = "2fd01f2a2d3a5783680a669f65570b758bfcd37e38a3f59a4cb9271559b69ea0"
 
 [[files]]
 file = "extras/servers.json"
@@ -113,8 +121,8 @@ hash = "a4f3ae5afad624f8a35b971a0c816a54b2ad6f733f259b55cd5879c2c8a9df4d"
 metafile = true
 
 [[files]]
-file = "mods/octoberjourney-1.1.0.jar"
-hash = "9d398df7e455b3477ca1cbdc3747e15c0efdccfe3027d515060c4eef6c4ce008"
+file = "mods/octoberjourney-1.2.0.jar"
+hash = "4b564a3a7761e47450fb6f6177b06879a267209a73338209eae139c84ffa4e41"
 
 [[files]]
 file = "mods/placeholder-api.pw.toml"

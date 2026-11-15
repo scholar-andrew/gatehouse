@@ -8,14 +8,16 @@ variant=main
 case "$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null)" in
   Jupiter|Galileo) variant=deck ;;
 esac
-url=""
-while IFS= read -r s || [ -n "$s" ]; do
-  s="${s%%$'\r'}"; s="${s%/}"
-  [ -z "$s" ] && continue
-  [[ "$s" == \#* ]] && continue
-  if curl -fsI --max-time 3 "$s/$variant/pack.toml" >/dev/null 2>&1; then url="$s/$variant/pack.toml"; break; fi
-done < "$here/pack-sources.txt"
 note() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$here/pack-sync.log"; echo "Pack sync: $*"; }
+# What this launch changed on the device, for the pop-up (pack-sync-news.txt, started afresh each launch).
+: > "$here/pack-sync-news.txt"
+# The pop-up before the game starts (extras/launch-popup.jar, a small Java window; Prism waits for it): the patch notes
+# after an update, otherwise "no updates" (closing itself after 5 seconds). It reads the notes, the news above and the
+# player's pop-up settings itself.
+popup() {  # popup ok|offline|failed
+  [ -n "$java_bin" ] && [ -f "$here/extras/launch-popup.jar" ] || return 0
+  "$java_bin" -jar "$here/extras/launch-popup.jar" "$here" "$1" >> "$here/pack-sync-java.log" 2>&1 || note "pop-up skipped (exit $?)"
+}
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
 # Mods the player can switch on and off (Mod Menu > October Journey; the list and the pack's defaults are in
@@ -65,16 +67,17 @@ for t in toggles:
     elif jar in before: changed.append(t["name"] + " on")
 if off: json.dump(off, open(state, "w"))
 elif os.path.exists(state): os.remove(state)
-if changed: note("mods switched: " + ", ".join(changed))
+if changed:
+    note("mods switched: " + ", ".join(changed))
+    open(os.path.join(here, "pack-sync-news.txt"), "a").write("Mods switched: %s (change them in Mods > October Journey)\n" % ", ".join(changed))
 PY
 }
-stop_if_no_mods() {  # stop_if_no_mods "why" ["advice"]
-  if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; note "$1; starting with the mods already installed"; exit 0; fi
+stop_if_no_mods() {  # stop_if_no_mods "why" ["advice"] [ok|offline|failed for the pop-up]
+  if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; note "$1; starting with the mods already installed"; popup "${3:-failed}"; exit 0; fi
   note "$1, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
   echo "October Journey couldn't install its mods yet ($1). ${2:-Check your connection (Tailscale or internet) and press Play again.}"
   exit 1
 }
-[ -n "$url" ] || stop_if_no_mods "no source reachable"
 cd "$here" || exit 1
 # Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH. On an instance's
 # first launch Prism hasn't chosen a Java yet and INST_JAVA can be just its data folder, so only a java program counts.
@@ -84,6 +87,14 @@ for c in "${INST_JAVA:-}" "$here"/../../../java/*/bin/java; do
   if [ -f "$c" ] && [ -x "$c" ]; then java_bin="$c"; break; fi
 done
 [ -n "$java_bin" ] || java_bin="$(command -v java || true)"
+url=""
+while IFS= read -r s || [ -n "$s" ]; do
+  s="${s%%$'\r'}"; s="${s%/}"
+  [ -z "$s" ] && continue
+  [[ "$s" == \#* ]] && continue
+  if curl -fsI --max-time 3 "$s/$variant/pack.toml" >/dev/null 2>&1; then url="$s/$variant/pack.toml"; break; fi
+done < "$here/pack-sources.txt"
+[ -n "$url" ] || stop_if_no_mods "no source reachable" "" offline
 [ -n "$java_bin" ] || stop_if_no_mods "no Java found yet (INST_JAVA was '${INST_JAVA:-}')" "Prism Launcher is still setting up Java: press Play again."
 switches restore
 "$java_bin" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url" > "$here/pack-sync-java.log" 2>&1
@@ -139,6 +150,7 @@ if want_ctrl and ('"%s"' % key.lower()) not in txt.lower():
 json.dump(state, open(sp, "w"), indent=1)
 if changed:
     open(os.path.join(here, "pack-sync.log"), "a").write("%s  Steam extras updated: %s (shows after Steam restarts)\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), ", ".join(changed)))
+    open(os.path.join(here, "pack-sync-news.txt"), "a").write("Steam library art or controller layout updated (shows after Steam restarts)\n")
 PY
 fi
 
@@ -216,6 +228,7 @@ if changes:
     if d and not os.path.exists(dat + ".before-pack"): shutil.copy2(dat, dat + ".before-pack")
     open(dat, "wb").write(out)
     open(os.path.join(here, "pack-sync.log"), "a").write("%s  server list: %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), "; ".join(changes)))
+    open(os.path.join(here, "pack-sync-news.txt"), "a").write("Server list: %s\n" % "; ".join(changes))
 json.dump(state, open(sp, "w"), indent=1)
 PY
 fi
@@ -226,4 +239,5 @@ if [ -f "$here/extras/pack-sync.sh" ] && ! cmp -s "$here/extras/pack-sync.sh" "$
   cp "$here/extras/pack-sync.sh" "$here/pack-sync.sh.new" && chmod +x "$here/pack-sync.sh.new" && mv -f "$here/pack-sync.sh.new" "$here/pack-sync.sh" \
     && echo "$(date '+%Y-%m-%d %H:%M:%S')  sync script updated (used from the next launch)" >> "$here/pack-sync.log"
 fi
+if [ "$code" = 0 ]; then popup ok; else popup failed; fi
 exit 0

@@ -1,0 +1,49 @@
+[
+ {"version": "1.6.0", "date": "2026-11-14", "notes": [
+  "A pop-up like this one now shows before the game starts: what's new after an update, or that you're up to date (that one closes itself after 5 seconds).",
+  "Turn either pop-up off in Mods > October Journey (Update pop-up, No-update pop-up)."
+ ]},
+ {"version": "1.5.0", "date": "2026-11-14", "notes": [
+  "Every mod that isn't a library can now be switched off in Mods > October Journey. All are on by default, except the two nearby-chest mods.",
+  "New installs hide Inventory Profiles Next's Auto Refill arrows on the hotbar (change it in that mod's settings)."
+ ]},
+ {"version": "1.4.0", "date": "2026-11-14", "notes": [
+  "Stack to Nearby Chests and Nearby Chest Crafting are off by default. Switch them on in Mods > October Journey."
+ ]},
+ {"version": "1.3.6", "date": "2026-11-14", "notes": [
+  "Fixed the first launch on a new install sometimes starting without the pack's mods."
+ ]},
+ {"version": "1.3.5", "date": "2026-11-14", "notes": [
+  "If the mods can't be installed on the first launch, it stops and asks you to press Play again instead of starting plain Minecraft."
+ ]},
+ {"version": "1.3.4", "date": "2026-11-14", "notes": [
+  "Setup and the uninstaller offer a quick install or a choice of each part, and where it goes."
+ ]},
+ {"version": "1.3.3", "date": "2026-11-14", "notes": [
+  "Chat moves up to fit Steam's keyboard on any screen size."
+ ]},
+ {"version": "1.3.2", "date": "2026-11-14", "notes": [
+  "With a Steam controller, Steam + X opens Steam's keyboard and chat moves up above it."
+ ]},
+ {"version": "1.3.1", "date": "2026-11-14", "notes": [
+  "Typing with Steam's keyboard works while using a Steam controller."
+ ]},
+ {"version": "1.3.0", "date": "2026-11-14", "notes": [
+  "Steam controllers use Steam's keyboard; other controllers keep Controlify's own keyboard."
+ ]},
+ {"version": "1.2.2", "date": "2026-11-14", "notes": [
+  "The update that runs before each launch keeps itself up to date."
+ ]},
+ {"version": "1.2.1", "date": "2026-11-14", "notes": [
+  "The October Journey server stays in your multiplayer list with the right address."
+ ]},
+ {"version": "1.2.0", "date": "2026-11-14", "notes": [
+  "Steam library art and the Steam Deck controller layout are kept up to date."
+ ]},
+ {"version": "1.1.0", "date": "2026-11-14", "notes": [
+  "Controller support (Controlify) on every device, with fixes for Steam controllers and the Steam Deck."
+ ]},
+ {"version": "1.0.0", "date": "2026-11-14", "notes": [
+  "The first October Journey pack."
+ ]}
+]

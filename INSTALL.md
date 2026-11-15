@@ -80,6 +80,17 @@ installer's folder, and on Windows `--prism-dir=DIR` picks Prism Launcher's; for
 Nothing to do: every launch checks for mod changes and installs them before the game starts. Running setup again is
 safe; it updates your setup without duplicating anything.
 
+### Before the game starts: the launch pop-up
+After the update, a small October Journey window opens before Minecraft starts:
+- **After a pack update:** the new version and its patch notes. If you missed several updates, you see the notes for
+  each. It also lists anything the update changed on your device, such as mods switched off or new Steam art. Press
+  **Play** (or Enter, Space or Esc) to continue. It closes by itself after 90 seconds.
+- **No update:** "no updates" and the version you're on. It closes by itself after 5 seconds.
+- **Offline:** if the pack couldn't be reached, it says so, and the game starts with what's already installed.
+
+Turn either pop-up off in **Mods > October Journey** (**Update pop-up**, **No-update pop-up**). All the patch notes
+are in [CHANGELOG.md](CHANGELOG.md).
+
 ## Mods you can switch on and off
 Every mod in the pack that isn't a library other mods need can be switched off: maps, recipe lookup, inventory
 helpers, performance mods, controller support and so on. [docs/mods.md](docs/mods.md) lists which ones. All are on by
@@ -89,7 +100,7 @@ default except two:
   usual way, and you can still join.
 
 To switch a mod: on Minecraft's title screen, click **Mods**, pick **October Journey**, click its settings button, and
-flip the switch (hover a switch to see what the mod does). It takes effect the next time you start the game. The
+flip the switch (hover a switch to see what the mod does). The same screen has the two launch pop-up switches. It takes effect the next time you start the game. The
 update before each launch then disables the mods you've switched off (Prism shows them as disabled), so they aren't
 loaded at all. Some mods need another: Reese's Sodium Options needs Sodium, and Controller Handoff Fix needs
 Controlify, so switching off the second switches off the first too.
@@ -232,7 +243,10 @@ Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecra
 5. Makes sure the October Journey server is in your server list, if `pack-options.json` says to. If you edit or delete that entry in the game, it's
    left as you set it.
 6. Replaces itself with the pack's newest copy of the script, for the next launch.
-7. Writes one line per step to `pack-sync.log` in the instance's `minecraft` folder, and packwiz-installer's own output
+7. Shows the [launch pop-up](#before-the-game-starts-the-launch-pop-up) (`extras/launch-popup.jar`, run with the same
+   Java) and waits for it to close. It notes the pack version it showed in `pack-version-seen.txt`, and what this
+   launch changed on your device in `pack-sync-news.txt`.
+8. Writes one line per step to `pack-sync.log` in the instance's `minecraft` folder, and packwiz-installer's own output
    to `pack-sync-java.log` beside it. If the mods ever fail to install, those two files say why.
 
 ## What it connects to

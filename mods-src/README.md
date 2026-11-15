@@ -23,10 +23,17 @@ Files: `ChatLift.java` (settings, lift, opening `steam://` links), `SteamKeyboar
 
 ## octoberjourney (October Journey pack settings)
 `octoberjourney/`, built with `tools/build_mod.ps1 octoberjourney`. Made for this pack. Adds **October Journey** to Mod
-Menu, whose settings screen has an on/off switch for each mod listed in `extras/mod-toggles.json` (with the pack's
-default and whether it's loaded right now in the tooltip). A switch saves the player's choice under `mods` in
-`pack-options.json`; the pack sync applies it before the next launch by disabling or re-enabling the mod's jar. Nothing
-happens in the running game: a loaded mod can't be unloaded.
+Menu, whose settings screen has the two launch pop-up switches (**Update pop-up**, **No-update pop-up**, saved as
+`popup_updates` and `popup_no_updates` at the top of `pack-options.json`), then an on/off switch for each mod listed in
+`extras/mod-toggles.json` (with the pack's default and whether it's loaded right now in the tooltip). A mod switch
+saves the player's choice under `mods` in `pack-options.json`; the pack sync applies it before the next launch by
+disabling or re-enabling the mod's jar. Nothing happens in the running game: a loaded mod can't be unloaded.
+
+## launch-popup (the window before the game starts)
+`launch-popup/`, built with `tools/build_popup.ps1` into `source/files/launch-popup.jar`. It isn't a Minecraft mod: it's
+a small Swing program (Java 17, no libraries) that the pack sync runs with Prism's Java before the game starts. It
+shows the patch notes after an update, or "no updates", and honours the pop-up switches above.
+[docs/how-it-works.md](../docs/how-it-works.md) (step 7 of a launch) describes what it reads and writes.
 
 ## handofffix (Controller Handoff Fix)
 `handofffix/`, built with `tools/build_mod.ps1 handofffix`. Made for this pack. Requires Controlify.

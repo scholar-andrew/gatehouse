@@ -14,7 +14,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 /**
- * One on/off button per switchable mod, in two columns and as many pages as the screen needs, with a note that changes
+ * The launch pop-up settings, then one on/off button per switchable mod, in two columns and as many pages as the screen needs, with a note that changes
  * apply on the next start. A mod whose required mod is off is shown off and can't be switched until that one is on.
  */
 final class SwitchesScreen extends Screen {
@@ -24,7 +24,7 @@ final class SwitchesScreen extends Screen {
 	SwitchesScreen(Screen parent) { this(parent, 0); }
 
 	private SwitchesScreen(Screen parent, int page) {
-		super(Component.literal("October Journey: mods"));
+		super(Component.literal("October Journey"));
 		this.parent = parent;
 		this.page = page;
 	}
@@ -39,10 +39,10 @@ final class SwitchesScreen extends Screen {
 		addRenderableWidget(new StringWidget(xw, y, w, 12, this.title, this.font));
 		y += 16;
 		addRenderableWidget(new MultiLineTextWidget(xw, y,
-				Component.literal("Switch mods on or off. Changes apply the next time you start the game.").withStyle(ChatFormatting.GRAY),
+				Component.literal("Switch mods and the launch pop-ups on or off. Changes apply the next time you start the game.").withStyle(ChatFormatting.GRAY),
 				this.font).setMaxWidth(w).setCentered(true));
 		y += 24;
-		if (toggles.isEmpty()) {
+		if (toggles.stream().allMatch(Switches.Toggle::setting)) {
 			addRenderableWidget(new MultiLineTextWidget(xw, y,
 					Component.literal("Nothing to switch yet: the pack hasn't finished its first update.").withStyle(ChatFormatting.GRAY),
 					this.font).setMaxWidth(w).setCentered(true));
@@ -53,12 +53,12 @@ final class SwitchesScreen extends Screen {
 			Switches.Toggle t = toggles.get(i);
 			String blockedBy = null;
 			for (String need : t.needs()) if (Boolean.FALSE.equals(on.get(need))) blockedBy = Switches.nameOf(toggles, need);
-			String note = t.description() + "\n\nPack default: " + (t.pack() ? "on" : "off") + ". Loaded now: " + (t.loaded() ? "yes" : "no") + "."
+			String note = t.description() + "\n\nPack default: " + (t.pack() ? "on" : "off") + "." + (t.setting() ? "" : " Loaded now: " + (t.loaded() ? "yes" : "no") + ".")
 					+ (blockedBy != null ? "\nOff while " + blockedBy + " is off." : "");
 			CycleButton<Boolean> b = CycleButton.onOffBuilder(blockedBy == null && t.wanted())
 					.withTooltip(v -> Tooltip.create(Component.literal(note)))
 					.create(x0 + (n % cols) * (bw + gap), y + (n / cols) * 24, bw, 20, Component.literal(t.name()), (btn, value) -> {
-						Switches.save(t.key(), value);
+						Switches.save(t, value);
 						// Mods that need this one may change too: redraw.
 						Minecraft.getInstance().setScreenAndShow(new SwitchesScreen(parent, page));
 					});

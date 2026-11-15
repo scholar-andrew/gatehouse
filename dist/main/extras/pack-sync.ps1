@@ -5,6 +5,21 @@
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $log = Join-Path $here 'pack-sync.log'
 function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $text); Write-Host "Pack sync: $text" }
+# What this launch changed on the device, for the pop-up (pack-sync-news.txt, started afresh each launch).
+$news = Join-Path $here 'pack-sync-news.txt'
+Set-Content -Path $news -Value $null -Encoding utf8
+function News($text) { Add-Content -Path $news -Value $text -Encoding utf8 }
+# The pop-up before the game starts (extras/launch-popup.jar, a small Java window; Prism waits for it): the patch notes
+# after an update, otherwise "no updates" (closing itself after 5 seconds). It reads the notes, the news above and the
+# player's pop-up settings itself. javaw is used where there is one, so no console window opens beside it.
+function ShowPopup($status) {
+    $jar = Join-Path $here 'extras/launch-popup.jar'
+    if (-not $java -or -not (Test-Path $jar)) { return }
+    $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'
+    if (-not (Test-Path -LiteralPath $w)) { $w = $java }
+    try { [void](Start-Process -FilePath $w -ArgumentList @('-jar', "`"$jar`"", "`"$here`"", $status) -Wait -PassThru) }
+    catch { Note "pop-up skipped: $($_.Exception.Message)" }
+}
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
 function HasMods { [bool](Get-ChildItem (Join-Path $here 'mods') -Filter '*.jar' -ErrorAction SilentlyContinue | Select-Object -First 1) }
@@ -53,25 +68,15 @@ function ApplySwitches {
             } elseif ($before -contains $jar) { $changed += "$($t.name) on" }
         }
         if ($off) { ConvertTo-Json @($off) | Set-Content -Encoding utf8 $switchState } elseif (Test-Path $switchState) { Remove-Item $switchState }
-        if ($changed) { Note ("mods switched: " + ($changed -join ', ')) }
+        if ($changed) { Note ("mods switched: " + ($changed -join ', ')); News ("Mods switched: " + ($changed -join ', ') + ' (change them in Mods > October Journey)') }
     } catch { Note "mod switches skipped: $($_.Exception.Message)" }
 }
-function StopIfNoMods($why, $advice = 'Check your connection (Tailscale or internet) and press Play again.') {
-    if (HasMods) { ApplySwitches; Note "$why; starting with the mods already installed"; exit 0 }
+function StopIfNoMods($why, $advice = 'Check your connection (Tailscale or internet) and press Play again.', $status = 'failed') {
+    if (HasMods) { ApplySwitches; Note "$why; starting with the mods already installed"; ShowPopup $status; exit 0 }
     Note "$why, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
     Write-Host "October Journey couldn't install its mods yet ($why). $advice"
     exit 1
 }
-$variant = 'main'
-$sources = Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') }
-$url = $null
-foreach ($s in $sources) {
-    try {
-        $r = Invoke-WebRequest "$s/$variant/pack.toml" -UseBasicParsing -TimeoutSec 3 -Method Head
-        if ($r.StatusCode -eq 200) { $url = "$s/$variant/pack.toml"; break }
-    } catch { }
-}
-if (-not $url) { StopIfNoMods 'no source reachable' }
 # Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH. On an instance's
 # first launch Prism hasn't chosen a Java yet and INST_JAVA is just its data folder, so only an actual java(w).exe
 # counts. Prism hands over
@@ -87,6 +92,16 @@ foreach ($c in @($env:INST_JAVA) + @(Get-ChildItem (Join-Path $here '..\..\..\ja
     if (Test-Path -LiteralPath $c -PathType Leaf) { $java = $c; break }
 }
 if (-not $java -and (Get-Command java -ErrorAction SilentlyContinue)) { $java = (Get-Command java).Source }
+$variant = 'main'
+$sources = Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') }
+$url = $null
+foreach ($s in $sources) {
+    try {
+        $r = Invoke-WebRequest "$s/$variant/pack.toml" -UseBasicParsing -TimeoutSec 3 -Method Head
+        if ($r.StatusCode -eq 200) { $url = "$s/$variant/pack.toml"; break }
+    } catch { }
+}
+if (-not $url) { StopIfNoMods 'no source reachable' -status 'offline' }
 if (-not $java) { StopIfNoMods "no Java found yet (INST_JAVA was '$env:INST_JAVA')" 'Prism Launcher is still setting up Java: press Play again.' }
 $jargs = @('-jar', (Join-Path $here 'packwiz-installer-bootstrap.jar'))
 if ($env:PACK_SYNC_ARGS) { $jargs += $env:PACK_SYNC_ARGS -split ' ' }
@@ -168,7 +183,7 @@ if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
             [IO.File]::WriteAllText($set, $txt); $changed += 'controller list'
         }
         $state | ConvertTo-Json | Set-Content -Encoding utf8 $statePath
-        if ($changed) { Note ("Steam extras updated: " + ($changed -join ', ') + " (shows after Steam restarts)") }
+        if ($changed) { Note ("Steam extras updated: " + ($changed -join ', ') + " (shows after Steam restarts)"); News 'Steam library art or controller layout updated (shows after Steam restarts)' }
     } catch { Note "Steam extras skipped: $($_.Exception.Message)" }
 }
 
@@ -248,7 +263,7 @@ if ((Test-Path $want) -and $opt.server_entry) {
             W ([byte[]](0))
             if ((Test-Path $datPath) -and -not (Test-Path "$datPath.before-pack")) { Copy-Item $datPath "$datPath.before-pack" }
             [IO.File]::WriteAllBytes($datPath, $ms.ToArray())
-            Note ("server list: " + ($changes -join '; '))
+            Note ("server list: " + ($changes -join '; ')); News ("Server list: " + ($changes -join '; '))
         }
         $sState | ConvertTo-Json | Set-Content -Encoding utf8 $sStatePath
     } catch { Note "server list skipped: $($_.Exception.Message)" }
@@ -261,4 +276,5 @@ if ((Test-Path $next) -and (Get-FileHash $next).Hash -ne (Get-FileHash $self).Ha
     try { Copy-Item $next "$self.new" -Force; Move-Item "$self.new" $self -Force; Note 'sync script updated (used from the next launch)' }
     catch { Note "sync script update skipped: $($_.Exception.Message)" }
 }
+ShowPopup $(if ($code -eq 0) { 'ok' } else { 'failed' })
 exit 0
