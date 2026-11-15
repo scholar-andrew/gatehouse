@@ -286,6 +286,9 @@ final class ServerControl {
 		return r;
 	}
 
+	/** Asks the host helper to put the server PC to sleep (needs the owner's separate "PC sleep" permission). */
+	Map<String, Object> sleepPc() throws IOException { return helper("POST", "/v1/pc/sleep", "{}"); }
+
 	Map<String, Object> mcssStart() throws IOException { return helper("POST", "/v1/mcss/start", "{}"); }
 	/** force: the button said "Force close MCSS" (MCSS is set to hide when closed, so closing it means ending it). */
 	Map<String, Object> mcssClose(boolean force) throws IOException { return helper("POST", "/v1/mcss/close", force ? "{\"force\":true}" : "{}"); }

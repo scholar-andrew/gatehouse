@@ -260,9 +260,17 @@ public final class HostHelper {
 			String id = x.getRequestHeaders().getFirst("X-Device"), token = x.getRequestHeaders().getFirst("X-Token");
 			Map<String, Object> d = Json.map(devs.get(id == null ? "" : id));
 			if (d.isEmpty() || token == null || !sha256(token).equals(d.get("token_sha256"))) { reply(x, 401, m("state", "unknown", "error", "say hello first")); return; }
-			boolean granted = Boolean.TRUE.equals(d.get("granted"));
+			// Two separate permissions, each allowed per launcher in the panel: MCSS control ("granted") and PC sleep.
+			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep"));
 			if (path.equals("/v1/mcss") && x.getRequestMethod().equals("GET")) {
-				reply(x, 200, m("state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode()));
+				reply(x, 200, m("state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "sleep", canSleep));
+				return;
+			}
+			if (path.equals("/v1/pc/sleep") && x.getRequestMethod().equals("POST")) {
+				if (!canSleep) { reply(x, 403, m("error", "this device isn't allowed to sleep the PC (the owner allows it in the host panel)")); return; }
+				String[] r = sleepPc();
+				log("sleep the PC asked by " + who(d) + ": " + r[1]);
+				reply(x, 200, m("result", r[0], "message", r[1]));
 				return;
 			}
 			if (!granted) { reply(x, 403, m("state", "pending", "error", "not allowed yet: the owner allows this device in the host panel")); return; }
@@ -278,7 +286,23 @@ public final class HostHelper {
 		}
 	}
 
-	/** The panel: GET /admin/devices, POST /admin/grant {id, granted}, POST /admin/forget {id}, GET /admin/log. */
+	/** Puts this PC to sleep a few seconds from now (so the reply gets out first). Refused while the Minecraft server
+	 *  runs: players would be left on a frozen server. MCSS can stay open; it carries on when the PC wakes.
+	 *  host.json "sleep_command" replaces the sleep itself (testing). */
+	static String[] sleepPc() {
+		if (minecraftRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then sleep the PC"};
+		String custom = setting("sleep_command", "");
+		List<String> cmd = custom.isEmpty()
+				? List.of("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
+						"Start-Sleep 5; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false)")
+				: List.of("cmd", "/c", custom);
+		try { new ProcessBuilder(cmd).start(); }
+		catch (IOException e) { return new String[] {"failed", "Couldn't sleep the PC: " + e.getMessage()}; }
+		return new String[] {"ok", "The server PC is going to sleep (in about 5 seconds). Wake server device wakes it again from the home network."};
+	}
+
+	/** The panel: GET /admin/devices, POST /admin/grant {id, granted}, POST /admin/perm {id, perm: mcss|sleep, value},
+	 *  POST /admin/forget {id}, GET /admin/log. */
 	static void admin(HttpExchange x) throws IOException {
 		try {
 			String path = x.getRequestURI().getPath();
@@ -286,12 +310,19 @@ public final class HostHelper {
 				Map<String, Object> devs = devices();
 				for (Object v : devs.values()) Json.map(v).remove("token_sha256");
 				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "port", port(), "bind", setting("bind", "100.91.134.102")));
-			} else if (path.equals("/admin/grant") || path.equals("/admin/forget")) {
+			} else if (path.equals("/admin/grant") || path.equals("/admin/forget") || path.equals("/admin/perm")) {
 				Map<String, Object> b = body(x), devs = devices();
 				String id = Json.str(b.get("id"));
 				Map<String, Object> d = Json.map(devs.get(id));
 				if (d.isEmpty()) { reply(x, 404, m("error", "unknown device")); return; }
 				if (path.endsWith("forget")) { devs.remove(id); log("forgot " + who(d)); }
+				else if (path.endsWith("perm")) {
+					String perm = Json.str(b.get("perm"));
+					boolean v = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
+					if (perm.equals("sleep")) { d.put("sleep", v); log((v ? "allowed PC sleep for " : "removed PC sleep from ") + who(d)); }
+					else if (perm.equals("mcss")) { d.put("granted", v); log((v ? "allowed MCSS control for " : "removed MCSS control from ") + who(d)); }
+					else { reply(x, 400, m("error", "unknown permission")); return; }
+				}
 				else { boolean g = Boolean.TRUE.equals(b.get("granted")) || "true".equals(Json.str(b.get("granted"))); d.put("granted", g); log((g ? "allowed MCSS control for " : "revoked MCSS control from ") + who(d)); }
 				saveDevices(devs);
 				reply(x, 200, m("ok", true));
@@ -328,7 +359,7 @@ public final class HostHelper {
 			JLabel state = new JLabel(" ");
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(head, BorderLayout.NORTH); top.add(state, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
-			String[] cols = {"Launcher", "Tailscale device", "System", "First seen", "Last seen", "MCSS control"};
+			String[] cols = {"Launcher", "Tailscale device", "System", "First seen", "Last seen", "MCSS control", "PC sleep"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable table = new JTable(model);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -341,8 +372,9 @@ public final class HostHelper {
 			JScrollPane ts = new JScrollPane(table); ts.setPreferredSize(new Dimension(820, 200));
 			mid.add(ts, BorderLayout.CENTER);
 			JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
-			JButton grant = new JButton("Allow MCSS control"), revoke = new JButton("Revoke"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
-			for (JButton b : new JButton[] {grant, revoke, forget, refreshB}) buttons.add(b);
+			JButton mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
+			for (JButton b : new JButton[] {mcssB, sleepB, forget, refreshB}) buttons.add(b);
+			Map<String, boolean[]> perms = new java.util.HashMap<>();   // id -> {mcss, sleep}, from the last refresh
 			mid.add(buttons, BorderLayout.SOUTH);
 			p.add(mid, BorderLayout.CENTER);
 			JPanel bottom = new JPanel(new BorderLayout(0, 4));
@@ -356,12 +388,14 @@ public final class HostHelper {
 					SwingUtilities.invokeLater(() -> {
 						int sel = table.getSelectedRow();
 						String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null;
-						model.setRowCount(0); ids.clear();
+						model.setRowCount(0); ids.clear(); perms.clear();
 						for (Map.Entry<String, Object> e : Json.map(r.get("devices")).entrySet()) {
 							Map<String, Object> d = Json.map(e.getValue());
 							ids.add(e.getKey());
+							boolean pm = Boolean.TRUE.equals(d.get("granted")), ps = Boolean.TRUE.equals(d.get("sleep"));
+							perms.put(e.getKey(), new boolean[] {pm, ps});
 							model.addRow(new Object[] {d.get("name"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
-									Boolean.TRUE.equals(d.get("granted")) ? "Allowed" : "Waiting for you"});
+									pm ? "Allowed" : "Not allowed", ps ? "Allowed" : "Not allowed"});
 							if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 						}
 						state.setForeground(new Color(0x2E9D48));
@@ -384,8 +418,17 @@ public final class HostHelper {
 				if (r < 0) { JOptionPane.showMessageDialog(f, "Pick a launcher in the list first."); return null; }
 				return ids.get(r);
 			};
-			grant.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/grant", "{\"id\":\"" + id + "\",\"granted\":true}"); });
-			revoke.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/grant", "{\"id\":\"" + id + "\",\"granted\":false}"); });
+			// Each button flips its permission for the selected launcher, and says which way it will go.
+			Runnable labels = () -> {
+				int r = table.getSelectedRow();
+				boolean[] pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[2]) : new boolean[2];
+				mcssB.setText(pp[0] ? "Remove MCSS control" : "Allow MCSS control");
+				sleepB.setText(pp[1] ? "Remove PC sleep" : "Allow PC sleep");
+			};
+			table.getSelectionModel().addListSelectionListener(e -> labels.run());
+			model.addTableModelListener(e -> SwingUtilities.invokeLater(labels));
+			mcssB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"mcss\",\"value\":" + !perms.getOrDefault(id, new boolean[2])[0] + "}"); });
+			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[2])[1] + "}"); });
 			forget.addActionListener(e -> { String id = chosen.get(); if (id != null && JOptionPane.showConfirmDialog(f, "Forget this launcher? It can ask again later.", "Forget", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) act.accept("/admin/forget", "{\"id\":\"" + id + "\"}"); });
 			refreshB.addActionListener(e -> refresh.run());
 			new Timer(3000, e -> refresh.run()).start();

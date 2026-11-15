@@ -95,6 +95,7 @@ public final class LaunchPopup {
 				case "mcss" -> System.out.println("mcss: " + c.mcssState());
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
+				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
 				case "mcss-force-close" -> System.out.println("mcss force close: " + c.mcssClose(true));
 				case "stop-watch" -> {   // stop, wait until it's off, and say whether the shutdown was smooth
 					long t0 = System.currentTimeMillis(); c.stop(); int st = -1;
@@ -591,25 +592,27 @@ public final class LaunchPopup {
 		JLabel mcss = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
 		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, 13f));
 		mcss.setIconTextGap(8);
-		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS");
+		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS"), pcSleep = new JButton("Sleep server PC");
 		boolean[] forceMode = {false};
-		mStart.setEnabled(false); mClose.setEnabled(false);
+		mStart.setEnabled(false); mClose.setEnabled(false); pcSleep.setEnabled(false);
 		JLabel mNote = new JLabel(" ");
 		mNote.setFont(mNote.getFont().deriveFont(Font.PLAIN, 12f));
 		mNote.setForeground(new Color(0x6B7280));
 		Runnable mcssRefresh = () -> new Thread(() -> {
-			String state, text, mode = "close"; boolean granted = false, running = false;
+			String state, text, mode = "close"; boolean granted = false, running = false, sleepOk = false, game = false;
 			try {
 				Map<String, Object> r = c.mcssState();
 				state = s(r.get("state"));
 				running = "true".equals(s(r.get("mcss")));   // (this reader gives true/false back as text)
 				granted = state.equals("granted");
 				if (s(r.get("close")).equals("force")) mode = "force";
+				sleepOk = "true".equals(s(r.get("sleep")));
+				game = "true".equals(s(r.get("minecraft")));
 				if (granted) text = running ? "MCSS is running" : "MCSS isn't running";
 				else text = "Waiting for the owner to allow this device (in the host panel on the server PC)";
 				state = granted ? (running ? "ok" : "off") : "warn";
 			} catch (IOException | RuntimeException e) { state = "off"; text = "The host helper isn't answering (the server PC may be asleep or signed out)"; }
-			String st = state, tx = text, md = mode; boolean g = granted, run = running;
+			String st = state, tx = text, md = mode; boolean g = granted, run = running, sl = sleepOk, gm = game;
 			SwingUtilities.invokeLater(() -> {
 				// The button says what it will do: MCSS's X button either exits it (Close) or only hides it (Force close).
 				forceMode[0] = md.equals("force");
@@ -620,6 +623,10 @@ public final class LaunchPopup {
 				mcss.setText("<html><div style='width:430px'>" + esc(tx) + "</div></html>");
 				mStart.setEnabled(g && !run);
 				mClose.setEnabled(g && run);
+				// Sleep: only with the owner's PC sleep permission, and only while the Minecraft server is stopped.
+				pcSleep.setEnabled(sl && !gm);
+				pcSleep.setToolTipText(!sl ? "This device isn't allowed to sleep the PC (the owner allows it in the host panel)"
+						: gm ? "Stop the Minecraft server first" : "Put the server PC to sleep (Wake server device wakes it from the home network)");
 			});
 		}, "mcss-status").start();
 		java.util.function.Function<Boolean, Runnable> mcssAct = startIt -> () -> {
@@ -641,10 +648,23 @@ public final class LaunchPopup {
 			}, "mcss-act").start();
 		};
 		mStart.addActionListener(e -> mcssAct.apply(true).run());
+		pcSleep.addActionListener(e -> {
+			hold.run();
+			if (javax.swing.JOptionPane.showConfirmDialog(f, "Put the server PC to sleep? MCSS stays open and carries on when it wakes. Wake server device wakes it again from the home network.",
+					"Sleep server PC", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
+			mNote.setText("Asking the server PC to sleep\u2026");
+			new Thread(() -> {
+				String msg;
+				try { Map<String, Object> r = c.sleepPc(); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server PC awake?"; }
+				String m = msg;
+				SwingUtilities.invokeLater(() -> mNote.setText(wrap(m)));
+			}, "pc-sleep").start();
+		});
 		mClose.addActionListener(e -> mcssAct.apply(false).run());
 		if (c.hasHelper()) {
 			JPanel mButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
-			for (JButton b : new JButton[] {mStart, mClose}) { b.setFont(b.getFont().deriveFont(13f)); mButtons.add(b); }
+			for (JButton b : new JButton[] {mStart, mClose, pcSleep}) { b.setFont(b.getFont().deriveFont(13f)); mButtons.add(b); }
 			for (JComponent x : new JComponent[] {mcssHead, mcss, mButtons, mNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(2)); }
 		}
 

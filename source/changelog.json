@@ -1,4 +1,7 @@
 [
+ {"version": "1.8.8", "date": "2026-11-15", "notes": [
+  "Sleep server PC (Server controls): puts the server PC to sleep, for devices the owner has allowed (a separate permission from MCSS control), and only while the Minecraft server is stopped. Wake server device wakes it again from the home network."
+ ]},
  {"version": "1.8.7", "date": "2026-11-15", "notes": [
   "Fixed: with MCSS closed, the launcher said the server PC was asleep. It now says the PC is awake but MCSS isn't running (and Wake stays greyed out)."
  ]},

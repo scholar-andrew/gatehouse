@@ -129,6 +129,9 @@ button says how it will close MCSS, from MCSS's own close option on the server P
 button exits it (a normal close), or **Force close MCSS** when its X button only hides it to the taskbar (MCSS is
 ended instead).
 
+**Sleep server PC** puts the server PC to sleep (MCSS stays open and carries on when it wakes). It needs its own
+permission from the owner, separate from MCSS control, and only works while the Minecraft server is stopped.
+
 A fourth tab, **Server config**, shows the panel's address and whether this device has panel access, with:
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
 - **Server access...:** sign in with your server panel username and password (easiest: the pop-up keeps the key the

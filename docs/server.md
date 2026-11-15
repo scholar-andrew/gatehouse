@@ -83,7 +83,8 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   computer name and system. The helper also asks Tailscale which device the request came from (`tailscale whois`).
   New launchers wait for permission.
 - **October Journey host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
-  seen) with **Allow MCSS control**, **Revoke** and **Forget**, and shows a log of every request.
+  seen) with their two permissions, **MCSS control** and **PC sleep**, each switched on or off for the selected
+  launcher, plus **Forget**, and shows a log of every request.
 - Allowed launchers can start MCSS, and close it. Closing is refused while the Minecraft server is running (stop it
   first). How depends on MCSS's own close setting (`mcssClosePreference` in `resources/mcss_config.json`), which the
   helper reports to launchers (`close` in `/v1/mcss`) so the button can say what it will do: with the exit choice,
@@ -91,6 +92,9 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   HideToTaskbar or MinimizeToTaskbar (the X button only hides it), the button reads **Force close MCSS** and the helper
   ends MCSS, only when the request says force. It only
   touches the configured `mcss.exe`.
+- Separately, launchers the owner allows **PC sleep** (its own switch in the panel) can put the PC to sleep
+  (`POST /v1/pc/sleep`): refused while the Minecraft server is running; otherwise the helper suspends the PC about 5
+  seconds later (Windows' SetSuspendState, as the Start menu's Sleep). MCSS stays open; Wake on LAN wakes the PC.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`). It only works while the owner is signed in to Windows.
 
