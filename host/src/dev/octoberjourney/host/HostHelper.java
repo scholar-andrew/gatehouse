@@ -263,7 +263,7 @@ public final class HostHelper {
 			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
-			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep")), canServer = Boolean.TRUE.equals(d.get("server"));
+			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep")), canServer = Boolean.TRUE.equals(d.get("server")) || granted;   // (MCSS control includes server control)
 			// A fourth, helper control: the launcher may do what the host panel does (see the launchers and the activity,
 			// switch the other three permissions, forget a launcher). Only the panel on this PC gives or removes it, and
 			// the helper's MCSS key can't be read or set from a launcher.
@@ -364,6 +364,13 @@ public final class HostHelper {
 		catch (IOException | RuntimeException e) { return -1; }
 	}
 
+	/** How MCSS takes the helper's key: "yes" (it can see the server), "forbidden" (MCSS knows the key, but it has no
+	 *  right to this server), "unknown" (MCSS doesn't know the key), "no" (MCSS isn't answering). */
+	static String keyState() {
+		try { mcssApi("GET", "/api/v2/servers/" + serverId(), null); return "yes"; }
+		catch (IOException e) { return String.valueOf(e.getMessage()).contains("403") ? "forbidden" : String.valueOf(e.getMessage()).contains("401") ? "unknown" : "no"; }
+	}
+
 	static String[] serverAction(boolean start) {
 		if (setting("mcss_api_key", "").isEmpty()) return new String[] {"refused", "The helper has no MCSS key yet: the owner sets it in the host panel (Set MCSS key)"};
 		if (mcssProcesses().isEmpty()) return new String[] {"refused", "MCSS isn't running: start it first (Start MCSS)"};
@@ -371,7 +378,9 @@ public final class HostHelper {
 			mcssApi("POST", "/api/v2/servers/" + serverId() + "/execute/action", "{\"action\":" + (start ? 2 : 1) + "}");
 			return new String[] {"ok", start ? "Start requested: the server takes a minute or so to come up" : "Stop requested: the server saves the world and shuts down"};
 		} catch (IOException e) {
-			return new String[] {"failed", e.getMessage().contains("401") || e.getMessage().contains("403") ? "MCSS didn't accept the helper's key (the owner checks it in the host panel)" : "MCSS said no (" + e.getMessage() + ")"};
+			return new String[] {"failed", e.getMessage().contains("401") ? "MCSS doesn't know the helper's key (the owner sets it again in the host panel)"
+					: e.getMessage().contains("403") ? "The helper's MCSS key isn't allowed to " + (start ? "start" : "stop") + " this server (the owner gives the key that permission in MCSS's panel, under API Keys)"
+					: "MCSS said no (" + e.getMessage() + ")"};
 		}
 	}
 
@@ -407,7 +416,28 @@ public final class HostHelper {
 				Map<String, Object> devs = devices();
 				for (Object v : devs.values()) Json.map(v).remove("token_sha256");
 				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "port", port(), "bind", setting("bind", "100.91.134.102"),
-						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : (serverStatus() >= 0 ? "yes" : "no"), "mcss_user", setting("mcss_user", "")));
+						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : keyState(), "mcss_user", setting("mcss_user", "")));
+			} else if (path.equals("/admin/keytest")) {
+				// Troubleshooting: what MCSS answers to the helper's key (status codes and MCSS's own error text; never the key).
+				Map<String, Object> out = new LinkedHashMap<>();
+				out.put("server_id", serverId());
+				for (String q : new String[] {"/api/v2/servers", "/api/v2/servers/" + serverId(), "/api/v2/keys"}) {
+					try {
+						HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + q).openConnection();
+						c.setConnectTimeout(3000); c.setReadTimeout(8000);
+						c.setRequestProperty("apiKey", setting("mcss_api_key", ""));
+						int code = c.getResponseCode();
+						String bodyText = "";
+						if (code >= 400) try (InputStream in = c.getErrorStream()) { if (in != null) bodyText = new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+						else if (q.equals("/api/v2/servers")) try (InputStream in = c.getInputStream()) {
+							String list = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+							out.put("servers_listed", Json.list(Json.parse(list)).size());
+							out.put("this_server_listed", list.contains(serverId()));
+						}
+						out.put(q, code + (bodyText.isEmpty() ? "" : " " + (bodyText.length() > 200 ? bodyText.substring(0, 200) : bodyText)) + " " + String.valueOf(c.getHeaderField("WWW-Authenticate")));
+					} catch (IOException e) { out.put(q, "error: " + e); }
+				}
+				reply(x, 200, out);
 			} else if (path.equals("/admin/signin")) {
 				// The owner signs the helper in to MCSS with a panel account (typed in the host panel on this PC): MCSS's
 				// own sign-in hands back a key, and that is what's kept (host.json), never the password.
@@ -535,14 +565,16 @@ public final class HostHelper {
 							boolean pm = Boolean.TRUE.equals(d.get("granted")), ps = Boolean.TRUE.equals(d.get("sleep")), pv = Boolean.TRUE.equals(d.get("server")), pa = Boolean.TRUE.equals(d.get("admin"));
 							perms.put(e.getKey(), new boolean[] {pm, ps, pv, pa});
 							model.addRow(new Object[] {d.get("name"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
-									pv ? "Allowed" : "Not allowed", pm ? "Allowed" : "Not allowed", ps ? "Allowed" : "Not allowed", pa ? "Allowed" : "Not allowed"});
+									pv ? "Allowed" : pm ? "Allowed (with MCSS control)" : "Not allowed", pm ? "Allowed" : "Not allowed", ps ? "Allowed" : "Not allowed", pa ? "Allowed" : "Not allowed"});
 							if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 						}
 						boolean hasKey = Boolean.TRUE.equals(r.get("has_key"));
 						String works = Json.str(r.get("key_works"));
-						keyState.setForeground(!hasKey ? new Color(0xB45309) : works.equals("no") ? new Color(0xD23C3C) : new Color(0x2E9D48));
+						keyState.setForeground(!hasKey ? new Color(0xB45309) : !works.equals("yes") ? new Color(0xD23C3C) : new Color(0x2E9D48));
 						String as = Json.str(r.get("mcss_user"));
-						keyState.setText(!hasKey ? "The helper isn't signed in to MCSS: server control won't work until it is."
+						keyState.setText(works.equals("forbidden") ? "MCSS knows the helper's key, but it has no permission for this server: give it the server (view, start, stop) under API Keys in MCSS's panel."
+								: works.equals("unknown") ? "MCSS doesn't know the helper's key: set it again, or sign in."
+								: !hasKey ? "The helper isn't signed in to MCSS: server control won't work until it is."
 								: works.equals("no") ? (as.isEmpty() ? "The helper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
 								: as.isEmpty() ? "The helper's MCSS key is set and working." : "Signed in to MCSS as " + as + ": working.");
 						state.setForeground(new Color(0x2E9D48));
