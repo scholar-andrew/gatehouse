@@ -148,35 +148,74 @@ final class ServerControl {
 		try { URI u = URI.create(panelUrl); return u.getHost() + ":" + (u.getPort() > 0 ? u.getPort() : 80); } catch (RuntimeException e) { return ""; }
 	}
 
-	/** Where things stand: {colour key, text}. Colour keys as in the pop-up: ok, warn, off, failed. */
+	/** Minecraft's own server list ping (as the multiplayer screen does): {ping ms, players online, player limit,
+	 *  version}, or null when the game server doesn't answer. */
+	static String[] serverListPing(String hostPort, int ms) {
+		int c = hostPort.lastIndexOf(':');
+		if (c < 0) return null;
+		String host = hostPort.substring(0, c);
+		int port;
+		try { port = Integer.parseInt(hostPort.substring(c + 1)); } catch (NumberFormatException e) { return null; }
+		try (Socket s = new Socket()) {
+			s.connect(new InetSocketAddress(host, port), ms);
+			s.setSoTimeout(ms);
+			java.io.DataOutputStream out = new java.io.DataOutputStream(s.getOutputStream());
+			java.io.DataInputStream in = new java.io.DataInputStream(s.getInputStream());
+			java.io.ByteArrayOutputStream hs = new java.io.ByteArrayOutputStream();
+			java.io.DataOutputStream h = new java.io.DataOutputStream(hs);
+			h.writeByte(0x00); varInt(h, -1); byte[] hb = host.getBytes(StandardCharsets.UTF_8); varInt(h, hb.length); h.write(hb); h.writeShort(port); varInt(h, 1);
+			varInt(out, hs.size()); out.write(hs.toByteArray());
+			varInt(out, 1); out.writeByte(0x00);   // status request
+			readVarInt(in); readVarInt(in);
+			byte[] js = new byte[readVarInt(in)]; in.readFully(js);
+			Map<String, Object> st = asMap(LaunchPopup.parseJson(new String(js, StandardCharsets.UTF_8)));
+			Map<String, Object> pl = asMap(st.get("players"));
+			long sent = System.nanoTime();
+			varInt(out, 9); out.writeByte(0x01); out.writeLong(sent);   // ping
+			readVarInt(in); readVarInt(in); in.readLong();
+			long rtt = (System.nanoTime() - sent) / 1_000_000;
+			return new String[] {String.valueOf(rtt), str(pl.get("online")), str(pl.get("max")), str(asMap(st.get("version")).get("name"))};
+		} catch (IOException | RuntimeException e) { return null; }
+	}
+
+	private static void varInt(java.io.DataOutputStream o, int v) throws IOException {
+		while (true) { if ((v & ~0x7F) == 0) { o.writeByte(v); return; } o.writeByte((v & 0x7F) | 0x80); v >>>= 7; }
+	}
+
+	private static int readVarInt(java.io.DataInputStream in) throws IOException {
+		int v = 0, n = 0; byte b;
+		do { b = in.readByte(); v |= (b & 0x7F) << (7 * n++); if (n > 5) throw new IOException("bad varint"); } while ((b & 0x80) != 0);
+		return v;
+	}
+
+	/** Where things stand: {colour key, text, phase, ping ms, players}. Colour keys as in the pop-up (ok, warn, off,
+	 *  failed); phase: online, starting, stopping, off (the PC is awake, the game server isn't running), asleep, error.
+	 *  Ping and players come from the game server itself (empty when it isn't answering). */
 	String[] status() {
-		boolean game = !minecraft.isEmpty() && answers(minecraft, 2000);
+		String[] slp = minecraft.isEmpty() ? null : serverListPing(minecraft, 2500);
+		boolean game = slp != null;
 		boolean pc = game || (!panelUrl.isEmpty() && answers(panelHostPort(), 2000));
+		String ping = game ? slp[0] : "", players = game ? slp[1] + " of " + slp[2] : "";
 		if (hasKey() && pc) {
 			try {
 				Map<String, Object> srv = asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId, null)));
 				int st = -1;
 				try { st = (int) Double.parseDouble(str(srv.get("status"))); } catch (NumberFormatException ignored) {}
-				String players = "";
-				try {
-					Map<String, Object> latest = asMap(asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId + "/stats", null))).get("latest"));
-					if (latest.get("playersOnline") != null) players = ", " + str(latest.get("playersOnline")) + " of " + str(latest.get("playerLimit")) + " players";
-				} catch (IOException ignored) {}
 				switch (st) {
-					case 1: return new String[] {"ok", "Online" + players};
-					case 3: return new String[] {"warn", "Starting…"};
-					case 2: return new String[] {"warn", "Restarting…"};
-					case 4: return new String[] {"warn", "Stopping…"};
-					case 0: return new String[] {"off", "The server PC is awake, but the Minecraft server is off: press Start server"};
+					case 1: return new String[] {"ok", "Online", "online", ping, players};
+					case 3: return new String[] {"warn", "Starting\u2026", "starting", ping, players};
+					case 2: return new String[] {"warn", "Restarting\u2026", "starting", ping, players};
+					case 4: return new String[] {"warn", "Stopping\u2026", "stopping", ping, players};
+					case 0: return new String[] {"off", "The server PC is awake, but the Minecraft server is off: press Start server", "off", "", ""};
 					default: break;
 				}
 			} catch (HttpError e) {
-				if (e.code == 401 || e.code == 403) return new String[] {"failed", game ? "Online. (Your API key wasn't accepted: check it in Server access.)" : "Your API key wasn't accepted: check it in Server access"};
+				if (e.code == 401 || e.code == 403) return new String[] {"failed", game ? "Online. (Your panel access wasn't accepted: check it in Server config.)" : "Your panel access wasn't accepted: check it in Server config", game ? "online" : "error", ping, players};
 			} catch (IOException ignored) { }
 		}
-		if (game) return new String[] {"ok", "Online"};
-		if (pc) return new String[] {"off", "The server PC is awake, but the Minecraft server isn't answering" + (hasKey() ? "" : " (an API key in Server access lets you start it)")};
-		return new String[] {"off", "Not answering: the server PC is asleep or off" + (canWake() ? " (Wake server device works from the home network)" : "")};
+		if (game) return new String[] {"ok", "Online", "online", ping, players};
+		if (pc) return new String[] {"off", "The server PC is awake, but the Minecraft server isn't answering" + (hasKey() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
+		return new String[] {"off", "Not answering: the server PC is asleep or off" + (canWake() ? " (Wake server device works from the home network)" : ""), "asleep", "", ""};
 	}
 
 	/** Asks MCSS to start the server. */

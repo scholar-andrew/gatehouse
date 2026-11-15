@@ -1,4 +1,9 @@
 [
+ {"version": "1.8.6", "date": "2026-11-15", "notes": [
+  "Server controls show your ping to the server as ten pips from red to green (more is better), with the number of players connected below it. Both come straight from the game server, no panel access needed.",
+  "Start server can only be pressed while the server is off, Stop server only while it's running, and Wake server device only while the server PC isn't answering.",
+  "The Server tab starts with a live line (online with ping and players, off, or not answering), since the rest of the tab is the server as last recorded."
+ ]},
  {"version": "1.8.5", "date": "2026-11-15", "notes": [
   "Server controls and Server config scroll when their content is taller than the window, and long messages wrap instead of being cut off.",
   "The MCSS close button says what it will do: Close MCSS when MCSS's X button exits it (a normal close), Force close MCSS when its X button only hides it (MCSS is ended). Either way only once the Minecraft server is stopped."

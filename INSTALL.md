@@ -104,11 +104,15 @@ amber not checked (offline) and red failed. Below that:
 - **Also on this device:** anything else the update did, such as a new pack default.
 - **What's new:** the patch notes for every version since you last played.
 
-A second tab, **Server**, shows what the server runs (game version, Jarvis, mods, main settings) and what changed
+A second tab, **Server**, starts with a live line saying whether the server answers right now (with ping and
+players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed
 there since you last played, with notes. When something on the server is new, the button reads **Next: server
 changes**: it takes you to that tab, and **Play** is there.
 
-A third tab, **Server controls**, shows whether the server is online (checked every few seconds), with these buttons:
+A third tab, **Server controls**, shows whether the server is online (checked every few seconds), your **ping** to
+it as ten pips from red to green (all ten at 25 ms or less, one fewer for each step up to 500 ms), and the **players**
+connected, with these buttons (each only when it applies: Wake while the server PC isn't answering, Start while the
+server is off, Stop while it runs):
 - **Wake server device:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; from
   elsewhere only with an internet wake address the owner gives you (Server access).
 - **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is

@@ -223,6 +223,30 @@ public final class LaunchPopup {
 		summary(dir, done);
 	}
 
+	/** Ten pips for the connection: how many are lit follows the ping (more is better), coloured from red (first) to
+	 *  green (last); unlit pips are grey. -1: no reading. */
+	static final class PipMeter extends JComponent {
+		private int lit = 0;
+		PipMeter() { setPreferredSize(new Dimension(10 * 11 + 2, 16)); setToolTipText("Connection to the game server: the more pips, the better"); }
+		/** Pips for a ping in ms: 25 or less lights all ten, each band after that one fewer, down to one. */
+		void set(int ms) {
+			int[] bands = {25, 40, 60, 80, 100, 130, 170, 230, 320, 500};
+			int n = 0;
+			if (ms >= 0) { n = 1; for (int i = 0; i < bands.length; i++) if (ms <= bands[i]) { n = 10 - i; break; } }
+			lit = n;
+			repaint();
+		}
+		@Override protected void paintComponent(Graphics g) {
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			for (int i = 0; i < 10; i++) {
+				g2.setColor(i < lit ? Color.getHSBColor(i / 9f * 0.33f, 0.78f, 0.86f) : new Color(0xD5D8DD));
+				g2.fillRoundRect(1 + i * 11, 2, 8, 12, 3, 3);
+			}
+			g2.dispose();
+		}
+	}
+
 	/** Text for a message line, wrapped to the window's width. */
 	static String wrap(String s) { return "<html><div style='width:430px'>" + esc(s) + "</div></html>"; }
 
@@ -429,7 +453,7 @@ public final class LaunchPopup {
 			rows.add(heading("Server notes" + (v.date().isEmpty() ? "" : " (" + v.date() + ")")));
 			for (String n : v.notes()) rows.add(text("\u2022 " + n));
 		}
-		rows.add(heading("The server now"));
+		rows.add(heading("What the server runs (as last recorded)"));
 		rows.add(row(touched.test("Minecraft") || touched.test("Fabric") ? BLUE : GREEN, "Game", "Minecraft " + s(st.get("minecraft")) + ", Fabric Loader " + s(st.get("fabric_loader"))));
 		if (!jarvis.isEmpty()) rows.add(row(touched.test("Updated: Jarvis") || touched.test("Added: Jarvis") ? BLUE : GREEN, "Jarvis", s(jarvis.get("version"))));
 		long changedMods = changes.stream().filter(c -> c[1].startsWith("Added: ") || c[1].startsWith("Updated: ") || c[1].startsWith("Removed: ")).count();
@@ -450,7 +474,7 @@ public final class LaunchPopup {
 
 	/** The Server controls tab (whether the server answers, checked every few seconds; wake, start, stop; how the last
 	 *  stop went) and the Server config tab (the panel in a browser, this device's access). Returns both. */
-	private static JComponent[] controls(ServerControl c, JFrame f, Runnable hold, boolean live) {
+	private static JComponent[] controls(ServerControl c, JFrame f, Runnable hold, boolean live, java.util.function.Consumer<String[]> also) {
 		JPanel box = new JPanel();
 		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 		box.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
@@ -465,20 +489,43 @@ public final class LaunchPopup {
 		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, 13f));
 		stopped.setIconTextGap(8);
 		JButton wake = new JButton("Wake server device"), start = new JButton("Start server"), stop = new JButton("Stop server");
-		wake.setEnabled(c.canWake());
-		start.setEnabled(c.hasKey());
-		stop.setEnabled(c.hasKey());
+		wake.setEnabled(false);   // (until the first reading: only while the PC isn't answering)
+		start.setEnabled(false);
+		stop.setEnabled(false);
+		// Ping (from Minecraft's own server ping) as ten pips from red to green, then the players connected.
+		PipMeter meter = new PipMeter();
+		JLabel pingText = new JLabel("\u2014"), players = new JLabel("Players: \u2014");
+		for (JLabel l : new JLabel[] {pingText, players}) l.setFont(l.getFont().deriveFont(Font.PLAIN, 13f));
+		JLabel pingLabel = new JLabel("Ping");
+		pingLabel.setFont(pingLabel.getFont().deriveFont(Font.PLAIN, 13f));
+		JPanel pingRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2));
+		pingRow.add(pingLabel); pingRow.add(meter); pingRow.add(pingText);
+		JPanel playersRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+		playersRow.add(players);
 		long[] wokeAt = {0};
-		Runnable refresh = () -> new Thread(() -> {
-			String[] s = c.status();
+		java.util.function.Consumer<String[]> apply = s -> {
 			boolean waking = !s[0].equals("ok") && wokeAt[0] > 0 && System.currentTimeMillis() - wokeAt[0] < 180_000;
-			SwingUtilities.invokeLater(() -> {
+			also.accept(s);   // (the Server tab's live line, from the same reading)
+			{
 				status.setIcon(dot(waking && !s[1].contains("awake") ? AMBER : colour(s[0])));
 				status.setText("<html><div style='width:430px'>" + esc(waking && !s[1].contains("awake") ? "Waking the server PC\u2026 (it can take a minute)" : s[1]) + "</div></html>");
-				start.setEnabled(c.hasKey());
-				stop.setEnabled(c.hasKey());
-			});
-		}, "server-status").start();
+				// Start only when the server is off (and the PC awake); Stop only while it runs; neither mid-change.
+				String phase = s.length > 2 ? s[2] : "";
+				start.setEnabled(c.hasKey() && phase.equals("off"));
+				stop.setEnabled(c.hasKey() && phase.equals("online"));
+				// Wake only while the PC isn't answering at all (neither the game server nor the panel): asleep or off.
+				wake.setEnabled(c.canWake() && phase.equals("asleep"));
+				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (works from the home network)" : "The server PC is awake");
+				String ping = s.length > 3 ? s[3] : "";
+				int ms = -1;
+				try { ms = Integer.parseInt(ping); } catch (NumberFormatException ignored) {}
+				meter.set(ms);
+				pingText.setText(ms < 0 ? "\u2014" : ms + " ms");
+				players.setText("Players: " + (s.length > 4 && !s[4].isEmpty() ? s[4] + " online" : "\u2014"));
+			}
+		};
+		Runnable refresh = () -> new Thread(() -> { String[] s = c.status(); SwingUtilities.invokeLater(() -> apply.accept(s)); }, "server-status").start();
+		if (!live) apply.accept(c.status());   // (test pictures: one reading, so they show real values)
 		java.util.function.BiConsumer<String, String> stopResult = (state, text) -> SwingUtilities.invokeLater(() -> {
 			stopped.setIcon(state.equals("running") ? mark("running0") : mark(state));
 			stopped.setText("<html><div style='width:430px'>" + esc(text) + "</div></html>");
@@ -535,7 +582,7 @@ public final class LaunchPopup {
 		});
 		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
 		for (JButton b : new JButton[] {wake, start, stop}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
-		for (JComponent x : new JComponent[] {status, buttons, note, stopped}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(4)); }
+		for (JComponent x : new JComponent[] {status, pingRow, playersRow, buttons, note, stopped}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(4)); }
 
 		// MCSS itself (the server software), through the host helper on the server PC: allowed per launcher by the owner.
 		JLabel mcssHead = new JLabel("MCSS (the server software)");
@@ -840,10 +887,33 @@ public final class LaunchPopup {
 			tabs.addTab("This device", scroller(deviceRows, big || serverNews));
 			ServerControl control = new ServerControl(dir);
 			Runnable[] hold = {() -> {}};   // set below: stops the countdown once the player uses a server control
-			tabs.addTab(serverNews ? "Server (new)" : "Server", scroller(serverRows, big || serverNews));
+			// The Server tab: a live line on top (whether the server answers right now; the rest of the tab is the last
+			// published record of what it runs, so it reads the same with the server down), then that record.
+			JLabel liveLine = new JLabel("Checking the server…", dot(GRAY), JLabel.LEFT);
+			liveLine.setFont(liveLine.getFont().deriveFont(Font.BOLD, 13f));
+			liveLine.setIconTextGap(8);
+			liveLine.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
+			JPanel serverTab = new JPanel(new BorderLayout());
+			if (control.configured()) serverTab.add(liveLine, BorderLayout.NORTH);
+			serverTab.add(scroller(serverRows, big || serverNews), BorderLayout.CENTER);
+			tabs.addTab(serverNews ? "Server (new)" : "Server", serverTab);
+			java.util.function.Consumer<String[]> live = r -> {
+				String phase = r.length > 2 ? r[2] : "", ping = r.length > 3 ? r[3] : "", pl = r.length > 4 ? r[4] : "";
+				String text;
+				switch (phase) {
+					case "online" -> text = "Right now: online" + (ping.isEmpty() ? "" : ", " + ping + " ms") + (pl.isEmpty() ? "" : ", " + pl + " players");
+					case "starting" -> text = "Right now: starting";
+					case "stopping" -> text = "Right now: stopping";
+					case "off" -> text = "Right now: the server PC is awake, but the Minecraft server is off (Server controls)";
+					case "asleep" -> text = "Right now: the server PC isn't answering, so it may be asleep or off (Server controls, Wake server device). Below is the server as last recorded.";
+					default -> text = "Right now: " + r[1];
+				}
+				liveLine.setIcon(dot(colour(r[0])));
+				liveLine.setText("<html><div style='width:470px'>" + esc(text) + "</div></html>");
+			};
 			// Server controls, a tab of their own: status, wake, start, stop, the panel, and this device's access.
 			if (control.configured()) {
-				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null);
+				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live);
 				for (int i = 0; i < 2; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
 					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
