@@ -1,3 +1,5 @@
+== 1.9.8 | 2026-11-15
+- For devices the owner has allowed Helper control, Manage launchers is now the Remote host panel tab, with two tabs inside: Manage access (who may do what, by launcher or by player with all their devices) and Host activity (whether MCSS and the Minecraft server are running, and what was asked of the server machine).
 == 1.9.7 | 2026-11-15
 - When the server is off, the Play button becomes Request server: it asks the owner's PC to turn the server on (it chimes there and shows who asked). The button turns back into Play by itself when the server is online. One request a minute.
 - The first two tabs are now Client updates and Server updates.
