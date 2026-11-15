@@ -852,7 +852,10 @@ public final class LaunchPopup {
 		};
 		group.accept("Server PC", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep}), pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
 		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose}), mNote});
-		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop}), note, stopped});
+		JLabel via = new JLabel(wrap("Control: " + c.accessText()));
+		via.setFont(via.getFont().deriveFont(Font.PLAIN, 12f));
+		via.setForeground(new Color(0x6B7280));
+		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop}), via, note, stopped});
 
 		// Server config: the panel in a browser, and this device's access.
 		JPanel cfg = new JPanel();
@@ -865,8 +868,8 @@ public final class LaunchPopup {
 		who.setIconTextGap(8);
 		Runnable showWho = () -> {
 			who.setIcon(dot(c.canControlServer() ? GREEN : GRAY));
-			who.setText(c.viaHelper() ? "Server control: allowed by the owner (through the host helper; no sign-in needed)" : c.hasKey() ? (c.username.isEmpty() ? "Panel access: an API key is saved on this device" : "Panel access: signed in as " + c.username)
-					: "Panel access: not set up (needed for Start and Stop)");
+			who.setText(wrap("Server control: " + c.accessText()));
+			via.setText(wrap("Control: " + c.accessText()));
 		};
 		showWho.run();
 		JButton panel = new JButton("Open server panel"), access = new JButton("Server access\u2026"), manage = new JButton("Manage launchers\u2026");
@@ -911,7 +914,7 @@ public final class LaunchPopup {
 		p.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
 		JLabel state = new JLabel("Asking the host helper\u2026");
 		p.add(state, BorderLayout.NORTH);
-		String[] cols = {"Launcher", "System", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control"};
+		String[] cols = {"Launcher", "System", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
 		javax.swing.table.DefaultTableModel model = new javax.swing.table.DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
 		javax.swing.JTable table = new javax.swing.JTable(model);
 		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
@@ -922,10 +925,10 @@ public final class LaunchPopup {
 		log.setEditable(false);
 		log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
 		JScrollPane ts = new JScrollPane(table);
-		ts.setPreferredSize(new Dimension(760, 150));
-		JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), close = new JButton("Close");
+		ts.setPreferredSize(new Dimension(980, 150));
+		JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), revoke = new JButton("Remove server access"), close = new JButton("Close");
 		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
-		for (JButton b : new JButton[] {serverB, mcssB, sleepB, forget, close}) buttons.add(b);
+		for (JButton b : new JButton[] {serverB, mcssB, sleepB, revoke, forget, close}) buttons.add(b);
 		JLabel note = new JLabel(" ");
 		note.setForeground(new Color(0x6B7280));
 		JPanel mid = new JPanel(new BorderLayout(0, 6));
@@ -959,7 +962,7 @@ public final class LaunchPopup {
 						ids.add(e.getKey()); perms.put(e.getKey(), pp);
 						String ts2 = s(v.get("tailscale"));
 						model.addRow(new Object[] {s(v.get("name")) + (ts2.isEmpty() || ts2.equalsIgnoreCase(s(v.get("name"))) ? "" : " / " + ts2) + (e.getKey().equals(you) ? " (this device)" : ""), s(v.get("os")), s(v.get("last_seen")),
-								pp[0] ? "Allowed" : "Not allowed", pp[1] ? "Allowed" : "Not allowed", pp[2] ? "Allowed" : "Not allowed", pp[3] ? "Allowed" : "Not allowed"});
+								pp[0] ? "Allowed" : "Not allowed", pp[1] ? "Allowed" : "Not allowed", pp[2] ? "Allowed" : "Not allowed", pp[3] ? "Allowed" : "Not allowed", s(v.get("access_text"))});
 						if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 					}
 					labels.run();
@@ -976,7 +979,7 @@ public final class LaunchPopup {
 		}, "manage").start();
 		java.util.function.BiConsumer<String, String> act = (path, body) -> new Thread(() -> {
 			String m;
-			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code"))) ? " " : s(r.get("error")).isEmpty() ? "The host helper said no (" + s(r.get("_code")) + ")" : s(r.get("error")); }
+			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code"))) ? (s(r.get("message")).isEmpty() ? " " : s(r.get("message"))) : s(r.get("error")).isEmpty() ? "The host helper said no (" + s(r.get("_code")) + ")" : s(r.get("error")); }
 			catch (IOException | RuntimeException ex) { m = "Couldn't reach the host helper"; }
 			String msg = m;
 			SwingUtilities.invokeLater(() -> note.setText(wrap(msg)));
@@ -995,6 +998,12 @@ public final class LaunchPopup {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
 			if (javax.swing.JOptionPane.showConfirmDialog(d, "Forget this launcher? It can ask again later.", "Forget", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/forget", "{\"id\":\"" + ids.get(r) + "\"}");
+		});
+		revoke.addActionListener(e -> {
+			int r = table.getSelectedRow();
+			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
+			if (javax.swing.JOptionPane.showConfirmDialog(d, wrap("Remove this launcher's server access? Its server and MCSS control are switched off, a key issued to it is deleted in MCSS, and it's told to forget any sign-in or key it has saved."),
+					"Remove server access", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/revoke", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		table.getSelectionModel().addListSelectionListener(e -> labels.run());
 		close.addActionListener(e -> d.dispose());

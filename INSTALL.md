@@ -140,7 +140,11 @@ ended instead).
 **Sleep server PC** puts the server PC to sleep (MCSS stays open and carries on when it wakes). It needs its own
 permission from the owner, separate from MCSS control, and only works while the Minecraft server is stopped.
 
-A fourth tab, **Server config**, shows the panel's address and whether this device has panel access, with:
+A fourth tab, **Server config**, shows the panel's address and how this device controls the server (the same line is
+under Start and Stop in Server controls): **through the host helper** (the owner allowed it; nothing is saved on your
+device), **with an API key the owner issued to this device** (it arrives by itself), **with your panel sign-in**, or
+**with an API key entered on this device**. When the owner allowed the helper way, that is the one used. The owner can
+remove any of them from the server PC; your device then forgets what it had saved. The tab has:
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
 - **Manage launchers...** (only on a device the owner has allowed **Helper control**): the launchers that have asked
   the server PC for access, with their permissions (Server control, MCSS control, PC sleep) switched on or off for

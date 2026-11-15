@@ -39,6 +39,8 @@ final class ServerControl {
 	/** What the owner has allowed this launcher in the host panel, as the helper last said (remembered in
 	 *  server-access.json, so it's known while the server PC is asleep and the helper can't be asked). */
 	boolean permMcss, permSleep, permServer, permAdmin;
+	/** The saved key is one the host helper made for this device and handed over (not typed in or from a sign-in). */
+	boolean issued;
 
 	/** A request the helper (or MCSS behind it) turned down, with its reason. */
 	static final class Refused extends IOException {
@@ -62,6 +64,7 @@ final class ServerControl {
 		apiKey = str(a.get("api_key"));
 		wakeAddress = str(a.get("wake_address"));
 		username = str(a.get("username"));
+		issued = "true".equals(str(a.get("issued")));
 		deviceId = str(a.get("device_id"));
 		deviceToken = str(a.get("device_token"));
 		permMcss = "true".equals(str(a.get("perm_mcss"))); permSleep = "true".equals(str(a.get("perm_sleep"))); permServer = "true".equals(str(a.get("perm_server"))); permAdmin = "true".equals(str(a.get("perm_admin")));
@@ -87,13 +90,32 @@ final class ServerControl {
 	boolean showServerTabs() { return !hasHelper() || permMcss || permSleep || permServer || permAdmin || hasKey(); }
 	Path access() { return dir.resolve("server-access.json"); }
 
+	/** What's saved on this device for the server panel: "issued" (a key the host helper made for it), "signin" (the
+	 *  key from signing in with a panel account), "key" (an API key typed in), or "none". */
+	String saved() { return !hasKey() ? "none" : issued ? "issued" : !username.isEmpty() ? "signin" : "key"; }
+	/** How Start and Stop go from this device right now: "helper" when the owner allowed it there (that comes first),
+	 *  otherwise with what's saved. The helper is told both, so the owner can see it in the host panel. */
+	String kind() { return viaHelper() ? "helper" : saved(); }
+	/** The same, in words for the player. */
+	String accessText() {
+		String has = switch (saved()) {
+			case "issued" -> "an API key the owner issued to this device";
+			case "signin" -> "your panel sign-in (" + username + ")";
+			case "key" -> "an API key entered on this device";
+			default -> "";
+		};
+		if (viaHelper()) return "through the host helper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " (" + has + " is also saved, but not used)");
+		return has.isEmpty() ? "none (ask the owner, or sign in under Server access)" : "with " + has;
+	}
+
 	/** Saves this device's own settings (server-access.json, in the game folder only). */
 	void save(String key, String wake) throws IOException {
+		if (!key.trim().equals(apiKey)) issued = false;   // (a different key: typed in, or from a sign-in)
 		apiKey = key.trim(); wakeAddress = wake.trim();
 		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
 				+ "\", \"username\": \"" + jsonEsc(username) + "\", \"device_id\": \"" + jsonEsc(str(deviceId))
 				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\", \"perm_mcss\": " + permMcss + ", \"perm_sleep\": " + permSleep
-				+ ", \"perm_server\": " + permServer + ", \"perm_admin\": " + permAdmin + "}\n", StandardCharsets.UTF_8);
+				+ ", \"perm_server\": " + permServer + ", \"perm_admin\": " + permAdmin + ", \"issued\": " + issued + "}\n", StandardCharsets.UTF_8);
 	}
 
 	/** Signs in to the panel with the player's own account, as the panel's web page does (POST /auth), and keeps the
@@ -308,6 +330,9 @@ final class ServerControl {
 		c.setRequestMethod(method);
 		c.setRequestProperty("X-Device", deviceId);
 		c.setRequestProperty("X-Token", deviceToken);
+		c.setRequestProperty("X-Access", kind());
+		c.setRequestProperty("X-Saved", saved());
+		if (saved().equals("signin")) c.setRequestProperty("X-Access-User", username.replaceAll("[^\\x20-\\x7E]", "?"));
 		if (body != null) {
 			c.setDoOutput(true);
 			c.setRequestProperty("Content-Type", "application/json");
@@ -341,6 +366,13 @@ final class ServerControl {
 				permMcss = m; permSleep = sl; permServer = sv; permAdmin = ad;
 				try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
 			}
+			// From the owner, through the helper: a key issued to this device (kept, and used when the helper isn't the
+			// way), or the order to forget whatever sign-in or key is saved here.
+			String given = str(r.remove("issue_key"));
+			try {
+				if (!given.isEmpty()) { r.put("issue_key", "(received)"); if (!given.equals(apiKey) || !issued) { username = ""; apiKey = given; issued = true; save(given, wakeAddress); } }
+				else if ("true".equals(str(r.get("clear_access"))) && !apiKey.isEmpty()) { username = ""; issued = false; save("", wakeAddress); }
+			} catch (IOException ignored) {}
 		}
 		return r;
 	}
