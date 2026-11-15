@@ -301,11 +301,17 @@ public final class LaunchPopup {
 				boolean first = n[3] == 1;
 				long other = n[1] - n[2];
 				String what = join(n[2] == 0 ? null : n[2] + " mod" + (n[2] == 1 ? "" : "s"), other == 0 ? null : other + (n[2] == 0 ? "" : " other") + " file" + (other == 1 ? "" : "s"));
+				// Where it comes from: the pack's own files from the source the sync reached (the owner's PC over Tailscale,
+				// or GitHub when that isn't reachable); mods the pack only lists, from Modrinth.
+				String source = base.contains("githubusercontent") ? "GitHub" : "the owner's PC, over Tailscale";
+				String from = n[4] == 0 ? "Downloads from " + source + "."
+						: n[4] == n[1] ? "Downloads from Modrinth."
+						: "Downloads from " + source + (n[4] == n[2] ? "; the mods from Modrinth." : "; " + n[4] + " of the mods from Modrinth.");
 				String[] choice = {null};
 				String png = System.getenv("OJ_POPUP_PNG");
 				SwingUtilities.invokeLater(() -> {
 					askText.setText(wrap((first ? "October Journey needs about " + size + " of downloads to install" : "An update is ready: about " + size + " to download")
-							+ " (" + what + ")." + (first ? "" : " Skip this time plays what's installed, which the server may not accept.")));
+							+ " (" + what + "). " + from + (first ? "" : " Skip this time plays what's installed, which the server may not accept.")));
 					askSkip.setVisible(!first);
 					askDownload.addActionListener(e -> { synchronized (choice) { choice[0] = "go"; choice.notifyAll(); } });
 					askSkip.addActionListener(e -> { synchronized (choice) { choice[0] = "skip"; choice.notifyAll(); } });
@@ -335,7 +341,7 @@ public final class LaunchPopup {
 		try { Files.writeString(answer, reply + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) {}
 	}
 
-	/** What an update would download: {bytes, files, of them mods, 1 on a first install}, from the pack's
+	/** What an update would download: {bytes, files, of them mods, 1 on a first install, mods that come from Modrinth}, from the pack's
 	 *  update-sizes.json (each file's hash in the pack index and its size) against packwiz-installer's record of what
 	 *  is installed here. A file counts when it isn't here yet or its hash differs; one the pack only supplies when
 	 *  missing ("preserve") counts only when it isn't here. Null when the sizes can't be read. */
@@ -344,15 +350,16 @@ public final class LaunchPopup {
 		if (files.isEmpty()) return null;
 		String record = read(dir.resolve("packwiz.json"));
 		Map<String, Object> have = record.isBlank() ? new LinkedHashMap<>() : asMap(asMap(parse(record)).get("cachedFiles"));
-		long bytes = 0, n = 0, mods = 0;
+		long bytes = 0, n = 0, mods = 0, modrinth = 0;
 		for (Map.Entry<String, Object> e : files.entrySet()) {
 			Map<String, Object> f = asMap(e.getValue()), h = asMap(have.get(e.getKey()));
 			if (!h.isEmpty() && ("true".equals(s(f.get("preserve"))) || s(asMap(h.get("hash")).get("value")).equals(s(f.get("hash"))))) continue;
 			try { bytes += (long) Double.parseDouble(s(f.get("size"))); } catch (NumberFormatException ignored) {}
 			n++;
 			if (e.getKey().startsWith("mods/")) mods++;
+			if (e.getKey().endsWith(".pw.toml")) modrinth++;   // (a mod listed by the pack and fetched from Modrinth)
 		}
-		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0};
+		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0, modrinth};
 	}
 
 	static String sizeText(long bytes) {

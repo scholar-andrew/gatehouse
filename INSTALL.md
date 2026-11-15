@@ -94,7 +94,8 @@ safe; it updates your setup without duplicating anything.
 ### Before the game starts: the launch pop-up
 From the moment you press Play, one October Journey window shows the update's steps as a checklist, each ticked off as
 it finishes (the download shows its progress), with **Quit** to cancel the launch. When there's something to
-download, it first says about how big the update is and asks: **Download**, **Skip this time** (play with what's
+download, it first says about how big the update is and where it downloads from (the owner's PC over Tailscale, or
+GitHub when that isn't reachable; mods from Modrinth) and asks: **Download**, **Skip this time** (play with what's
 installed for now; the server may not accept it until you update) or **Quit**. When the update is done, the same
 window shows what happened, with **Play**, **Restart** (run the update again) and **Quit** (don't start the game;
 Prism then says the pre-launch step failed, which is expected). It lists everything the update
