@@ -11,11 +11,19 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "a2309f3e5a00ad6dcb3e0372397c28aae1393956e402ba51047925fd0bd977f0"
+hash = "ba5f2d4d92d8d9bb7f98a7e1c36857068cb1d3c40739ecaca8b11eef58c087a6"
 
 [[files]]
 file = "extras/launch-popup.jar"
 hash = "324fdd92f459b12772d6ea723e34bcba0317404540ee21e90d03499ce986b779"
+
+[[files]]
+file = "extras/launch-wrapper.exe"
+hash = "9bbfa275255fe81a9f5103ef3fefbd802fcd0030f8c103daa287673c54d6b8e5"
+
+[[files]]
+file = "extras/launch-wrapper.sh"
+hash = "9eb66830a01861e56ba43a8ee0fc2553940cfae8e26e3191f5a1ad50c9ddd88f"
 
 [[files]]
 file = "extras/mod-names.json"
@@ -27,11 +35,11 @@ hash = "75d6134daed6501ca06c2c482269281b1a9fbe80585af0107f9d26ab1c83d69e"
 
 [[files]]
 file = "extras/pack-sync.ps1"
-hash = "dae3413db580091c10e911d0f0cfbbcae9ada17c86109cb59a4c12c0b2daa5d4"
+hash = "33a3c1a1035c5419cd3ef98675c5e05c1c9700ba193ea1e8c1d94ab9ea9d710c"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "c754fc7a01eb1c6e3729ac5336b6e17c2a49fd59e56a18e68080bbd3730231b4"
+hash = "db849cc23c819af04bf263bcc67cdd3c863fd24554ade5d29465dacc2c1cdd83"
 
 [[files]]
 file = "extras/server-changelog.txt"

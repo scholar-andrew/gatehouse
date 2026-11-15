@@ -45,9 +45,20 @@ popup() {  # popup ok|offline|failed; returns the player's choice
 }
 # Quit: no game this time (Prism then reports the pre-launch step failed). Restart: this script again, from the top
 # (the newest copy, if it just updated itself).
+# Quit with the launch wrapper set up for this instance (instance.cfg has it as Prism's wrapper command): this step
+# ends well and leaves "launch-cancelled" for the wrapper, which then starts nothing, so Prism sees a launch that ended
+# normally. Without the wrapper the only way to stop the launch is to fail this step (Prism then shows its log).
+rm -f "$here/launch-cancelled"
+cancel_launch() {
+  if [ -f "$here/launch-wrapper.sh" ] && grep -q '^WrapperCommand=.*launch-wrapper' "$here/../instance.cfg" 2>/dev/null; then
+    echo quit > "$here/launch-cancelled"
+    exit 0
+  fi
+  exit 1
+}
 after_popup() {
   case "$1" in
-    10) note "launch cancelled in the pop-up (Quit)"; exit 1 ;;
+    10) note "launch cancelled in the pop-up (Quit)"; cancel_launch ;;
     11) note "running the update again (Restart in the pop-up)"; exec bash "$here/pack-sync.sh" ;;
   esac
 }
@@ -247,6 +258,10 @@ if [ "$code" != 0 ]; then
 fi
 switches apply
 defaults_once
+# The launch wrapper, kept beside this script (Prism runs it from there; see cancel_launch above).
+if [ -f "$here/extras/launch-wrapper.sh" ] && ! cmp -s "$here/extras/launch-wrapper.sh" "$here/launch-wrapper.sh"; then
+  cp -f "$here/extras/launch-wrapper.sh" "$here/launch-wrapper.sh" && chmod +x "$here/launch-wrapper.sh"
+fi
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcuts.
 # steam-target.json (written by setup) says where: "targets", one per shortcut, each with its grid folder, app id,
