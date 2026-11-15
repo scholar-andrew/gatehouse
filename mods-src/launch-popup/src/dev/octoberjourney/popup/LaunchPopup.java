@@ -905,6 +905,7 @@ public final class LaunchPopup {
 					case "starting" -> text = "Right now: starting";
 					case "stopping" -> text = "Right now: stopping";
 					case "off" -> text = "Right now: the server PC is awake, but the Minecraft server is off (Server controls)";
+					case "nomcss" -> text = "Right now: the server PC is awake, but MCSS isn't running, so the server is off (Server controls, Start MCSS)";
 					case "asleep" -> text = "Right now: the server PC isn't answering, so it may be asleep or off (Server controls, Wake server device). Below is the server as last recorded.";
 					default -> text = "Right now: " + r[1];
 				}

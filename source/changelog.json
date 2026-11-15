@@ -1,4 +1,7 @@
 [
+ {"version": "1.8.7", "date": "2026-11-15", "notes": [
+  "Fixed: with MCSS closed, the launcher said the server PC was asleep. It now says the PC is awake but MCSS isn't running (and Wake stays greyed out)."
+ ]},
  {"version": "1.8.6", "date": "2026-11-15", "notes": [
   "Server controls show your ping to the server as ten pips from red to green (more is better), with the number of players connected below it. Both come straight from the game server, no panel access needed.",
   "Start server can only be pressed while the server is off, Stop server only while it's running, and Wake server device only while the server PC isn't answering.",

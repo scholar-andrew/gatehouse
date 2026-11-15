@@ -144,6 +144,10 @@ final class ServerControl {
 		} catch (IOException | RuntimeException e) { return false; }
 	}
 
+	String helperHostPort() {
+		try { URI u = URI.create(helperUrl); return u.getHost() + ":" + (u.getPort() > 0 ? u.getPort() : 80); } catch (RuntimeException e) { return ""; }
+	}
+
 	String panelHostPort() {
 		try { URI u = URI.create(panelUrl); return u.getHost() + ":" + (u.getPort() > 0 ? u.getPort() : 80); } catch (RuntimeException e) { return ""; }
 	}
@@ -189,14 +193,18 @@ final class ServerControl {
 	}
 
 	/** Where things stand: {colour key, text, phase, ping ms, players}. Colour keys as in the pop-up (ok, warn, off,
-	 *  failed); phase: online, starting, stopping, off (the PC is awake, the game server isn't running), asleep, error.
+	 *  failed); phase: online, starting, stopping, off (MCSS is running, the game server isn't), nomcss (the PC is awake
+	 *  (its host helper answers) but MCSS isn't running), asleep (nothing on the PC answers), error.
 	 *  Ping and players come from the game server itself (empty when it isn't answering). */
 	String[] status() {
 		String[] slp = minecraft.isEmpty() ? null : serverListPing(minecraft, 2500);
 		boolean game = slp != null;
-		boolean pc = game || (!panelUrl.isEmpty() && answers(panelHostPort(), 2000));
+		boolean panel = game || (!panelUrl.isEmpty() && answers(panelHostPort(), 2000));
+		// MCSS (and its panel) can be closed while the PC is on: the host helper, which runs whenever the owner is
+		// signed in, then still answers.
+		boolean pc = panel || (hasHelper() && answers(helperHostPort(), 2000));
 		String ping = game ? slp[0] : "", players = game ? slp[1] + " of " + slp[2] : "";
-		if (hasKey() && pc) {
+		if (hasKey() && panel) {
 			try {
 				Map<String, Object> srv = asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId, null)));
 				int st = -1;
@@ -214,7 +222,8 @@ final class ServerControl {
 			} catch (IOException ignored) { }
 		}
 		if (game) return new String[] {"ok", "Online", "online", ping, players};
-		if (pc) return new String[] {"off", "The server PC is awake, but the Minecraft server isn't answering" + (hasKey() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
+		if (panel) return new String[] {"off", "The server PC is awake, but the Minecraft server isn't answering" + (hasKey() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
+		if (pc) return new String[] {"off", "The server PC is awake, but MCSS isn't running: start it with Start MCSS below, then the server", "nomcss", "", ""};
 		return new String[] {"off", "Not answering: the server PC is asleep or off" + (canWake() ? " (Wake server device works from the home network)" : ""), "asleep", "", ""};
 	}
 
