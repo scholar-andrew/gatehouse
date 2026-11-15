@@ -19,8 +19,9 @@
     }
   ],
   "server_control": {
-    "_about": "For the launch pop-up's Server tab (shipped as extras/server-control.json). panel_url: the MCSS web panel. mcss_server: the server's MCSS id, for status and Start through the panel's API with a player's own API key (kept on their device, never here). minecraft: where to check the game server answers. wake: the host PC's network card (Wake on LAN), and the home network's broadcast addresses the wake signal goes to; it only works from the home network, or through an internet wake address a player sets on their device.",
+    "_about": "For the launch pop-up's Server tab (shipped as extras/server-control.json). panel_url: the MCSS web panel. mcss_server: the server's MCSS id, for status and Start through the panel's API with a player's own API key (kept on their device, never here). minecraft: where to check the game server answers. wake: the host PC's network card (Wake on LAN), and the home network's broadcast addresses the wake signal goes to; helper_url: the host helper (host/, tools/install_host.ps1) that starts and closes MCSS for launchers the owner allows in the host panel; it only works from the home network, or through an internet wake address a player sets on their device.",
     "panel_url": "http://100.91.134.102:25560",
+    "helper_url": "http://100.91.134.102:25570",
     "mcss_server": "f3a162eb-96ad-4463-9bab-0046b5197439",
     "minecraft": "100.91.134.102:25565",
     "wake": {

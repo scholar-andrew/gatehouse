@@ -118,6 +118,10 @@ A third tab, **Server controls**, shows whether the server is online (checked ev
   "shut down smoothly" when the server stopped and its log shows the world being saved, amber when the save couldn't
   be confirmed or the log has errors, red when it didn't stop within 2 minutes.
 
+Below them, **MCSS (the server software)** shows whether MCSS is running on the server PC, with **Start MCSS** and
+**Close MCSS**. The first time, your device asks for this and waits until the owner allows it in the host panel on the
+server PC. Close MCSS only works once the Minecraft server is stopped, so the world is never cut off mid-save.
+
 A fourth tab, **Server config**, shows the panel's address and whether this device has panel access, with:
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
 - **Server access...:** sign in with your server panel username and password (easiest: the pop-up keeps the key the

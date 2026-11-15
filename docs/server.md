@@ -70,6 +70,26 @@ pop-up keeps the session key the panel returns, never the password. The wake sig
 network, unless a player has an internet wake address (a router that passes wake signals from the internet on to the
 home network); that address is also kept on the device, not in this public repository.
 
+## The host helper (starting and closing MCSS)
+
+MCSS's web panel only exists while MCSS is running, so starting MCSS itself needs something else on the PC: the host
+helper (`host/`, built by `tools/build_host.ps1`, installed by `tools/install_host.ps1` into
+`C:\Minecraft\OctoberJourneyHost`). A scheduled task, "October Journey host helper", starts it (javaw, no window)
+when the owner signs in to Windows, in the owner's session, so MCSS opens on the desktop as usual.
+
+- It listens on the Tailscale address only (port 25570, `helper_url` in `server_control`), plus 127.0.0.1 for the
+  panel.
+- Each launcher introduces itself from the pop-up's Server controls tab: an id and a secret it made itself, its
+  computer name and system. The helper also asks Tailscale which device the request came from (`tailscale whois`).
+  New launchers wait for permission.
+- **October Journey host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
+  seen) with **Allow MCSS control**, **Revoke** and **Forget**, and shows a log of every request.
+- Allowed launchers can start MCSS, and close it. Closing is refused while the Minecraft server is running (stop it
+  first); the helper asks MCSS's window to close and only ends it if it's still there after 20 seconds. It only
+  touches the configured `mcss.exe`.
+- `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
+  `minecraft`, `tailscale_exe`). It only works while the owner is signed in to Windows.
+
 ## Server changes for players
 
 Players see what changed on the server in the launch pop-up's **Server** tab: mods added, updated or removed, the

@@ -91,6 +91,10 @@ public final class LaunchPopup {
 				case "wake" -> System.out.println("wake signal sent to " + c.wake());
 				case "start" -> { c.start(); System.out.println("start requested"); }
 				case "stop" -> { c.stop(); System.out.println("stop requested"); }
+				case "hello" -> System.out.println("hello: " + c.hello());
+				case "mcss" -> System.out.println("mcss: " + c.mcssState());
+				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
+				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose());
 				case "stop-watch" -> {   // stop, wait until it's off, and say whether the shutdown was smooth
 					long t0 = System.currentTimeMillis(); c.stop(); int st = -1;
 					while (System.currentTimeMillis() - t0 < 120_000) { Thread.sleep(2000); st = c.statusCode(); if (st == 0) break; }
@@ -529,6 +533,60 @@ public final class LaunchPopup {
 		for (JButton b : new JButton[] {wake, start, stop}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
 		for (JComponent x : new JComponent[] {status, buttons, note, stopped}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(4)); }
 
+		// MCSS itself (the server software), through the host helper on the server PC: allowed per launcher by the owner.
+		JLabel mcssHead = new JLabel("MCSS (the server software)");
+		mcssHead.setFont(mcssHead.getFont().deriveFont(Font.BOLD, 13f));
+		mcssHead.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0));
+		JLabel mcss = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
+		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, 13f));
+		mcss.setIconTextGap(8);
+		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS");
+		mStart.setEnabled(false); mClose.setEnabled(false);
+		JLabel mNote = new JLabel(" ");
+		mNote.setFont(mNote.getFont().deriveFont(Font.PLAIN, 12f));
+		mNote.setForeground(new Color(0x6B7280));
+		Runnable mcssRefresh = () -> new Thread(() -> {
+			String state, text; boolean granted = false, running = false;
+			try {
+				Map<String, Object> r = c.mcssState();
+				state = s(r.get("state"));
+				running = Boolean.TRUE.equals(r.get("mcss"));
+				granted = state.equals("granted");
+				if (granted) text = running ? "MCSS is running" : "MCSS isn't running";
+				else text = "Waiting for the owner to allow this device (in the host panel on the server PC)";
+				state = granted ? (running ? "ok" : "off") : "warn";
+			} catch (IOException | RuntimeException e) { state = "off"; text = "The host helper isn't answering (the server PC may be asleep or signed out)"; }
+			String st = state, tx = text; boolean g = granted, run = running;
+			SwingUtilities.invokeLater(() -> {
+				mcss.setIcon(dot(colour(st)));
+				mcss.setText("<html><div style='width:430px'>" + esc(tx) + "</div></html>");
+				mStart.setEnabled(g && !run);
+				mClose.setEnabled(g && run);
+			});
+		}, "mcss-status").start();
+		java.util.function.Function<Boolean, Runnable> mcssAct = startIt -> () -> {
+			hold.run();
+			if (!startIt && javax.swing.JOptionPane.showConfirmDialog(f, "Close MCSS on the server PC? (It only closes once the Minecraft server is stopped.)",
+					"Close MCSS", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
+			mNote.setText(startIt ? "Starting MCSS\u2026" : "Closing MCSS\u2026");
+			new Thread(() -> {
+				String msg;
+				try { Map<String, Object> r = startIt ? c.mcssStart() : c.mcssClose(); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server PC awake?"; }
+				String m = msg;
+				SwingUtilities.invokeLater(() -> mNote.setText(m));
+				mcssRefresh.run();
+				refresh.run();
+			}, "mcss-act").start();
+		};
+		mStart.addActionListener(e -> mcssAct.apply(true).run());
+		mClose.addActionListener(e -> mcssAct.apply(false).run());
+		if (c.hasHelper()) {
+			JPanel mButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+			for (JButton b : new JButton[] {mStart, mClose}) { b.setFont(b.getFont().deriveFont(13f)); mButtons.add(b); }
+			for (JComponent x : new JComponent[] {mcssHead, mcss, mButtons, mNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(2)); }
+		}
+
 		// Server config: the panel in a browser, and this device's access.
 		JPanel cfg = new JPanel();
 		cfg.setLayout(new BoxLayout(cfg, BoxLayout.Y_AXIS));
@@ -562,8 +620,9 @@ public final class LaunchPopup {
 
 		if (live) {
 			refresh.run();
+			if (c.hasHelper()) new Thread(() -> { try { c.hello(); } catch (IOException | RuntimeException ignored) {} mcssRefresh.run(); }, "hello").start();
 			// Every few seconds while the window is open.
-			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) refresh.run(); });
+			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) { refresh.run(); if (c.hasHelper()) mcssRefresh.run(); } });
 			poll.start();
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { poll.stop(); } });
 		}

@@ -30,10 +30,12 @@ import java.util.Map;
  */
 final class ServerControl {
 	final Path dir;
-	final String panelUrl, serverId, minecraft, mac;
+	final String panelUrl, serverId, minecraft, mac, helperUrl;
 	final List<String> broadcasts = new ArrayList<>();
 	final int wakePort;
 	String apiKey, wakeAddress, username;
+	/** This launcher's identity for the host helper: an id and a secret it made itself (kept in server-access.json). */
+	String deviceId, deviceToken;
 
 	ServerControl(Path dir) {
 		this.dir = dir;
@@ -42,6 +44,7 @@ final class ServerControl {
 		panelUrl = str(c.get("panel_url"));
 		serverId = str(c.get("mcss_server"));
 		minecraft = str(c.get("minecraft"));
+		helperUrl = str(c.get("helper_url"));
 		mac = str(w.get("mac"));
 		if (w.get("broadcasts") instanceof List<?> l) for (Object o : l) broadcasts.add(str(o));
 		int port = 9;
@@ -51,6 +54,16 @@ final class ServerControl {
 		apiKey = str(a.get("api_key"));
 		wakeAddress = str(a.get("wake_address"));
 		username = str(a.get("username"));
+		deviceId = str(a.get("device_id"));
+		deviceToken = str(a.get("device_token"));
+		if (!helperUrl.isEmpty() && (deviceId.isEmpty() || deviceToken.length() < 32)) {
+			java.security.SecureRandom r = new java.security.SecureRandom();
+			deviceId = java.util.UUID.randomUUID().toString();
+			byte[] t = new byte[32]; r.nextBytes(t);
+			StringBuilder b = new StringBuilder(); for (byte x : t) b.append(String.format("%02x", x));
+			deviceToken = b.toString();
+			try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
+		}
 	}
 
 	boolean configured() { return !panelUrl.isEmpty() || !mac.isEmpty() || !minecraft.isEmpty(); }
@@ -62,7 +75,8 @@ final class ServerControl {
 	void save(String key, String wake) throws IOException {
 		apiKey = key.trim(); wakeAddress = wake.trim();
 		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
-				+ "\", \"username\": \"" + jsonEsc(username) + "\"}\n", StandardCharsets.UTF_8);
+				+ "\", \"username\": \"" + jsonEsc(username) + "\", \"device_id\": \"" + jsonEsc(str(deviceId))
+				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\"}\n", StandardCharsets.UTF_8);
 	}
 
 	/** Signs in to the panel with the player's own account, as the panel's web page does (POST /auth), and keeps the
@@ -182,6 +196,50 @@ final class ServerControl {
 		else throw new IOException("unexpected console reply");
 		return out;
 	}
+
+	// ------------------------------------------------------------------ MCSS itself, through the host helper
+
+	boolean hasHelper() { return !helperUrl.isEmpty(); }
+
+	/** One call to the host helper on the server PC, as this launcher. */
+	Map<String, Object> helper(String method, String path, String body) throws IOException {
+		HttpURLConnection c = (HttpURLConnection) new URL(helperUrl.replaceAll("/+$", "") + path).openConnection();
+		c.setConnectTimeout(3000); c.setReadTimeout(60000);
+		c.setRequestMethod(method);
+		c.setRequestProperty("X-Device", deviceId);
+		c.setRequestProperty("X-Token", deviceToken);
+		if (body != null) {
+			c.setDoOutput(true);
+			c.setRequestProperty("Content-Type", "application/json");
+			try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); }
+		}
+		int code = c.getResponseCode();
+		InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream();
+		Map<String, Object> r = asMap(LaunchPopup.parseJson(in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8)));
+		r.put("_code", String.valueOf(code));
+		return r;
+	}
+
+	/** Introduces this launcher (it then shows in the owner's host panel, waiting until allowed). Returns its state. */
+	String hello() throws IOException {
+		String name = "", os = System.getProperty("os.name", "");
+		try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
+		if (new java.io.File("/sys/devices/virtual/dmi/id/product_name").exists()) {
+			try { String p = Files.readString(Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); if (p.equals("Jupiter") || p.equals("Galileo")) os = "Steam Deck"; } catch (IOException ignored) {}
+		}
+		return str(helper("POST", "/v1/hello", "{\"id\":\"" + jsonEsc(deviceId) + "\",\"token\":\"" + jsonEsc(deviceToken)
+				+ "\",\"name\":\"" + jsonEsc(name) + "\",\"os\":\"" + jsonEsc(os) + "\"}").get("state"));
+	}
+
+	/** {state (granted, pending, unknown), mcss running, minecraft running}; introduces itself again if forgotten. */
+	Map<String, Object> mcssState() throws IOException {
+		Map<String, Object> r = helper("GET", "/v1/mcss", null);
+		if (str(r.get("_code")).equals("401")) { hello(); r = helper("GET", "/v1/mcss", null); }
+		return r;
+	}
+
+	Map<String, Object> mcssStart() throws IOException { return helper("POST", "/v1/mcss/start", "{}"); }
+	Map<String, Object> mcssClose() throws IOException { return helper("POST", "/v1/mcss/close", "{}"); }
 
 	/** Asks MCSS to stop the server (action 1: a normal stop, which saves the world; not 3, kill). */
 	void stop() throws IOException { api("POST", "/api/v2/servers/" + serverId + "/execute/action", "{\"action\":1}"); }
