@@ -83,7 +83,9 @@ public final class LaunchPopup {
 	static volatile String skipped;
 	static JPanel askPanel;
 	static JLabel askText;
-	static JButton askDownload, askSkip;
+	/** The checklist's Play button: greyed out while the update runs; lit, and reading "Download", while the question
+	 *  before a download is up (pressing it accepts). */
+	static JButton progressPlay;
 	/** What the player chose: 0 play, 10 quit (cancel the launch), 11 run the update again. The sync scripts act on it. */
 	static volatile int exitCode = 0;
 	static final int QUIT = 10, RESTART = 11;
@@ -184,18 +186,17 @@ public final class LaunchPopup {
 			JLabel hint = new JLabel("Quit cancels this launch.");
 			hint.setForeground(new Color(0x6B7280));
 			bottom.add(hint, BorderLayout.WEST);
-			bottom.add(quit, BorderLayout.EAST);
-			// The size question, shown above the bottom row when the sync asks before downloading.
+			progressPlay = new PlayButton("Play");
+			progressPlay.setEnabled(false);
+			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			right.add(quit); right.add(progressPlay);
+			bottom.add(right, BorderLayout.EAST);
+			// The size question, shown above the bottom row when the sync asks before downloading: the Play button
+			// becomes "Download" and accepts it; Quit cancels the launch.
 			askText = new JLabel(" ");
 			askText.setFont(askText.getFont().deriveFont(Font.PLAIN, 14f));
-			askDownload = new JButton("Download");
-			askSkip = new JButton("Skip this time");
-			JPanel askButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
-			for (JButton b : new JButton[] {askDownload, askSkip}) { b.setFont(b.getFont().deriveFont(14f)); askButtons.add(b); }
-			askDownload.setFont(askDownload.getFont().deriveFont(Font.BOLD));
 			askPanel = new JPanel(new BorderLayout(0, 2));
 			askPanel.add(askText, BorderLayout.NORTH);
-			askPanel.add(askButtons, BorderLayout.CENTER);
 			askPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
 			askPanel.setVisible(false);
 			JPanel south = new JPanel(new BorderLayout());
@@ -269,8 +270,8 @@ public final class LaunchPopup {
 	}
 
 	/** Before the download: works out what the update would fetch and, when there's something, shows the size in the
-	 *  checklist window with Download and Skip this time (first install: Download only), then answers the sync in
-	 *  pack-sync-answer.txt: "wait" while asking, "go" or "skip|<size>" after. Nothing to download, the size unknown,
+	 *  checklist window, where the Play button turns into Download (Quit cancels the launch), then answers the sync in
+	 *  pack-sync-answer.txt: "wait" while asking, "go" after. Nothing to download, the size unknown,
 	 *  or no window: "go" straight away. Quit (or closing the window) leaves no answer; the sync sees the exit code. */
 	private static void ask(Path dir, String base, boolean ui, boolean selfUpdate) {
 		Path answer = dir.resolve("pack-sync-answer.txt");
@@ -311,10 +312,10 @@ public final class LaunchPopup {
 				String png = System.getenv("OJ_POPUP_PNG");
 				SwingUtilities.invokeLater(() -> {
 					askText.setText(wrap((first ? "October Journey needs about " + size + " of downloads to install" : "An update is ready: about " + size + " to download")
-							+ " (" + what + "). " + from + (first ? "" : " Skip this time plays what's installed, which the server may not accept.")));
-					askSkip.setVisible(!first);
-					askDownload.addActionListener(e -> { synchronized (choice) { choice[0] = "go"; choice.notifyAll(); } });
-					askSkip.addActionListener(e -> { synchronized (choice) { choice[0] = "skip"; choice.notifyAll(); } });
+							+ " (" + what + "). " + from + " Press Download to continue, or Quit to cancel this launch."));
+					progressPlay.setText("Download");
+					progressPlay.setEnabled(true);
+					progressPlay.addActionListener(e -> { synchronized (choice) { choice[0] = "go"; choice.notifyAll(); } });
 					askPanel.setVisible(true);
 					f.pack();
 					if (png != null) try {   // testing: a picture of the question
@@ -334,7 +335,7 @@ public final class LaunchPopup {
 				}
 				if (choice[0] == null) { asking = false; return; }   // quit
 				if (choice[0].equals("skip")) { skipped = size; reply = "skip|" + size; }
-				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); f.pack(); });
+				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); progressPlay.setText("Play"); progressPlay.setEnabled(false); f.pack(); });
 			}
 		} catch (Exception ignored) {}   // (size unknown: the update just runs, as it always did)
 		asking = false;
@@ -379,6 +380,32 @@ public final class LaunchPopup {
 		StringBuilder sb = new StringBuilder();
 		for (byte x : java.security.MessageDigest.getInstance("SHA-256").digest(b)) sb.append(String.format("%02x", x));
 		return sb.toString();
+	}
+
+	/** The Play button: blue when it can be pressed, grey when it can't (drawn here, since the system's own buttons
+	 *  don't take a colour). In the checklist it's also the button that accepts a download. */
+	static final class PlayButton extends JButton {
+		PlayButton(String text) {
+			super(text);
+			setFont(getFont().deriveFont(Font.BOLD, 15f));
+			setContentAreaFilled(false); setBorderPainted(false); setFocusPainted(false); setOpaque(false);
+			setBorder(BorderFactory.createEmptyBorder(7, 22, 7, 22));
+		}
+		@Override protected void paintComponent(Graphics g) {
+			Graphics2D g2 = (Graphics2D) g.create();
+			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+			boolean on = isEnabled();
+			Color fill = !on ? new Color(0xC9CDD3) : getModel().isPressed() ? new Color(0x1F55AD) : getModel().isRollover() ? new Color(0x3E7FE6) : BLUE;
+			g2.setColor(fill);
+			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+			if (on && isFocusOwner()) { g2.setColor(new Color(255, 255, 255, 170)); g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 6, 6); }
+			g2.setFont(getFont());
+			java.awt.FontMetrics fm = g2.getFontMetrics();
+			g2.setColor(on ? Color.WHITE : new Color(0x7B818A));
+			g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2, (getHeight() - fm.getHeight()) / 2 + fm.getAscent());
+			g2.dispose();
+		}
 	}
 
 	/** Ten pips for the connection: how many are lit follows the ping (more is better), coloured from red (first) to
@@ -1229,8 +1256,14 @@ public final class LaunchPopup {
 			if (control.configured()) serverTab.add(liveLine, BorderLayout.NORTH);
 			serverTab.add(scroller(serverRows, big || serverNews), BorderLayout.CENTER);
 			tabs.addTab(serverNews ? "Server (new)" : "Server", serverTab);
+			// Play only works while the server is online (checked every few seconds; with no server set up for the pack
+			// there's nothing to wait for).
+			boolean[] serverLive = {!control.configured()};
+			Runnable[] playState = {() -> {}};
 			java.util.function.Consumer<String[]> live = r -> {
 				String phase = r.length > 2 ? r[2] : "", ping = r.length > 3 ? r[3] : "", pl = r.length > 4 ? r[4] : "";
+				serverLive[0] = phase.equals("online");
+				playState[0].run();
 				String text;
 				switch (phase) {
 					case "online" -> text = "Right now: online" + (ping.isEmpty() ? "" : ", " + ping + " ms") + (pl.isEmpty() ? "" : ", " + pl + " players");
@@ -1272,8 +1305,10 @@ public final class LaunchPopup {
 				syncTabs[0].run();
 			}
 			p.add(tabs, BorderLayout.CENTER);
-			JButton play = new JButton();
-			play.setFont(play.getFont().deriveFont(Font.BOLD, 15f));
+			JButton play = new PlayButton("Play");
+			JLabel playWhy = new JLabel(" ");
+			playWhy.setFont(playWhy.getFont().deriveFont(Font.PLAIN, 12f));
+			playWhy.setForeground(new Color(0x6B7280));
 			JPanel bottom = new JPanel(new BorderLayout());
 			// What the colours mean.
 			JPanel legend = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
@@ -1291,6 +1326,7 @@ public final class LaunchPopup {
 			again.addActionListener(e -> { exitCode = RESTART; f.dispose(); });
 			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
 			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			right.add(playWhy);
 			for (JButton b : new JButton[] {again, quit}) { b.setFont(b.getFont().deriveFont(14f)); right.add(b); }
 			right.add(play);
 			bottom.add(right, BorderLayout.EAST);
@@ -1298,8 +1334,16 @@ public final class LaunchPopup {
 			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
 			// "Play" after. Nothing happens on its own: no countdown, the game starts only when the player presses Play.
 			boolean[] serverShown = {!serverNews};
-			Runnable label = () -> play.setText(serverShown[0] ? "Play" : "Next: server changes");
+			Runnable label = () -> {
+				play.setText(serverShown[0] ? "Play" : "Next: server changes");
+				// "Next" only turns the page, so it always works; Play waits for the server.
+				boolean ready = !serverShown[0] || serverLive[0];
+				play.setEnabled(ready);
+				playWhy.setText(ready ? " " : "Play lights up when the server is online");
+			};
+			playState[0] = label;
 			Runnable next = () -> {
+				if (!play.isEnabled()) return;
 				if (!serverShown[0]) { serverShown[0] = true; tabs.setSelectedIndex(1); label.run(); }
 				else { exitCode = 0; f.dispose(); }
 			};
