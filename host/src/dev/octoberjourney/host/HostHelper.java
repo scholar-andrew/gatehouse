@@ -507,7 +507,7 @@ public final class HostHelper {
 			String path = x.getRequestURI().getPath();
 			if (path.equals("/admin/devices")) {
 				Map<String, Object> devs = listed();
-				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "port", port(), "bind", setting("bind", "100.91.134.102"),
+				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "port", port(), "bind", setting("bind", "100.91.134.102"),
 						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : keyState(), "mcss_user", setting("mcss_user", "")));
 			} else if (path.equals("/admin/issue") || path.equals("/admin/revoke")) {
 				// Issue: a new MCSS API key for that launcher (view, start, stop this server only), handed to it the next
@@ -518,6 +518,11 @@ public final class HostHelper {
 				String[] r = path.endsWith("issue") ? issueKey(d) : revokeAccess(d);
 				log((path.endsWith("issue") ? "issue an MCSS key to " : "removed server access from ") + who(d) + ": " + r[1]);
 				saveDevices(devs);
+				reply(x, 200, m("result", r[0], "message", r[1]));
+			} else if (path.equals("/admin/mcss/start") || path.equals("/admin/mcss/close")) {
+				// MCSS itself, from the panel on this PC: the same start and close the launchers ask for.
+				String[] r = path.endsWith("start") ? startMcss() : closeMcss("true".equals(Json.str(body(x).get("force"))));
+				log((path.endsWith("start") ? "start" : "close") + " MCSS from the host panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/keytest")) {
 				// Troubleshooting: what MCSS answers to the helper's key (status codes and MCSS's own error text; never the key).
@@ -620,7 +625,12 @@ public final class HostHelper {
 			JLabel head = new JLabel("Launchers that asked to control MCSS");
 			head.setFont(head.getFont().deriveFont(Font.BOLD, 17f));
 			JLabel state = new JLabel(" ");
-			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(head, BorderLayout.NORTH); top.add(state, BorderLayout.SOUTH);
+			// MCSS itself: start it, or close it (how follows MCSS's own X-button setting, as for the launchers).
+			JButton mcssRun = new JButton("Start MCSS");
+			boolean[] mcssUp = {false}; String[] mcssClose = {"close"};
+			JPanel stateRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+			stateRow.add(mcssRun); stateRow.add(state);
+			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(head, BorderLayout.NORTH); top.add(stateRow, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
 			String[] cols = {"Launcher", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
@@ -699,6 +709,10 @@ public final class HostHelper {
 								: !hasKey ? "The helper isn't signed in to MCSS: server control won't work until it is."
 								: works.equals("no") ? (as.isEmpty() ? "The helper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
 								: as.isEmpty() ? "The helper's MCSS key is set and working." : "Signed in to MCSS as " + as + ": working.");
+						mcssUp[0] = Boolean.TRUE.equals(r.get("mcss")); mcssClose[0] = Json.str(r.get("close"));
+						mcssRun.setText(!mcssUp[0] ? "Start MCSS" : mcssClose[0].equals("force") ? "Force close MCSS" : "Close MCSS");
+						mcssRun.setEnabled(!mcssUp[0] || !Boolean.TRUE.equals(r.get("minecraft")));
+						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Stop the Minecraft server first" : null);
 						state.setForeground(new Color(0x2E9D48));
 						state.setText("Helper running on " + r.get("bind") + ":" + r.get("port") + ".  MCSS " + (Boolean.TRUE.equals(r.get("mcss")) ? "is running" : "isn't running")
 								+ ";  Minecraft server " + (Boolean.TRUE.equals(r.get("minecraft")) ? "is running" : "is off") + ".");
@@ -733,6 +747,19 @@ public final class HostHelper {
 			mcssB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"mcss\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[0] + "}"); });
 			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[1] + "}"); });
 			serverB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"server\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[2] + "}"); });
+			mcssRun.addActionListener(e -> {
+				boolean up = mcssUp[0], force = mcssClose[0].equals("force");
+				if (up && JOptionPane.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead." : "Close MCSS?", "MCSS", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+				mcssRun.setEnabled(false);
+				new Thread(() -> {
+					String msg;
+					try { msg = Json.str(Json.map(Json.parse(call("POST", up ? "/admin/mcss/close" : "/admin/mcss/start", "{\"force\":" + force + "}"))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
+					String m2 = msg;
+					SwingUtilities.invokeLater(() -> { state.setText(m2); });
+					try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
+					refresh.run();
+				}, "mcss").start();
+			});
 			adminB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"admin\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[3] + "}"); });
 			signB.addActionListener(e -> {
 				javax.swing.JTextField user = new javax.swing.JTextField(24);

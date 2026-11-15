@@ -143,6 +143,7 @@ static class Setup
             File.WriteAllBytes(Path.Combine(inst, "mmc-pack.json"), Bytes(repo + "/clients/mmc-pack.json"));
             WriteInstanceCfg(Path.Combine(inst, "instance.cfg"), (string)cfg["instance_name"]);
             File.WriteAllBytes(Path.Combine(mc, "pack-sync.ps1"), Bytes(repo + "/clients/pack-sync.ps1"));
+            File.WriteAllBytes(Path.Combine(mc, "launch-wrapper.exe"), Bytes(repo + "/clients/launch-wrapper.exe"));
             var jar = Bytes(repo + "/clients/packwiz-installer-bootstrap.jar");
             if (!Sha256(jar).Equals((string)cfg["bootstrap_sha256"], StringComparison.OrdinalIgnoreCase)) throw new Exception("packwiz-installer-bootstrap.jar does not match its checksum");
             File.WriteAllBytes(Path.Combine(mc, "packwiz-installer-bootstrap.jar"), jar);
@@ -367,12 +368,14 @@ static class Setup
     static void WriteInstanceCfg(string path, string name)
     {
         var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : new List<string> { "[General]", "ConfigVersion=1.3", "InstanceType=OneSix", "iconKey=default" };
-        lines.RemoveAll(l => l.StartsWith("name=") || l.StartsWith("OverrideCommands=") || l.StartsWith("PreLaunchCommand="));
+        lines.RemoveAll(l => l.StartsWith("name=") || l.StartsWith("OverrideCommands=") || l.StartsWith("PreLaunchCommand=") || l.StartsWith("WrapperCommand="));
         int at = lines.IndexOf("[General]");
         if (at < 0) { lines.Insert(0, "[General]"); at = 0; }
         lines.Insert(at + 1, "name=" + name);
         lines.Insert(at + 2, "OverrideCommands=true");
         lines.Insert(at + 3, "PreLaunchCommand=\"powershell -NoProfile -ExecutionPolicy Bypass -File \\\"$INST_MC_DIR\\\\pack-sync.ps1\\\"\"");
+        // The launch wrapper: lets Quit in the launcher cancel a launch without Prism treating it as a failure.
+        lines.Insert(at + 4, "WrapperCommand=\"\\\"$INST_MC_DIR\\\\launch-wrapper.exe\\\"\"");
         File.WriteAllLines(path, lines);
     }
 

@@ -148,7 +148,8 @@ def build(variant: str, meta: dict, mods: list) -> None:
         f.write(data)
     entries.append((rel, sha256(data), False))
     # The sync scripts themselves: each run swaps in the pack's copy for the next launch.
-    for n in ("pack-sync.ps1", "pack-sync.sh"):
+    # (and the launch wrappers, which each run copies beside itself: see clients/launch-wrapper.sh)
+    for n in ("pack-sync.ps1", "pack-sync.sh", "launch-wrapper.sh", "launch-wrapper.exe"):
         data = open(os.path.join(ROOT, "clients", n), "rb").read()
         rel = "extras/" + n
         os.makedirs(os.path.join(out, "extras"), exist_ok=True)

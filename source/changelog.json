@@ -1,4 +1,7 @@
 [
+ {"version": "1.9.3", "date": "2026-11-15", "notes": [
+  "Quit in the launcher can now cancel a launch without Prism treating it as a failure and opening its log. It needs a small launch wrapper set up for the instance: new installs get it, and the owner switches it on for existing devices."
+ ]},
  {"version": "1.9.2", "date": "2026-11-15", "notes": [
   "Fixed on Windows: \"The update didn't finish\" when an update brought a new launcher. Windows wouldn't let the update replace the launcher while its window was open; the launcher now runs from a copy. If you saw that message, press Restart once (or launch again)."
  ]},

@@ -53,8 +53,21 @@ function ShowPopup($status) {
 }
 # Quit: no game this time (Prism then reports the pre-launch step failed). Restart: this script again, from the top
 # (the newest copy, if it just updated itself).
+# Quit with the launch wrapper set up for this instance (instance.cfg has it as Prism's wrapper command): this step
+# ends well and leaves "launch-cancelled" for the wrapper, which then starts nothing, so Prism sees a launch that ended
+# normally. Without the wrapper the only way to stop the launch is to fail this step (Prism then shows its log).
+$cancelMark = Join-Path $here 'launch-cancelled'
+Remove-Item $cancelMark -Force -ErrorAction SilentlyContinue
+function CancelLaunch {
+    $icfg = Join-Path (Split-Path $here -Parent) 'instance.cfg'
+    if ((Test-Path (Join-Path $here 'launch-wrapper.exe')) -and (Test-Path $icfg) -and (Select-String -LiteralPath $icfg -Pattern '^WrapperCommand=.*launch-wrapper' -Quiet)) {
+        Set-Content -Path $cancelMark -Value 'quit' -Encoding ascii
+        exit 0
+    }
+    exit 1
+}
 function AfterPopup($c) {
-    if ($c -eq 10) { Note 'launch cancelled in the pop-up (Quit)'; exit 1 }
+    if ($c -eq 10) { Note 'launch cancelled in the pop-up (Quit)'; CancelLaunch }
     if ($c -eq 11) {
         Note 'running the update again (Restart in the pop-up)'
         $p = Start-Process powershell -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"") -WindowStyle Hidden -Wait -PassThru
@@ -277,6 +290,11 @@ if ($skip) {
 if ("$code" -ne '0' -and -not (HasMods)) { StopIfNoMods "the mod download failed (exit $code)" }
 ApplySwitches
 ApplyDefaultsOnce
+# The launch wrapper, kept beside this script (Prism runs it from there; see CancelLaunch above).
+try {
+    $ws = Join-Path $here 'extras/launch-wrapper.exe'; $wd = Join-Path $here 'launch-wrapper.exe'
+    if ((Test-Path $ws) -and (-not (Test-Path $wd) -or (Get-FileHash $ws).Hash -ne (Get-FileHash $wd).Hash)) { Copy-Item $ws $wd -Force }
+} catch { Note "launch wrapper not updated: $($_.Exception.Message)" }
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcuts.
 # steam-target.json (written by setup) says where: "targets", one per shortcut, each with its grid folder, app id,

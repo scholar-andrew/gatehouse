@@ -83,7 +83,8 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   computer name and system. The helper also asks Tailscale which device the request came from (`tailscale whois`).
   New launchers wait for permission.
 - **October Journey host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
-  seen) with their four permissions, **Server control**, **MCSS control**, **PC sleep** and **Helper control**, each switched on or off
+  seen), with **Start MCSS** / **Close MCSS** for MCSS itself at the top (the same start and close the launchers
+  ask for), and with their four permissions, **Server control**, **MCSS control**, **PC sleep** and **Helper control**, each switched on or off
   for the selected launcher, plus **Forget** and **Set MCSS key...**, and shows a log of every request.
 - A launcher shows its Server controls and Server config tabs only once it has at least one permission (or its own
   panel access). It remembers what the helper last said (`perm_*` in its `server-access.json`), so the tabs are still

@@ -188,11 +188,13 @@ os.makedirs(mc, exist_ok=True)
 open(os.path.join(inst, "mmc-pack.json"), "wb").write(get(repo + "/clients/mmc-pack.json"))
 cfgp = os.path.join(inst, "instance.cfg")
 lines = open(cfgp).read().splitlines() if os.path.exists(cfgp) else ["[General]", "ConfigVersion=1.3", "InstanceType=OneSix", "iconKey=default"]
-lines = [l for l in lines if not l.startswith(("name=", "OverrideCommands=", "PreLaunchCommand="))]
+lines = [l for l in lines if not l.startswith(("name=", "OverrideCommands=", "PreLaunchCommand=", "WrapperCommand="))]
 i = lines.index("[General]") if "[General]" in lines else (lines.insert(0, "[General]") or 0)
-lines[i + 1:i + 1] = ["name=" + cfg["instance_name"], "OverrideCommands=true", "PreLaunchCommand=bash $INST_MC_DIR/pack-sync.sh"]
+lines[i + 1:i + 1] = ["name=" + cfg["instance_name"], "OverrideCommands=true", "PreLaunchCommand=bash $INST_MC_DIR/pack-sync.sh",
+                     "WrapperCommand=bash $INST_MC_DIR/launch-wrapper.sh"]  # (lets Quit cancel a launch without Prism calling it a failure)
 open(cfgp, "w").write("\n".join(lines) + "\n")
 sh = get(repo + "/clients/pack-sync.sh"); open(os.path.join(mc, "pack-sync.sh"), "wb").write(sh); os.chmod(os.path.join(mc, "pack-sync.sh"), 0o755)
+open(os.path.join(mc, "launch-wrapper.sh"), "wb").write(get(repo + "/clients/launch-wrapper.sh")); os.chmod(os.path.join(mc, "launch-wrapper.sh"), 0o755)
 jar = get(repo + "/clients/packwiz-installer-bootstrap.jar")
 if hashlib.sha256(jar).hexdigest().upper() != cfg["bootstrap_sha256"].upper(): sys.exit("packwiz-installer-bootstrap.jar does not match its checksum")
 open(os.path.join(mc, "packwiz-installer-bootstrap.jar"), "wb").write(jar)

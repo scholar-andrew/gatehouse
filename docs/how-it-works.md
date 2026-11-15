@@ -88,6 +88,14 @@ player-facing version). In order:
    October Journey mod. Before packwiz-installer runs, mods this script disabled (`mods-switched-off.json`) are renamed
    back so it finds them intact; afterwards, each mod that's off has its jar (from `packwiz.json`'s `cachedLocation`)
    renamed to `.jar.disabled`. Without a connection, the switches still apply.
+   **The launch wrapper.** A pre-launch step can only stop a launch by failing, and Prism then opens its log. So the
+   instance also has a wrapper command (`WrapperCommand` in `instance.cfg`, written by setup): `launch-wrapper.exe`
+   (Windows; `mods-src/launch-wrapper`, built by `tools/build_wrapper.ps1`) or `bash launch-wrapper.sh`, kept beside
+   the sync script (copied from `extras/` each run). On Quit, when the wrapper is set up, the script writes
+   `launch-cancelled` and exits 0; the wrapper finds it, removes it and starts nothing (exit 0), so Prism sees a launch
+   that ended normally. Otherwise the wrapper runs the game's command untouched (same input, output and exit code; on
+   Windows the game is tied to it, so killing it from Prism still ends the game). Without the wrapper in
+   `instance.cfg`, Quit fails the step as before.
 6. **Self-update.** If `extras/pack-sync.ps1` / `.sh` differs from the running script, it replaces it for next time
    (bash by write-then-rename, because bash is still reading the running file).
 7. **Launch pop-up.** Started right after Java is found as `extras/launch-popup.jar --progress <game folder>`
