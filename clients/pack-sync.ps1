@@ -5,6 +5,15 @@
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $log = Join-Path $here 'pack-sync.log'
 function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $text); Write-Host "Pack sync: $text" }
+# A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
+# server, so in that case a failed sync stops the launch (Prism shows the error) instead.
+function HasMods { [bool](Get-ChildItem (Join-Path $here 'mods') -Filter '*.jar' -ErrorAction SilentlyContinue | Select-Object -First 1) }
+function StopIfNoMods($why) {
+    if (HasMods) { Note "$why; starting with the mods already installed"; exit 0 }
+    Note "$why, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
+    Write-Host "October Journey couldn't install its mods ($why). Check your connection (Tailscale or internet) and press Play again."
+    exit 1
+}
 $variant = 'main'
 $sources = Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') }
 $url = $null
@@ -14,16 +23,42 @@ foreach ($s in $sources) {
         if ($r.StatusCode -eq 200) { $url = "$s/$variant/pack.toml"; break }
     } catch { }
 }
-if (-not $url) { Note 'no source reachable; starting with the mods already installed'; exit 0 }
-# Prism hands over javaw.exe, which PowerShell would not wait for: the console java.exe beside it, waited on.
-$java = if ($env:INST_JAVA) { $env:INST_JAVA } else { 'java' }
-$console = Join-Path (Split-Path $java -Parent) 'java.exe'
-if ($java -like '*javaw.exe' -and (Test-Path $console)) { $java = $console }
+if (-not $url) { StopIfNoMods 'no source reachable' }
+# Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH. Prism hands over
+# javaw.exe, which doesn't report back: the console java.exe beside it is used instead, run directly so this waits for
+# it and gets its exit code. Its output goes to pack-sync-java.log.
+$java = $null
+foreach ($c in @($env:INST_JAVA) + @(Get-ChildItem (Join-Path $here '..\..\..\java') -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'bin\java.exe' })) {
+    if (-not $c) { continue }
+    $c = $c -replace '/', '\'
+    $console = Join-Path (Split-Path $c -Parent) 'java.exe'
+    if (Test-Path -LiteralPath $console) { $java = $console; break }
+    if (Test-Path -LiteralPath $c) { $java = $c; break }
+}
+if (-not $java -and (Get-Command java -ErrorAction SilentlyContinue)) { $java = (Get-Command java).Source }
+if (-not $java) { StopIfNoMods "no Java found (INST_JAVA was '$env:INST_JAVA')" }
 $jargs = @('-jar', (Join-Path $here 'packwiz-installer-bootstrap.jar'))
 if ($env:PACK_SYNC_ARGS) { $jargs += $env:PACK_SYNC_ARGS -split ' ' }
 $jargs += $url
-$p = Start-Process -FilePath $java -ArgumentList ($jargs | ForEach-Object { if ($_ -match ' ') { '"' + $_ + '"' } else { $_ } }) -WorkingDirectory $here -Wait -PassThru -NoNewWindow
-Note "$url -> exit $($p.ExitCode)"
+$javaLog = Join-Path $here 'pack-sync-java.log'
+$code = $null
+Push-Location $here
+try {
+    if ($java -like '*javaw.exe') {
+        # Only javaw found: started and waited on, without its output.
+        $code = (Start-Process -FilePath $java -ArgumentList ($jargs | ForEach-Object { if ($_ -match ' ') { '"' + $_ + '"' } else { $_ } }) -WorkingDirectory $here -Wait -PassThru).ExitCode
+    } else {
+        $ErrorActionPreference = 'Continue'
+        & $java @jargs 2>&1 | ForEach-Object { "$_" } | Set-Content -Encoding utf8 $javaLog
+        $code = $LASTEXITCODE
+    }
+} catch { Note "couldn't run Java ($java): $($_.Exception.Message)" }
+Pop-Location
+Note "$url -> exit $code (Java: $java)"
+if ($code -ne 0) {
+    if (Test-Path $javaLog) { Get-Content $javaLog -Tail 5 | ForEach-Object { Note "  java: $_" } }
+    if (-not (HasMods)) { StopIfNoMods "the mod download failed (exit $code)" }
+}
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcut. steam-target.json
 # (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is
@@ -173,4 +208,4 @@ if ((Test-Path $next) -and (Get-FileHash $next).Hash -ne (Get-FileHash $self).Ha
     try { Copy-Item $next "$self.new" -Force; Move-Item "$self.new" $self -Force; Note 'sync script updated (used from the next launch)' }
     catch { Note "sync script update skipped: $($_.Exception.Message)" }
 }
-exit $p.ExitCode
+exit 0

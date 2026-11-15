@@ -198,8 +198,10 @@ When you press Play, Prism runs the instance's update script ([`clients/pack-syn
 Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecraft starts. It:
 
 1. Tries each address in `pack-sources.txt` in order (the owner's PC over Tailscale, then GitHub) and uses the first
-   that answers. If none answers, the game starts with what's already installed.
-2. Runs packwiz-installer, which compares your instance with the pack's file list and downloads, checks (SHA-256 or
+   that answers. If none answers, the game starts with what's already installed, except on the very first launch:
+   with no mods installed yet, it stops the launch with a message instead of starting a Minecraft that can't join the
+   server. Press Play again once you're online.
+2. Runs packwiz-installer (with Prism's own Java, or another it finds), which compares your instance with the pack's file list and downloads, checks (SHA-256 or
    SHA-512) and installs anything new or changed: mods, their configs, and a few pack files. Mods that were removed
    from the pack are removed from your instance; files you added yourself are left alone.
 3. Copies new library art and controller layout into Steam, using `steam-target.json`, if `pack-options.json` says
@@ -209,7 +211,8 @@ Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecra
 4. Makes sure the October Journey server is in your server list, if `pack-options.json` says to. If you edit or delete that entry in the game, it's
    left as you set it.
 5. Replaces itself with the pack's newest copy of the script, for the next launch.
-6. Writes one line per step to `pack-sync.log` in the instance's `minecraft` folder.
+6. Writes one line per step to `pack-sync.log` in the instance's `minecraft` folder, and packwiz-installer's own output
+   to `pack-sync-java.log` beside it. If the mods ever fail to install, those two files say why.
 
 ## What it connects to
 | Address | When | What for |

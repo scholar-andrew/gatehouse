@@ -34,7 +34,7 @@
   },
   "uninstall_windows": {
     "url": "https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe",
-    "sha256": "C7480DE9B8DC6C18E0230F94D19F4B930A8338FA10F952500E83314B8B426C1D"
+    "sha256": "0E658CCC688B1FC12C15CE4263DDF0367AE10457FD82DF742A2854301F5CAE5E"
   },
   "uninstall_linux": {
     "url": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/linux/october-journey-uninstall.sh",

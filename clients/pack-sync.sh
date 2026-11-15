@@ -15,12 +15,31 @@ while IFS= read -r s || [ -n "$s" ]; do
   [[ "$s" == \#* ]] && continue
   if curl -fsI --max-time 3 "$s/$variant/pack.toml" >/dev/null 2>&1; then url="$s/$variant/pack.toml"; break; fi
 done < "$here/pack-sources.txt"
-if [ -z "$url" ]; then echo "$(date '+%Y-%m-%d %H:%M:%S')  no source reachable; started with the mods already installed" >> "$here/pack-sync.log"; exit 0; fi
+note() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$here/pack-sync.log"; echo "Pack sync: $*"; }
+# A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
+# server, so in that case a failed sync stops the launch (Prism shows the error) instead.
+stop_if_no_mods() {
+  if ls "$here"/mods/*.jar >/dev/null 2>&1; then note "$1; starting with the mods already installed"; exit 0; fi
+  note "$1, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
+  echo "October Journey couldn't install its mods ($1). Check your connection (Tailscale or internet) and press Play again."
+  exit 1
+}
+[ -n "$url" ] || stop_if_no_mods "no source reachable"
 cd "$here" || exit 1
-"${INST_JAVA:-java}" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url"
+# Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH.
+java_bin=""
+for c in "${INST_JAVA:-}" "$here"/../../../java/*/bin/java; do
+  if [ -n "$c" ] && [ -x "$c" ]; then java_bin="$c"; break; fi
+done
+[ -n "$java_bin" ] || java_bin="$(command -v java || true)"
+[ -n "$java_bin" ] || stop_if_no_mods "no Java found (INST_JAVA was '${INST_JAVA:-}')"
+"$java_bin" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url" > "$here/pack-sync-java.log" 2>&1
 code=$?
-echo "$(date '+%Y-%m-%d %H:%M:%S')  ($variant) $url -> exit $code" >> "$here/pack-sync.log"
-echo "Pack sync ($variant): $url -> exit $code"
+note "($variant) $url -> exit $code (Java: $java_bin)"
+if [ "$code" != 0 ]; then
+  tail -n 5 "$here/pack-sync-java.log" | while IFS= read -r l; do note "  java: $l"; done
+  ls "$here"/mods/*.jar >/dev/null 2>&1 || stop_if_no_mods "the mod download failed (exit $code)"
+fi
 
 # Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcut. steam-target.json
 # (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is
@@ -153,4 +172,4 @@ if [ -f "$here/extras/pack-sync.sh" ] && ! cmp -s "$here/extras/pack-sync.sh" "$
   cp "$here/extras/pack-sync.sh" "$here/pack-sync.sh.new" && chmod +x "$here/pack-sync.sh.new" && mv -f "$here/pack-sync.sh.new" "$here/pack-sync.sh" \
     && echo "$(date '+%Y-%m-%d %H:%M:%S')  sync script updated (used from the next launch)" >> "$here/pack-sync.log"
 fi
-exit $code
+exit 0

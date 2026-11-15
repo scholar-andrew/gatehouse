@@ -85,8 +85,8 @@ static class Uninstall
             string prismUninstaller = prismDir == null ? null : Path.Combine(prismDir, "uninstall.exe");
             bool hasPrism = !testing && prismUninstaller != null && File.Exists(prismUninstaller);
             string toolsDir = ToolsDir(prismRootArg);
-            bool hasSetup = File.Exists(Path.Combine(toolsDir, "OctoberJourneySetup.exe"));
-            bool hasSelf = File.Exists(Path.Combine(toolsDir, "OctoberJourneyUninstall.exe")) || (!testing && Registry.CurrentUser.OpenSubKey(AppsKey) != null);
+            bool hasSetup = toolsDir != null && File.Exists(Path.Combine(toolsDir, "OctoberJourneySetup.exe"));
+            bool hasSelf = (toolsDir != null && File.Exists(Path.Combine(toolsDir, "OctoberJourneyUninstall.exe"))) || (!testing && Registry.CurrentUser.OpenSubKey(AppsKey) != null);
 
             // What to remove.
             var opts = new Options();
@@ -166,6 +166,8 @@ static class Uninstall
             string done = "Done. " + (steamWork ? "Start Steam again whenever you like." : "");
             Say(done);
             if (!quiet) MessageBox.Show(done, Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // Only now, with its last window closed: the deletion of this program's own saved copy.
+            if (afterExit != null) afterExit();
             return 0;
         }
         catch (Exception e)
@@ -179,6 +181,7 @@ static class Uninstall
 
     static void RemoveTools(string dir, bool testing, bool installer, bool uninstaller)
     {
+        if (dir == null) dir = Path.Combine(Path.GetTempPath(), "OctoberJourney-none");   // nothing saved: only the registry entry
         // The whole folder is only deleted when it is our own (named OctoberJourney) and holds nothing else; a folder the
         // player picked for these files may have been theirs already.
         string setup = Path.Combine(dir, "OctoberJourneySetup.exe");
@@ -191,6 +194,8 @@ static class Uninstall
                     else if (installer) { k.DeleteValue("ModifyPath", false); k.SetValue("NoModify", 1, RegistryValueKind.DWord); }
                 }
         if (!uninstaller || !Directory.Exists(dir)) return;
+        // With both gone, the marker goes too.
+        if (!File.Exists(setup)) { var marker = Path.Combine(dir, "OctoberJourney.txt"); if (File.Exists(marker)) File.Delete(marker); }
         if (Directory.GetFileSystemEntries(dir).Any(f => !Path.GetFileName(f).Equals("OctoberJourneyUninstall.exe", StringComparison.OrdinalIgnoreCase)))
         {
             // The installer is being kept: delete only this program.
@@ -209,7 +214,8 @@ static class Uninstall
         if (running)
         {
             string cmd = isDir ? "rmdir /s /q \"" + path + "\"" : "del /f /q \"" + path + "\" & rmdir \"" + Path.GetDirectoryName(path) + "\" 2>nul";
-            Process.Start(new ProcessStartInfo("cmd.exe", "/c ping 127.0.0.1 -n 4 >nul & " + cmd) { CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
+            // Started once this program's last window has closed (see Main), then a few seconds' wait for it to exit.
+            afterExit = () => Process.Start(new ProcessStartInfo("cmd.exe", "/c ping 127.0.0.1 -n 4 >nul & " + cmd) { CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden });
             Say("The saved uninstaller is deleted once this window closes.");
         }
         else
@@ -275,19 +281,23 @@ static class Uninstall
     }
 
     // Where setup saved the uninstaller and installer: the Settings > Apps entry says; failing that, this program's own
-    // folder if it is the saved copy; failing that, the default.
+    // folder if setup marked it (OctoberJourney.txt); failing that, the default folder if setup marked it. Null when there
+    // is none: a copy run from Downloads, say, never treats Downloads as its own.
     static string ToolsDir(string prismRootArg)
     {
         if (prismRootArg == null)
             using (var k = Registry.CurrentUser.OpenSubKey(AppsKey))
             {
                 string d = k == null ? null : k.GetValue("InstallLocation") as string;
-                if (!string.IsNullOrEmpty(d)) return d;
+                if (!string.IsNullOrEmpty(d) && Directory.Exists(d)) return d;
             }
         string me = Path.GetDirectoryName(Path.GetFullPath(Process.GetCurrentProcess().MainModule.FileName));
-        if (File.Exists(Path.Combine(me, "OctoberJourneySetup.exe")) || Path.GetFileName(me).Equals("OctoberJourney", StringComparison.OrdinalIgnoreCase)) return me;
-        return prismRootArg != null ? Path.Combine(prismRootArg, "OctoberJourney") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoberJourney");
+        if (File.Exists(Path.Combine(me, "OctoberJourney.txt"))) return me;
+        string dflt = prismRootArg != null ? Path.Combine(prismRootArg, "OctoberJourney") : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OctoberJourney");
+        return File.Exists(Path.Combine(dflt, "OctoberJourney.txt")) ? dflt : null;
     }
+
+    static Action afterExit;
 
     static string SteamPath()
     {

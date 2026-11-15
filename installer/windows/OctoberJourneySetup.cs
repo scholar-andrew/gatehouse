@@ -165,6 +165,16 @@ static class Setup
     {
         bool testing = prismRoot != null;
         string un = Path.Combine(dir, "OctoberJourneyUninstall.exe"), setup = Path.Combine(dir, "OctoberJourneySetup.exe");
+        // The uninstaller only treats a folder as its own when this file is there (or Settings > Apps names it).
+        if (uninstaller || installer)
+            try
+            {
+                Directory.CreateDirectory(dir);
+                File.WriteAllText(Path.Combine(dir, "OctoberJourney.txt"), "Saved by October Journey setup: its installer and uninstaller.\r\n" +
+                    "Run OctoberJourneyUninstall.exe (or Settings > Apps > October Journey) to remove October Journey, or\r\n" +
+                    "OctoberJourneySetup.exe to add items. https://github.com/scholar-andrew/october-journey-pack\r\n");
+            }
+            catch { }
         if (installer)
         {
             try

@@ -6,11 +6,11 @@ hash = "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280"
 
 [[files]]
 file = "extras/pack-sync.ps1"
-hash = "7248eee4f34373daa545df14221742af04ee52b3bbc501e5abf27457d6bec5af"
+hash = "7353a41c478045100d30f67c4b5d8d61afa395c430401d808e40dd48646c2c20"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "1865f457f96b1bfdc07136223affba3dbea689aa0e320d1d538c6a1e46674aed"
+hash = "340a89d20a049ebefe441e0048d6f6d3d89706b8ce99fbdb2dee7522467c1f25"
 
 [[files]]
 file = "extras/servers.json"
