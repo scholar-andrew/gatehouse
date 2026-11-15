@@ -599,7 +599,7 @@ public final class HostHelper {
 	 *  runs: players would be left on a frozen server. MCSS can stay open; it carries on when the PC wakes.
 	 *  host.json "sleep_command" replaces the sleep itself (testing). */
 	static String[] sleepPc() {
-		if (minecraftRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then sleep the PC"};
+		if (minecraftRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then sleep the machine"};
 		String custom = setting("sleep_command", "");
 		List<String> cmd = custom.isEmpty()
 				? List.of("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
@@ -607,7 +607,7 @@ public final class HostHelper {
 				: List.of("cmd", "/c", custom);
 		try { new ProcessBuilder(cmd).start(); }
 		catch (IOException e) { return new String[] {"failed", "Couldn't sleep the PC: " + e.getMessage()}; }
-		return new String[] {"ok", "The server PC is going to sleep (in about 5 seconds). Wake server device wakes it again from the home network."};
+		return new String[] {"ok", "The server machine is going to sleep (in about 5 seconds). Wake server machine wakes it again from the home network."};
 	}
 
 	/** The panel: GET /admin/devices, POST /admin/grant {id, granted}, POST /admin/perm {id, perm: mcss|sleep, value},

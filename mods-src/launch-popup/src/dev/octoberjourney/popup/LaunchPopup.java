@@ -668,7 +668,7 @@ public final class LaunchPopup {
 		JPanel box = new JPanel();
 		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 		box.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
-		// Three groups, in the order they depend on each other: the server PC (the machine), MCSS (the server software),
+		// Three groups, in the order they depend on each other: the server machine (the machine), MCSS (the server software),
 		// and the Minecraft server itself. Each has its own status line, buttons and messages.
 		JLabel pcStatus = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
 		JLabel status = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
@@ -683,7 +683,7 @@ public final class LaunchPopup {
 		JLabel stopped = new JLabel(" ");
 		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, 13f));
 		stopped.setIconTextGap(8);
-		JButton wake = new JButton("Wake server device"), start = new JButton("Start server"), stop = new JButton("Stop server");
+		JButton wake = new JButton("Wake server machine"), start = new JButton("Start server"), stop = new JButton("Stop server");
 		wake.setEnabled(false);   // (until the first reading: only while the PC isn't answering)
 		start.setEnabled(false);
 		stop.setEnabled(false);
@@ -714,7 +714,7 @@ public final class LaunchPopup {
 					case "starting", "stopping" -> game = s[1];
 					case "off" -> game = "Off" + (c.canControlServer() ? ": Start server starts it" : "");
 					case "nomcss" -> game = "Off: MCSS isn't running (start it above)";
-					case "asleep" -> game = "Off: the server PC is asleep or off";
+					case "asleep" -> game = "Off: the server machine is asleep or off";
 					default -> game = s[1];
 				}
 				status.setIcon(dot(phase.equals("nomcss") || asleep ? GRAY : colour(s[0])));
@@ -724,7 +724,7 @@ public final class LaunchPopup {
 				stop.setEnabled(c.canControlServer() && phase.equals("online"));
 				// Wake only while the PC isn't answering at all (neither the game server nor the panel): asleep or off.
 				wake.setEnabled(c.canWake() && phase.equals("asleep"));
-				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (works from the home network)" : "The server PC is awake");
+				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (works from the home network)" : "The server machine is awake");
 				String ping = s.length > 3 ? s[3] : "";
 				int ms = -1;
 				try { ms = Integer.parseInt(ping); } catch (NumberFormatException ignored) {}
@@ -757,7 +757,7 @@ public final class LaunchPopup {
 				try { c.start(); msg = "Start requested: the server takes a minute or so to come up"; }
 				catch (ServerControl.Refused ex) { msg = ex.getMessage(); }
 				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
-				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server PC awake?"; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server machine awake?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> note.setText(wrap(m)));
 				refresh.run();
@@ -774,7 +774,7 @@ public final class LaunchPopup {
 				try { c.stop(); }
 				catch (ServerControl.Refused ex) { stopResult.accept("failed", ex.getMessage()); return; }
 				catch (ServerControl.HttpError ex) { stopResult.accept("failed", ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to stop the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"); return; }
-				catch (IOException | RuntimeException ex) { stopResult.accept("failed", "Couldn't reach the panel: is the server PC awake?"); return; }
+				catch (IOException | RuntimeException ex) { stopResult.accept("failed", "Couldn't reach the panel: is the server machine awake?"); return; }
 				stopResult.accept("running", "Stopping: saving the world and shutting down\u2026");
 				refresh.run();
 				// Watch until the server is off (2 minutes at most), then read the end of its log for the save.
@@ -792,11 +792,11 @@ public final class LaunchPopup {
 			}, "stop").start();
 		});
 
-		// MCSS itself (the server software), through the host helper on the server PC: allowed per launcher by the owner.
+		// MCSS itself (the server software), through the host helper on the server machine: allowed per launcher by the owner.
 		JLabel mcss = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
 		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, 13f));
 		mcss.setIconTextGap(8);
-		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS"), pcSleep = new JButton("Sleep server PC");
+		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS"), pcSleep = new JButton("Sleep server machine");
 		boolean[] forceMode = {false};
 		mStart.setEnabled(false); mClose.setEnabled(false); pcSleep.setEnabled(false);
 		JLabel mNote = new JLabel(" ");
@@ -813,9 +813,9 @@ public final class LaunchPopup {
 				sleepOk = "true".equals(s(r.get("sleep")));
 				game = "true".equals(s(r.get("minecraft")));
 				if (granted) text = running ? "MCSS is running" : "MCSS isn't running";
-				else text = "Waiting for the owner to allow this device (in the host panel on the server PC)";
+				else text = "Waiting for the owner to allow this device (in the host panel on the server machine)";
 				state = granted ? (running ? "ok" : "off") : "warn";
-			} catch (IOException | RuntimeException e) { state = "off"; text = "The host helper isn't answering (the server PC may be asleep or signed out)"; }
+			} catch (IOException | RuntimeException e) { state = "off"; text = "The host helper isn't answering (the server machine may be asleep or signed out)"; }
 			String st = state, tx = text, md = mode; boolean g = granted, run = running, sl = sleepOk, gm = game;
 			SwingUtilities.invokeLater(() -> {
 				// The button says what it will do: MCSS's X button either exits it (Close) or only hides it (Force close).
@@ -831,21 +831,21 @@ public final class LaunchPopup {
 				// Sleep: only with the owner's PC sleep permission, and only while the Minecraft server is stopped.
 				pcSleep.setEnabled(sl && !gm);
 				pcSleep.setToolTipText(!sl ? "This device isn't allowed to sleep the PC (the owner allows it in the host panel)"
-						: gm ? "Stop the Minecraft server first" : "Put the server PC to sleep (Wake server device wakes it from the home network)");
+						: gm ? "Stop the Minecraft server first" : "Put the server machine to sleep (Wake server machine wakes it from the home network)");
 			});
 		}, "mcss-status").start();
 		java.util.function.Function<Boolean, Runnable> mcssAct = startIt -> () -> {
 			hold.run();
 			boolean force = forceMode[0];
 			if (!startIt && javax.swing.JOptionPane.showConfirmDialog(f, force
-					? "Force close MCSS on the server PC? Its X button is set to hide it, so it will be ended rather than closed normally. (Only once the Minecraft server is stopped.)"
-					: "Close MCSS on the server PC? It closes normally, like its X button. (Only once the Minecraft server is stopped.)",
+					? "Force close MCSS on the server machine? Its X button is set to hide it, so it will be ended rather than closed normally. (Only once the Minecraft server is stopped.)"
+					: "Close MCSS on the server machine? It closes normally, like its X button. (Only once the Minecraft server is stopped.)",
 					force ? "Force close MCSS" : "Close MCSS", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
 			mNote.setText(startIt ? "Starting MCSS\u2026" : "Closing MCSS\u2026");
 			new Thread(() -> {
 				String msg;
 				try { Map<String, Object> r = startIt ? c.mcssStart() : c.mcssClose(force); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
-				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server PC awake?"; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server machine awake?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> mNote.setText(wrap(m)));
 				mcssRefresh.run();
@@ -855,13 +855,13 @@ public final class LaunchPopup {
 		mStart.addActionListener(e -> mcssAct.apply(true).run());
 		pcSleep.addActionListener(e -> {
 			hold.run();
-			if (javax.swing.JOptionPane.showConfirmDialog(f, "Put the server PC to sleep? MCSS stays open and carries on when it wakes. Wake server device wakes it again from the home network.",
-					"Sleep server PC", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
-			pcNote.setText("Asking the server PC to sleep\u2026");
+			if (javax.swing.JOptionPane.showConfirmDialog(f, "Put the server machine to sleep? MCSS stays open and carries on when it wakes. Wake server machine wakes it again from the home network.",
+					"Sleep server machine", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
+			pcNote.setText("Asking the server machine to sleep\u2026");
 			new Thread(() -> {
 				String msg;
 				try { Map<String, Object> r = c.sleepPc(); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
-				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server PC awake?"; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server machine awake?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> pcNote.setText(wrap(m)));
 			}, "pc-sleep").start();
@@ -884,14 +884,15 @@ public final class LaunchPopup {
 			for (JButton b : bs) { b.setFont(b.getFont().deriveFont(13f)); r.add(b); }
 			return r;
 		};
-		group.accept("Server PC", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep}), pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
+		group.accept("Server Machine", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep}), pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
 		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose}), mNote});
 		JLabel via = new JLabel(wrap("Control: " + c.accessText()));
 		via.setFont(via.getFont().deriveFont(Font.PLAIN, 12f));
 		via.setForeground(new Color(0x6B7280));
 		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop}), via, note, stopped});
 
-		// Server config: the panel in a browser, and this device's access.
+		// Server config: how this device controls the server, and signing in to the server panel with a panel account
+		// (the launcher keeps the key the panel hands back, never the password).
 		JPanel cfg = new JPanel();
 		cfg.setLayout(new BoxLayout(cfg, BoxLayout.Y_AXIS));
 		cfg.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
@@ -900,52 +901,81 @@ public final class LaunchPopup {
 		JLabel who = new JLabel();
 		who.setFont(who.getFont().deriveFont(Font.PLAIN, 13f));
 		who.setIconTextGap(8);
+		JButton signOut = new JButton("Sign out");
 		Runnable showWho = () -> {
 			who.setIcon(dot(c.canControlServer() ? GREEN : GRAY));
 			who.setText(wrap("Server control: " + c.accessText()));
 			via.setText(wrap("Control: " + c.accessText()));
+			signOut.setEnabled(c.hasKey());
 		};
-		showWho.run();
-		JButton panel = new JButton("Open server panel"), access = new JButton("Server access\u2026"), manage = new JButton("Manage launchers\u2026");
-		// Only for a device the owner allowed helper control (in the host panel on the server PC).
-		manage.setVisible(c.permAdmin);
-		manage.addActionListener(e -> { hold.run(); manageDialog(c, f); });
-		panel.setEnabled(!c.panelUrl.isEmpty());
-		panel.addActionListener(e -> {
+		JLabel signHead = new JLabel("Server panel sign-in");
+		signHead.setFont(signHead.getFont().deriveFont(Font.BOLD, 14f));
+		signHead.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
+		javax.swing.JTextField user = new javax.swing.JTextField(c.username, 18);
+		javax.swing.JPasswordField pass = new javax.swing.JPasswordField(18);
+		JButton signIn = new JButton("Sign in");
+		Runnable doSignIn = () -> {
 			hold.run();
+			signIn.setEnabled(false);
+			cfgNote.setText("Signing in\u2026");
+			String u = user.getText(), pw = new String(pass.getPassword());
 			new Thread(() -> {
-				boolean opened = c.openPanel();
-				SwingUtilities.invokeLater(() -> cfgNote.setText(wrap(opened ? "Opened the server panel in your browser (sign in there)" : "Open " + c.panelUrl + " in a browser")));
-			}, "panel").start();
+				String msg;
+				try { c.signIn(u, pw, c.wakeAddress); msg = "Signed in as " + u.trim() + "."; }
+				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "The panel didn't accept that username and password." : "The panel said no (" + ex.getMessage() + ")."; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server machine awake, and MCSS running?"; }
+				String m = msg;
+				SwingUtilities.invokeLater(() -> { cfgNote.setText(wrap(m)); signIn.setEnabled(true); pass.setText(""); showWho.run(); });
+				refresh.run();
+			}, "sign-in").start();
+		};
+		signIn.addActionListener(e -> doSignIn.run());
+		pass.addActionListener(e -> doSignIn.run());
+		signOut.setToolTipText("Forget the sign-in or key saved on this device");
+		signOut.addActionListener(e -> {
+			hold.run();
+			try { c.username = ""; c.save("", c.wakeAddress); cfgNote.setText("Signed out: nothing is saved on this device now."); }
+			catch (IOException ex) { cfgNote.setText("Couldn't save: " + ex.getMessage()); }
+			showWho.run(); refresh.run();
 		});
-		access.addActionListener(e -> { hold.run(); accessDialog(c, f, cfgNote); showWho.run(); refresh.run(); });
-		JPanel cfgButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
-		for (JButton b : new JButton[] {panel, access, manage}) { b.setFont(b.getFont().deriveFont(13f)); cfgButtons.add(b); }
-		JLabel where = new JLabel("Server panel: " + (c.panelUrl.isEmpty() ? "not set" : c.panelUrl));
-		where.setForeground(new Color(0x6B7280));
-		for (JComponent x : new JComponent[] {who, where, cfgButtons, cfgNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
+		JPanel fields = new JPanel(new java.awt.GridBagLayout());
+		java.awt.GridBagConstraints gc = new java.awt.GridBagConstraints();
+		gc.insets = new java.awt.Insets(2, 0, 2, 8); gc.anchor = java.awt.GridBagConstraints.WEST;
+		gc.gridx = 0; gc.gridy = 0; fields.add(new JLabel("Username"), gc);
+		gc.gridx = 1; fields.add(user, gc);
+		gc.gridx = 0; gc.gridy = 1; fields.add(new JLabel("Password"), gc);
+		gc.gridx = 1; fields.add(pass, gc);
+		JPanel signButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+		for (JButton bt : new JButton[] {signIn, signOut}) { bt.setFont(bt.getFont().deriveFont(13f)); signButtons.add(bt); }
+		gc.gridx = 1; gc.gridy = 2; gc.insets = new java.awt.Insets(2, -6, 2, 0); fields.add(signButtons, gc);
+		JPanel fieldsWrap = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
+		fieldsWrap.add(fields);
+		JLabel signHelp = new JLabel(wrap("Sign in with your own account on the server panel. Only the key the panel hands back is saved, on this device; your password isn't. If the owner allowed this device through the host helper, you don't need to sign in."));
+		signHelp.setForeground(new Color(0x6B7280));
+		showWho.run();
+		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
 
 		if (live) {
 			refresh.run();
 			if (c.hasHelper()) new Thread(() -> { try { c.hello(); } catch (IOException | RuntimeException ignored) {} mcssRefresh.run(); }, "hello").start();
 			// Every few seconds while the window is open.
-			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) { refresh.run(); if (c.hasHelper()) mcssRefresh.run(); manage.setVisible(c.permAdmin); showWho.run(); } });
+			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) { refresh.run(); if (c.hasHelper()) mcssRefresh.run(); showWho.run(); } });
 			poll.start();
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { poll.stop(); } });
 		}
-		return new JComponent[] {box, cfg};
+		return new JComponent[] {box, cfg, managePanel(c, f)};
 	}
 
 	/** After a stop: was the world saved? The end of the server's log (through the panel's console) should show
 	 *  "Stopping server", "Saving worlds" and a chunk save for each dimension, with no errors after the stop began. */
-	/** Manage launchers (Server config, for a device the owner allowed helper control): what the host panel on the
-	 *  server PC does, through the helper: the launchers that have asked, their permissions (each switched for the
+	/** Manage launchers (a tab of its own, for a device the owner allowed helper control): what the host panel on the
+	 *  server machine does, through the helper: the launchers that have asked, their permissions (each switched for the
 	 *  selected one), Forget, and the helper's activity. Helper control itself and the helper's MCSS key stay with the
 	 *  panel on the PC. */
-	private static void manageDialog(ServerControl c, JFrame f) {
-		javax.swing.JDialog d = new javax.swing.JDialog(f, "Manage launchers", true);
+	private static JPanel managePanel(ServerControl c, JFrame f) {
+		JFrame d = f;
 		JPanel p = new JPanel(new BorderLayout(0, 8));
-		p.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
+		p.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
 		JLabel state = new JLabel("Asking the host helper\u2026");
 		p.add(state, BorderLayout.NORTH);
 		String[] cols = {"Launcher", "System", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
@@ -955,14 +985,14 @@ public final class LaunchPopup {
 		table.setRowHeight(24);
 		List<String> ids = new ArrayList<>();
 		Map<String, boolean[]> perms = new LinkedHashMap<>();   // id -> {server, mcss, sleep, helper control}
-		javax.swing.JTextArea log = new javax.swing.JTextArea(6, 60);
+		javax.swing.JTextArea log = new javax.swing.JTextArea(6, 40);
 		log.setEditable(false);
 		log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
 		JScrollPane ts = new JScrollPane(table);
-		ts.setPreferredSize(new Dimension(980, 150));
-		JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), revoke = new JButton("Remove server access"), close = new JButton("Close");
-		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
-		for (JButton b : new JButton[] {serverB, mcssB, sleepB, revoke, forget, close}) buttons.add(b);
+		ts.setPreferredSize(new Dimension(600, 150));
+		JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), revoke = new JButton("Remove server access");
+		JPanel buttons = new JPanel(new java.awt.GridLayout(0, 3, 6, 4));
+		for (JButton b : new JButton[] {serverB, mcssB, sleepB, revoke, forget}) buttons.add(b);
 		JLabel note = new JLabel(" ");
 		note.setForeground(new Color(0x6B7280));
 		JPanel mid = new JPanel(new BorderLayout(0, 6));
@@ -972,7 +1002,7 @@ public final class LaunchPopup {
 		mid.add(under, BorderLayout.SOUTH);
 		p.add(mid, BorderLayout.CENTER);
 		JPanel bottom = new JPanel(new BorderLayout(0, 4));
-		bottom.add(new JLabel("Activity on the server PC"), BorderLayout.NORTH);
+		bottom.add(new JLabel("Activity on the server machine"), BorderLayout.NORTH);
 		bottom.add(new JScrollPane(log), BorderLayout.CENTER);
 		p.add(bottom, BorderLayout.SOUTH);
 		Runnable labels = () -> {
@@ -1002,13 +1032,13 @@ public final class LaunchPopup {
 					labels.run();
 					state.setIcon(dot(GREEN));
 					state.setText("MCSS " + ("true".equals(s(r.get("mcss"))) ? "is running" : "isn't running") + ";  Minecraft server " + ("true".equals(s(r.get("minecraft"))) ? "is running" : "is off")
-							+ ("true".equals(s(r.get("has_key"))) ? "." : ";  the helper has no MCSS key yet (server control needs it; set on the server PC)."));
+							+ ("true".equals(s(r.get("has_key"))) ? "." : ";  the helper has no MCSS key yet (server control needs it; set on the server machine)."));
 					StringBuilder sb = new StringBuilder();
 					if (lg.get("log") instanceof List<?> l) for (Object x : l) sb.append(x).append('\n');
 					if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
 				});
 			} catch (IOException | RuntimeException ex) {
-				SwingUtilities.invokeLater(() -> { state.setIcon(dot(RED)); state.setText("Couldn't reach the host helper (is the server PC awake?)"); });
+				SwingUtilities.invokeLater(() -> { state.setIcon(dot(RED)); state.setText("Couldn't reach the host helper (is the server machine awake?)"); });
 			}
 		}, "manage").start();
 		java.util.function.BiConsumer<String, String> act = (path, body) -> new Thread(() -> {
@@ -1040,15 +1070,11 @@ public final class LaunchPopup {
 					"Remove server access", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/revoke", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		table.getSelectionModel().addListSelectionListener(e -> labels.run());
-		close.addActionListener(e -> d.dispose());
-		Timer t = new Timer(4000, e -> load.run());
+		// Asked for while the tab is on screen: every few seconds, and at once when it's opened.
+		Timer t = new Timer(4000, e -> { if (!f.isDisplayable()) ((Timer) e.getSource()).stop(); else if (p.isShowing()) load.run(); });
 		t.start();
-		load.run();
-		d.setContentPane(p);
-		d.pack();
-		d.setLocationRelativeTo(f);
-		d.setVisible(true);   // (modal: returns when closed)
-		t.stop();
+		p.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && p.isShowing()) load.run(); });
+		return p;
 	}
 
 	static String[] shutdownVerdict(ServerControl c, long secs) {
@@ -1084,68 +1110,6 @@ public final class LaunchPopup {
 	}
 
 	/** This device's own server settings: the API key from the panel, and an internet wake address. */
-	private static void accessDialog(ServerControl c, JFrame f, JLabel note) {
-		javax.swing.JPasswordField key = new javax.swing.JPasswordField(c.apiKey, 28);
-		javax.swing.JTextField wake = new javax.swing.JTextField(c.wakeAddress, 28);
-		char hidden = key.getEchoChar();
-		JLabel pasteNote = new JLabel(" ");
-		pasteNote.setForeground(new Color(0x6B7280));
-		// Paste buttons: an on-screen keyboard (Steam Deck) has no Ctrl+V, so pasting a key copied in the browser
-		// needs a button.
-		java.util.function.Function<javax.swing.text.JTextComponent, JButton> paste = field -> {
-			JButton b = new JButton("Paste");
-			b.addActionListener(e -> {
-				String t = clipboard();
-				if (t == null || t.isBlank()) pasteNote.setText("The clipboard is empty: copy the text first, then press Paste.");
-				else { field.setText(t.strip()); pasteNote.setText("Pasted."); }
-			});
-			return b;
-		};
-		javax.swing.JCheckBox show = new javax.swing.JCheckBox("Show");
-		show.addActionListener(e -> key.setEchoChar(show.isSelected() ? (char) 0 : hidden));
-		JPanel keyRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
-		keyRow.add(key); keyRow.add(paste.apply(key)); keyRow.add(show);
-		JPanel wakeRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
-		wakeRow.add(wake); wakeRow.add(paste.apply(wake));
-		// Easiest: sign in with your panel account; the pop-up keeps the key the panel hands back (never the password).
-		javax.swing.JTextField user = new javax.swing.JTextField(c.username, 18);
-		javax.swing.JPasswordField pass = new javax.swing.JPasswordField(18);
-		JButton signIn = new JButton("Sign in");
-		signIn.addActionListener(e -> {
-			signIn.setEnabled(false);
-			pasteNote.setText("Signing in...");
-			String u = user.getText(), pw = new String(pass.getPassword()), w = wake.getText();
-			new Thread(() -> {
-				String msg;
-				try { c.signIn(u, pw, w); msg = "Signed in as " + u.trim() + ". You can close this window."; }
-				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "The panel didn't accept that username and password." : "The panel said no (" + ex.getMessage() + ")."; }
-				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server PC awake?"; }
-				String m = msg;
-				SwingUtilities.invokeLater(() -> { pasteNote.setText(m); key.setText(c.apiKey); signIn.setEnabled(true); pass.setText(""); });
-			}, "sign-in").start();
-		});
-		JPanel signRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
-		signRow.add(new JLabel("Username")); signRow.add(user); signRow.add(new JLabel("Password")); signRow.add(pass); signRow.add(signIn);
-		JLabel signedIn = new JLabel(c.username.isEmpty() ? " " : "Signed in as " + c.username + " (sign in again if the panel stops accepting it).");
-		signedIn.setForeground(new Color(0x6B7280));
-		JPanel form = new JPanel();
-		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-		JLabel h1 = new JLabel("Sign in with your server panel account");
-		h1.setFont(h1.getFont().deriveFont(Font.BOLD));
-		JLabel h2 = new JLabel("Or use an API key made for you in the panel (under API Keys)");
-		h2.setFont(h2.getFont().deriveFont(Font.BOLD));
-		for (JComponent x : new JComponent[] {
-				text("Saved on this device only (server-access.json in the game folder). Your password isn't saved."),
-				h1, signRow, signedIn, h2, keyRow,
-				new JLabel("Internet wake address, host:port (optional; only if the owner gave you one):"), wakeRow, pasteNote}) {
-			x.setAlignmentX(Component.LEFT_ALIGNMENT); form.add(x); form.add(Box.createVerticalStrut(4));
-		}
-		int r = javax.swing.JOptionPane.showConfirmDialog(f, form, "Server access", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE);
-		if (r != javax.swing.JOptionPane.OK_OPTION) return;
-		try { c.save(new String(key.getPassword()), wake.getText()); note.setText("Saved"); }
-		catch (IOException e) { note.setText("Couldn't save: " + e.getMessage()); }
-	}
-
 	// ------------------------------------------------------------------ what's shown
 
 	private static Color colour(String state) {
@@ -1269,9 +1233,9 @@ public final class LaunchPopup {
 					case "online" -> text = "Right now: online" + (ping.isEmpty() ? "" : ", " + ping + " ms") + (pl.isEmpty() ? "" : ", " + pl + " players");
 					case "starting" -> text = "Right now: starting";
 					case "stopping" -> text = "Right now: stopping";
-					case "off" -> text = "Right now: the server PC is awake, but the Minecraft server is off (Server controls)";
-					case "nomcss" -> text = "Right now: the server PC is awake, but MCSS isn't running, so the server is off (Server controls, Start MCSS)";
-					case "asleep" -> text = "Right now: the server PC isn't answering, so it may be asleep or off (Server controls, Wake server device). Below is the server as last recorded.";
+					case "off" -> text = "Right now: the server machine is awake, but the Minecraft server is off (Server controls)";
+					case "nomcss" -> text = "Right now: the server machine is awake, but MCSS isn't running, so the server is off (Server controls, Start MCSS)";
+					case "asleep" -> text = "Right now: the server machine isn't answering, so it may be asleep or off (Server controls, Wake server machine). Below is the server as last recorded.";
 					default -> text = "Right now: " + r[1];
 				}
 				liveLine.setIcon(dot(colour(r[0])));
@@ -1281,8 +1245,8 @@ public final class LaunchPopup {
 			if (control.configured()) {
 				Runnable[] syncTabs = {() -> {}};
 				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live, () -> syncTabs[0].run());
-				JPanel[] serverTabs = new JPanel[2];
-				for (int i = 0; i < 2; i++) {
+				JPanel[] serverTabs = new JPanel[3];
+				for (int i = 0; i < 3; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
 					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
 					JPanel inner = new JPanel(new BorderLayout());
@@ -1296,11 +1260,15 @@ public final class LaunchPopup {
 				}
 				// The two tabs appear only once the owner has allowed this launcher something in the host panel (or it has
 				// its own panel access). That's remembered from the helper's last reply, so they're still there while the
-				// server PC is asleep (to wake it), and they come and go as the owner allows or removes it.
+				// server machine is asleep (to wake it), and they come and go as the owner allows or removes it.
 				syncTabs[0] = () -> {
 					boolean want = control.showServerTabs(), have = tabs.indexOfComponent(serverTabs[0]) >= 0;
 					if (want && !have) { tabs.addTab("Server controls", serverTabs[0]); tabs.addTab("Server config", serverTabs[1]); }
 					else if (!want && have) { if (tabs.getSelectedIndex() >= 2) tabs.setSelectedIndex(0); tabs.remove(serverTabs[0]); tabs.remove(serverTabs[1]); }
+					// Manage launchers: only for a device the owner allowed helper control (in the host panel on the server machine).
+					boolean wantM = want && control.permAdmin, haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
+					if (wantM && !haveM) tabs.addTab("Manage launchers", serverTabs[2]);
+					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == serverTabs[2]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); }
 				};
 				syncTabs[0].run();
 			}
@@ -1384,7 +1352,7 @@ public final class LaunchPopup {
 						p.validate();
 						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : "-config.png")));
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : i == 3 ? "-config.png" : "-manage.png")));
 					}
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);

@@ -37,7 +37,7 @@ final class ServerControl {
 	/** This launcher's identity for the host helper: an id and a secret it made itself (kept in server-access.json). */
 	String deviceId, deviceToken;
 	/** What the owner has allowed this launcher in the host panel, as the helper last said (remembered in
-	 *  server-access.json, so it's known while the server PC is asleep and the helper can't be asked). */
+	 *  server-access.json, so it's known while the server machine is asleep and the helper can't be asked). */
 	boolean permMcss, permSleep, permServer, permAdmin;
 	/** The saved key is one the host helper made for this device and handed over (not typed in or from a sign-in). */
 	boolean issued;
@@ -269,7 +269,7 @@ final class ServerControl {
 					case 3: return new String[] {"warn", "Starting\u2026", "starting", ping, players};
 					case 2: return new String[] {"warn", "Restarting\u2026", "starting", ping, players};
 					case 4: return new String[] {"warn", "Stopping\u2026", "stopping", ping, players};
-					case 0: return new String[] {"off", "The server PC is awake, but the Minecraft server is off: press Start server", "off", "", ""};
+					case 0: return new String[] {"off", "The server machine is awake, but the Minecraft server is off: press Start server", "off", "", ""};
 					default: break;
 				}
 			} catch (HttpError e) {
@@ -277,9 +277,9 @@ final class ServerControl {
 			} catch (IOException ignored) { }
 		}
 		if (game) return new String[] {"ok", "Online", "online", ping, players};
-		if (panel) return new String[] {"off", "The server PC is awake, but the Minecraft server isn't answering" + (canControlServer() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
-		if (pc) return new String[] {"off", "The server PC is awake, but MCSS isn't running: start it with Start MCSS below, then the server", "nomcss", "", ""};
-		return new String[] {"off", "Not answering: the server PC is asleep or off" + (canWake() ? " (Wake server device works from the home network)" : ""), "asleep", "", ""};
+		if (panel) return new String[] {"off", "The server machine is awake, but the Minecraft server isn't answering" + (canControlServer() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
+		if (pc) return new String[] {"off", "The server machine is awake, but MCSS isn't running: start it with Start MCSS below, then the server", "nomcss", "", ""};
+		return new String[] {"off", "Not answering: the server machine is asleep or off" + (canWake() ? " (Wake server machine works from the home network)" : ""), "asleep", "", ""};
 	}
 
 	private static String[] phase(int st, String ping, String players) {
@@ -288,7 +288,7 @@ final class ServerControl {
 			case 3: return new String[] {"warn", "Starting\u2026", "starting", ping, players};
 			case 2: return new String[] {"warn", "Restarting\u2026", "starting", ping, players};
 			case 4: return new String[] {"warn", "Stopping\u2026", "stopping", ping, players};
-			case 0: return new String[] {"off", "The server PC is awake, but the Minecraft server is off: press Start server", "off", "", ""};
+			case 0: return new String[] {"off", "The server machine is awake, but the Minecraft server is off: press Start server", "off", "", ""};
 			default: return null;
 		}
 	}
@@ -336,7 +336,7 @@ final class ServerControl {
 
 	boolean hasHelper() { return !helperUrl.isEmpty(); }
 
-	/** One call to the host helper on the server PC, as this launcher. */
+	/** One call to the host helper on the server machine, as this launcher. */
 	Map<String, Object> helper(String method, String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(helperUrl.replaceAll("/+$", "") + path).openConnection();
 		c.setConnectTimeout(3000); c.setReadTimeout(60000);
@@ -391,7 +391,7 @@ final class ServerControl {
 		return r;
 	}
 
-	/** Asks the host helper to put the server PC to sleep (needs the owner's separate "PC sleep" permission). */
+	/** Asks the host helper to put the server machine to sleep (needs the owner's separate "PC sleep" permission). */
 	Map<String, Object> sleepPc() throws IOException { return helper("POST", "/v1/pc/sleep", "{}"); }
 
 	Map<String, Object> mcssStart() throws IOException { return helper("POST", "/v1/mcss/start", "{}"); }

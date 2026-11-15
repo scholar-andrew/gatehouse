@@ -117,16 +117,16 @@ The next two tabs, **Server controls** and **Server config**, appear once the ow
 in the host panel on the server PC (MCSS control, PC sleep or Server control), or you have your own panel access.
 Until then your device has asked and is waiting, and the tabs stay hidden.
 
-A third tab, **Server controls**, is in three sections, each with its own status line: **Server PC** (wake, sleep),
+A third tab, **Server controls**, is in three sections, each with its own status line: **Server Machine** (wake, sleep),
 **MCSS** (the server software: start, close) and **Minecraft server**. It shows whether the server is online (checked every few seconds), your **ping** to
 it as ten pips from red to green (all ten at 25 ms or less, one fewer for each step up to 500 ms), and the **players**
 connected, with these buttons (each only when it applies: Wake while the server PC isn't answering, Start while the
 server is off, Stop while it runs):
-- **Wake server device:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; from
-  elsewhere only with an internet wake address the owner gives you (Server access).
+- **Wake server machine:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; not from
+  elsewhere.
 - **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is
   off. It needs the owner's **Server control** permission for your device (set in the host panel; nothing to sign
-  in to), or your own panel access: sign in, or an API key the owner makes for you, under **Server access**.
+  in to), or your own panel sign-in (Server config).
 - **Stop server:** stops the Minecraft server through the panel (the world is saved first). It asks before stopping,
   since anyone playing is disconnected. Same access as Start. Then it watches the shutdown and says how it went: green
   "shut down smoothly" when the server stopped and its log shows the world being saved, amber when the save couldn't
@@ -139,22 +139,21 @@ button says how it will close MCSS, from MCSS's own close option on the server P
 button exits it (a normal close), or **Force close MCSS** when its X button only hides it to the taskbar (MCSS is
 ended instead).
 
-**Sleep server PC** puts the server PC to sleep (MCSS stays open and carries on when it wakes). It needs its own
+**Sleep server machine** puts the server PC to sleep (MCSS stays open and carries on when it wakes). It needs its own
 permission from the owner, separate from MCSS control, and only works while the Minecraft server is stopped.
 
-A fourth tab, **Server config**, shows the panel's address and how this device controls the server (the same line is
-under Start and Stop in Server controls): **through the host helper** (the owner allowed it; nothing is saved on your
-device), **with an API key the owner issued to this device** (it arrives by itself), **with your panel sign-in**, or
-**with an API key entered on this device**. When the owner allowed the helper way, that is the one used. The owner can
-remove any of them from the server PC; your device then forgets what it had saved. The tab has:
-- **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
-- **Manage launchers...** (only on a device the owner has allowed **Helper control**): the launchers that have asked
-  the server PC for access, with their permissions (Server control, MCSS control, PC sleep) switched on or off for
-  the one you select, **Forget**, and the helper's activity. Helper control itself is only given on the server PC.
-- **Server access...:** sign in with your server panel username and password (easiest: the pop-up keeps the key the
-  panel gives back, not your password), or enter an API key; and an internet wake address. Each field has a **Paste** button (copy the key in the
-  browser, then press Paste: the Steam Deck's on-screen keyboard can't paste) and a **Show** box for the key. They're saved in `server-access.json` in the game
-  folder on this device only, never in the pack.
+A fourth tab, **Server config**, says how this device controls the server (the same line is under Start and Stop in
+Server controls): **through the host helper** (the owner allowed it; nothing is saved on your device), **with an API
+key the owner issued to this device** (it arrives by itself), or **with your panel sign-in**. When the owner allowed
+the helper way, that is the one used. The owner can remove any of them from the server PC; your device then forgets
+what it had saved. Below that is the **server panel sign-in**: username, password, **Sign in** and **Sign out**. The
+launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never
+your password. You don't need it if the owner allowed your device through the host helper.
+
+A fifth tab, **Manage launchers**, appears only on a device the owner has allowed **Helper control**: the launchers
+that have asked the server PC for access, with their permissions (Server control, MCSS control, PC sleep) switched on
+or off for the one you select, **Remove server access**, **Forget**, and the helper's activity. Helper control itself
+is only given on the server PC.
 
 The window stays open while the server wakes or starts: nothing closes it but you.
 
