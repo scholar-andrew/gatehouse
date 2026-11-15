@@ -39,6 +39,8 @@ final class ServerControl {
 	/** What the owner has allowed this launcher in the host panel, as the helper last said (remembered in
 	 *  server-access.json, so it's known while the server machine is asleep and the helper can't be asked). */
 	boolean permMcss, permSleep, permServer, permAdmin;
+	/** The server panel refused the sign-in or key saved here (signed out there, expired, or no access to this server). */
+	volatile boolean accessRejected;
 
 
 	/** A request the helper (or MCSS behind it) turned down, with its reason. */
@@ -82,7 +84,7 @@ final class ServerControl {
 	/** Server control through the host helper: the owner allowed it, so no panel sign-in or key is needed here. */
 	boolean viaHelper() { return hasHelper() && permServer; }
 	/** Start and stop are possible: through the helper, or with this device's own panel access. */
-	boolean canControlServer() { return viaHelper() || hasKey(); }
+	boolean canControlServer() { return viaHelper() || (hasKey() && !accessRejected); }
 	/** The Server controls and Server config tabs are shown once the owner has allowed this launcher anything (or it
 	 *  has its own panel access); always when there's no host helper to ask. */
 	boolean showServerTabs() { return !hasHelper() || permMcss || permSleep || permServer || permAdmin || hasKey(); }
@@ -115,11 +117,13 @@ final class ServerControl {
 			default -> "";
 		};
 		if (viaHelper()) return "through the host helper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " (" + has + " is also saved, but not used)");
-		return has.isEmpty() ? "none (ask the owner, or sign in under Server access)" : "with " + has;
+		if (!has.isEmpty() && accessRejected) return "none right now: the server panel no longer accepts " + has + " (sign in again under Server config, or ask the owner)";
+		return has.isEmpty() ? "none (ask the owner, or sign in under Server config)" : "with " + has;
 	}
 
 	/** Saves this device's own settings (server-access.json, in the game folder only). */
 	void save(String key, String wake) throws IOException {
+		if (!key.trim().equals(apiKey)) accessRejected = false;
 		apiKey = key.trim(); wakeAddress = wake.trim();
 		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
 				+ "\", \"username\": \"" + jsonEsc(username) + "\", \"device_id\": \"" + jsonEsc(str(deviceId))
@@ -258,6 +262,7 @@ final class ServerControl {
 		} else if (hasKey() && panel) {
 			try {
 				Map<String, Object> srv = asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId, null)));
+				accessRejected = false;
 				int st = -1;
 				try { st = (int) Double.parseDouble(str(srv.get("status"))); } catch (NumberFormatException ignored) {}
 				switch (st) {
@@ -269,7 +274,9 @@ final class ServerControl {
 					default: break;
 				}
 			} catch (HttpError e) {
-				if (e.code == 401 || e.code == 403) return new String[] {"failed", game ? "Online. (Your panel access wasn't accepted: check it in Server config.)" : "Your panel access wasn't accepted: check it in Server config", game ? "online" : "error", ping, players};
+				// The panel turned this device's saved sign-in or key down. That's about this device's access, not the
+				// server: what the server is doing is still told from the game port below, and the access line says so.
+				if (e.code == 401 || e.code == 403) accessRejected = true;
 			} catch (IOException ignored) { }
 		}
 		if (game) return new String[] {"ok", "Online", "online", ping, players};
