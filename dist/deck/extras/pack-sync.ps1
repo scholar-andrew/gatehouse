@@ -23,10 +23,17 @@ if (Test-Path $pwRecord) { Copy-Item $pwRecord (Join-Path $here 'packwiz-before.
 # 11 restart.
 $popupJar = Join-Path $here 'extras/launch-popup.jar'
 $script:popup = $null
+# The launcher runs from a copy (launcher-run.jar, beside this script): Windows locks a running program's file, and the
+# update has to be able to replace extras/launch-popup.jar while the launcher's window is open.
+$runJar = Join-Path $here 'launcher-run.jar'
+function RunJar {
+    try { Copy-Item -LiteralPath $popupJar -Destination $runJar -Force -ErrorAction Stop } catch { }
+    if (Test-Path $runJar) { $runJar } else { $popupJar }
+}
 function StartProgress {
     if (-not $java -or -not (Test-Path $popupJar)) { return }
     $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'; if (-not (Test-Path -LiteralPath $w)) { $w = $java }
-    try { $script:popup = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$popupJar`"", '--progress', "`"$here`"") -PassThru; $null = $script:popup.Handle }
+    try { $script:popup = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$(RunJar)`"", '--progress', "`"$here`"") -PassThru; $null = $script:popup.Handle }
     catch { Note "progress window skipped: $($_.Exception.Message)" }
 }
 function StopProgress { if ($script:popup -and -not $script:popup.HasExited) { try { $script:popup.Kill() } catch { } } }
@@ -37,7 +44,7 @@ function ShowPopup($status) {
     else {
         if (-not $java -or -not (Test-Path $popupJar)) { return 0 }
         $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'; if (-not (Test-Path -LiteralPath $w)) { $w = $java }
-        try { $p = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$popupJar`"", "`"$here`"", $status) -PassThru; $null = $p.Handle }
+        try { $p = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$(RunJar)`"", "`"$here`"", $status) -PassThru; $null = $p.Handle }
         catch { Note "pop-up skipped: $($_.Exception.Message)"; return 0 }
     }
     # Waits for the player: nothing starts the game but Play (no time limit).

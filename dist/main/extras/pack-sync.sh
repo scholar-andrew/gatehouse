@@ -22,9 +22,12 @@ if [ -f "$here/packwiz.json" ]; then cp -f "$here/packwiz.json" "$here/packwiz-b
 # window: what changed, patch notes, the Server tab, and Play, Restart (run this again) or Quit (cancel the launch).
 # Prism waits for it. Its exit code says what the player chose: 0 play, 10 quit, 11 restart.
 popup_pid=""
+# The launcher runs from a copy (launcher-run.jar, beside this script), as on Windows, where a running program's file
+# is locked and the update has to be able to replace extras/launch-popup.jar while the launcher's window is open.
+run_jar() { cp -f "$here/extras/launch-popup.jar" "$here/launcher-run.jar" 2>/dev/null; if [ -f "$here/launcher-run.jar" ]; then echo "$here/launcher-run.jar"; else echo "$here/extras/launch-popup.jar"; fi; }
 start_progress() {
   [ -n "$java_bin" ] && [ -f "$here/extras/launch-popup.jar" ] || return 0
-  "$java_bin" -jar "$here/extras/launch-popup.jar" --progress "$here" >> "$here/pack-sync-popup.log" 2>&1 &
+  "$java_bin" -jar "$(run_jar)" --progress "$here" >> "$here/pack-sync-popup.log" 2>&1 &
   popup_pid=$!
 }
 stop_progress() { [ -n "$popup_pid" ] && kill "$popup_pid" 2>/dev/null; popup_pid=""; }
@@ -34,7 +37,7 @@ popup() {  # popup ok|offline|failed; returns the player's choice
   else
     if [ -n "$popup_pid" ]; then wait "$popup_pid"; local c=$?; popup_pid=""; [ "$c" = 10 ] && return 10; fi   # quit while the update ran
     [ -n "$java_bin" ] && [ -f "$here/extras/launch-popup.jar" ] || return 0
-    "$java_bin" -jar "$here/extras/launch-popup.jar" "$here" "$1" >> "$here/pack-sync-popup.log" 2>&1 &
+    "$java_bin" -jar "$(run_jar)" "$here" "$1" >> "$here/pack-sync-popup.log" 2>&1 &
     popup_pid=$!
   fi
   # Waits for the player: nothing starts the game but Play (no time limit).
