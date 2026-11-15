@@ -1,3 +1,9 @@
+== 1.9.1 | 2026-11-15
+- The launcher says how this device controls the server (Server controls and Server config): through the host helper, with an API key the owner issued, with your panel sign-in, or with an API key entered here.
+- The owner can issue your device its own server key from the server PC: the launcher picks it up by itself, nothing to type or paste.
+- The owner can see how each device controls the server and remove it. Your device then forgets any sign-in or key it had saved.
+- MCSS control now includes starting and stopping the Minecraft server.
+- Clearer message when the server PC's own access to MCSS is the problem.
 == 1.9.0 | 2026-11-15
 - Before an update downloads, the launcher says about how big it is (and how many mods and files) and asks: Download, Skip this time (play with what's installed; the server may not accept it) or Quit. With nothing to download it doesn't ask.
 - The Server controls and Server config tabs only appear once the owner has allowed your device something in the host panel on the server PC (or you have your own panel access). They come and go as the owner changes it.
