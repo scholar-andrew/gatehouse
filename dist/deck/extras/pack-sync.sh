@@ -18,21 +18,23 @@ done < "$here/pack-sources.txt"
 note() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$here/pack-sync.log"; echo "Pack sync: $*"; }
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
-stop_if_no_mods() {
+stop_if_no_mods() {  # stop_if_no_mods "why" ["advice"]
   if ls "$here"/mods/*.jar >/dev/null 2>&1; then note "$1; starting with the mods already installed"; exit 0; fi
   note "$1, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
-  echo "October Journey couldn't install its mods ($1). Check your connection (Tailscale or internet) and press Play again."
+  echo "October Journey couldn't install its mods yet ($1). ${2:-Check your connection (Tailscale or internet) and press Play again.}"
   exit 1
 }
 [ -n "$url" ] || stop_if_no_mods "no source reachable"
 cd "$here" || exit 1
-# Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH.
+# Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH. On an instance's
+# first launch Prism hasn't chosen a Java yet and INST_JAVA can be just its data folder, so only a java program counts.
 java_bin=""
 for c in "${INST_JAVA:-}" "$here"/../../../java/*/bin/java; do
-  if [ -n "$c" ] && [ -x "$c" ]; then java_bin="$c"; break; fi
+  case "$(basename "$c")" in java|javaw) ;; *) continue ;; esac
+  if [ -f "$c" ] && [ -x "$c" ]; then java_bin="$c"; break; fi
 done
 [ -n "$java_bin" ] || java_bin="$(command -v java || true)"
-[ -n "$java_bin" ] || stop_if_no_mods "no Java found (INST_JAVA was '${INST_JAVA:-}')"
+[ -n "$java_bin" ] || stop_if_no_mods "no Java found yet (INST_JAVA was '${INST_JAVA:-}')" "Prism Launcher is still setting up Java: press Play again."
 "$java_bin" -jar "$here/packwiz-installer-bootstrap.jar" ${PACK_SYNC_ARGS} "$url" > "$here/pack-sync-java.log" 2>&1
 code=$?
 note "($variant) $url -> exit $code (Java: $java_bin)"

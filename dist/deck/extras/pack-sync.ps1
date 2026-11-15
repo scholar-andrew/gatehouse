@@ -8,10 +8,10 @@ function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -F
 # A brand-new instance has no mods yet: starting the game then would only show a modless Minecraft that can't join the
 # server, so in that case a failed sync stops the launch (Prism shows the error) instead.
 function HasMods { [bool](Get-ChildItem (Join-Path $here 'mods') -Filter '*.jar' -ErrorAction SilentlyContinue | Select-Object -First 1) }
-function StopIfNoMods($why) {
+function StopIfNoMods($why, $advice = 'Check your connection (Tailscale or internet) and press Play again.') {
     if (HasMods) { Note "$why; starting with the mods already installed"; exit 0 }
     Note "$why, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
-    Write-Host "October Journey couldn't install its mods ($why). Check your connection (Tailscale or internet) and press Play again."
+    Write-Host "October Journey couldn't install its mods yet ($why). $advice"
     exit 1
 }
 $variant = 'main'
@@ -24,19 +24,22 @@ foreach ($s in $sources) {
     } catch { }
 }
 if (-not $url) { StopIfNoMods 'no source reachable' }
-# Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH. Prism hands over
+# Java: the one Prism hands over (INST_JAVA), else one Prism downloaded, else whatever is on PATH. On an instance's
+# first launch Prism hasn't chosen a Java yet and INST_JAVA is just its data folder, so only an actual java(w).exe
+# counts. Prism hands over
 # javaw.exe, which doesn't report back: the console java.exe beside it is used instead, run directly so this waits for
 # it and gets its exit code. Its output goes to pack-sync-java.log.
 $java = $null
 foreach ($c in @($env:INST_JAVA) + @(Get-ChildItem (Join-Path $here '..\..\..\java') -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'bin\java.exe' })) {
     if (-not $c) { continue }
     $c = $c -replace '/', '\'
+    if ((Split-Path $c -Leaf) -notmatch '^javaw?(\.exe)?$') { continue }
     $console = Join-Path (Split-Path $c -Parent) 'java.exe'
-    if (Test-Path -LiteralPath $console) { $java = $console; break }
-    if (Test-Path -LiteralPath $c) { $java = $c; break }
+    if (Test-Path -LiteralPath $console -PathType Leaf) { $java = $console; break }
+    if (Test-Path -LiteralPath $c -PathType Leaf) { $java = $c; break }
 }
 if (-not $java -and (Get-Command java -ErrorAction SilentlyContinue)) { $java = (Get-Command java).Source }
-if (-not $java) { StopIfNoMods "no Java found (INST_JAVA was '$env:INST_JAVA')" }
+if (-not $java) { StopIfNoMods "no Java found yet (INST_JAVA was '$env:INST_JAVA')" 'Prism Launcher is still setting up Java: press Play again.' }
 $jargs = @('-jar', (Join-Path $here 'packwiz-installer-bootstrap.jar'))
 if ($env:PACK_SYNC_ARGS) { $jargs += $env:PACK_SYNC_ARGS -split ' ' }
 $jargs += $url
