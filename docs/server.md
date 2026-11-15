@@ -131,8 +131,8 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   pop-up off.
 - The host panel has two tabs. **Access**: manage access **by launcher** (one device) or **by player** (all their
   devices), switched with the two choices at the top. **Status**: the helper, MCSS (Start/Close, sign-in or key), the
-  Minecraft server (Start/Stop) and the activity log. A launcher with Helper control has the same split as its
-  **Manage access** and **Host activity** tabs (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
+  Minecraft server (Start/Stop) and the activity log. A launcher with Helper control has the same split in its
+  **Remote host panel** tab, as **Manage access** and **Host activity** (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
   control itself). `OJ_PANEL_PNG=<file>` saves pictures of the panel's tabs instead of showing it (testing).
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,

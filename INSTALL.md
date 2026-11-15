@@ -151,7 +151,8 @@ what it had saved. Below that is the **server panel sign-in**: username, passwor
 launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never
 your password. You don't need it if the owner allowed your device through the host helper.
 
-Two more tabs appear only on a device the owner has allowed **Helper control**:
+One more tab, **Remote host panel**, appears only on a device the owner has allowed **Helper control**. It has two
+tabs inside:
 - **Manage access:** who may do what. **By launcher** lists the launchers that have asked the server PC for access,
   with their permissions (Server control, MCSS control, PC sleep) switched on or off for the one you select, plus
   **Remove server access** and **Forget**. **By player** lists the players, and what you allow a player is set on all

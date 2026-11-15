@@ -973,7 +973,7 @@ public final class LaunchPopup {
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { poll.stop(); } });
 		}
 		JPanel[] manage = managePanel(c, f);
-		return new JComponent[] {box, cfg, manage[0], manage[1]};
+		return new JComponent[] {box, cfg, manage[0]};
 	}
 
 	/** After a stop: was the world saved? The end of the server's log (through the panel's console) should show
@@ -981,7 +981,8 @@ public final class LaunchPopup {
 	/** For a device the owner allowed helper control, what the host panel on the server machine does, as two tabs:
 	 *  Manage access (who may do what, one launcher at a time or a player with all their devices; Remove server access;
 	 *  Forget) and Host activity (MCSS and the Minecraft server right now, and everything asked of the helper). Helper
-	 *  control itself and the helper's MCSS sign-in stay with the panel on the server machine. Returns the two panels. */
+	 *  control itself and the helper's MCSS sign-in stay with the panel on the server machine. Returns the one panel
+	 *  that holds both (the launcher's Remote host panel tab). */
 	private static JPanel[] managePanel(ServerControl c, JFrame f) {
 		Color grey = new Color(0x6B7280);
 		// ---- Manage access
@@ -1136,7 +1137,14 @@ public final class LaunchPopup {
 		t.start();
 		for (JPanel q : new JPanel[] {access, activity})
 			q.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && q.isShowing()) load.run(); });
-		return new JPanel[] {access, activity};
+		// Both live under one tab of the launcher, Remote host panel, as two tabs of their own.
+		javax.swing.JTabbedPane inner = new javax.swing.JTabbedPane();
+		inner.addTab("Manage access", access);
+		inner.addTab("Host activity", activity);
+		JPanel remote = new JPanel(new BorderLayout());
+		remote.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));
+		remote.add(inner, BorderLayout.CENTER);
+		return new JPanel[] {remote};
 	}
 
 	static String[] shutdownVerdict(ServerControl c, long secs) {
@@ -1307,8 +1315,8 @@ public final class LaunchPopup {
 			if (control.configured()) {
 				Runnable[] syncTabs = {() -> {}};
 				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live, () -> syncTabs[0].run());
-				JPanel[] serverTabs = new JPanel[4];
-				for (int i = 0; i < 4; i++) {
+				JPanel[] serverTabs = new JPanel[3];
+				for (int i = 0; i < 3; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
 					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
 					JPanel inner = new JPanel(new BorderLayout());
@@ -1329,8 +1337,8 @@ public final class LaunchPopup {
 					else if (!want && have) { if (tabs.getSelectedIndex() >= 2) tabs.setSelectedIndex(0); tabs.remove(serverTabs[0]); tabs.remove(serverTabs[1]); }
 					// Manage launchers: only for a device the owner allowed helper control (in the host panel on the server machine).
 					boolean wantM = want && control.permAdmin, haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
-					if (wantM && !haveM) { tabs.addTab("Manage access", serverTabs[2]); tabs.addTab("Host activity", serverTabs[3]); }
-					else if (!wantM && haveM) { if (tabs.getSelectedIndex() >= 2) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); tabs.remove(serverTabs[3]); }
+					if (wantM && !haveM) tabs.addTab("Remote host panel", serverTabs[2]);
+					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == serverTabs[2]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); }
 				};
 				syncTabs[0].run();
 			}
@@ -1439,7 +1447,7 @@ public final class LaunchPopup {
 						p.validate();
 						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : i == 3 ? "-config.png" : i == 4 ? "-manage.png" : "-activity.png")));
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : i == 3 ? "-config.png" : "-manage.png")));
 					}
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);
