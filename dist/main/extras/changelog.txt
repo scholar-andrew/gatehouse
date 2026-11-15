@@ -1,3 +1,6 @@
+== 1.9.4 | 2026-11-15
+- The question before an update downloads now also says where it downloads from: the owner's PC over Tailscale or GitHub for the pack's own files, and Modrinth for mods.
+- The launcher tells the server PC which Minecraft account last played on this device (the name only), so the owner can manage access per player. It counts once you've joined the server from the device.
 == 1.9.3 | 2026-11-15
 - Quit in the launcher can now cancel a launch without Prism treating it as a failure and opening its log. It needs a small launch wrapper set up for the instance: new installs get it, and the owner switches it on for existing devices.
 == 1.9.2 | 2026-11-15

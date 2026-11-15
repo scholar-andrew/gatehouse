@@ -11,11 +11,11 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "ba5f2d4d92d8d9bb7f98a7e1c36857068cb1d3c40739ecaca8b11eef58c087a6"
+hash = "73d64852a8826030909456be6a6536360c0e794df54592e30666571a85f092b1"
 
 [[files]]
 file = "extras/launch-popup.jar"
-hash = "324fdd92f459b12772d6ea723e34bcba0317404540ee21e90d03499ce986b779"
+hash = "3cd31e4d908963ea8a2b64a86302e91feaaa31d0ca0c8b88f304c477f643f21f"
 
 [[files]]
 file = "extras/launch-wrapper.exe"
