@@ -10,6 +10,9 @@ try {
     $cfg = Join-Path $Instance 'instance.cfg'
     if (Get-Process prismlauncher -ErrorAction SilentlyContinue) { throw 'Prism Launcher is running: close it first' }
     if (-not (Test-Path $cfg)) { throw "no instance at $Instance" }
+    # (The update leaves it in extras; the sync script copies it beside itself from the launch after. Do that now if needed.)
+    $w = Join-Path $Instance 'minecraft\launch-wrapper.exe'; $we = Join-Path $Instance 'minecraft\extras\launch-wrapper.exe'
+    if (-not (Test-Path $w) -and (Test-Path $we)) { Copy-Item -LiteralPath $we $w }
     if (-not (Test-Path (Join-Path $Instance 'minecraft\launch-wrapper.exe'))) { throw 'launch-wrapper.exe is not there yet: launch the game once on pack 1.9.3 or later' }
     $lines = @(Get-Content -LiteralPath $cfg)
     if (-not (Test-Path "$cfg.before-wrapper")) { Copy-Item -LiteralPath $cfg "$cfg.before-wrapper" }
