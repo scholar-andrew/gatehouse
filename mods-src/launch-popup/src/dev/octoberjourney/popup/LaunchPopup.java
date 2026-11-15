@@ -278,7 +278,7 @@ public final class LaunchPopup {
 		try {
 			String sizes = fetch(base + "/update-sizes.json");
 			// The launcher itself first: when the pack has a different launch-popup.jar than the one running, fetch it,
-			// check it against the pack's hash, leave it beside this one as launch-popup.jar.new and close with RELAUNCH.
+			// check it against the pack's hash, leave it as extras/launch-popup.jar.new and close with RELAUNCH.
 			// The sync (which said "self-update", so it knows to) swaps it in and opens it; this very question is then
 			// asked by the new launcher. So a launcher fix shows on the launch that brings it, before anything else.
 			if (selfUpdate) try {
@@ -287,7 +287,7 @@ public final class LaunchPopup {
 				if (!want.isEmpty() && Files.isRegularFile(me) && !want.equals(sha256(Files.readAllBytes(me)))) {
 					byte[] jar = fetchBytes(base + "/extras/launch-popup.jar");
 					if (want.equals(sha256(jar))) {
-						Files.write(me.resolveSibling("launch-popup.jar.new"), jar);
+						Files.write(dir.resolve("extras").resolve("launch-popup.jar.new"), jar);
 						System.exit(RELAUNCH);
 					}
 				}

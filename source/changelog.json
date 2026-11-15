@@ -1,4 +1,7 @@
 [
+ {"version": "1.9.2", "date": "2026-11-15", "notes": [
+  "Fixed on Windows: \"The update didn't finish\" when an update brought a new launcher. Windows wouldn't let the update replace the launcher while its window was open; the launcher now runs from a copy. If you saw that message, press Restart once (or launch again)."
+ ]},
  {"version": "1.9.1", "date": "2026-11-15", "notes": [
   "The launcher says how this device controls the server (Server controls and Server config): through the host helper, with an API key the owner issued, with your panel sign-in, or with an API key entered here.",
   "The owner can issue your device its own server key from the server PC: the launcher picks it up by itself, nothing to type or paste.",

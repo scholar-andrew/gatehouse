@@ -90,7 +90,9 @@ player-facing version). In order:
    renamed to `.jar.disabled`. Without a connection, the switches still apply.
 6. **Self-update.** If `extras/pack-sync.ps1` / `.sh` differs from the running script, it replaces it for next time
    (bash by write-then-rename, because bash is still reading the running file).
-7. **Launch pop-up.** Started right after Java is found as `extras/launch-popup.jar --progress <game folder>`: a
+7. **Launch pop-up.** Started right after Java is found as `extras/launch-popup.jar --progress <game folder>`
+   (run from a copy, `launcher-run.jar` in the game folder: Windows locks a running jar, and packwiz-installer must be
+   able to replace the one in `extras/` while the window is open): a
    checklist of the steps, ticked off from the `check` lines in `pack-sync-status.txt` (the mods step shows the last
    line of `pack-sync-java.log`). Before packwiz-installer runs, the script writes `ask|<pack address>`; the launcher
    fetches `update-sizes.json` from there (each indexed file's hash and download size, written by the build beside
