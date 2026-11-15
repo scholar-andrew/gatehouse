@@ -1,4 +1,7 @@
 [
+ {"version": "1.7.4", "date": "2026-11-15", "notes": [
+  "Server access has Paste buttons beside the API key and wake address (the Steam Deck's on-screen keyboard can't paste), and a Show box to check the key."
+ ]},
  {"version": "1.7.3", "date": "2026-11-15", "notes": [
   "The Server tab shows whether the server is online (and how many players are on, with a server panel key), and has buttons to wake the server's PC, start the server, and open the server panel in your browser.",
   "Wake server device works from the home network. Start server needs an API key from the server panel: add it once under Server access; it's kept on your device only."

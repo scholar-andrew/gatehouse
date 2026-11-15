@@ -113,7 +113,8 @@ The top of the Server tab shows whether the server is online (checked every few 
   off. It needs an API key the owner makes for you in the panel (under API Keys), entered once under **Server
   access**.
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
-- **Server access...:** your API key and internet wake address. They're saved in `server-access.json` in the game
+- **Server access...:** your API key and internet wake address, each with a **Paste** button (copy the key in the
+  browser, then press Paste: the Steam Deck's on-screen keyboard can't paste) and a **Show** box for the key. They're saved in `server-access.json` in the game
   folder on this device only, never in the pack.
 
 Using any of them stops the countdown, so the window stays open while the server wakes or starts.

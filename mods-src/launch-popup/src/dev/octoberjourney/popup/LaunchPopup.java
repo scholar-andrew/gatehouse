@@ -82,6 +82,11 @@ public final class LaunchPopup {
 			switch (args[2]) {
 				case "wake" -> System.out.println("wake signal sent to " + c.wake());
 				case "start" -> { c.start(); System.out.println("start requested"); }
+				case "clipboard-set" -> {   // testing: put args[3] on the clipboard and keep it there for 20 seconds
+					java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(args.length > 3 ? args[3] : "test"), null);
+					Thread.sleep(20_000);
+				}
+				case "clipboard" -> { String t = clipboard(); System.out.println(t == null ? "clipboard: empty" : "clipboard: " + t.strip().length() + " characters"); }
 				default -> System.out.println(String.join(": ", c.status()));
 			}
 			return;
@@ -338,16 +343,49 @@ public final class LaunchPopup {
 		return box;
 	}
 
+	/** Text on the clipboard: the system clipboard, else (on Linux) the selection, the text last highlighted. */
+	static String clipboard() {
+		java.awt.Toolkit tk = java.awt.Toolkit.getDefaultToolkit();
+		for (java.awt.datatransfer.Clipboard cb : new java.awt.datatransfer.Clipboard[] {tk.getSystemClipboard(), tk.getSystemSelection()}) {
+			if (cb == null) continue;
+			try {
+				Object t = cb.getData(java.awt.datatransfer.DataFlavor.stringFlavor);
+				if (t != null && !t.toString().isBlank()) return t.toString();
+			} catch (Exception ignored) {}
+		}
+		return null;
+	}
+
 	/** This device's own server settings: the API key from the panel, and an internet wake address. */
 	private static void accessDialog(ServerControl c, JFrame f, JLabel note) {
 		javax.swing.JPasswordField key = new javax.swing.JPasswordField(c.apiKey, 28);
 		javax.swing.JTextField wake = new javax.swing.JTextField(c.wakeAddress, 28);
+		char hidden = key.getEchoChar();
+		JLabel pasteNote = new JLabel(" ");
+		pasteNote.setForeground(new Color(0x6B7280));
+		// Paste buttons: an on-screen keyboard (Steam Deck) has no Ctrl+V, so pasting a key copied in the browser
+		// needs a button.
+		java.util.function.Function<javax.swing.text.JTextComponent, JButton> paste = field -> {
+			JButton b = new JButton("Paste");
+			b.addActionListener(e -> {
+				String t = clipboard();
+				if (t == null || t.isBlank()) pasteNote.setText("The clipboard is empty: copy the text first, then press Paste.");
+				else { field.setText(t.strip()); pasteNote.setText("Pasted."); }
+			});
+			return b;
+		};
+		javax.swing.JCheckBox show = new javax.swing.JCheckBox("Show");
+		show.addActionListener(e -> key.setEchoChar(show.isSelected() ? (char) 0 : hidden));
+		JPanel keyRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
+		keyRow.add(key); keyRow.add(paste.apply(key)); keyRow.add(show);
+		JPanel wakeRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0));
+		wakeRow.add(wake); wakeRow.add(paste.apply(wake));
 		JPanel form = new JPanel();
 		form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 		for (JComponent x : new JComponent[] {
 				text("Saved on this device only (server-access.json in the game folder)."),
-				new JLabel("API key (made for you in the server panel, under API Keys):"), key,
-				new JLabel("Internet wake address, host:port (optional; only if the owner gave you one):"), wake}) {
+				new JLabel("API key (made for you in the server panel, under API Keys):"), keyRow,
+				new JLabel("Internet wake address, host:port (optional; only if the owner gave you one):"), wakeRow, pasteNote}) {
 			x.setAlignmentX(Component.LEFT_ALIGNMENT); form.add(x); form.add(Box.createVerticalStrut(4));
 		}
 		int r = javax.swing.JOptionPane.showConfirmDialog(f, form, "Server access", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE);
