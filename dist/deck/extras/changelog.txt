@@ -1,3 +1,8 @@
+== 1.9.6 | 2026-11-15
+- Server controls: the first section is now Server Machine, with Wake server machine and Sleep server machine.
+- Server config is now just the server panel sign-in (username, password, Sign in, Sign out), right in the tab. Open server panel and the Server access window (API key, internet wake address) are gone.
+- Manage launchers is a tab of its own, for devices the owner has allowed Helper control.
+- A device now controls the server in one of two ways: through the host helper (the owner allows it) or with your server panel sign-in. Keys issued by the owner are gone; a key already saved on a device keeps working.
 == 1.9.5 | 2026-11-15
 - Play is blue when it's ready, and only works while the server is online; until then it's greyed out and lights up by itself when the server comes up (start it under Server controls if you're allowed).
 - When an update asks before downloading, the Play button becomes Download and accepts it. Skip this time is gone: Download continues, Quit cancels the launch.
