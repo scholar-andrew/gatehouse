@@ -37,10 +37,7 @@ popup() {  # popup ok|offline|failed; returns the player's choice
     "$java_bin" -jar "$here/extras/launch-popup.jar" "$here" "$1" >> "$here/pack-sync-popup.log" 2>&1 &
     popup_pid=$!
   fi
-  # It closes itself (90 seconds per tab at most); one that hangs is stopped after 5 minutes so the game still starts.
-  local i=0
-  while kill -0 "$popup_pid" 2>/dev/null && [ "$i" -lt 300 ]; do sleep 1; i=$((i + 1)); done
-  if kill -0 "$popup_pid" 2>/dev/null; then kill "$popup_pid" 2>/dev/null; note "pop-up stopped: it did not close"; wait "$popup_pid" 2>/dev/null; return 0; fi
+  # Waits for the player: nothing starts the game but Play (no time limit).
   wait "$popup_pid"
 }
 # Quit: no game this time (Prism then reports the pre-launch step failed). Restart: this script again, from the top

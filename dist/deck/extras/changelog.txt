@@ -1,3 +1,5 @@
+== 1.8.1 | 2026-11-15
+- Nothing starts the game by itself any more: no countdowns. The window waits until you press Play, and closing it is the same as Quit.
 == 1.8.0 | 2026-11-15
 - One window from the moment you press Play: a checklist of the update's steps, ticked off as each finishes (with the download's progress), which then becomes the summary. No more windows flashing up during the update.
 - Beside Play: Restart runs the update again, and Quit cancels the launch.

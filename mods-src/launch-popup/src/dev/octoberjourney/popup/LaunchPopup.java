@@ -64,8 +64,8 @@ import javax.swing.WindowConstants;
  *
  * After an update, or when anything changed or failed, it shows each check with a coloured dot, the mods added,
  * removed and updated, mods switched on or off, notes, and the patch notes for every version since the last one seen;
- * it waits (closing itself after 90 seconds, so a launch can't get stuck). With nothing new it shows the checks and
- * closes after 5 seconds.
+ * with nothing new it shows the checks. Either way it waits for the player: only Play starts the game (closing the
+ * window is Quit).
  */
 public final class LaunchPopup {
 	private static final int UPDATE_SECONDS = 90, QUIET_SECONDS = 5;
@@ -708,29 +708,28 @@ public final class LaunchPopup {
 			bottom.add(right, BorderLayout.EAST);
 			p.add(bottom, BorderLayout.SOUTH);
 			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
-			// "Play" after. Each tab gets its own countdown: the first tab's (5 or 90 seconds), then 90 on the server's.
-			int[] left = {seconds};
+			// "Play" after. Nothing happens on its own: no countdown, the game starts only when the player presses Play.
 			boolean[] serverShown = {!serverNews};
-			Runnable label = () -> play.setText((serverShown[0] ? "Play" : "Next: server changes") + "  (" + left[0] + ")");
+			Runnable label = () -> play.setText(serverShown[0] ? "Play" : "Next: server changes");
 			Runnable next = () -> {
-				if (!serverShown[0]) { serverShown[0] = true; tabs.setSelectedIndex(1); left[0] = UPDATE_SECONDS; label.run(); }
-				else f.dispose();
+				if (!serverShown[0]) { serverShown[0] = true; tabs.setSelectedIndex(1); label.run(); }
+				else { exitCode = 0; f.dispose(); }
 			};
-			tabs.addChangeListener(e -> { if (tabs.getSelectedIndex() == 1 && !serverShown[0]) { serverShown[0] = true; left[0] = Math.max(left[0], UPDATE_SECONDS); label.run(); } });
+			tabs.addChangeListener(e -> { if (tabs.getSelectedIndex() == 1 && !serverShown[0]) { serverShown[0] = true; label.run(); } });
 			label.run();
-			// Each second: the countdown, and a full repaint, so anything drawn over the window (an overlay, a notification)
-			// never leaves a smear behind.
-			Timer timer = new Timer(1000, e -> { if (--left[0] <= 0) next.run(); else { label.run(); f.repaint(); } });
-			hold[0] = () -> { if (timer.isRunning()) { timer.stop(); serverShown[0] = true; play.setText("Play"); } };
+			// A full repaint every second, so anything drawn over the window (an overlay, a notification) never leaves a
+			// smear behind.
+			Timer timer = new Timer(1000, e -> f.repaint());
+			hold[0] = () -> { };
 			play.addActionListener(e -> next.run());
-			// Enter or Space press the button; Escape starts the game straight away.
+			// Enter or Space press the button. Closing the window is Quit: only Play starts the game.
 			for (int key : new int[] {KeyEvent.VK_ENTER, KeyEvent.VK_SPACE}) p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key, 0), "next");
-			p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0), "play");
 			p.getActionMap().put("next", new javax.swing.AbstractAction() {
 				@Override public void actionPerformed(java.awt.event.ActionEvent e) { next.run(); }
 			});
-			p.getActionMap().put("play", new javax.swing.AbstractAction() {
-				@Override public void actionPerformed(java.awt.event.ActionEvent e) { f.dispose(); }
+			f.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+			f.addWindowListener(new java.awt.event.WindowAdapter() {
+				@Override public void windowClosing(java.awt.event.WindowEvent e) { exitCode = QUIT; f.dispose(); }
 			});
 			f.addWindowListener(new java.awt.event.WindowAdapter() {
 				@Override public void windowClosed(java.awt.event.WindowEvent e) {

@@ -104,7 +104,7 @@ player-facing version). In order:
    path and title). It shows the checks with coloured dots, then those lists, switches, notes and patch notes, using a
    small JSON reader of its own. It also compares the top version in `extras/changelog.txt` with
    `pack-version-seen.txt`, and then writes the new version there. A new version, or anything changed or failed, shows
-   the notes for every version since the one seen (just the newest when none was seen) and closes after 90 seconds. Otherwise it says "no updates", or that the pack couldn't be reached, and closes after 5. The
+   the notes for every version since the one seen (just the newest when none was seen). Otherwise it says "no updates", or that the pack couldn't be reached. It never closes or starts the game by itself, and the scripts wait for it with no time limit; closing the window counts as Quit. The
    top-level `popup_updates` and `popup_no_updates` in `pack-options.json` (set in Mod Menu > October Journey Settings; missing
    means on) turn either kind off. With no display it just records the version. For testing, `OJ_POPUP_PNG=<file>`
    saves a picture of the window (and its text in `<file>.txt`) instead of showing it.

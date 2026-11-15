@@ -40,8 +40,7 @@ function ShowPopup($status) {
         try { $p = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$popupJar`"", "`"$here`"", $status) -PassThru; $null = $p.Handle }
         catch { Note "pop-up skipped: $($_.Exception.Message)"; return 0 }
     }
-    # It closes itself (90 seconds per tab at most); one that hangs is stopped after 5 minutes so the game still starts.
-    if (-not $p.WaitForExit(300000)) { try { $p.Kill() } catch { }; Note 'pop-up stopped: it did not close'; return 0 }
+    # Waits for the player: nothing starts the game but Play (no time limit).
     $p.WaitForExit()
     return $p.ExitCode
 }

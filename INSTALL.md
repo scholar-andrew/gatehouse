@@ -106,8 +106,7 @@ amber not checked (offline) and red failed. Below that:
 
 A second tab, **Server**, shows what the server runs (game version, Jarvis, mods, main settings) and what changed
 there since you last played, with notes. When something on the server is new, the button reads **Next: server
-changes**: it takes you to that tab (or goes there by itself when the first tab's countdown ends), and **Play** is
-there. Esc starts the game straight away.
+changes**: it takes you to that tab, and **Play** is there.
 
 The top of the Server tab shows whether the server is online (checked every few seconds), with four buttons:
 - **Wake server device:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; from
@@ -121,11 +120,12 @@ The top of the Server tab shows whether the server is online (checked every few 
   browser, then press Paste: the Steam Deck's on-screen keyboard can't paste) and a **Show** box for the key. They're saved in `server-access.json` in the game
   folder on this device only, never in the pack.
 
-Using any of them stops the countdown, so the window stays open while the server wakes or starts.
+The window stays open while the server wakes or starts: nothing closes it but you.
 
-After an update, or when something changed or failed, press **Play** (or Enter, Space or Esc) to continue; it closes
-by itself after 90 seconds. With nothing new it shows the checks with "no updates" and closes after 5 seconds. Offline,
-it says so, and the game starts with what's already installed.
+Nothing starts the game by itself: there are no countdowns. The window waits until you press **Play** (or Enter or
+Space on it); closing the window is the same as **Quit**. With nothing new it shows the checks with "no updates".
+Offline, it says so, and Play starts the game with what's already installed. To skip the window entirely, turn off
+both pop-up switches in **Mods > October Journey Settings**; the game then starts straight after the update.
 
 Turn either pop-up off in **Mods > October Journey Settings** (**Update pop-up**, **No-update pop-up**). All the patch notes
 are in [CHANGELOG.md](CHANGELOG.md).
