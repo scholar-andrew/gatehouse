@@ -1066,7 +1066,7 @@ public final class LaunchPopup {
 		revoke.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			if (javax.swing.JOptionPane.showConfirmDialog(d, wrap("Remove this launcher's server access? Its server and MCSS control are switched off, a key issued to it is deleted in MCSS, and it's told to forget any sign-in or key it has saved."),
+			if (javax.swing.JOptionPane.showConfirmDialog(d, wrap("Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."),
 					"Remove server access", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/revoke", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		table.getSelectionModel().addListSelectionListener(e -> labels.run());

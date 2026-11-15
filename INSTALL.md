@@ -143,8 +143,8 @@ ended instead).
 permission from the owner, separate from MCSS control, and only works while the Minecraft server is stopped.
 
 A fourth tab, **Server config**, says how this device controls the server (the same line is under Start and Stop in
-Server controls): **through the host helper** (the owner allowed it; nothing is saved on your device), **with an API
-key the owner issued to this device** (it arrives by itself), or **with your panel sign-in**. When the owner allowed
+Server controls): **through the host helper** (the owner allowed it; nothing is saved on your device) or **with your
+panel sign-in**. When the owner allowed
 the helper way, that is the one used. The owner can remove any of them from the server PC; your device then forgets
 what it had saved. Below that is the **server panel sign-in**: username, password, **Sign in** and **Sign out**. The
 launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never

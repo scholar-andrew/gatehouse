@@ -281,8 +281,8 @@ public final class HostHelper {
 			boolean canAdmin = Boolean.TRUE.equals(d.get("admin"));
 			if (path.equals("/v1/mcss") && x.getRequestMethod().equals("GET")) {
 				// How this launcher controls the server, as it says itself: "helper" (through this helper), or with what it
-				// has saved: "signin" (a panel account), "key" (an API key typed in), "issued" (a key this helper made
-				// for it), "none". Kept for the panel. Two things can be waiting for it here: a key the owner issued (handed
+				// has saved: "signin" (a panel account), "key" (an API key from before sign-in was the only way), "none".
+				// Kept for the panel. One thing can be waiting for it here: the owner's order to forget what it has saved (handed
 				// over until the launcher says it has it), and the owner's order to forget what it has saved.
 				String kind = header(x, "X-Access"), saved = header(x, "X-Saved"), user = header(x, "X-Access-User");
 				boolean changed = false;
@@ -293,12 +293,10 @@ public final class HostHelper {
 				if (!kind.isEmpty() && !(kind.equals(d.get("access")) && saved.equals(d.get("saved")) && user.equals(Json.str(d.get("access_user"))))) {
 					d.put("access", kind); d.put("saved", saved); d.put("access_user", user); changed = true;
 				}
-				String pending = Json.str(d.get("issued_pending"));
-				if (!pending.isEmpty() && saved.equals("issued")) { d.remove("issued_pending"); pending = ""; changed = true; log(who(d) + " picked up its issued key"); }
 				boolean clear = Boolean.TRUE.equals(d.get("clear_access"));
 				if (clear && saved.equals("none")) { d.remove("clear_access"); clear = false; changed = true; log(who(d) + " forgot its saved server access"); }
 				if (changed) saveDevices(devs);
-				reply(x, 200, m("issue_key", pending, "clear_access", clear, "state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(),
+				reply(x, 200, m("clear_access", clear, "state", granted ? "granted" : "pending", "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(),
 						"sleep", canSleep, "server", canServer, "admin", canAdmin, "server_ready", !setting("mcss_api_key", "").isEmpty()));
 				return;
 			}
@@ -513,7 +511,6 @@ public final class HostHelper {
 		String has = s.equals("signin") ? "signed in to the panel" + (u.isEmpty() ? "" : " as " + u) : s.equals("key") ? "its own API key" : s.equals("issued") ? "a key issued by the helper" : "";
 		String t = k.isEmpty() ? "Unknown (older launcher)" : k.equals("helper") ? "Through the helper" + (has.isEmpty() ? "" : " (also saved: " + has + ")")
 				: has.isEmpty() ? "None" : Character.toUpperCase(has.charAt(0)) + has.substring(1);
-		if (!Json.str(d.get("issued_pending")).isEmpty()) t += "; an issued key is waiting for it";
 		if (Boolean.TRUE.equals(d.get("clear_access"))) t += "; told to forget what it has saved";
 		return t;
 	}
@@ -528,29 +525,6 @@ public final class HostHelper {
 			d.remove("token_sha256"); d.remove("issued_pending");
 		}
 		return all;
-	}
-
-	/** Makes an MCSS API key for one launcher, with the helper's own key (which needs admin rights in MCSS for this):
-	 *  this server only, and only viewing it, its console (for the shutdown check) and its start/stop actions. The key
-	 *  waits here (devices.json) until that launcher collects it, then only its id in MCSS is kept, to delete it later. */
-	static String[] issueKey(Map<String, Object> d) {
-		if (setting("mcss_api_key", "").isEmpty()) return new String[] {"refused", "The helper isn't signed in to MCSS yet (Sign in to MCSS, or Set MCSS key)"};
-		try {
-			String old = Json.str(d.get("issued_key_id"));
-			if (!old.isEmpty()) try { mcssApi("DELETE", "/api/v2/keys/" + old, null); } catch (IOException ignored) {}
-			String name = "launcher " + Json.str(d.get("name")) + " " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss"));
-			String body = Json.write(m("name", name, "isAdmin", false, "hasAccessToAllServers", false, "customServerPermissions", m(serverId(),
-					m("viewStats", true, "viewConsole", true, "useConsole", false, "editServer", false, "useServerActions", true, "viewSchedulerTasks", false,
-							"createSchedulerTasks", false, "editSchedulerTask", false, "deleteSchedulerTasks", false, "triggerSchedulerTask", false))));
-			String key = Json.str(Json.map(Json.parse(mcssApi("POST", "/api/v2/keys", body))).get("apiKey"));
-			if (key.isEmpty()) return new String[] {"failed", "MCSS made no key"};
-			String kid = "";
-			for (Object k : Json.list(Json.parse(mcssApi("GET", "/api/v2/keys", null)))) if (name.equals(Json.str(Json.map(k).get("name")))) kid = Json.str(Json.map(k).get("apiKeyId"));
-			d.put("issued_pending", key); d.put("issued_key_id", kid); d.put("issued_name", name); d.remove("clear_access");
-			return new String[] {"ok", "Key \"" + name + "\" made in MCSS (view, start and stop this server). The launcher picks it up the next time its Server controls are open."};
-		} catch (IOException e) {
-			return new String[] {"failed", String.valueOf(e.getMessage()).contains("403") ? "The helper's MCSS key can't make keys: it needs admin rights in MCSS" : "MCSS said no (" + e.getMessage() + ")"};
-		}
 	}
 
 	/** Takes a launcher's server control away, whichever way it has it: its permissions here (server and MCSS control)
@@ -619,14 +593,13 @@ public final class HostHelper {
 				Map<String, Object> devs = listed();
 				reply(x, 200, m("devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "port", port(), "bind", setting("bind", "100.91.134.102"),
 						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : keyState(), "mcss_user", setting("mcss_user", "")));
-			} else if (path.equals("/admin/issue") || path.equals("/admin/revoke")) {
-				// Issue: a new MCSS API key for that launcher (view, start, stop this server only), handed to it the next
-				// time it asks. Revoke: everything that lets it control the server is taken away.
+			} else if (path.equals("/admin/revoke")) {
+				// Revoke: everything that lets it control the server is taken away.
 				Map<String, Object> devs = devices();
 				Map<String, Object> d = Json.map(devs.get(Json.str(body(x).get("id"))));
 				if (d.isEmpty()) { reply(x, 404, m("error", "unknown device")); return; }
-				String[] r = path.endsWith("issue") ? issueKey(d) : revokeAccess(d);
-				log((path.endsWith("issue") ? "issue an MCSS key to " : "removed server access from ") + who(d) + ": " + r[1]);
+				String[] r = revokeAccess(d);
+				log("removed server access from " + who(d) + ": " + r[1]);
 				saveDevices(devs);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/mcss/start") || path.equals("/admin/mcss/close")) {
@@ -773,10 +746,9 @@ public final class HostHelper {
 			keyRow.add(signB); keyRow.add(keyB); keyRow.add(keyState);
 			// For the selected launcher: an MCSS key of its own, made and handed over by the helper; and taking away
 			// whatever lets it control the server.
-			JButton issueB = new JButton("Issue MCSS key"), revokeB = new JButton("Remove server access");
-			issueB.setToolTipText("Makes an MCSS API key for the selected launcher (view, start and stop this server only) and hands it over. It then controls the server with that key, also when this helper isn't running.");
-			revokeB.setToolTipText("Switches off the selected launcher's server and MCSS control, deletes the key issued to it, and tells it to forget any sign-in or key it has saved.");
-			buttons.add(issueB); buttons.add(revokeB);
+			JButton revokeB = new JButton("Remove server access");
+			revokeB.setToolTipText("Switches off the selected launcher's server and MCSS control, and tells it to forget any sign-in or key it has saved.");
+			buttons.add(revokeB);
 			java.util.function.BiConsumer<String, String> ask = (path, confirm) -> {
 				int row = table.getSelectedRow();
 				if (row < 0) { JOptionPane.showMessageDialog(f, "Pick a launcher in the list first."); return; }
@@ -789,8 +761,7 @@ public final class HostHelper {
 					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "October Journey host panel", JOptionPane.PLAIN_MESSAGE));
 				}, "ask").start();
 			};
-			issueB.addActionListener(e -> ask.accept("/admin/issue", "Make an MCSS API key for this launcher (view, start and stop this server only) and hand it over? A key issued to it before is replaced."));
-			revokeB.addActionListener(e -> ask.accept("/admin/revoke", "Remove this launcher's server access? Its server and MCSS control are switched off, a key issued to it is deleted in MCSS, and it's told to forget any sign-in or key it has saved."));
+			revokeB.addActionListener(e -> ask.accept("/admin/revoke", "Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."));
 			JPanel south = new JPanel(new BorderLayout(0, 6));
 			south.add(buttons, BorderLayout.NORTH); south.add(keyRow, BorderLayout.SOUTH);
 			mid.add(south, BorderLayout.SOUTH);

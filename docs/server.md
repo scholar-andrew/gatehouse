@@ -111,15 +111,9 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   (or the one asking), and the helper's MCSS key, which is never sent anywhere. Every change is logged with who
   asked.
 - Each launcher tells the helper how it controls the server (`X-Access`: `helper`, or what it has saved, `X-Saved`:
-  `signin`, `key`, `issued`, `none`; a sign-in's username in `X-Access-User`), shown in the panel's **Controls the
+  `signin`, `key` (one saved before sign-in became the only way), `none`; a sign-in's username in `X-Access-User`), shown in the panel's **Controls the
   server** column. MCSS control includes server control.
-- **Issue MCSS key** (panel, for the selected launcher): the helper makes an MCSS API key with its own key, which needs
-  admin rights in MCSS (`POST /api/v2/keys`: this server only, `viewStats`, `viewConsole`, `useServerActions`), and
-  hands it over in the launcher's next `/v1/mcss` reply (`issue_key`) until the launcher reports `issued`. Only then
-  is the key dropped from `devices.json`; its id in MCSS is kept, to delete it later. The launcher uses it when the
-  helper isn't the way (also when the helper isn't running).
-- **Remove server access** (panel, and Manage launchers): switches the launcher's server and MCSS control off, deletes
-  its issued key in MCSS, and tells it to forget whatever it has saved (`clear_access`, until it reports `none`). A
+- **Remove server access** (panel, and Manage launchers): switches the launcher's server and MCSS control off and tells it to forget whatever it has saved (`clear_access`, until it reports `none`). A
   sign-in or key it got elsewhere still exists in MCSS; the panel says so, and only removing that account or key in
   MCSS blocks it for good.
 - **Players** (the panel's second tab). The helper reads the Minecraft server's `logs/latest.log` for joins (`Name[/address:port]
