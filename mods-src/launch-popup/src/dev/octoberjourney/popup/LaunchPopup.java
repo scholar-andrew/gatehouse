@@ -550,7 +550,7 @@ public final class LaunchPopup {
 			try {
 				Map<String, Object> r = c.mcssState();
 				state = s(r.get("state"));
-				running = Boolean.TRUE.equals(r.get("mcss"));
+				running = "true".equals(s(r.get("mcss")));   // (this reader gives true/false back as text)
 				granted = state.equals("granted");
 				if (granted) text = running ? "MCSS is running" : "MCSS isn't running";
 				else text = "Waiting for the owner to allow this device (in the host panel on the server PC)";

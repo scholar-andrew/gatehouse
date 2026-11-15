@@ -11,11 +11,11 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "46f2ec6d5d4b8a5888cd5dc01f26c3dec130553a8aa37cf8969623d2589d2f07"
+hash = "fff1187328ec50fc361d9786557e91d40bd4046b64bc2f2f6bd136b15c37cc84"
 
 [[files]]
 file = "extras/launch-popup.jar"
-hash = "cbefe4dc4224386d95f0b92dfc7136d9a3f8fc8fb1db019dac2de33dffe59adc"
+hash = "3f845f6fcb69c13e24b83bceb734dbe41b84597c10414cf05e94e0989d1b6e8c"
 
 [[files]]
 file = "extras/mod-names.json"
