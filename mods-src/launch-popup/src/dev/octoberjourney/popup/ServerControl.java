@@ -168,6 +168,24 @@ final class ServerControl {
 	/** Asks MCSS to start the server. */
 	void start() throws IOException { api("POST", "/api/v2/servers/" + serverId + "/execute/action", "{\"action\":2}"); }
 
+	/** The server's state as MCSS reports it (0 off, 1 on, 2 restarting, 3 starting, 4 stopping), or -1 if unknown. */
+	int statusCode() {
+		try { return (int) Double.parseDouble(str(asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId, null))).get("status"))); }
+		catch (IOException | RuntimeException e) { return -1; }
+	}
+
+	/** The last lines of the server's console log, oldest first. */
+	List<String> console(int lines) throws IOException {
+		Object o = LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId + "/console?amountOfLines=" + lines + "&reversed=false", null));
+		List<String> out = new ArrayList<>();
+		if (o instanceof List<?> l) for (Object x : l) out.add(x instanceof Map<?, ?> m ? str(m.get("line") != null ? m.get("line") : m.get("text")) : str(x));
+		else throw new IOException("unexpected console reply");
+		return out;
+	}
+
+	/** Asks MCSS to stop the server (action 1: a normal stop, which saves the world; not 3, kill). */
+	void stop() throws IOException { api("POST", "/api/v2/servers/" + serverId + "/execute/action", "{\"action\":1}"); }
+
 	static final class HttpError extends IOException {
 		final int code;
 		HttpError(int code) { super("HTTP " + code); this.code = code; }

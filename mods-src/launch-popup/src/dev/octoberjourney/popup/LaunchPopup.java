@@ -90,6 +90,12 @@ public final class LaunchPopup {
 			switch (args[2]) {
 				case "wake" -> System.out.println("wake signal sent to " + c.wake());
 				case "start" -> { c.start(); System.out.println("start requested"); }
+				case "stop" -> { c.stop(); System.out.println("stop requested"); }
+				case "stop-watch" -> {   // stop, wait until it's off, and say whether the shutdown was smooth
+					long t0 = System.currentTimeMillis(); c.stop(); int st = -1;
+					while (System.currentTimeMillis() - t0 < 120_000) { Thread.sleep(2000); st = c.statusCode(); if (st == 0) break; }
+					System.out.println(st != 0 ? "failed: didn't stop" : String.join(": ", shutdownVerdict(c, (System.currentTimeMillis() - t0) / 1000)));
+				}
 				case "signin" -> { c.signIn(args[3], args[4], c.wakeAddress); System.out.println("signed in as " + c.username + "; key saved"); }
 				case "clipboard-set" -> {   // testing: put args[3] on the clipboard and keep it there for 20 seconds
 					java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(args.length > 3 ? args[3] : "test"), null);
@@ -434,21 +440,26 @@ public final class LaunchPopup {
 
 	// ------------------------------------------------------------------ server controls
 
-	/** The top of the Server tab: whether the server answers (checked every few seconds) and the buttons. */
-	private static JComponent controls(ServerControl c, JFrame f, Runnable hold, boolean live) {
+	/** The Server controls tab (whether the server answers, checked every few seconds; wake, start, stop; how the last
+	 *  stop went) and the Server config tab (the panel in a browser, this device's access). Returns both. */
+	private static JComponent[] controls(ServerControl c, JFrame f, Runnable hold, boolean live) {
 		JPanel box = new JPanel();
 		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
-		box.setBorder(BorderFactory.createEmptyBorder(8, 6, 0, 6));
+		box.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
 		JLabel status = new JLabel("Checking the server\u2026", dot(GRAY), JLabel.LEFT);
 		status.setFont(status.getFont().deriveFont(Font.BOLD, 14f));
 		status.setIconTextGap(8);
 		JLabel note = new JLabel(" ");
 		note.setFont(note.getFont().deriveFont(Font.PLAIN, 12f));
 		note.setForeground(new Color(0x6B7280));
-		JButton wake = new JButton("Wake server device"), start = new JButton("Start server"), panel = new JButton("Open server panel"), access = new JButton("Server access\u2026");
+		// How the last stop went: watched after Stop until the server is off, then the log is read for the save.
+		JLabel stopped = new JLabel(" ");
+		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, 13f));
+		stopped.setIconTextGap(8);
+		JButton wake = new JButton("Wake server device"), start = new JButton("Start server"), stop = new JButton("Stop server");
 		wake.setEnabled(c.canWake());
 		start.setEnabled(c.hasKey());
-		panel.setEnabled(!c.panelUrl.isEmpty());
+		stop.setEnabled(c.hasKey());
 		long[] wokeAt = {0};
 		Runnable refresh = () -> new Thread(() -> {
 			String[] s = c.status();
@@ -457,13 +468,18 @@ public final class LaunchPopup {
 				status.setIcon(dot(waking && !s[1].contains("awake") ? AMBER : colour(s[0])));
 				status.setText("<html><div style='width:430px'>" + esc(waking && !s[1].contains("awake") ? "Waking the server PC\u2026 (it can take a minute)" : s[1]) + "</div></html>");
 				start.setEnabled(c.hasKey());
+				stop.setEnabled(c.hasKey());
 			});
 		}, "server-status").start();
+		java.util.function.BiConsumer<String, String> stopResult = (state, text) -> SwingUtilities.invokeLater(() -> {
+			stopped.setIcon(state.equals("running") ? mark("running0") : mark(state));
+			stopped.setText("<html><div style='width:430px'>" + esc(text) + "</div></html>");
+		});
 		wake.addActionListener(e -> {
 			hold.run();
 			new Thread(() -> {
 				String msg;
-				try { msg = "Wake signal sent (" + c.wake().size() + " address" + "es" + ")" + (c.wakeAddress.isEmpty() ? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
+				try { msg = "Wake signal sent (" + c.wake().size() + " addresses)" + (c.wakeAddress.isEmpty() ? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't send the wake signal: " + ex.getMessage(); }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> note.setText(m));
@@ -475,24 +491,75 @@ public final class LaunchPopup {
 			new Thread(() -> {
 				String msg;
 				try { c.start(); msg = "Start requested: the server takes a minute or so to come up"; }
-				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "Your API key isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
+				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server PC awake?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> note.setText(m));
 				refresh.run();
 			}, "start").start();
 		});
+		stop.addActionListener(e -> {
+			hold.run();
+			// Stopping disconnects everyone playing: asked first.
+			int ok = javax.swing.JOptionPane.showConfirmDialog(f, "Stop the server? Anyone playing is disconnected (the world is saved first).",
+					"Stop server", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE);
+			if (ok != javax.swing.JOptionPane.OK_OPTION) return;
+			new Thread(() -> {
+				long t0 = System.currentTimeMillis();
+				try { c.stop(); }
+				catch (ServerControl.HttpError ex) { stopResult.accept("failed", ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to stop the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"); return; }
+				catch (IOException | RuntimeException ex) { stopResult.accept("failed", "Couldn't reach the panel: is the server PC awake?"); return; }
+				stopResult.accept("running", "Stopping: saving the world and shutting down\u2026");
+				refresh.run();
+				// Watch until the server is off (2 minutes at most), then read the end of its log for the save.
+				int st = -1;
+				while (System.currentTimeMillis() - t0 < 120_000) {
+					try { Thread.sleep(2000); } catch (InterruptedException ex) { return; }
+					st = c.statusCode();
+					if (st == 0) break;
+				}
+				refresh.run();
+				long secs = (System.currentTimeMillis() - t0) / 1000;
+				if (st != 0) { stopResult.accept("failed", "The server didn't stop within 2 minutes: check it in the server panel"); return; }
+				String[] verdict = shutdownVerdict(c, secs);
+				stopResult.accept(verdict[0], verdict[1]);
+			}, "stop").start();
+		});
+		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+		for (JButton b : new JButton[] {wake, start, stop}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
+		for (JComponent x : new JComponent[] {status, buttons, note, stopped}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(4)); }
+
+		// Server config: the panel in a browser, and this device's access.
+		JPanel cfg = new JPanel();
+		cfg.setLayout(new BoxLayout(cfg, BoxLayout.Y_AXIS));
+		cfg.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
+		JLabel cfgNote = new JLabel(" ");
+		cfgNote.setForeground(new Color(0x6B7280));
+		JLabel who = new JLabel();
+		who.setFont(who.getFont().deriveFont(Font.PLAIN, 13f));
+		who.setIconTextGap(8);
+		Runnable showWho = () -> {
+			who.setIcon(dot(c.hasKey() ? GREEN : GRAY));
+			who.setText(c.hasKey() ? (c.username.isEmpty() ? "Panel access: an API key is saved on this device" : "Panel access: signed in as " + c.username)
+					: "Panel access: not set up (needed for Start and Stop)");
+		};
+		showWho.run();
+		JButton panel = new JButton("Open server panel"), access = new JButton("Server access\u2026");
+		panel.setEnabled(!c.panelUrl.isEmpty());
 		panel.addActionListener(e -> {
 			hold.run();
 			new Thread(() -> {
-				boolean ok = c.openPanel();
-				SwingUtilities.invokeLater(() -> note.setText(ok ? "Opened the server panel in your browser (sign in there)" : "Open " + c.panelUrl + " in a browser"));
+				boolean opened = c.openPanel();
+				SwingUtilities.invokeLater(() -> cfgNote.setText(opened ? "Opened the server panel in your browser (sign in there)" : "Open " + c.panelUrl + " in a browser"));
 			}, "panel").start();
 		});
-		access.addActionListener(e -> { hold.run(); accessDialog(c, f, note); refresh.run(); });
-		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
-		for (JButton b : new JButton[] {wake, start, panel, access}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
-		for (JComponent x : new JComponent[] {status, buttons, note}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); }
+		access.addActionListener(e -> { hold.run(); accessDialog(c, f, cfgNote); showWho.run(); refresh.run(); });
+		JPanel cfgButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+		for (JButton b : new JButton[] {panel, access}) { b.setFont(b.getFont().deriveFont(13f)); cfgButtons.add(b); }
+		JLabel where = new JLabel("Server panel: " + (c.panelUrl.isEmpty() ? "not set" : c.panelUrl));
+		where.setForeground(new Color(0x6B7280));
+		for (JComponent x : new JComponent[] {who, where, cfgButtons, cfgNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
+
 		if (live) {
 			refresh.run();
 			// Every few seconds while the window is open.
@@ -500,7 +567,28 @@ public final class LaunchPopup {
 			poll.start();
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { poll.stop(); } });
 		}
-		return box;
+		return new JComponent[] {box, cfg};
+	}
+
+	/** After a stop: was the world saved? The end of the server's log (through the panel's console) should show
+	 *  "Stopping server", "Saving worlds" and a chunk save for each dimension, with no errors after the stop began. */
+	static String[] shutdownVerdict(ServerControl c, long secs) {
+		List<String> log;
+		try { log = c.console(80); }
+		catch (IOException e) { return new String[] {"warn", "The server stopped (after " + secs + " s), but its log couldn't be read to confirm the world was saved"}; }
+		int from = -1;
+		for (int i = log.size() - 1; i >= 0; i--) if (log.get(i).contains("Stopping server")) { from = i; break; }
+		if (from < 0) return new String[] {"warn", "The server stopped (after " + secs + " s), but its log doesn't show a normal shutdown"};
+		boolean worlds = false; int dims = 0, errors = 0;
+		for (int i = from; i < log.size(); i++) {
+			String l = log.get(i);
+			if (l.contains("Saving worlds")) worlds = true;
+			if (l.contains("Saving chunks for level")) dims++;
+			if (l.contains("/ERROR]") || l.contains("Exception")) errors++;
+		}
+		if (!worlds || dims == 0) return new String[] {"warn", "The server stopped (after " + secs + " s), but its log doesn't show the world being saved"};
+		if (errors > 0) return new String[] {"warn", "Shut down and saved the world (" + dims + " dimensions, " + secs + " s), with " + errors + " error line" + (errors > 1 ? "s" : "") + " in the log (see the panel's console)"};
+		return new String[] {"ok", "Shut down smoothly: the world was saved (" + dims + " dimensions) and the server stopped after " + secs + " s"};
 	}
 
 	/** Text on the clipboard: the system clipboard, else (on Linux) the selection, the text last highlighted. */
@@ -679,10 +767,17 @@ public final class LaunchPopup {
 			tabs.addTab("This device", scroller(deviceRows, big || serverNews));
 			ServerControl control = new ServerControl(dir);
 			Runnable[] hold = {() -> {}};   // set below: stops the countdown once the player uses a server control
-			JPanel serverTab = new JPanel(new BorderLayout(0, 8));
-			if (control.configured()) serverTab.add(controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null), BorderLayout.NORTH);
-			serverTab.add(scroller(serverRows, big || serverNews), BorderLayout.CENTER);
-			tabs.addTab(serverNews ? "Server (new)" : "Server", serverTab);
+			tabs.addTab(serverNews ? "Server (new)" : "Server", scroller(serverRows, big || serverNews));
+			// Server controls, a tab of their own: status, wake, start, stop, the panel, and this device's access.
+			if (control.configured()) {
+				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null);
+				for (int i = 0; i < 2; i++) {
+					JPanel tab = new JPanel(new BorderLayout());
+					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+					tab.add(parts[i], BorderLayout.NORTH);
+					tabs.addTab(i == 0 ? "Server controls" : "Server config", tab);
+				}
+			}
 			p.add(tabs, BorderLayout.CENTER);
 			JButton play = new JButton();
 			play.setFont(play.getFont().deriveFont(Font.BOLD, 15f));
@@ -747,6 +842,13 @@ public final class LaunchPopup {
 				String ch = read(choice).trim();
 				if (!ch.isEmpty()) { try { Files.delete(choice); } catch (IOException ignored) {} exitCode = ch.equals("quit") ? QUIT : ch.equals("restart") ? RESTART : 0; }
 				try {
+					for (int i = 2; i < tabs.getTabCount(); i++) {   // Server controls and Server config too, as <file>-controls.png, -config.png
+						tabs.setSelectedIndex(i);
+						p.validate();
+						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : "-config.png")));
+					}
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);
 						if (i == 1) { serverShown[0] = true; label.run(); }

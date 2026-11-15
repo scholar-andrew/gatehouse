@@ -59,7 +59,8 @@ packet only). Waking from sleep needs nothing else; waking from fully off would 
 motherboard's BIOS and Windows' Fast Startup turned off. A sleeping PC also takes the pack server offline; devices
 then update from GitHub.
 
-The launch pop-up's Server tab can wake it, start the Minecraft server and open the MCSS web panel
+The launch pop-up's Server controls tab can wake it, start and stop the Minecraft server (MCSS actions 2 and 1; 1 is
+a normal stop that saves the world, not a kill), and open the MCSS web panel
 (`installer/config.json` `server_control`: panel address, the server's MCSS id, the game address, the network card's
 address and the home broadcast address). Starting goes through the panel's API (`POST
 /api/v2/servers/<id>/execute/action`, action 2) with an API key the owner makes per player in the panel (API Keys),

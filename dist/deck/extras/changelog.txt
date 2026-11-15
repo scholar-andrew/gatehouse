@@ -1,3 +1,7 @@
+== 1.8.2 | 2026-11-15
+- Server controls have a tab of their own, and a Stop server button beside Start (it asks first, since it disconnects anyone playing; the world is saved).
+- After Stop, the tab watches the shutdown and says whether it went smoothly: the server stopped and its log shows the world being saved.
+- Open server panel and Server access moved to a new Server config tab, which also shows whether this device has panel access.
 == 1.8.1 | 2026-11-15
 - Nothing starts the game by itself any more: no countdowns. The window waits until you press Play, and closing it is the same as Quit.
 == 1.8.0 | 2026-11-15

@@ -108,12 +108,17 @@ A second tab, **Server**, shows what the server runs (game version, Jarvis, mods
 there since you last played, with notes. When something on the server is new, the button reads **Next: server
 changes**: it takes you to that tab, and **Play** is there.
 
-The top of the Server tab shows whether the server is online (checked every few seconds), with four buttons:
+A third tab, **Server controls**, shows whether the server is online (checked every few seconds), with these buttons:
 - **Wake server device:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; from
   elsewhere only with an internet wake address the owner gives you (Server access).
 - **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is
-  off. It needs an API key the owner makes for you in the panel (under API Keys), entered once under **Server
-  access**.
+  off. It needs panel access: sign in, or an API key the owner makes for you, under **Server access**.
+- **Stop server:** stops the Minecraft server through the panel (the world is saved first). It asks before stopping,
+  since anyone playing is disconnected. Same access as Start. Then it watches the shutdown and says how it went: green
+  "shut down smoothly" when the server stopped and its log shows the world being saved, amber when the save couldn't
+  be confirmed or the log has errors, red when it didn't stop within 2 minutes.
+
+A fourth tab, **Server config**, shows the panel's address and whether this device has panel access, with:
 - **Open server panel:** opens the server's web panel in your browser, where you sign in with your own panel account.
 - **Server access...:** sign in with your server panel username and password (easiest: the pop-up keeps the key the
   panel gives back, not your password), or enter an API key; and an internet wake address. Each field has a **Paste** button (copy the key in the
