@@ -479,9 +479,14 @@ public final class LaunchPopup {
 		JPanel box = new JPanel();
 		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 		box.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
-		JLabel status = new JLabel("Checking the server\u2026", dot(GRAY), JLabel.LEFT);
-		status.setFont(status.getFont().deriveFont(Font.BOLD, 14f));
-		status.setIconTextGap(8);
+		// Three groups, in the order they depend on each other: the server PC (the machine), MCSS (the server software),
+		// and the Minecraft server itself. Each has its own status line, buttons and messages.
+		JLabel pcStatus = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
+		JLabel status = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
+		for (JLabel l : new JLabel[] {pcStatus, status}) { l.setFont(l.getFont().deriveFont(Font.PLAIN, 13f)); l.setIconTextGap(8); }
+		JLabel pcNote = new JLabel(" ");
+		pcNote.setFont(pcNote.getFont().deriveFont(Font.PLAIN, 12f));
+		pcNote.setForeground(new Color(0x6B7280));
 		JLabel note = new JLabel(" ");
 		note.setFont(note.getFont().deriveFont(Font.PLAIN, 12f));
 		note.setForeground(new Color(0x6B7280));
@@ -508,10 +513,24 @@ public final class LaunchPopup {
 			boolean waking = !s[0].equals("ok") && wokeAt[0] > 0 && System.currentTimeMillis() - wokeAt[0] < 180_000;
 			also.accept(s);   // (the Server tab's live line, from the same reading)
 			{
-				status.setIcon(dot(waking && !s[1].contains("awake") ? AMBER : colour(s[0])));
-				status.setText("<html><div style='width:430px'>" + esc(waking && !s[1].contains("awake") ? "Waking the server PC\u2026 (it can take a minute)" : s[1]) + "</div></html>");
-				// Start only when the server is off (and the PC awake); Stop only while it runs; neither mid-change.
 				String phase = s.length > 2 ? s[2] : "";
+				// The PC: awake whenever anything on it answers (game server, panel or host helper).
+				boolean asleep = phase.equals("asleep");
+				pcStatus.setIcon(dot(asleep ? (waking ? AMBER : GRAY) : GREEN));
+				pcStatus.setText(wrap(asleep ? (waking ? "Waking up\u2026 (it can take a minute)" : "Asleep or off") : "Awake"));
+				// The Minecraft server.
+				String game;
+				switch (phase) {
+					case "online" -> game = "Online";
+					case "starting", "stopping" -> game = s[1];
+					case "off" -> game = "Off" + (c.hasKey() ? ": Start server starts it" : "");
+					case "nomcss" -> game = "Off: MCSS isn't running (start it above)";
+					case "asleep" -> game = "Off: the server PC is asleep or off";
+					default -> game = s[1];
+				}
+				status.setIcon(dot(phase.equals("nomcss") || asleep ? GRAY : colour(s[0])));
+				status.setText(wrap(game));
+				// Start only when the server is off (and MCSS running); Stop only while it runs; neither mid-change.
 				start.setEnabled(c.hasKey() && phase.equals("off"));
 				stop.setEnabled(c.hasKey() && phase.equals("online"));
 				// Wake only while the PC isn't answering at all (neither the game server nor the panel): asleep or off.
@@ -538,7 +557,7 @@ public final class LaunchPopup {
 				try { msg = "Wake signal sent (" + c.wake().size() + " addresses)" + (c.wakeAddress.isEmpty() ? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't send the wake signal: " + ex.getMessage(); }
 				String m = msg;
-				SwingUtilities.invokeLater(() -> note.setText(wrap(m)));
+				SwingUtilities.invokeLater(() -> pcNote.setText(wrap(m)));
 				refresh.run();
 			}, "wake").start();
 		});
@@ -581,14 +600,8 @@ public final class LaunchPopup {
 				stopResult.accept(verdict[0], verdict[1]);
 			}, "stop").start();
 		});
-		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
-		for (JButton b : new JButton[] {wake, start, stop}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
-		for (JComponent x : new JComponent[] {status, pingRow, playersRow, buttons, note, stopped}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(4)); }
 
 		// MCSS itself (the server software), through the host helper on the server PC: allowed per launcher by the owner.
-		JLabel mcssHead = new JLabel("MCSS (the server software)");
-		mcssHead.setFont(mcssHead.getFont().deriveFont(Font.BOLD, 13f));
-		mcssHead.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0));
 		JLabel mcss = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
 		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, 13f));
 		mcss.setIconTextGap(8);
@@ -652,21 +665,36 @@ public final class LaunchPopup {
 			hold.run();
 			if (javax.swing.JOptionPane.showConfirmDialog(f, "Put the server PC to sleep? MCSS stays open and carries on when it wakes. Wake server device wakes it again from the home network.",
 					"Sleep server PC", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
-			mNote.setText("Asking the server PC to sleep\u2026");
+			pcNote.setText("Asking the server PC to sleep\u2026");
 			new Thread(() -> {
 				String msg;
 				try { Map<String, Object> r = c.sleepPc(); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the host helper: is the server PC awake?"; }
 				String m = msg;
-				SwingUtilities.invokeLater(() -> mNote.setText(wrap(m)));
+				SwingUtilities.invokeLater(() -> pcNote.setText(wrap(m)));
 			}, "pc-sleep").start();
 		});
 		mClose.addActionListener(e -> mcssAct.apply(false).run());
-		if (c.hasHelper()) {
-			JPanel mButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
-			for (JButton b : new JButton[] {mStart, mClose, pcSleep}) { b.setFont(b.getFont().deriveFont(13f)); mButtons.add(b); }
-			for (JComponent x : new JComponent[] {mcssHead, mcss, mButtons, mNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(2)); }
-		}
+		// The layout: each group a heading, its status line, its buttons and its messages.
+		java.util.function.BiConsumer<String, JComponent[]> group = (title, parts) -> {
+			JLabel h = new JLabel(title);
+			h.setFont(h.getFont().deriveFont(Font.BOLD, 14f));
+			h.setBorder(BorderFactory.createCompoundBorder(
+					BorderFactory.createEmptyBorder(box.getComponentCount() == 0 ? 0 : 10, 0, 0, 0),
+					BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(box.getComponentCount() == 0 ? 0 : 1, 0, 0, 0, new Color(0xD5D8DD)), BorderFactory.createEmptyBorder(6, 0, 2, 0))));
+			h.setMaximumSize(new Dimension(Integer.MAX_VALUE, h.getPreferredSize().height));   // (so its dividing line spans the tab)
+			for (JComponent x : java.util.stream.Stream.concat(java.util.stream.Stream.of((JComponent) h), java.util.Arrays.stream(parts)).toList()) {
+				x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(2));
+			}
+		};
+		java.util.function.Function<JButton[], JPanel> row = bs -> {
+			JPanel r = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+			for (JButton b : bs) { b.setFont(b.getFont().deriveFont(13f)); r.add(b); }
+			return r;
+		};
+		group.accept("Server PC", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep}), pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
+		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose}), mNote});
+		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop}), note, stopped});
 
 		// Server config: the panel in a browser, and this device's access.
 		JPanel cfg = new JPanel();

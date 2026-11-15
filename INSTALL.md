@@ -109,7 +109,8 @@ players, or "not answering" when its PC is asleep or off), then shows what the s
 there since you last played, with notes. When something on the server is new, the button reads **Next: server
 changes**: it takes you to that tab, and **Play** is there.
 
-A third tab, **Server controls**, shows whether the server is online (checked every few seconds), your **ping** to
+A third tab, **Server controls**, is in three sections, each with its own status line: **Server PC** (wake, sleep),
+**MCSS** (the server software: start, close) and **Minecraft server**. It shows whether the server is online (checked every few seconds), your **ping** to
 it as ten pips from red to green (all ten at 25 ms or less, one fewer for each step up to 500 ms), and the **players**
 connected, with these buttons (each only when it applies: Wake while the server PC isn't answering, Start while the
 server is off, Stop while it runs):

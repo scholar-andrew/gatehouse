@@ -1,3 +1,5 @@
+== 1.8.9 | 2026-11-15
+- Server controls are grouped in three sections: Server PC (wake, sleep), MCSS (start, close) and Minecraft server (status, ping, players, start, stop), each with its own status line.
 == 1.8.8 | 2026-11-15
 - Sleep server PC (Server controls): puts the server PC to sleep, for devices the owner has allowed (a separate permission from MCSS control), and only while the Minecraft server is stopped. Wake server device wakes it again from the home network.
 == 1.8.7 | 2026-11-15
