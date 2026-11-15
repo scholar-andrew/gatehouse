@@ -90,6 +90,19 @@ final class ServerControl {
 	boolean showServerTabs() { return !hasHelper() || permMcss || permSleep || permServer || permAdmin || hasKey(); }
 	Path access() { return dir.resolve("server-access.json"); }
 
+	private String player;
+	/** The Minecraft account the game last started as on this device, from the game's own log ("Setting user: Name";
+	 *  nothing else is read). Told to the host helper as a hint of whose device this is; the helper only counts it as
+	 *  confirmed once the server sees that player join from here. Empty if the game hasn't run yet. */
+	String player() {
+		if (player == null) {
+			player = "";
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("Setting user: (\\w{1,16})").matcher(LaunchPopup.readFile(dir.resolve("logs").resolve("latest.log")));
+			while (m.find()) player = m.group(1);
+		}
+		return player;
+	}
+
 	/** What's saved on this device for the server panel: "issued" (a key the host helper made for it), "signin" (the
 	 *  key from signing in with a panel account), "key" (an API key typed in), or "none". */
 	String saved() { return !hasKey() ? "none" : issued ? "issued" : !username.isEmpty() ? "signin" : "key"; }
@@ -333,6 +346,7 @@ final class ServerControl {
 		c.setRequestProperty("X-Access", kind());
 		c.setRequestProperty("X-Saved", saved());
 		if (saved().equals("signin")) c.setRequestProperty("X-Access-User", username.replaceAll("[^\\x20-\\x7E]", "?"));
+		if (!player().isEmpty()) c.setRequestProperty("X-Player", player());
 		if (body != null) {
 			c.setDoOutput(true);
 			c.setRequestProperty("Content-Type", "application/json");

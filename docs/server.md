@@ -122,6 +122,13 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   its issued key in MCSS, and tells it to forget whatever it has saved (`clear_access`, until it reports `none`). A
   sign-in or key it got elsewhere still exists in MCSS; the panel says so, and only removing that account or key in
   MCSS blocks it for good.
+- **Players** (the panel's second tab). The helper reads the Minecraft server's `logs/latest.log` for joins (`Name[/address:port]
+  logged in`) and ties the player to the launcher that talks to the helper from the same Tailscale address: that
+  launcher is then confirmed as theirs (`player`, `player_confirmed`, `player_seen` in `devices.json`). A launcher
+  also says which account its game last started as (`X-Player`, from "Setting user" in the game's own log), shown as
+  "not confirmed" until the server sees that player join from it. What the owner allows a player (`players.json`)
+  is set on all their confirmed launchers and on ones they join from later; a claim alone gets nothing. Player names
+  stay in the helper's files on the PC.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.

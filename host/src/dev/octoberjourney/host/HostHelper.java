@@ -196,6 +196,15 @@ public final class HostHelper {
 
 	static void serve() throws Exception {
 		log("helper starting (port " + port() + ")");
+		// Once a minute, also with no panel or launcher open, the server's log is read for joins (through the helper's
+		// own local call, so it takes its turn with the other requests): the log starts afresh when the server restarts.
+		Thread watch = new Thread(() -> {
+			while (true) {
+				try { Thread.sleep(60_000); call("GET", "/admin/players", null); } catch (InterruptedException e) { return; } catch (Exception ignored) {}
+			}
+		}, "players");
+		watch.setDaemon(true);
+		watch.start();
 		// The panel's side, on this PC only.
 		HttpServer local = HttpServer.create(new InetSocketAddress("127.0.0.1", port()), 0);
 		local.createContext("/admin/", HostHelper::admin);
@@ -257,6 +266,8 @@ public final class HostHelper {
 				reply(x, 200, m("state", Boolean.TRUE.equals(d.get("granted")) ? "granted" : "pending"));
 				return;
 			}
+			scanPlayers();
+			devs = devices();
 			String id = x.getRequestHeaders().getFirst("X-Device"), token = x.getRequestHeaders().getFirst("X-Token");
 			Map<String, Object> d = Json.map(devs.get(id == null ? "" : id));
 			if (d.isEmpty() || token == null || !sha256(token).equals(d.get("token_sha256"))) { reply(x, 401, m("state", "unknown", "error", "say hello first")); return; }
@@ -275,6 +286,10 @@ public final class HostHelper {
 				// over until the launcher says it has it), and the owner's order to forget what it has saved.
 				String kind = header(x, "X-Access"), saved = header(x, "X-Saved"), user = header(x, "X-Access-User");
 				boolean changed = false;
+				// Who plays on it, as the launcher says (the account the game last started as). Only a hint, shown as "not
+				// confirmed": a player is tied to a launcher for real when the server's log shows them joining from it.
+				String claimed = header(x, "X-Player");
+				if (claimed.matches("\\w{1,16}") && !Boolean.TRUE.equals(d.get("player_confirmed")) && !claimed.equals(d.get("player"))) { d.put("player", claimed); changed = true; }
 				if (!kind.isEmpty() && !(kind.equals(d.get("access")) && saved.equals(d.get("saved")) && user.equals(Json.str(d.get("access_user"))))) {
 					d.put("access", kind); d.put("saved", saved); d.put("access_user", user); changed = true;
 				}
@@ -392,6 +407,100 @@ public final class HostHelper {
 		catch (IOException e) { return String.valueOf(e.getMessage()).contains("403") ? "forbidden" : String.valueOf(e.getMessage()).contains("401") ? "unknown" : "no"; }
 	}
 
+	// ------------------------------------------------------------------ players
+
+	static final String[][] PERMS = {{"server", "server", "server control"}, {"mcss", "granted", "MCSS control"}, {"sleep", "sleep", "PC sleep"}, {"admin", "admin", "helper control"}};
+	static long logSeen = -1;
+
+	static Map<String, Object> players() { return Json.map(Json.parse(read(dir.resolve("players.json")))); }
+
+	/** Ties players to launchers from the Minecraft server's own log: each "Name[/address:port] logged in" line names
+	 *  a player and the address they joined from, and a launcher that talks to this helper from the same (Tailscale)
+	 *  address is that player's device. That's who really joined, not what a device says. A player's device then gets
+	 *  what the owner allowed that player (players.json). Only looks again when the log has changed. */
+	static synchronized void scanPlayers() {
+		try {
+			Path lg = serverDir().resolve("logs").resolve("latest.log");
+			if (!Files.isRegularFile(lg)) return;
+			long stamp = Files.getLastModifiedTime(lg).toMillis() * 31 + Files.size(lg);
+			if (stamp == logSeen) return;
+			logSeen = stamp;
+			String day = java.time.LocalDate.ofInstant(Files.getLastModifiedTime(lg).toInstant(), java.time.ZoneId.systemDefault()).toString();
+			Map<String, Object> devs = devices(), defaults = players();
+			boolean changed = false;
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?m)^\\[([0-9:]+)\\].*?: (\\w{1,16})\\[/([0-9a-fA-F.:]+):\\d+\\] logged in").matcher(read(lg));
+			while (m.find()) {
+				String when = day + " " + m.group(1), name = m.group(2), ip = m.group(3);
+				for (Object v : devs.values()) {
+					Map<String, Object> d = Json.map(v);
+					if (!ip.equals(Json.str(d.get("ip")))) continue;
+					boolean fresh = !name.equals(Json.str(d.get("player"))) || !Boolean.TRUE.equals(d.get("player_confirmed"));
+					if (!fresh && when.equals(Json.str(d.get("player_seen")))) continue;
+					d.put("player", name); d.put("player_confirmed", true); d.put("player_seen", when);
+					changed = true;
+					if (!fresh) continue;
+					log("player " + name + " joined from " + who(d) + ": that launcher is now theirs");
+					Map<String, Object> pd = Json.map(defaults.get(name));
+					for (String[] pm : PERMS) if (Boolean.TRUE.equals(pd.get(pm[0])) && !Boolean.TRUE.equals(d.get(pm[1]))) { d.put(pm[1], true); log("allowed " + pm[2] + " for " + who(d) + " (allowed for player " + name + ")"); }
+				}
+			}
+			if (changed) saveDevices(devs);
+		} catch (Exception e) {
+			log("couldn't read the server log for players: " + e);
+		}
+	}
+
+	/** The players for the panel: each with their launchers, when they last joined, and for each permission how many
+	 *  of their confirmed launchers have it and whether it's allowed for the player (so for launchers yet to come). */
+	static Map<String, Object> playerList() {
+		scanPlayers();
+		Map<String, Object> out = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER), defaults = players();
+		for (String name : defaults.keySet()) out.put(name, m("devices", new ArrayList<Object>(), "confirmed", 0, "unconfirmed", 0, "last_seen", ""));
+		for (Object v : devices().values()) {
+			Map<String, Object> d = Json.map(v);
+			String name = Json.str(d.get("player"));
+			if (name.isEmpty()) continue;
+			Map<String, Object> p = Json.map(out.get(name));
+			if (p.isEmpty()) { p = m("devices", new ArrayList<Object>(), "confirmed", 0, "unconfirmed", 0, "last_seen", ""); out.put(name, p); }
+			boolean ok = Boolean.TRUE.equals(d.get("player_confirmed"));
+			Json.list(p.get("devices")).add(Json.str(d.get("name")) + (ok ? "" : " (not confirmed)"));
+			p.put(ok ? "confirmed" : "unconfirmed", ((Number) p.get(ok ? "confirmed" : "unconfirmed")).intValue() + 1);
+			if (ok && Json.str(d.get("player_seen")).compareTo(Json.str(p.get("last_seen"))) > 0) p.put("last_seen", Json.str(d.get("player_seen")));
+			if (ok) for (String[] pm : PERMS) if (Boolean.TRUE.equals(d.get(pm[1]))) p.put("has_" + pm[0], (p.get("has_" + pm[0]) instanceof Number n ? n.intValue() : 0) + 1);
+		}
+		for (Map.Entry<String, Object> e : out.entrySet()) {
+			Map<String, Object> pd = Json.map(defaults.get(e.getKey()));
+			for (String[] pm : PERMS) Json.map(e.getValue()).put("allow_" + pm[0], Boolean.TRUE.equals(pd.get(pm[0])));
+		}
+		return out;
+	}
+
+	/** Allows or removes one permission for a player: on every launcher confirmed as theirs now, and remembered for
+	 *  launchers they join from later. A launcher that only says it's theirs gets nothing until the server confirms it. */
+	static String[] playerPerm(String name, String perm, boolean v) throws IOException {
+		String[] pm = null;
+		for (String[] q : PERMS) if (q[0].equals(perm)) pm = q;
+		if (pm == null || !name.matches("\\w{1,16}")) return new String[] {"refused", "unknown player or permission"};
+		Map<String, Object> defaults = players();
+		Map<String, Object> pd = Json.map(defaults.get(name));
+		if (!(defaults.get(name) instanceof Map)) defaults.put(name, pd);
+		pd.put(perm, v);
+		Files.writeString(dir.resolve("players.json"), Json.write(defaults), StandardCharsets.UTF_8);
+		Map<String, Object> devs = devices();
+		int n = 0, waiting = 0;
+		for (Object o : devs.values()) {
+			Map<String, Object> d = Json.map(o);
+			if (!name.equals(Json.str(d.get("player")))) continue;
+			if (!Boolean.TRUE.equals(d.get("player_confirmed"))) { waiting++; continue; }
+			d.put(pm[1], v); n++;
+		}
+		saveDevices(devs);
+		String msg = (v ? "Allowed " : "Removed ") + pm[2] + (v ? " for " : " from ") + name + ": " + n + " launcher" + (n == 1 ? "" : "s") + " changed"
+				+ (waiting > 0 ? "; " + waiting + " not confirmed yet (" + name + " has to join the server from it once)" : "") + (v ? ". Launchers they join from later get it too." : ".");
+		log(msg);
+		return new String[] {"ok", msg};
+	}
+
 	static String header(HttpExchange x, String name) {
 		String v = x.getRequestHeaders().getFirst(name);
 		v = v == null ? "" : v.replaceAll("[^\\x20-\\x7E]", "").trim();
@@ -411,6 +520,7 @@ public final class HostHelper {
 
 	/** The launchers for a list: with how each controls the server in words, without the secrets. */
 	static Map<String, Object> listed() {
+		scanPlayers();
 		Map<String, Object> all = devices();
 		for (Object v : all.values()) {
 			Map<String, Object> d = Json.map(v);
@@ -524,6 +634,12 @@ public final class HostHelper {
 				String[] r = path.endsWith("start") ? startMcss() : closeMcss("true".equals(Json.str(body(x).get("force"))));
 				log((path.endsWith("start") ? "start" : "close") + " MCSS from the host panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
+			} else if (path.equals("/admin/players")) {
+				reply(x, 200, m("players", playerList()));
+			} else if (path.equals("/admin/player/perm")) {
+				Map<String, Object> b = body(x);
+				String[] r = playerPerm(Json.str(b.get("player")), Json.str(b.get("perm")), Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value"))));
+				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/keytest")) {
 				// Troubleshooting: what MCSS answers to the helper's key (status codes and MCSS's own error text; never the key).
 				Map<String, Object> out = new LinkedHashMap<>();
@@ -632,7 +748,7 @@ public final class HostHelper {
 			stateRow.add(mcssRun); stateRow.add(state);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(head, BorderLayout.NORTH); top.add(stateRow, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
-			String[] cols = {"Launcher", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
+			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable table = new JTable(model);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -678,7 +794,27 @@ public final class HostHelper {
 			JPanel south = new JPanel(new BorderLayout(0, 6));
 			south.add(buttons, BorderLayout.NORTH); south.add(keyRow, BorderLayout.SOUTH);
 			mid.add(south, BorderLayout.SOUTH);
-			p.add(mid, BorderLayout.CENTER);
+			// Players: the same permissions, per player. A player is tied to a launcher when the server's log shows them
+			// joining from it; allowing a player something sets it on all their launchers, and on ones they join from later.
+			String[] pcols = {"Player", "Launchers", "Last joined", "Server control", "MCSS control", "PC sleep", "Helper control"};
+			DefaultTableModel pmodel = new DefaultTableModel(pcols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+			JTable ptable = new JTable(pmodel);
+			ptable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+			ptable.setRowHeight(24);
+			List<String> pnames = new ArrayList<>();
+			Map<String, boolean[]> pallow = new java.util.HashMap<>();   // player -> allowed {server, mcss, sleep, admin}
+			JButton[] pB = {new JButton("Allow server control"), new JButton("Allow MCSS control"), new JButton("Allow PC sleep"), new JButton("Allow helper control")};
+			JPanel pbuttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+			for (JButton b : pB) pbuttons.add(b);
+			JLabel pnote = new JLabel("<html><div style='width:900px'>A player appears once they've joined the server from a device with the launcher (matched by its Tailscale address), or when a launcher says who last played on it (\"not confirmed\" until they join). What you allow a player is set on all their confirmed launchers, and on launchers they join from later. The Launchers tab still changes one launcher at a time.</div></html>");
+			pnote.setForeground(new Color(0x6B7280));
+			JPanel psouth = new JPanel(new BorderLayout(0, 6)); psouth.add(pbuttons, BorderLayout.NORTH); psouth.add(pnote, BorderLayout.SOUTH);
+			JPanel playersTab = new JPanel(new BorderLayout(0, 8));
+			playersTab.add(new JScrollPane(ptable), BorderLayout.CENTER); playersTab.add(psouth, BorderLayout.SOUTH);
+			javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
+			mid.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6)); playersTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
+			tabs.addTab("Launchers", mid); tabs.addTab("Players", playersTab);
+			p.add(tabs, BorderLayout.CENTER);
 			JPanel bottom = new JPanel(new BorderLayout(0, 4));
 			bottom.add(new JLabel("Activity"), BorderLayout.NORTH);
 			bottom.add(new JScrollPane(log), BorderLayout.CENTER);
@@ -687,6 +823,7 @@ public final class HostHelper {
 				try {
 					Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/devices", null)));
 					List<Object> lg = Json.list(Json.map(Json.parse(call("GET", "/admin/log", null))).get("log"));
+					Map<String, Object> pl = Json.map(Json.map(Json.parse(call("GET", "/admin/players", null))).get("players"));
 					SwingUtilities.invokeLater(() -> {
 						int sel = table.getSelectedRow();
 						String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null;
@@ -696,9 +833,29 @@ public final class HostHelper {
 							ids.add(e.getKey());
 							boolean pm = Boolean.TRUE.equals(d.get("granted")), ps = Boolean.TRUE.equals(d.get("sleep")), pv = Boolean.TRUE.equals(d.get("server")), pa = Boolean.TRUE.equals(d.get("admin"));
 							perms.put(e.getKey(), new boolean[] {pm, ps, pv, pa});
-							model.addRow(new Object[] {d.get("name"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
+							model.addRow(new Object[] {d.get("name"), Json.str(d.get("player")).isEmpty() ? "" : Json.str(d.get("player")) + (Boolean.TRUE.equals(d.get("player_confirmed")) ? "" : " (not confirmed)"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
 									pv ? "Allowed" : pm ? "Allowed (with MCSS control)" : "Not allowed", pm ? "Allowed" : "Not allowed", ps ? "Allowed" : "Not allowed", pa ? "Allowed" : "Not allowed", Json.str(d.get("access_text"))});
 							if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
+						}
+						int psel = ptable.getSelectedRow();
+						String pkeep = psel >= 0 && psel < pnames.size() ? pnames.get(psel) : null;
+						pmodel.setRowCount(0); pnames.clear(); pallow.clear();
+						for (Map.Entry<String, Object> e : pl.entrySet()) {
+							Map<String, Object> q = Json.map(e.getValue());
+							int conf = q.get("confirmed") instanceof Number n ? n.intValue() : 0;
+							String[] cell = new String[4]; boolean[] al = new boolean[4];
+							String[] keys = {"server", "mcss", "sleep", "admin"};
+							for (int i = 0; i < 4; i++) {
+								al[i] = Boolean.TRUE.equals(q.get("allow_" + keys[i]));
+								int has = q.get("has_" + keys[i]) instanceof Number n ? n.intValue() : 0;
+								cell[i] = (al[i] ? "Allowed" : "Not allowed") + (conf == 0 ? "" : has == conf ? (al[i] ? "" : " (on all " + conf + " anyway)") : has == 0 ? (al[i] ? " (on none yet)" : "") : " (on " + has + " of " + conf + ")");
+							}
+							pnames.add(e.getKey()); pallow.put(e.getKey(), al);
+							List<Object> dv = Json.list(q.get("devices"));
+							StringBuilder ds = new StringBuilder();
+							for (Object o : dv) ds.append(ds.length() == 0 ? "" : ", ").append(o);
+							pmodel.addRow(new Object[] {e.getKey(), ds.length() == 0 ? "(none yet)" : ds.toString(), Json.str(q.get("last_seen")), cell[0], cell[1], cell[2], cell[3]});
+							if (e.getKey().equals(pkeep)) ptable.setRowSelectionInterval(pnames.size() - 1, pnames.size() - 1);
 						}
 						boolean hasKey = Boolean.TRUE.equals(r.get("has_key"));
 						String works = Json.str(r.get("key_works"));
@@ -747,6 +904,30 @@ public final class HostHelper {
 			mcssB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"mcss\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[0] + "}"); });
 			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[1] + "}"); });
 			serverB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"server\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[2] + "}"); });
+			String[] pkeys = {"server", "mcss", "sleep", "admin"}, pwords = {"server control", "MCSS control", "PC sleep", "helper control"};
+			Runnable plabels = () -> {
+				int r = ptable.getSelectedRow();
+				boolean[] al = r >= 0 && r < pnames.size() ? pallow.getOrDefault(pnames.get(r), new boolean[4]) : new boolean[4];
+				for (int i = 0; i < 4; i++) pB[i].setText((al[i] ? "Remove " : "Allow ") + pwords[i]);
+			};
+			ptable.getSelectionModel().addListSelectionListener(e -> plabels.run());
+			pmodel.addTableModelListener(e -> SwingUtilities.invokeLater(plabels));
+			for (int i = 0; i < 4; i++) {
+				int k = i;
+				pB[i].addActionListener(e -> {
+					int r = ptable.getSelectedRow();
+					if (r < 0 || r >= pnames.size()) { JOptionPane.showMessageDialog(f, "Pick a player in the list first."); return; }
+					String name = pnames.get(r);
+					boolean v = !pallow.getOrDefault(name, new boolean[4])[k];
+					new Thread(() -> {
+						String msg;
+						try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/player/perm", Json.write(m("player", name, "perm", pkeys[k], "value", v))))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
+						String m2 = msg;
+						SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + m2 + "</div></html>", "Players", JOptionPane.PLAIN_MESSAGE));
+						refresh.run();
+					}, "player-perm").start();
+				});
+			}
 			mcssRun.addActionListener(e -> {
 				boolean up = mcssUp[0], force = mcssClose[0].equals("force");
 				if (up && JOptionPane.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead." : "Close MCSS?", "MCSS", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
