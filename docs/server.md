@@ -129,6 +129,11 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   shows who asked in a banner with **Start server** (starts MCSS first if needed) and **Dismiss**, puts it in its
   window title and flashes its taskbar button. `request_alert` = `false` in `host.json` turns the chime and the
   pop-up off.
+- The host panel has two tabs. **Access**: manage access **by launcher** (one device) or **by player** (all their
+  devices), switched with the two choices at the top. **Status**: the helper, MCSS (Start/Close, sign-in or key), the
+  Minecraft server (Start/Stop) and the activity log. A launcher with Helper control has the same split as its
+  **Manage access** and **Host activity** tabs (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
+  control itself). `OJ_PANEL_PNG=<file>` saves pictures of the panel's tabs instead of showing it (testing).
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.

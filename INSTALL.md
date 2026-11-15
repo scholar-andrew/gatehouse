@@ -151,10 +151,14 @@ what it had saved. Below that is the **server panel sign-in**: username, passwor
 launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never
 your password. You don't need it if the owner allowed your device through the host helper.
 
-A fifth tab, **Manage launchers**, appears only on a device the owner has allowed **Helper control**: the launchers
-that have asked the server PC for access, with their permissions (Server control, MCSS control, PC sleep) switched on
-or off for the one you select, **Remove server access**, **Forget**, and the helper's activity. Helper control itself
-is only given on the server PC.
+Two more tabs appear only on a device the owner has allowed **Helper control**:
+- **Manage access:** who may do what. **By launcher** lists the launchers that have asked the server PC for access,
+  with their permissions (Server control, MCSS control, PC sleep) switched on or off for the one you select, plus
+  **Remove server access** and **Forget**. **By player** lists the players, and what you allow a player is set on all
+  their confirmed devices and on ones they join the server from later.
+- **Host activity:** whether MCSS and the Minecraft server are running right now, and the helper's activity.
+
+Helper control itself is only given on the server PC.
 
 The window stays open while the server wakes or starts: nothing closes it but you.
 

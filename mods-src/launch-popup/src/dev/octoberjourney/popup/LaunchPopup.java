@@ -972,60 +972,82 @@ public final class LaunchPopup {
 			poll.start();
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { poll.stop(); } });
 		}
-		return new JComponent[] {box, cfg, managePanel(c, f)};
+		JPanel[] manage = managePanel(c, f);
+		return new JComponent[] {box, cfg, manage[0], manage[1]};
 	}
 
 	/** After a stop: was the world saved? The end of the server's log (through the panel's console) should show
 	 *  "Stopping server", "Saving worlds" and a chunk save for each dimension, with no errors after the stop began. */
-	/** Manage launchers (a tab of its own, for a device the owner allowed helper control): what the host panel on the
-	 *  server machine does, through the helper: the launchers that have asked, their permissions (each switched for the
-	 *  selected one), Forget, and the helper's activity. Helper control itself and the helper's MCSS key stay with the
-	 *  panel on the PC. */
-	private static JPanel managePanel(ServerControl c, JFrame f) {
-		JFrame d = f;
-		JPanel p = new JPanel(new BorderLayout(0, 8));
-		p.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
-		JLabel state = new JLabel("Asking the host helper\u2026");
-		p.add(state, BorderLayout.NORTH);
-		String[] cols = {"Launcher", "System", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
-		javax.swing.table.DefaultTableModel model = new javax.swing.table.DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
-		javax.swing.JTable table = new javax.swing.JTable(model);
-		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-		table.setRowHeight(24);
-		List<String> ids = new ArrayList<>();
-		Map<String, boolean[]> perms = new LinkedHashMap<>();   // id -> {server, mcss, sleep, helper control}
-		javax.swing.JTextArea log = new javax.swing.JTextArea(6, 40);
-		log.setEditable(false);
-		log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-		JScrollPane ts = new JScrollPane(table);
-		ts.setPreferredSize(new Dimension(600, 150));
+	/** For a device the owner allowed helper control, what the host panel on the server machine does, as two tabs:
+	 *  Manage access (who may do what, one launcher at a time or a player with all their devices; Remove server access;
+	 *  Forget) and Host activity (MCSS and the Minecraft server right now, and everything asked of the helper). Helper
+	 *  control itself and the helper's MCSS sign-in stay with the panel on the server machine. Returns the two panels. */
+	private static JPanel[] managePanel(ServerControl c, JFrame f) {
+		Color grey = new Color(0x6B7280);
+		// ---- Manage access
+		JPanel access = new JPanel(new BorderLayout(0, 6));
+		access.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
+		javax.swing.JRadioButton byDevice = new javax.swing.JRadioButton("By launcher (one device)", true), byPlayer = new javax.swing.JRadioButton("By player (all their devices)");
+		javax.swing.ButtonGroup how = new javax.swing.ButtonGroup(); how.add(byDevice); how.add(byPlayer);
+		JPanel pick = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+		pick.add(byDevice); pick.add(byPlayer);
+		access.add(pick, BorderLayout.NORTH);
+		java.util.function.Function<String[], javax.swing.table.DefaultTableModel> newModel = cols -> new javax.swing.table.DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
+		javax.swing.table.DefaultTableModel model = newModel.apply(new String[] {"Launcher", "Player", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"});
+		javax.swing.table.DefaultTableModel pmodel = newModel.apply(new String[] {"Player", "Launchers", "Last joined", "Server control", "MCSS control", "PC sleep"});
+		javax.swing.JTable table = new javax.swing.JTable(model), ptable = new javax.swing.JTable(pmodel);
+		for (javax.swing.JTable tb : new javax.swing.JTable[] {table, ptable}) { tb.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION); tb.setRowHeight(24); }
+		List<String> ids = new ArrayList<>(), pnames = new ArrayList<>();
+		Map<String, boolean[]> perms = new LinkedHashMap<>(), pallow = new LinkedHashMap<>();   // {server, mcss, sleep, helper control}
+		JScrollPane ts = new JScrollPane(table), pts = new JScrollPane(ptable);
+		ts.setPreferredSize(new Dimension(600, 200)); pts.setPreferredSize(new Dimension(600, 200));
+		java.awt.CardLayout cards = new java.awt.CardLayout();
+		JPanel deck = new JPanel(cards);
+		deck.add(ts, "device"); deck.add(pts, "player");
+		access.add(deck, BorderLayout.CENTER);
 		JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), revoke = new JButton("Remove server access");
 		JPanel buttons = new JPanel(new java.awt.GridLayout(0, 3, 6, 4));
 		for (JButton b : new JButton[] {serverB, mcssB, sleepB, revoke, forget}) buttons.add(b);
 		JLabel note = new JLabel(" ");
-		note.setForeground(new Color(0x6B7280));
-		JPanel mid = new JPanel(new BorderLayout(0, 6));
-		mid.add(ts, BorderLayout.CENTER);
+		note.setForeground(grey);
 		JPanel under = new JPanel(new BorderLayout(0, 2));
 		under.add(buttons, BorderLayout.NORTH); under.add(note, BorderLayout.SOUTH);
-		mid.add(under, BorderLayout.SOUTH);
-		p.add(mid, BorderLayout.CENTER);
-		JPanel bottom = new JPanel(new BorderLayout(0, 4));
-		bottom.add(new JLabel("Activity on the server machine"), BorderLayout.NORTH);
-		bottom.add(new JScrollPane(log), BorderLayout.CENTER);
-		p.add(bottom, BorderLayout.SOUTH);
+		access.add(under, BorderLayout.SOUTH);
+		// ---- Host activity
+		JPanel activity = new JPanel(new BorderLayout(0, 8));
+		activity.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
+		JLabel mcssLine = new JLabel("Asking the host helper\u2026", dot(GRAY), JLabel.LEFT), serverLine = new JLabel(" ", dot(GRAY), JLabel.LEFT), keyLine = new JLabel(" ");
+		keyLine.setForeground(grey);
+		JPanel lines = new JPanel();
+		lines.setLayout(new BoxLayout(lines, BoxLayout.Y_AXIS));
+		for (JLabel l : new JLabel[] {mcssLine, serverLine, keyLine}) { l.setIconTextGap(8); l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0)); l.setAlignmentX(Component.LEFT_ALIGNMENT); lines.add(l); }
+		activity.add(lines, BorderLayout.NORTH);
+		javax.swing.JTextArea log = new javax.swing.JTextArea(12, 40);
+		log.setEditable(false);
+		log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+		JPanel logBox = new JPanel(new BorderLayout(0, 4));
+		JLabel logHead = new JLabel("Activity on the server machine");
+		logHead.setFont(logHead.getFont().deriveFont(Font.BOLD));
+		logBox.add(logHead, BorderLayout.NORTH); logBox.add(new JScrollPane(log), BorderLayout.CENTER);
+		activity.add(logBox, BorderLayout.CENTER);
+
+		boolean[] players = {false};
 		Runnable labels = () -> {
-			int r = table.getSelectedRow();
-			boolean[] pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[4]) : new boolean[4];
+			boolean[] pp;
+			if (players[0]) { int r = ptable.getSelectedRow(); pp = r >= 0 && r < pnames.size() ? pallow.getOrDefault(pnames.get(r), new boolean[4]) : new boolean[4]; }
+			else { int r = table.getSelectedRow(); pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[4]) : new boolean[4]; }
 			serverB.setText(pp[0] ? "Remove server control" : "Allow server control");
 			mcssB.setText(pp[1] ? "Remove MCSS control" : "Allow MCSS control");
 			sleepB.setText(pp[2] ? "Remove PC sleep" : "Allow PC sleep");
+			revoke.setVisible(!players[0]); forget.setVisible(!players[0]);
 		};
+		byDevice.addActionListener(e -> { players[0] = false; cards.show(deck, "device"); note.setText(" "); labels.run(); });
+		byPlayer.addActionListener(e -> { players[0] = true; cards.show(deck, "player"); note.setText(wrap("What you allow a player is set on all their confirmed launchers, and on ones they join the server from later.")); labels.run(); });
 		Runnable load = () -> new Thread(() -> {
 			try {
-				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), lg = c.helper("GET", "/v1/admin/log", null);
+				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), pl = c.helper("GET", "/v1/admin/players", null), lg = c.helper("GET", "/v1/admin/log", null);
 				SwingUtilities.invokeLater(() -> {
-					if (!"200".equals(s(r.get("_code")))) { state.setIcon(dot(RED)); state.setText(wrap(s(r.get("error")).isEmpty() ? "The host helper said no (" + s(r.get("_code")) + ")" : s(r.get("error")))); return; }
+					if (!"200".equals(s(r.get("_code")))) { mcssLine.setIcon(dot(RED)); mcssLine.setText(s(r.get("error")).isEmpty() ? "The host helper said no (" + s(r.get("_code")) + ")" : s(r.get("error"))); note.setText(wrap(mcssLine.getText())); return; }
 					int sel = table.getSelectedRow();
 					String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null, you = s(r.get("you"));
 					model.setRowCount(0); ids.clear(); perms.clear();
@@ -1033,21 +1055,42 @@ public final class LaunchPopup {
 						Map<String, Object> v = asMap(e.getValue());
 						boolean[] pp = {"true".equals(s(v.get("server"))), "true".equals(s(v.get("granted"))), "true".equals(s(v.get("sleep"))), "true".equals(s(v.get("admin")))};
 						ids.add(e.getKey()); perms.put(e.getKey(), pp);
-						String ts2 = s(v.get("tailscale"));
-						model.addRow(new Object[] {s(v.get("name")) + (ts2.isEmpty() || ts2.equalsIgnoreCase(s(v.get("name"))) ? "" : " / " + ts2) + (e.getKey().equals(you) ? " (this device)" : ""), s(v.get("os")), s(v.get("last_seen")),
-								pp[0] ? "Allowed" : "Not allowed", pp[1] ? "Allowed" : "Not allowed", pp[2] ? "Allowed" : "Not allowed", pp[3] ? "Allowed" : "Not allowed", s(v.get("access_text"))});
+						String who = s(v.get("player")).isEmpty() ? "" : s(v.get("player")) + ("true".equals(s(v.get("player_confirmed"))) ? "" : " (not confirmed)");
+						model.addRow(new Object[] {s(v.get("name")) + (e.getKey().equals(you) ? " (this device)" : ""), who, s(v.get("last_seen")),
+								pp[0] ? "Allowed" : pp[1] ? "Allowed (with MCSS)" : "Not allowed", pp[1] ? "Allowed" : "Not allowed", pp[2] ? "Allowed" : "Not allowed", pp[3] ? "Allowed" : "Not allowed", s(v.get("access_text"))});
 						if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 					}
+					int psel = ptable.getSelectedRow();
+					String pkeep = psel >= 0 && psel < pnames.size() ? pnames.get(psel) : null;
+					pmodel.setRowCount(0); pnames.clear(); pallow.clear();
+					for (Map.Entry<String, Object> e : asMap(pl.get("players")).entrySet()) {
+						Map<String, Object> q = asMap(e.getValue());
+						String[] keys = {"server", "mcss", "sleep"};
+						boolean[] al = new boolean[4];
+						Object[] row = new Object[6];
+						StringBuilder ds = new StringBuilder();
+						if (q.get("devices") instanceof List<?> l) for (Object o : l) ds.append(ds.length() == 0 ? "" : ", ").append(o);
+						row[0] = e.getKey(); row[1] = ds.length() == 0 ? "(none yet)" : ds.toString(); row[2] = s(q.get("last_seen"));
+						for (int i = 0; i < 3; i++) {
+							al[i] = "true".equals(s(q.get("allow_" + keys[i])));
+							String conf = s(q.get("confirmed")), has = s(q.get("has_" + keys[i]));
+							row[3 + i] = (al[i] ? "Allowed" : "Not allowed") + (has.isEmpty() || has.equals("0") || conf.equals(has) ? "" : " (on " + has + " of " + conf + ")");
+						}
+						pnames.add(e.getKey()); pallow.put(e.getKey(), al);
+						pmodel.addRow(row);
+						if (e.getKey().equals(pkeep)) ptable.setRowSelectionInterval(pnames.size() - 1, pnames.size() - 1);
+					}
 					labels.run();
-					state.setIcon(dot(GREEN));
-					state.setText("MCSS " + ("true".equals(s(r.get("mcss"))) ? "is running" : "isn't running") + ";  Minecraft server " + ("true".equals(s(r.get("minecraft"))) ? "is running" : "is off")
-							+ ("true".equals(s(r.get("has_key"))) ? "." : ";  the helper has no MCSS key yet (server control needs it; set on the server machine)."));
+					boolean mc = "true".equals(s(r.get("mcss"))), sv = "true".equals(s(r.get("minecraft")));
+					mcssLine.setIcon(dot(mc ? GREEN : GRAY)); mcssLine.setText(mc ? "MCSS is running" : "MCSS isn't running");
+					serverLine.setIcon(dot(sv ? GREEN : GRAY)); serverLine.setText(sv ? "The Minecraft server is running" : "The Minecraft server is off");
+					keyLine.setText("true".equals(s(r.get("has_key"))) ? " " : "The helper isn't signed in to MCSS yet (server control needs it; done on the server machine).");
 					StringBuilder sb = new StringBuilder();
 					if (lg.get("log") instanceof List<?> l) for (Object x : l) sb.append(x).append('\n');
 					if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
 				});
 			} catch (IOException | RuntimeException ex) {
-				SwingUtilities.invokeLater(() -> { state.setIcon(dot(RED)); state.setText("Couldn't reach the host helper (is the server machine awake?)"); });
+				SwingUtilities.invokeLater(() -> { mcssLine.setIcon(dot(RED)); mcssLine.setText("Couldn't reach the host helper (is the server machine awake?)"); serverLine.setText(" "); note.setText(wrap(mcssLine.getText())); });
 			}
 		}, "manage").start();
 		java.util.function.BiConsumer<String, String> act = (path, body) -> new Thread(() -> {
@@ -1058,11 +1101,19 @@ public final class LaunchPopup {
 			SwingUtilities.invokeLater(() -> note.setText(wrap(msg)));
 			load.run();
 		}, "manage-act").start();
+		String[] permKeys = {"server", "mcss", "sleep"};
 		java.util.function.IntConsumer flip = i -> {
-			int r = table.getSelectedRow();
-			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			String id = ids.get(r);
-			act.accept("/v1/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"" + new String[] {"server", "mcss", "sleep"}[i] + "\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[i] + "}");
+			if (players[0]) {
+				int r = ptable.getSelectedRow();
+				if (r < 0 || r >= pnames.size()) { note.setText("Pick a player in the list first."); return; }
+				String name = pnames.get(r);
+				act.accept("/v1/admin/player/perm", "{\"player\":\"" + name + "\",\"perm\":\"" + permKeys[i] + "\",\"value\":" + !pallow.getOrDefault(name, new boolean[4])[i] + "}");
+			} else {
+				int r = table.getSelectedRow();
+				if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
+				String id = ids.get(r);
+				act.accept("/v1/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"" + permKeys[i] + "\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[i] + "}");
+			}
 		};
 		serverB.addActionListener(e -> flip.accept(0));
 		mcssB.addActionListener(e -> flip.accept(1));
@@ -1070,20 +1121,22 @@ public final class LaunchPopup {
 		forget.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			if (javax.swing.JOptionPane.showConfirmDialog(d, "Forget this launcher? It can ask again later.", "Forget", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/forget", "{\"id\":\"" + ids.get(r) + "\"}");
+			if (javax.swing.JOptionPane.showConfirmDialog(f, "Forget this launcher? It can ask again later.", "Forget", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/forget", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		revoke.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			if (javax.swing.JOptionPane.showConfirmDialog(d, wrap("Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."),
+			if (javax.swing.JOptionPane.showConfirmDialog(f, wrap("Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."),
 					"Remove server access", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/revoke", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		table.getSelectionModel().addListSelectionListener(e -> labels.run());
-		// Asked for while the tab is on screen: every few seconds, and at once when it's opened.
-		Timer t = new Timer(4000, e -> { if (!f.isDisplayable()) ((Timer) e.getSource()).stop(); else if (p.isShowing()) load.run(); });
+		ptable.getSelectionModel().addListSelectionListener(e -> labels.run());
+		// Asked for while either tab is on screen: every few seconds, and at once when one is opened.
+		Timer t = new Timer(4000, e -> { if (!f.isDisplayable()) ((Timer) e.getSource()).stop(); else if (access.isShowing() || activity.isShowing()) load.run(); });
 		t.start();
-		p.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && p.isShowing()) load.run(); });
-		return p;
+		for (JPanel q : new JPanel[] {access, activity})
+			q.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && q.isShowing()) load.run(); });
+		return new JPanel[] {access, activity};
 	}
 
 	static String[] shutdownVerdict(ServerControl c, long secs) {
@@ -1254,8 +1307,8 @@ public final class LaunchPopup {
 			if (control.configured()) {
 				Runnable[] syncTabs = {() -> {}};
 				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live, () -> syncTabs[0].run());
-				JPanel[] serverTabs = new JPanel[3];
-				for (int i = 0; i < 3; i++) {
+				JPanel[] serverTabs = new JPanel[4];
+				for (int i = 0; i < 4; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
 					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
 					JPanel inner = new JPanel(new BorderLayout());
@@ -1276,8 +1329,8 @@ public final class LaunchPopup {
 					else if (!want && have) { if (tabs.getSelectedIndex() >= 2) tabs.setSelectedIndex(0); tabs.remove(serverTabs[0]); tabs.remove(serverTabs[1]); }
 					// Manage launchers: only for a device the owner allowed helper control (in the host panel on the server machine).
 					boolean wantM = want && control.permAdmin, haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
-					if (wantM && !haveM) tabs.addTab("Manage launchers", serverTabs[2]);
-					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == serverTabs[2]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); }
+					if (wantM && !haveM) { tabs.addTab("Manage access", serverTabs[2]); tabs.addTab("Host activity", serverTabs[3]); }
+					else if (!wantM && haveM) { if (tabs.getSelectedIndex() >= 2) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); tabs.remove(serverTabs[3]); }
 				};
 				syncTabs[0].run();
 			}
@@ -1386,7 +1439,7 @@ public final class LaunchPopup {
 						p.validate();
 						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : i == 3 ? "-config.png" : "-manage.png")));
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : i == 3 ? "-config.png" : i == 4 ? "-manage.png" : "-activity.png")));
 					}
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);

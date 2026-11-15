@@ -318,6 +318,15 @@ public final class HostHelper {
 					List<Object> last = new ArrayList<>();
 					for (int i = Math.max(0, lines.length - 100); i < lines.length; i++) if (!lines[i].isBlank()) last.add(lines[i]);
 					reply(x, 200, m("log", last));
+				} else if (path.equals("/v1/admin/players") && !post) {
+					reply(x, 200, m("players", playerList()));
+				} else if (path.equals("/v1/admin/player/perm") && post) {
+					Map<String, Object> b = body(x);
+					String perm = Json.str(b.get("perm"));
+					if (perm.equals("admin")) { reply(x, 403, m("error", "Helper control is only given or removed in the host panel on the server PC")); return; }
+					String[] r = playerPerm(Json.str(b.get("player")), perm, Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value"))));
+					log("(asked by " + who(d) + ")");
+					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else if ((path.equals("/v1/admin/perm") || path.equals("/v1/admin/forget") || path.equals("/v1/admin/revoke")) && post) {
 					Map<String, Object> b = body(x);
 					String tid = Json.str(b.get("id"));
@@ -686,6 +695,10 @@ public final class HostHelper {
 			} else if (path.equals("/admin/requests/clear")) {
 				synchronized (HostHelper.class) { requests.clear(); }
 				reply(x, 200, m("ok", true));
+			} else if (path.equals("/admin/server/stop")) {
+				String[] r = serverAction(false);
+				log("stop the Minecraft server from the host panel: " + r[1]);
+				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/server/start")) {
 				// From the panel's request banner: MCSS first if it isn't running (it needs a moment before it takes the start).
 				String[] r;
@@ -791,7 +804,7 @@ public final class HostHelper {
 			f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
 			p.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-			JLabel head = new JLabel("Launchers that asked to control MCSS");
+			JLabel head = new JLabel("October Journey host");
 			head.setFont(head.getFont().deriveFont(Font.BOLD, 17f));
 			JLabel state = new JLabel(" ");
 			// MCSS itself: start it, or close it (how follows MCSS's own X-button setting, as for the launchers).
@@ -810,7 +823,7 @@ public final class HostHelper {
 			reqRow.setVisible(false);
 			int[] seqSeen = {-1};
 			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(head, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
-			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH); top.add(stateRow, BorderLayout.SOUTH);
+			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH);
 			p.add(top, BorderLayout.NORTH);
 			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Helper control", "Controls the server"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
@@ -854,7 +867,7 @@ public final class HostHelper {
 			};
 			revokeB.addActionListener(e -> ask.accept("/admin/revoke", "Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."));
 			JPanel south = new JPanel(new BorderLayout(0, 6));
-			south.add(buttons, BorderLayout.NORTH); south.add(keyRow, BorderLayout.SOUTH);
+			south.add(buttons, BorderLayout.NORTH);
 			mid.add(south, BorderLayout.SOUTH);
 			// Players: the same permissions, per player. A player is tied to a launcher when the server's log shows them
 			// joining from it; allowing a player something sets it on all their launchers, and on ones they join from later.
@@ -874,13 +887,49 @@ public final class HostHelper {
 			JPanel playersTab = new JPanel(new BorderLayout(0, 8));
 			playersTab.add(new JScrollPane(ptable), BorderLayout.CENTER); playersTab.add(psouth, BorderLayout.SOUTH);
 			javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
-			mid.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6)); playersTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
-			tabs.addTab("Launchers", mid); tabs.addTab("Players", playersTab);
+			// Access: who may do what, one launcher (device) at a time or a player with all their devices.
+			javax.swing.JRadioButton byDevice = new javax.swing.JRadioButton("By launcher (one device)", true), byPlayer = new javax.swing.JRadioButton("By player (all their devices)");
+			javax.swing.ButtonGroup how = new javax.swing.ButtonGroup(); how.add(byDevice); how.add(byPlayer);
+			JPanel pick = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+			JLabel pickHead = new JLabel("Manage access:"); pickHead.setFont(pickHead.getFont().deriveFont(Font.BOLD));
+			pick.add(pickHead); pick.add(byDevice); pick.add(byPlayer);
+			java.awt.CardLayout cards = new java.awt.CardLayout();
+			JPanel deck = new JPanel(cards);
+			deck.add(mid, "device"); deck.add(playersTab, "player");
+			byDevice.addActionListener(e -> cards.show(deck, "device"));
+			byPlayer.addActionListener(e -> cards.show(deck, "player"));
+			JPanel accessTab = new JPanel(new BorderLayout(0, 4));
+			accessTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
+			accessTab.add(pick, BorderLayout.NORTH); accessTab.add(deck, BorderLayout.CENTER);
+			// Status: the helper, MCSS, the Minecraft server, and everything that was asked of the helper.
+			JLabel mcssState = new JLabel(" "), serverState = new JLabel(" ");
+			JButton serverRun = new JButton("Start server");
+			boolean[] serverUpNow = {false};
+			JPanel statusTop = new JPanel();
+			statusTop.setLayout(new javax.swing.BoxLayout(statusTop, javax.swing.BoxLayout.Y_AXIS));
+			java.util.function.BiConsumer<String, javax.swing.JComponent[]> section = (title, rows) -> {
+				JLabel h = new JLabel(title);
+				h.setFont(h.getFont().deriveFont(Font.BOLD, 14f));
+				h.setBorder(BorderFactory.createEmptyBorder(statusTop.getComponentCount() == 0 ? 0 : 10, 0, 2, 0));
+				h.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); statusTop.add(h);
+				for (javax.swing.JComponent c : rows) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); statusTop.add(c); }
+			};
+			JPanel mcssRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); mcssRow.add(mcssRun); mcssRow.add(mcssState);
+			JPanel serverRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); serverRow.add(serverRun); serverRow.add(serverState);
+			JPanel helperRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); helperRow.add(state);
+			section.accept("Helper", new javax.swing.JComponent[] {helperRow});
+			section.accept("MCSS (the server software)", new javax.swing.JComponent[] {mcssRow, keyRow});
+			section.accept("Minecraft server", new javax.swing.JComponent[] {serverRow});
+			JPanel activity = new JPanel(new BorderLayout(0, 4));
+			JLabel actHead = new JLabel("Activity"); actHead.setFont(actHead.getFont().deriveFont(Font.BOLD, 14f));
+			activity.add(actHead, BorderLayout.NORTH);
+			log.setRows(14);
+			activity.add(new JScrollPane(log), BorderLayout.CENTER);
+			JPanel statusTab = new JPanel(new BorderLayout(0, 10));
+			statusTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
+			statusTab.add(statusTop, BorderLayout.NORTH); statusTab.add(activity, BorderLayout.CENTER);
+			tabs.addTab("Access", accessTab); tabs.addTab("Status", statusTab);
 			p.add(tabs, BorderLayout.CENTER);
-			JPanel bottom = new JPanel(new BorderLayout(0, 4));
-			bottom.add(new JLabel("Activity"), BorderLayout.NORTH);
-			bottom.add(new JScrollPane(log), BorderLayout.CENTER);
-			p.add(bottom, BorderLayout.SOUTH);
 			Runnable refresh = () -> new Thread(() -> {
 				try {
 					Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/devices", null)));
@@ -950,8 +999,13 @@ public final class HostHelper {
 						mcssRun.setEnabled(!mcssUp[0] || !Boolean.TRUE.equals(r.get("minecraft")));
 						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Stop the Minecraft server first" : null);
 						state.setForeground(new Color(0x2E9D48));
-						state.setText("Helper running on " + r.get("bind") + ":" + r.get("port") + ".  MCSS " + (Boolean.TRUE.equals(r.get("mcss")) ? "is running" : "isn't running")
-								+ ";  Minecraft server " + (Boolean.TRUE.equals(r.get("minecraft")) ? "is running" : "is off") + ".");
+						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over Tailscale).");
+						mcssState.setForeground(Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x2E9D48) : new Color(0x6B7280));
+						mcssState.setText(Boolean.TRUE.equals(r.get("mcss")) ? "MCSS is running" : "MCSS isn't running");
+						serverUpNow[0] = Boolean.TRUE.equals(r.get("minecraft"));
+						serverState.setForeground(serverUpNow[0] ? new Color(0x2E9D48) : new Color(0x6B7280));
+						serverState.setText(serverUpNow[0] ? "The Minecraft server is running" : "The Minecraft server is off");
+						serverRun.setText(serverUpNow[0] ? "Stop server" : "Start server");
 						StringBuilder sb = new StringBuilder();
 						for (Object l : lg) sb.append(l).append('\n');
 						if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
@@ -1008,11 +1062,23 @@ public final class HostHelper {
 				});
 			}
 			reqClear.addActionListener(e -> act.accept("/admin/requests/clear", "{}"));
+			serverRun.addActionListener(e -> {
+				boolean up = serverUpNow[0];
+				if (up && JOptionPane.showConfirmDialog(f, "Stop the Minecraft server? Anyone playing is disconnected (the world is saved first).", "Minecraft server", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+				new Thread(() -> {
+					String msg;
+					try { msg = Json.str(Json.map(Json.parse(call("POST", up ? "/admin/server/stop" : "/admin/server/start", "{}"))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
+					String m2 = msg;
+					SwingUtilities.invokeLater(() -> serverState.setText(m2));
+					try { Thread.sleep(4000); } catch (InterruptedException ignored) {}
+					refresh.run();
+				}, "server-run").start();
+			});
 			reqStart.addActionListener(e -> new Thread(() -> {
 				String msg;
 				try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/server/start", "{}"))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
 				String m2 = msg;
-				SwingUtilities.invokeLater(() -> state.setText(m2));
+				SwingUtilities.invokeLater(() -> { serverState.setText(m2); tabs.setSelectedIndex(1); });
 				try { Thread.sleep(2500); } catch (InterruptedException ignored) {}
 				refresh.run();
 			}, "req-start").start());
@@ -1024,7 +1090,7 @@ public final class HostHelper {
 					String msg;
 					try { msg = Json.str(Json.map(Json.parse(call("POST", up ? "/admin/mcss/close" : "/admin/mcss/start", "{\"force\":" + force + "}"))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
 					String m2 = msg;
-					SwingUtilities.invokeLater(() -> { state.setText(m2); });
+					SwingUtilities.invokeLater(() -> { mcssState.setText(m2); });
 					try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
 					refresh.run();
 				}, "mcss").start();
@@ -1067,6 +1133,27 @@ public final class HostHelper {
 			refresh.run();
 			f.setContentPane(p);
 			f.pack();
+			// Testing: OJ_PANEL_PNG=<file> saves a picture of each tab (<file>-access.png, -players.png, -status.png) after
+			// the first readings, instead of showing the window.
+			String shot = System.getenv("OJ_PANEL_PNG");
+			if (shot != null && !shot.isEmpty()) {
+				Timer once = new Timer(3500, e -> {
+					try {
+						for (int i = 0; i < 3; i++) {
+							tabs.setSelectedIndex(i == 2 ? 1 : 0);
+							if (i == 1) byPlayer.doClick(); else if (i == 0) byDevice.doClick();
+							p.validate();
+							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
+							javax.imageio.ImageIO.write(img, "png", new java.io.File(shot + (i == 0 ? "-access.png" : i == 1 ? "-players.png" : "-status.png")));
+						}
+					} catch (IOException ex) { ex.printStackTrace(); }
+					System.exit(0);
+				});
+				once.setRepeats(false);
+				once.start();
+				return;
+			}
 			f.setLocationRelativeTo(null);
 			if (startMinimized) f.setExtendedState(JFrame.ICONIFIED);   // (opened by the helper for a request: on the taskbar, flashing)
 			f.setVisible(true);
