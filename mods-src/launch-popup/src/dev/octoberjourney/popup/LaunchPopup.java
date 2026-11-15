@@ -76,6 +76,16 @@ public final class LaunchPopup {
 	record Check(String state, String label, String detail) {}
 
 	/** The progress window, reused for the summary so there's one window from start to finish. */
+	/** The name this launcher shows: the server profile's (extras/profile.json, shipped with the pack; see
+	 *  docs/profiles.md). Until that file has arrived (the first launch after an update that brings it), the name of the
+	 *  pack's first server in extras/servers.json, which older packs have too. Nothing about a server is fixed here. */
+	static String NAME = "Minecraft";
+	static void loadProfile(Path dir) {
+		String n = s(asMap(parse(read(dir.resolve("extras/profile.json")))).get("name"));
+		if (n.isEmpty() && parse(read(dir.resolve("extras/servers.json"))) instanceof List<?> l && !l.isEmpty()) n = s(asMap(l.get(0)).get("name"));
+		if (!n.isEmpty()) NAME = n;
+	}
+
 	static volatile JFrame reuse;
 	/** The question before a download (how big the update is; Download or Skip this time): being asked now, and the
 	 *  size that was skipped, if it was. */
@@ -150,6 +160,7 @@ public final class LaunchPopup {
 	/** The checklist while the sync runs: each step waiting, running (with packwiz-installer's latest line for the
 	 *  download), or done with a mark. Quit cancels the launch. Then the summary takes over the same window. */
 	static void progress(Path dir) throws Exception {
+		loadProfile(dir);
 		String options = read(dir.resolve("pack-options.json"));
 		boolean ui = !GraphicsEnvironment.isHeadless() && (option(options, "popup_updates") || option(options, "popup_no_updates"));
 		JLabel[] rows = new JLabel[STEPS.length];
@@ -157,11 +168,11 @@ public final class LaunchPopup {
 			if (System.getProperty("os.name", "").startsWith("Windows")) {
 				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
 			}
-			JFrame f = new JFrame("October Journey");
+			JFrame f = new JFrame(NAME);
 			f.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
-			JLabel h = new JLabel("Getting October Journey ready");
+			JLabel h = new JLabel("Getting " + NAME + " ready");
 			h.setFont(h.getFont().deriveFont(Font.BOLD, 18f));
 			JLabel s = new JLabel("Checking for updates before the game starts.");
 			s.setFont(s.getFont().deriveFont(14f));
@@ -311,7 +322,7 @@ public final class LaunchPopup {
 				String[] choice = {null};
 				String png = System.getenv("OJ_POPUP_PNG");
 				SwingUtilities.invokeLater(() -> {
-					askText.setText(wrap((first ? "October Journey needs about " + size + " of downloads to install" : "An update is ready: about " + size + " to download")
+					askText.setText(wrap((first ? NAME + " needs about " + size + " of downloads to install" : "An update is ready: about " + size + " to download")
 							+ " (" + what + "). " + from + " Press Download to continue, or Quit to cancel this launch."));
 					progressPlay.setText("Download");
 					progressPlay.setEnabled(true);
@@ -490,6 +501,7 @@ public final class LaunchPopup {
 	// ------------------------------------------------------------------ the summary
 
 	static void summary(Path dir, String status) throws Exception {
+		loadProfile(dir);
 		List<Version> log = changelog(dir.resolve("extras/changelog.txt"));
 		String current = log.isEmpty() ? null : log.get(0).version();
 		String seen = read(dir.resolve("pack-version-seen.txt")).trim();
@@ -567,12 +579,12 @@ public final class LaunchPopup {
 		String playing = current == null ? "" : " " + current;
 		String headline;
 		// Nothing seen yet (a new install, or the first launch with the pop-up): no "updated from" to speak of.
-		if (updated && seen.isEmpty()) headline = "October Journey " + current;
-		else if (updated) headline = "October Journey updated to " + current;
+		if (updated && seen.isEmpty()) headline = NAME + " " + current;
+		else if (updated) headline = NAME + " updated to " + current;
 		else if (status.equals("offline")) headline = "Couldn't check for updates";
 		else if (status.equals("failed")) headline = "The update didn't finish";
-		else if (!somethingHappened && serverNews) headline = "October Journey" + playing + ": server changes";
-		else headline = "October Journey" + playing + (somethingHappened ? "" : ": no updates");
+		else if (!somethingHappened && serverNews) headline = NAME + playing + ": server changes";
+		else headline = NAME + playing + (somethingHappened ? "" : ": no updates");
 		String sub;
 		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing + " as installed.";
 		else if (status.equals("failed")) sub = "Starting with the mods already installed. Details are in pack-sync.log in the game folder.";
@@ -581,7 +593,7 @@ public final class LaunchPopup {
 		else sub = "You're up to date.";
 		// The player chose Skip this time at the size question: say so, rather than "no updates".
 		if (skipped != null) {
-			headline = "October Journey" + playing + ": update skipped";
+			headline = NAME + playing + ": update skipped";
 			sub = "An update of about " + skipped + " is waiting. Restart offers it again; Play starts with what's installed.";
 		}
 
@@ -598,7 +610,7 @@ public final class LaunchPopup {
 			for (String m : removed) rows.add(row(GRAY, "Removed: " + m, null));
 		}
 		if (!switchedOn.isEmpty() || !switchedOff.isEmpty()) {
-			rows.add(heading("Mod switches (Mods > October Journey Settings)"));
+			rows.add(heading("Mod switches (Mods > " + NAME + " Settings)"));
 			for (String m : switchedOn) rows.add(row(GREEN, "Switched on: " + m, null));
 			for (String m : switchedOff) rows.add(row(GRAY, "Switched off: " + m, null));
 		}
@@ -1260,7 +1272,7 @@ public final class LaunchPopup {
 			if (System.getProperty("os.name", "").startsWith("Windows")) {
 				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
 			}
-			JFrame f = reuse != null ? reuse : new JFrame("October Journey");
+			JFrame f = reuse != null ? reuse : new JFrame(NAME);
 			for (java.awt.event.WindowListener l : f.getWindowListeners()) f.removeWindowListener(l);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));

@@ -1,7 +1,9 @@
 # Serves dist/ (the October Journey client pack) to your devices over Tailscale only: http://100.91.134.102:8467/
 # Started at logon by the scheduled task "Minecraft pack server". Waits for Tailscale, and restarts the server if it stops.
-$ip = '100.91.134.102'
-$port = 8467
+# Where: from the server profile (installer\config.json "host": this machine's Tailscale address and the pack's port).
+$hostProfile = (Get-Content (Join-Path (Split-Path $PSScriptRoot -Parent) 'installer\config.json') -Raw | ConvertFrom-Json).host
+$ip = $hostProfile.bind
+$port = [int]$hostProfile.pack_port
 $dir = Join-Path (Split-Path $PSScriptRoot -Parent) 'dist'
 $jw = 'C:\Program Files\Eclipse Adoptium\jdk-25.0.4.101-hotspot\bin\jwebserver.exe'
 while ($true) {

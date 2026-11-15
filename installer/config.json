@@ -1,5 +1,6 @@
 {
   "_about": "Read by the October Journey installers each time they run. Change it here (on GitHub) and the next install uses it; no rebuild needed.",
+  "_profile": "This file is the server profile (docs/profiles.md): everything about this one server that the launcher, the sync scripts, the installers and the host helper need. pack_name is the name they show. The build ships what devices need as extras/profile.json.",
   "pack_name": "October Journey",
   "instance_id": "october-journey",
   "instance_name": "October Journey 26.3 (Fabric)",
@@ -29,6 +30,17 @@
       "broadcasts": ["192.168.0.255", "255.255.255.255"],
       "port": 9
     }
+  },
+  "host": {
+    "_about": "For the host helper on the server machine (tools/install_host.ps1 puts these into its host.json where they're missing; tools/serve.ps1 serves the pack on bind:pack_port). bind: the machine's Tailscale address. servers: the Minecraft servers it looks after, each with its folder, its game port on the machine, and its id in MCSS (empty: read from the folder's mcss_server_config.json).",
+    "bind": "100.91.134.102",
+    "port": 25570,
+    "pack_port": 8467,
+    "mcss_exe": "C:\\Minecraft\\MCSS\\mcss.exe",
+    "tailscale_exe": "C:\\Program Files\\Tailscale\\tailscale.exe",
+    "servers": [
+      { "name": "October Journey", "dir": "C:\\Minecraft\\MCSS\\servers\\octoberserver", "minecraft": "127.0.0.1:25565", "mcss_server": "" }
+    ]
   },
   "_servers_later": "To add a public address later, add another entry such as { \"name\": \"October Journey (public)\", \"address\": \"play.example.com\" }.",
   "prism_windows": {

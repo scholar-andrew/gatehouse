@@ -107,6 +107,12 @@ def build(variant: str, meta: dict, mods: list) -> None:
     data = write(os.path.join(out, rel), json.dumps({(f"mods/{m['slug']}.pw.toml" if "url" in m else f"mods/{m['filename']}"): m["title"]
                                                       for m in mods if not (m.get("deck") and variant != "deck")}, indent=1) + "\n")
     entries.append((rel, sha256(data), False))
+    # The profile, as far as a device needs it (installer/config.json is the whole of it; see docs/profiles.md): the
+    # name the launcher and the sync scripts show, and the instance it belongs to.
+    prof = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8"))
+    rel = "extras/profile.json"
+    data = write(os.path.join(out, rel), json.dumps({"name": prof["pack_name"], "instance_id": prof["instance_id"]}, indent=1) + "\n")
+    entries.append((rel, sha256(data), False))
     # The Server tab's controls (installer/config.json "server_control"): panel, wake, status. No secrets in it.
     sc = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8")).get("server_control", {})
     rel = "extras/server-control.json"

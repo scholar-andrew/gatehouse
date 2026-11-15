@@ -133,7 +133,7 @@ public final class HostHelper {
 	}
 
 	static boolean minecraftRunning() {
-		String hp = setting("minecraft", "127.0.0.1:25565");
+		String hp = serverSetting("minecraft", "minecraft", "127.0.0.1:25565");
 		int c = hp.lastIndexOf(':');
 		try (Socket s = new Socket()) { s.connect(new InetSocketAddress(hp.substring(0, c), Integer.parseInt(hp.substring(c + 1))), 1500); return true; }
 		catch (IOException | RuntimeException e) { return false; }
@@ -211,7 +211,8 @@ public final class HostHelper {
 		local.createContext("/admin/", HostHelper::admin);
 		local.start();
 		// The launchers' side, on the Tailscale address only. Tailscale may still be starting at sign-in: retried.
-		String bind = setting("bind", "100.91.134.102");
+		String bind = setting("bind", "");
+		if (bind.isEmpty()) { log("host.json has no \"bind\" (this machine's Tailscale address): run tools/install_host.ps1"); return; }
 		while (true) {
 			try {
 				HttpServer remote = HttpServer.create(new InetSocketAddress(bind, port()), 0);
@@ -391,9 +392,20 @@ public final class HostHelper {
 	// ------------------------------------------------------------------ the Minecraft server, through MCSS's API
 
 	/** The server's folder (host.json "server_dir"), and its id in MCSS (from mcss_server_config.json there). */
-	static Path serverDir() { return Path.of(setting("server_dir", "C:\\Minecraft\\MCSS\\servers\\octoberserver")); }
+	/** The Minecraft server this helper looks after: the first entry of host.json "servers" (each: name, dir,
+	 *  minecraft, mcss_server), which tools/install_host.ps1 fills in from the server profile. Nothing about a server is
+	 *  fixed here; a host.json from before the list existed may still give server_dir / minecraft / mcss_server itself. */
+	static Map<String, Object> server() {
+		List<Object> l = Json.list(cfg.get("servers"));
+		return l.isEmpty() ? new LinkedHashMap<>() : Json.map(l.get(0));
+	}
+	static String serverSetting(String key, String legacy, String def) {
+		String v = Json.str(server().get(key));
+		return !v.isEmpty() ? v : setting(legacy, def);
+	}
+	static Path serverDir() { return Path.of(serverSetting("dir", "server_dir", "")); }
 	static String serverId() {
-		String id = setting("mcss_server", "");
+		String id = serverSetting("mcss_server", "mcss_server", "");
 		return !id.isEmpty() ? id : Json.str(Json.map(Json.parse(read(serverDir().resolve("mcss_server_config.json")))).get("guid"));
 	}
 
@@ -670,7 +682,7 @@ public final class HostHelper {
 				List<Object> asked;
 				int seq;
 				synchronized (HostHelper.class) { asked = new ArrayList<>(requests); seq = requestSeq; }
-				reply(x, 200, m("requests", asked, "request_seq", seq, "devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "port", port(), "bind", setting("bind", "100.91.134.102"),
+				reply(x, 200, m("requests", asked, "request_seq", seq, "devices", devs, "mcss", !mcssProcesses().isEmpty(), "minecraft", minecraftRunning(), "close", closeMode(), "port", port(), "bind", setting("bind", ""),
 						"has_key", !setting("mcss_api_key", "").isEmpty(), "key_works", setting("mcss_api_key", "").isEmpty() ? "" : keyState(), "mcss_user", setting("mcss_user", "")));
 			} else if (path.equals("/admin/revoke")) {
 				// Revoke: everything that lets it control the server is taken away.

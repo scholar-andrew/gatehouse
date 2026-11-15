@@ -1,6 +1,10 @@
 # Server profiles: making the launcher and helper work with more than one server
 
-Status: plan, agreed 2026-11-15. Nothing here is built yet. The audience for now is the owner running several servers
+Status: plan agreed 2026-11-15. **Stage 1 is built** (pack 1.9.10): the profile ships as `extras/profile.json`; the
+launcher, the sync scripts and the helper no longer have the server's name, address or folder built in (checked: the
+launcher's summary text and picture, the sync's status lines and the helper's readings are identical before and
+after). Not yet moved: the installers' and uninstallers' own text, and the tool's own names (below). Stages 2 and 3
+are not built. The audience for now is the owner running several servers
 for the same group; the design keeps a later move to other hosts cheap (see "Rules").
 
 ## The idea

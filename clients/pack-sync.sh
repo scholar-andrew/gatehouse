@@ -4,6 +4,9 @@
 # date with packwiz-installer. On a Steam Deck (hardware Jupiter or Galileo) it takes the Deck pack, which adds the
 # Deck-only mods; anywhere else the main pack.
 here="$(cd "$(dirname "$0")" && pwd)"
+# The pack's name, from its profile (extras/profile.json, shipped with the pack): nothing about a server is fixed here.
+pack_name="$(sed -n 's/.*"name": *"\([^"]*\)".*/\1/p' "$here/extras/profile.json" 2>/dev/null | head -n 1)"
+[ -n "$pack_name" ] || pack_name="The pack"
 variant=main
 case "$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null)" in
   Jupiter|Galileo) variant=deck ;;
@@ -143,7 +146,7 @@ PY
 stop_if_no_mods() {  # stop_if_no_mods "why" ["advice"] [ok|offline|failed for the pop-up]
   if ls "$here"/mods/*.jar >/dev/null 2>&1; then switches apply; defaults_once; note "$1; starting with the mods already installed"; popup "${3:-failed}"; after_popup $?; exit 0; fi
   note "$1, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
-  echo "October Journey couldn't install its mods yet ($1). ${2:-Check your connection (Tailscale or internet) and press Play again.}"
+  echo "$pack_name couldn't install its mods yet ($1). ${2:-Check your connection (Tailscale or internet) and press Play again.}"
   stop_progress
   exit 1
 }
@@ -400,7 +403,7 @@ if changes:
     open(os.path.join(here, "pack-sync.log"), "a").write("%s  server list: %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), "; ".join(changes)))
     open(os.path.join(here, "pack-sync-status.txt"), "a").write("check|updated|Server list|%s\n" % "; ".join(changes))
 else:
-    open(os.path.join(here, "pack-sync-status.txt"), "a").write("check|ok|Server list|October Journey is listed\n")
+    open(os.path.join(here, "pack-sync-status.txt"), "a").write("check|ok|Server list|%s is listed\n" % ", ".join(s["name"] for s in want))
 json.dump(state, open(sp, "w"), indent=1)
 PY
 fi

@@ -15,10 +15,21 @@ schtasks /end /tn "October Journey host helper" 2>$null | Out-Null
 Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | Where-Object { $_.CommandLine -like '*OctoberJourneyHost*oj-host.jar*--serve*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
 Start-Sleep 2
 Copy-Item (Join-Path $root 'host\oj-host.jar') (Join-Path $dir 'oj-host.jar') -Force
+# host.json: what the server profile says about this machine (installer\config.json "host": its address, MCSS, and the
+# servers it looks after), put in wherever host.json doesn't say yet. What's already there (and the helper's own MCSS
+# sign-in) is kept.
 $cfg = Join-Path $dir 'host.json'
-if (-not (Test-Path $cfg)) {
-    [IO.File]::WriteAllText($cfg, (@{ bind = '100.91.134.102'; port = '25570'; mcss_exe = 'C:\Minecraft\MCSS\mcss.exe'; minecraft = '127.0.0.1:25565'; tailscale_exe = 'C:\Program Files\Tailscale\tailscale.exe' } | ConvertTo-Json))
+$hostProfile = (Get-Content (Join-Path $root 'installer\config.json') -Raw | ConvertFrom-Json).host
+$now = if (Test-Path $cfg) { Get-Content $cfg -Raw | ConvertFrom-Json } else { [pscustomobject]@{} }
+foreach ($k in 'bind', 'port', 'mcss_exe', 'tailscale_exe', 'servers') {
+    if ($null -eq $now.$k -or "$($now.$k)" -eq '') {
+        $v = $hostProfile.$k
+        if ($k -eq 'port') { $v = "$v" }
+        if ($k -eq 'servers') { $v = @($v | ForEach-Object { $_ }) }
+        $now | Add-Member -NotePropertyName $k -NotePropertyValue $v -Force
+    }
 }
+[IO.File]::WriteAllText($cfg, ($now | ConvertTo-Json -Depth 6))
 $action = New-ScheduledTaskAction -Execute $javaw -Argument "-jar `"$dir\oj-host.jar`" --serve" -WorkingDirectory $dir
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
