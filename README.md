@@ -12,7 +12,9 @@ this client pack to play on it. **About the server** (settings, mods, Jarvis, an
 | **Linux**, including **Steam Deck** (SteamOS 3.9) | [**october-journey-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-setup.sh) | [**october-journey-uninstall.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-uninstall.sh) |
 
 One download sets up everything: Prism Launcher, the modpack (it updates itself each time you play), the server in your
-server list, and a Steam shortcut with its own art and a Steam Deck controller layout.
+server list, and two Steam shortcuts: **October Journey** (updates, starts the game and joins the server) and **Prism
+Launcher**, each with library art and a Steam Deck controller layout. Set up before the October Journey shortcut
+existed? Run setup again and pick **Add the October Journey shortcut**.
 
 - **Windows:** run the exe. If Windows says "Windows protected your PC", click **More info**, then **Run anyway** (the
   file isn't code-signed).
@@ -34,8 +36,9 @@ likewise offers **Quick uninstall** or choosing what to remove ([INSTALL.md: Cho
   against a recorded SHA-256), or the Flathub app on Linux.
 - **A Prism instance**, "October Journey 26.3 (Fabric)", with a small update script that Prism runs before every launch.
 - **The October Journey server** in the instance's server list.
-- **A Steam shortcut** with this pack's library art and a Steam Deck controller layout. Setup closes or asks you to close
-  Steam for this, and backs up the files it changes.
+- **Two Steam shortcuts**: October Journey (this pack's art), which starts the game and joins the server, and Prism
+  Launcher (Prism's own logo), which opens the launcher. Both get a Steam Deck controller layout. Setup closes or asks
+  you to close Steam for this, and backs up the files it changes.
 - **On Linux only**, permission for Prism's Flatpak sandbox to write two Steam folders (library art and controller
   layouts).
 - **The uninstaller**, kept on your computer: in **Settings, Apps** on Windows, or as **Uninstall October Journey** in

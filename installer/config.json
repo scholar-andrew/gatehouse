@@ -4,6 +4,8 @@
   "instance_id": "october-journey",
   "instance_name": "October Journey 26.3 (Fabric)",
   "shortcut_name": "Minecraft (Prism Launcher)",
+  "game_shortcut_name": "October Journey",
+  "_shortcuts": "Each followed by \" - <device name>\". shortcut_name opens Prism Launcher; game_shortcut_name starts the instance and joins the first server (Prism's --launch and --server).",
   "repo_raw": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main",
   "pack_sources": [
     "http://100.91.134.102:8467",
@@ -32,13 +34,21 @@
     "icon": "installer/art/icon.png",
     "wide": "installer/art/wide.png"
   },
+  "art_prism": {
+    "_source": "Prism Launcher's logo on a plain background (tools/make_prism_art.ps1), for the shortcut that opens Prism; licence in installer/art-prism/NOTICE.md.",
+    "cover": "installer/art-prism/cover.png",
+    "hero": "installer/art-prism/hero.png",
+    "logo": "installer/art-prism/logo.png",
+    "icon": "installer/art-prism/icon.png",
+    "wide": "installer/art-prism/wide.png"
+  },
   "uninstall_windows": {
     "url": "https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe",
-    "sha256": "0E658CCC688B1FC12C15CE4263DDF0367AE10457FD82DF742A2854301F5CAE5E"
+    "sha256": "6ED67AEFC74CC6E9D6D9C562340681AE528B8EDF8FB53F4A4383825F498D70C0"
   },
   "uninstall_linux": {
     "url": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/linux/october-journey-uninstall.sh",
-    "sha256": "BFD18B54B847D2E4E09CDC80F589BDDB4A094AEFAA26436F9A25456521AB111C"
+    "sha256": "F81FAC6304D64BF4C1AB01E31FD76E2F2CE0908780F2EE918FCF32DC02890455"
   },
   "_uninstall": "Setup saves these uninstallers on the device. After changing either one, put its new SHA-256 here (and upload the exe to the release), or setup skips it."
 }

@@ -11,7 +11,7 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "791b9763e19bee67337f224093344477a7210a8a4f27e3f3e8c6461ea192ff15"
+hash = "14105a039b76f084df8abba3eb280ec4c9f688fcdb54f8b2a656ce1f34f176a1"
 
 [[files]]
 file = "extras/launch-popup.jar"
@@ -23,11 +23,11 @@ hash = "75d6134daed6501ca06c2c482269281b1a9fbe80585af0107f9d26ab1c83d69e"
 
 [[files]]
 file = "extras/pack-sync.ps1"
-hash = "85a902f65b6b33a45ab17fb52842f2295144724f201703ac909423a4c2053c27"
+hash = "e7ac1f7734c6c69fb258ca99521015e56a52a8a86f4f800e50c22b6f07c0e70a"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "2fd01f2a2d3a5783680a669f65570b758bfcd37e38a3f59a4cb9271559b69ea0"
+hash = "118f6f1201b269a55edca3267847a7039a3c97d9cc6ec5185f39af4932ab7d03"
 
 [[files]]
 file = "extras/servers.json"
@@ -168,6 +168,26 @@ metafile = true
 file = "mods/yacl.pw.toml"
 hash = "0387806c977cf558993d7a2cec8e694f7e055f06ce3e8c430170217ceab43f97"
 metafile = true
+
+[[files]]
+file = "steam/art-prism/cover.png"
+hash = "4a8f8e84606c4d4ee00a223323805a88f9bc87f9e690f045da40f4bc3266de2e"
+
+[[files]]
+file = "steam/art-prism/hero.png"
+hash = "90554b4cb27b69c30de985d332169b97b98c2585c5d5aeceaea62f126351ecff"
+
+[[files]]
+file = "steam/art-prism/icon.png"
+hash = "275fbf2e4634657b36653b2c586530b5d263a6f627f327a4870b3a134bcb1c25"
+
+[[files]]
+file = "steam/art-prism/logo.png"
+hash = "e3de6daae7d1268b2da29c40d97771e64b810aee3375a127e32612d2bc5b8987"
+
+[[files]]
+file = "steam/art-prism/wide.png"
+hash = "e929bc55d07e1e30232e3824789faf2ebc0c1533171767d9fbe9cbbbcb26d21d"
 
 [[files]]
 file = "steam/art/cover.png"

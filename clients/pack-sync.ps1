@@ -128,59 +128,68 @@ if ($code -ne 0) {
 }
 ApplySwitches
 
-# Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcut. steam-target.json
-# (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is
-# replaced only while it is still the version last installed here, so art or a layout changed in Steam is kept.
-# Steam reads both when it starts: a change shows after Steam is next restarted.
+# Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcuts.
+# steam-target.json (written by setup) says where: "targets", one per shortcut, each with its grid folder, app id,
+# controller layout folder and which art it gets ("pack": October Journey's, for the shortcut that starts the game;
+# "prism": Prism Launcher's logo, for the one that opens Prism). From before there were two shortcuts it may just have
+# grid / appid / controller for one shortcut with the pack's art. First time: installed, keeping what was there as
+# *.before-pack. After that a file is replaced only while it is still the version last installed here, so art or a
+# layout changed in Steam is kept. Steam reads both when it starts: a change shows after Steam is next restarted.
 # pack-options.json (written by setup and the uninstaller) says which of these the player wants kept up to date:
 # steam_art, steam_controller, server_entry. Missing file or key: yes.
 $opt = @{ steam_art = $true; steam_controller = $true; server_entry = $true }
 $optPath = Join-Path $here 'pack-options.json'
-if (Test-Path $optPath) { try { (Get-Content $optPath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $opt[$_.Name] = [bool]$_.Value } } catch { } }
+if (Test-Path $optPath) { try { (Get-Content $optPath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { if ($_.Value -is [bool]) { $opt[$_.Name] = $_.Value } } } catch { } }
 $target = Join-Path $here 'steam-target.json'
 if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
     try {
-        $t = Get-Content $target -Raw | ConvertFrom-Json
+        $st = Get-Content $target -Raw | ConvertFrom-Json
+        $legacy = -not $st.targets
+        $targets = if ($legacy) { @([pscustomobject]@{ grid = $st.grid; appid = $st.appid; controller = $st.controller; art = 'pack' }) } else { @($st.targets | ForEach-Object { $_ }) }
         $statePath = Join-Path $here 'steam-applied.json'
         $state = @{}
         if (Test-Path $statePath) { (Get-Content $statePath -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $state[$_.Name] = $_.Value } }
         $sha = [Security.Cryptography.SHA256]::Create()
         function Get-PackHash([byte[]]$b) { -join ($sha.ComputeHash($b) | ForEach-Object { $_.ToString('x2') }) }
-        $items = @(
-            @('steam/art/cover.png', (Join-Path $t.grid "$($t.appid)p.png")),
-            @('steam/art/hero.png', (Join-Path $t.grid "$($t.appid)_hero.png")),
-            @('steam/art/logo.png', (Join-Path $t.grid "$($t.appid)_logo.png")),
-            @('steam/art/icon.png', (Join-Path $t.grid "$($t.appid)_icon.png")),
-            @('steam/art/wide.png', (Join-Path $t.grid "$($t.appid).png")),
-            @('steam/controller_neptune.vdf', (Join-Path $t.controller 'controller_neptune.vdf')))
         $changed = @()
-        foreach ($i in $items) {
-            if ($i[0] -like '*.vdf') { if (-not $opt.steam_controller) { continue } } elseif (-not $opt.steam_art) { continue }
-            $src = Join-Path $here $i[0]; $dst = $i[1]
-            if (-not (Test-Path $src)) { continue }
-            $bytes = [IO.File]::ReadAllBytes($src)
-            if ($i[0] -like '*.vdf') {
-                $text = [Text.Encoding]::UTF8.GetString($bytes) -replace '"url"\s*"[^"]*"', ('"url"' + "`t`t" + '"autosave://' + ($dst -replace '\\', '/') + '"')
-                $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($text)
+        foreach ($tg in $targets) {
+            $artDir = if ($tg.art -eq 'prism') { 'steam/art-prism' } else { 'steam/art' }
+            $items = @(
+                @("$artDir/cover.png", (Join-Path $tg.grid "$($tg.appid)p.png")),
+                @("$artDir/hero.png", (Join-Path $tg.grid "$($tg.appid)_hero.png")),
+                @("$artDir/logo.png", (Join-Path $tg.grid "$($tg.appid)_logo.png")),
+                @("$artDir/icon.png", (Join-Path $tg.grid "$($tg.appid)_icon.png")),
+                @("$artDir/wide.png", (Join-Path $tg.grid "$($tg.appid).png")),
+                @('steam/controller_neptune.vdf', (Join-Path $tg.controller 'controller_neptune.vdf')))
+            foreach ($i in $items) {
+                if ($i[0] -like '*.vdf') { if (-not $opt.steam_controller) { continue } } elseif (-not $opt.steam_art) { continue }
+                $src = Join-Path $here $i[0]; $dst = $i[1]
+                if (-not (Test-Path $src)) { continue }
+                $bytes = [IO.File]::ReadAllBytes($src)
+                if ($i[0] -like '*.vdf') {
+                    $text = [Text.Encoding]::UTF8.GetString($bytes) -replace '"url"\s*"[^"]*"', ('"url"' + "`t`t" + '"autosave://' + ($dst -replace '\\', '/') + '"')
+                    $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($text)
+                }
+                $new = Get-PackHash $bytes
+                $have = if (Test-Path $dst) { Get-PackHash ([IO.File]::ReadAllBytes($dst)) } else { $null }
+                # What was last installed there (recorded by destination; by pack file before there were two shortcuts).
+                $last = $state[$dst]; if (-not $last -and $legacy) { $last = $state[$i[0]] }
+                if ($have -eq $new) { $state[$dst] = $new; continue }
+                if ($have -and $last -and $have -ne $last) { continue }   # changed in Steam: kept
+                if ($have -and -not $last) { Copy-Item $dst "$dst.before-pack" -Force }
+                New-Item -ItemType Directory -Force (Split-Path $dst) | Out-Null
+                [IO.File]::WriteAllBytes($dst, $bytes)
+                $state[$dst] = $new; $changed += (Split-Path $i[0] -Leaf)
             }
-            $new = Get-PackHash $bytes
-            $have = if (Test-Path $dst) { Get-PackHash ([IO.File]::ReadAllBytes($dst)) } else { $null }
-            $last = $state[$i[0]]
-            if ($have -eq $new) { $state[$i[0]] = $new; continue }
-            if ($have -and $last -and $have -ne $last) { continue }   # changed in Steam: kept
-            if ($have -and -not $last) { Copy-Item $dst "$dst.before-pack" -Force }
-            New-Item -ItemType Directory -Force (Split-Path $dst) | Out-Null
-            [IO.File]::WriteAllBytes($dst, $bytes)
-            $state[$i[0]] = $new; $changed += (Split-Path $i[0] -Leaf)
-        }
-        # The layout is only used once Steam's list for this controller type names it.
-        $set = Join-Path (Split-Path $t.controller) 'configset_controller_neptune.vdf'
-        $key = Split-Path $t.controller -Leaf
-        $txt = if (Test-Path $set) { [IO.File]::ReadAllText($set) } else { "`"controller_config`"`n{`n}`n" }
-        if ($opt.steam_controller -and $txt.IndexOf("`"$key`"", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
-            $end = $txt.LastIndexOf('}')
-            $txt = $txt.Substring(0, $end) + "`t`"$key`"`n`t{`n`t`t`"autosave`"`t`t`"1`"`n`t}`n" + $txt.Substring($end)
-            [IO.File]::WriteAllText($set, $txt); $changed += 'controller list'
+            # The layout is only used once Steam's list for this controller type names it.
+            $set = Join-Path (Split-Path $tg.controller) 'configset_controller_neptune.vdf'
+            $key = Split-Path $tg.controller -Leaf
+            $txt = if (Test-Path $set) { [IO.File]::ReadAllText($set) } else { "`"controller_config`"`n{`n}`n" }
+            if ($opt.steam_controller -and $txt.IndexOf("`"$key`"", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+                $end = $txt.LastIndexOf('}')
+                $txt = $txt.Substring(0, $end) + "`t`"$key`"`n`t{`n`t`t`"autosave`"`t`t`"1`"`n`t}`n" + $txt.Substring($end)
+                [IO.File]::WriteAllText($set, $txt); $changed += 'controller list'
+            }
         }
         $state | ConvertTo-Json | Set-Content -Encoding utf8 $statePath
         if ($changed) { Note ("Steam extras updated: " + ($changed -join ', ') + " (shows after Steam restarts)"); News 'Steam library art or controller layout updated (shows after Steam restarts)' }

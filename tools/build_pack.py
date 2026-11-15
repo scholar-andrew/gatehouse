@@ -89,7 +89,9 @@ def build(variant: str, meta: dict, mods: list) -> None:
                 f.write(data)
             entries.append((rel, sha256(data), "preserve"))
     # Steam extras, applied by the sync after the mods: the library art and the Steam Deck controller layout.
-    for src_rel, rel in [("installer/art/" + n, "steam/art/" + n) for n in ("cover.png", "hero.png", "logo.png", "icon.png", "wide.png")] + [("installer/steam/controller_neptune.vdf", "steam/controller_neptune.vdf")]:
+    # Prism Launcher's logo art goes to the shortcut that opens Prism; the pack's own to the one that starts the game.
+    arts = ("cover.png", "hero.png", "logo.png", "icon.png", "wide.png")
+    for src_rel, rel in [("installer/art/" + n, "steam/art/" + n) for n in arts] + [("installer/art-prism/" + n, "steam/art-prism/" + n) for n in arts] + [("installer/steam/controller_neptune.vdf", "steam/controller_neptune.vdf")]:
         data = open(os.path.join(ROOT, src_rel), "rb").read()
         os.makedirs(os.path.dirname(os.path.join(out, rel)), exist_ok=True)
         with open(os.path.join(out, rel), "wb") as f:

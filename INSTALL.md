@@ -1,8 +1,9 @@
 # Playing on October Journey
 
 One download sets everything up: Prism Launcher, the modpack (it updates itself every time you play), the server in your
-server list, and a Steam shortcut with its own library art and Steam Deck controller layout. You choose which of these
-you want, and the uninstaller lets you choose what to remove.
+server list, and two Steam shortcuts: **October Journey**, which updates the pack, starts the game and joins the
+server, and **Prism Launcher**, which opens the launcher. Both get library art and the Steam Deck controller layout.
+You choose which of these you want, and the uninstaller lets you choose what to remove.
 
 This page covers installing, [choosing what to install](#choosing-what-to-install), [what it was tested on](#tested-on), then
 [exactly what setup changes on your computer](#what-setup-does-to-your-computer),
@@ -26,9 +27,9 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
      download it again. The same applies to the uninstaller.
 3. Click **Quick install** for everything in the usual folders, or **Choose what to install...** to tick items and pick
    folders ([Choosing what to install](#choosing-what-to-install)).
-4. If you chose the Steam shortcut, it asks you to quit Steam (Steam menu, then Exit): do that and click OK.
-5. Start Steam, find **Minecraft (Prism Launcher) - your computer's name** in your library, and play. The first time
-   Prism opens, sign in with your Microsoft account and pick **October Journey 26.3 (Fabric)**.
+4. If you chose a Steam shortcut, it asks you to quit Steam (Steam menu, then Exit): do that and click OK.
+5. Start Steam, find **October Journey - your computer's name** in your library, and play: it updates the pack, then
+   starts the game and joins the server. The first time, Prism Launcher opens to sign in with your Microsoft account.
 
 ## Linux, including Steam Deck
 1. Download (on a Steam Deck, switch to **Desktop Mode** first)
@@ -52,11 +53,12 @@ choose item by item (Windows: checkboxes; Linux: a question per item; all on by 
 
 | Item | What it adds | Notes |
 | --- | --- | --- |
-| **Prism Launcher** | The game launcher | Only offered when it isn't installed. Without it, the Steam shortcut can't be made; install Prism later and the instance shows up in it. |
+| **Prism Launcher** | The game launcher | Only offered when it isn't installed. Without it, the Steam shortcuts can't be made; install Prism later and the instance shows up in it. |
 | **October Journey server** | The server in the game's server list | |
-| **Steam library shortcut** | **Minecraft (Prism Launcher) - your device's name** in Steam | Needs Steam and Prism. Steam has to be closed. |
-| **Steam library art** | Cover, banner, logo and icon for the shortcut | Needs the shortcut. |
-| **Steam Deck controller layout** | The pack's layout for Steam Deck controls on the shortcut | Needs the shortcut. |
+| **October Journey shortcut** | **October Journey - your device's name** in Steam: updates the pack (and shows the [launch pop-up](#before-the-game-starts-the-launch-pop-up)), then starts the game and joins the server | Needs Steam and Prism. Steam has to be closed. |
+| **Prism Launcher shortcut** | **Minecraft (Prism Launcher) - your device's name** in Steam: opens Prism Launcher | Needs Steam and Prism. Steam has to be closed. |
+| **Steam library art** | Cover, banner, logo and icon: October Journey's own for its shortcut, Prism Launcher's logo for Prism's | Needs a shortcut. |
+| **Steam Deck controller layout** | The pack's layout for Steam Deck controls, on both shortcuts | Needs a shortcut. |
 | **Keep these up to date when you play** | Each launch brings the server entry, art and layout up to date with the pack | Only for the ones you chose. Changes you make yourself are kept either way. On Linux this also gives Prism's Flatpak access to the two Steam folders it needs. |
 | **Save the uninstaller** | The uninstaller, kept on your device | Windows: in **Settings, Apps**. Linux: **Uninstall October Journey** in the app menu. |
 | **Save this installer** | A copy of setup, to change your choices later | Windows: **Settings, Apps**, **Modify** (with the uninstaller saved). Linux: **October Journey setup** in the app menu. |
@@ -70,9 +72,18 @@ choose item by item (Windows: checkboxes; Linux: a question per item; all on by 
 Set by other programs, so not chosen here: the game instance goes in Prism Launcher's instances folder (Prism's own
 setting, if you've changed it, is followed), and the Steam shortcut, art and layout go where Steam keeps them.
 
-Running setup again adds what you tick; it doesn't remove what you leave unticked (that's the uninstaller's job).
+Running setup again adds what you tick; it doesn't remove what you leave unticked (that's the uninstaller's job), and
+it keeps your mod switches and pop-up settings.
+
+**Set up before the October Journey shortcut existed?** Download setup again (or use the saved one: Windows **Settings,
+Apps**, **Modify**; Linux **October Journey setup** in the app menu, from Desktop Mode on a Steam Deck) and run it with
+Steam closed. Its first choice is **Add the October Journey shortcut**: that adds only the new shortcut, gives the
+Prism Launcher shortcut Prism's own art, adds the controller layout to both, and updates the saved uninstaller and
+installer. Nothing else changes. Updates can't add a shortcut themselves, because Steam rewrites its shortcut list
+when it closes, and updates run while Steam is open.
 For scripts: `--yes` is a quick install without asking, `--skip=item,item` leaves items out (`prism`, `server`,
-`shortcut`, `art`, `controller`, `updates`, `uninstaller`, `installer`), `--tools-dir=DIR` picks the uninstaller and
+`game` (the October Journey shortcut), `shortcut` (the Prism Launcher one), `art`, `controller`, `updates`,
+`uninstaller`, `installer`), `--yes --add-shortcut` does only what **Add the October Journey shortcut** does, `--tools-dir=DIR` picks the uninstaller and
 installer's folder, and on Windows `--prism-dir=DIR` picks Prism Launcher's; for example
 `OctoberJourneySetup.exe --yes --skip=art,updates`.
 
@@ -177,19 +188,24 @@ happens only if you chose that item, except the game instance, which is always i
      SHA-256 in `config.json`), `pack-sources.txt` (where updates come from), `pack-options.json` (which of the server
      entry, art and layout each launch keeps up to date: item *Keep these up to date*), and, with item *October Journey
      server*, `servers.dat` with the server added (existing entries are kept).
-3. **Steam** (item *Steam library shortcut*, and Steam installed). It finds Steam through the registry (`HKCU\Software\Valve\Steam`) and your
+3. **Steam** (items *October Journey shortcut* and *Prism Launcher shortcut*, and Steam installed). It finds Steam through the registry (`HKCU\Software\Valve\Steam`) and your
    Steam account number from Steam's `config\loginusers.vdf` (the account you used most recently). Steam must be closed
    for this part; setup asks you to quit it and waits.
-   - Adds a non-Steam game shortcut, **Minecraft (Prism Launcher) - your computer's name**, to
-     `Steam\userdata\<account>\config\shortcuts.vdf`, or updates an existing Prism shortcut instead of adding a second.
-     The old file is kept as `shortcuts.vdf.bak-setup`.
-   - Item *Steam library art*: saves the library art (five PNGs made for this pack, from [`installer/art`](installer/art)) in
-     `Steam\userdata\<account>\config\grid\`, named after the shortcut's app ID.
+   - Adds non-Steam game shortcuts to `Steam\userdata\<account>\config\shortcuts.vdf`, or updates existing ones
+     instead of adding them again. Both run `prismlauncher.exe`. **October Journey - your computer's name** adds
+     `--launch october-journey --server <the server's address>` (Prism launches the instance, which runs the update
+     first, and Minecraft joins the server). **Minecraft (Prism Launcher) - your computer's name** has no options, so
+     it opens Prism. The old file is kept as `shortcuts.vdf.bak-setup`.
+   - Item *Steam library art*: saves five PNGs per shortcut in `Steam\userdata\<account>\config\grid\`, named after
+     the shortcut's app ID. The October Journey shortcut gets the art made for this pack, from
+     [`installer/art`](installer/art). The Prism Launcher shortcut gets Prism Launcher's logo on a plain background, from
+     [`installer/art-prism`](installer/art-prism); its [NOTICE](installer/art-prism/NOTICE.md) has the logo's licence.
    - Item *Steam Deck controller layout*: saves the layout as
-     `Steam\steamapps\common\Steam Controller Configs\<account>\config\<shortcut name>\controller_neptune.vdf` (an
-     existing one is kept as `.bak-setup`) and lists it in `configset_controller_neptune.vdf` in the folder above.
-   - Writes `steam-target.json` in the instance's `minecraft\` folder: where the art and layout live, so updates can
-     reach them.
+     `Steam\steamapps\common\Steam Controller Configs\<account>\config\<shortcut name>\controller_neptune.vdf` for
+     each shortcut (an existing one is kept as `.bak-setup`) and lists it in `configset_controller_neptune.vdf` in the
+     folder above.
+   - Writes `steam-target.json` in the instance's `minecraft\` folder: where each shortcut's art and layout live, so
+     updates can reach them.
 4. **The uninstaller** (item *Save the uninstaller*). Downloads `OctoberJourneyUninstall.exe` from this repository's
    release, checks it against the SHA-256 in `config.json`, saves it as `OctoberJourneyUninstall.exe` in the folder
    you chose (default `%LOCALAPPDATA%\OctoberJourney`), and lists it in **Settings, Apps** as **October Journey
@@ -207,7 +223,8 @@ Same steps, with these differences:
 2. **The instance** is at `~/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/october-journey`
    (or in the instances folder set in Prism's settings), and its pre-launch command is `bash $INST_MC_DIR/pack-sync.sh`.
 3. **Steam** is at `~/.local/share/Steam`. If Steam is running, setup asks first and then closes it with
-   `steam -shutdown`. The shortcut runs `flatpak run org.prismlauncher.PrismLauncher`.
+   `steam -shutdown`. The shortcuts run `flatpak run org.prismlauncher.PrismLauncher`, the October Journey one with
+   `--launch october-journey --server <the server's address>` added.
 4. **Flatpak permission** (item *Keep these up to date*, with the art or layout chosen). Prism runs in Flatpak's
    sandbox and can't normally see Steam's folders. So that updates can refresh the art and controller layout, setup grants Prism access to exactly two folders with
    `flatpak override --user --filesystem=...`: `~/.local/share/Steam/userdata/<account>/config/grid` and
@@ -278,9 +295,9 @@ The downloaded copy works too on a setup made before setup saved the uninstaller
 
 | Item | What goes | Default |
 | --- | --- | --- |
-| **Steam library shortcut** | Each Steam shortcut named **Minecraft (Prism Launcher) - ...** that starts Prism Launcher, in every Steam account on the device. The shortcut list is backed up first as `shortcuts.vdf.bak-uninstall`; other shortcuts are kept. Its art and controller layout go with it. | yes |
-| **Steam library art** | The shortcut's art, and the `.before-pack` copies the update script kept | yes |
-| **Steam Deck controller layout** | The shortcut's layout folder and its entry in Steam's layout list | yes |
+| **Steam library shortcuts** | Each Steam shortcut named **October Journey - ...** or **Minecraft (Prism Launcher) - ...** that starts Prism Launcher, in every Steam account on the device. The shortcut list is backed up first as `shortcuts.vdf.bak-uninstall`; other shortcuts are kept. Their art and controller layouts go with them. | yes |
+| **Steam library art** | The shortcuts' art, and the `.before-pack` copies the update script kept | yes |
+| **Steam Deck controller layout** | The shortcuts' layout folders and their entries in Steam's layout list | yes |
 | **Prism's Steam folder permissions** (Linux) | The two Flatpak folder permissions setup gave Prism; other Flatpak settings for Prism are kept | yes |
 | **Game instance** | `%APPDATA%\PrismLauncher\instances\october-journey`, or `~/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/october-journey`, with its screenshots and any single-player worlds. The server entry goes with it. | yes |
 | **October Journey server** | The server's entry in the game's server list (when the instance is kept) | yes |

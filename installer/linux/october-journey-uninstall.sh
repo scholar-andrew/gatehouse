@@ -6,7 +6,7 @@
 # It first offers a quick uninstall (everything it finds except Prism Launcher); otherwise it asks about each item it
 # finds (Enter = yes, except Prism Launcher). It finds the instance in Prism's own instances folder, and the saved
 # installer and uninstaller wherever setup put them (from their app-menu entries). The items:
-#   shortcut     Steam shortcuts "Minecraft (Prism Launcher) - ..." that start Prism (every Steam account; shortcuts.vdf is
+#   shortcut     Steam shortcuts "Minecraft (Prism Launcher) - ..." and "October Journey - ..." that start Prism (every Steam account; shortcuts.vdf is
 #                backed up first as shortcuts.vdf.bak-uninstall). Their art and controller layout go with them.
 #   art          the shortcut's library art (and the .before-pack copies the pack sync kept)
 #   controller   the shortcut's controller layout folder and its entry in Steam's layout list
@@ -71,7 +71,7 @@ work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 # Steam's binary shortcuts.vdf and Minecraft's servers.dat, for both finding and removing.
 cat > "$work/lib.py" <<'PY'
 import json, os, re, shutil, struct
-PREFIX = "Minecraft (Prism Launcher)"
+PREFIX = ("Minecraft (Prism Launcher)", "October Journey")  # setup's two shortcuts, each " - <device>"
 APP = "org.prismlauncher.PrismLauncher"
 def rmap(b, i):
     out = []

@@ -3,10 +3,11 @@
 // The first screen offers a quick uninstall (everything it finds except Prism Launcher) or choosing item by item. It
 // finds Prism Launcher, the instance and the saved installer and uninstaller wherever setup put them (Prism's own
 // records and instances setting, the Settings > Apps entry). The items (all ticked except Prism Launcher):
-//   shortcut     Steam shortcuts "Minecraft (Prism Launcher) - ..." that start Prism (every Steam account; shortcuts.vdf is
-//                backed up first as shortcuts.vdf.bak-uninstall). Their art and controller layout go with them.
-//   art          the shortcut's library art (and the .before-pack copies the pack sync kept)
-//   controller   the shortcut's controller layout folder and its entry in Steam's layout list
+//   shortcut     Steam shortcuts "Minecraft (Prism Launcher) - ..." and "October Journey - ..." that start Prism (every
+//                Steam account; shortcuts.vdf is backed up first as shortcuts.vdf.bak-uninstall). Their art and
+//                controller layouts go with them.
+//   art          the shortcuts' library art (and the .before-pack copies the pack sync kept)
+//   controller   the shortcuts' controller layout folders and their entries in Steam's layout list
 //   server       the October Journey server in the instance's server list
 //   instance     the Prism instance <Prism's instances folder>\october-journey (screenshots and any single-player
 //                worlds in it go too). Removing it removes the server entry with it.
@@ -32,7 +33,9 @@ using Microsoft.Win32;
 
 static class Uninstall
 {
-    const string ShortcutName = "Minecraft (Prism Launcher)";
+    // Setup's two shortcuts (each followed by " - <computer name>"): the one that opens Prism Launcher, and the one that
+    // starts the game and joins the server.
+    static readonly string[] ShortcutName = { "Minecraft (Prism Launcher)", "October Journey" };
     const string InstanceId = "october-journey";
     const string Title = "October Journey uninstall";
     const string AppsKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney";
@@ -91,9 +94,9 @@ static class Uninstall
             // What to remove.
             var opts = new Options();
             string shortcutNames = string.Join(", ", found.Select(f => "\"" + f.Name + "\"").Distinct());
-            if (found.Count > 0) opts.Add("shortcut", "Steam library shortcut", shortcutNames + ". Its art and controller layout go with it.", true, true);
-            if (hasArt) opts.Add("art", "Steam library art", "The shortcut's cover, banner, logo and icon.", true, true, null, found.Count > 0 ? "shortcut" : null);
-            if (hasLayout) opts.Add("controller", "Steam Deck controller layout", "The shortcut's controller layout and its entry in Steam's list.", true, true, null, found.Count > 0 ? "shortcut" : null);
+            if (found.Count > 0) opts.Add("shortcut", found.Count > 1 ? "Steam library shortcuts" : "Steam library shortcut", shortcutNames + ". Their art and controller layouts go with them.", true, true);
+            if (hasArt) opts.Add("art", "Steam library art", "The shortcuts' cover, banner, logo and icon.", true, true, null, found.Count > 0 ? "shortcut" : null);
+            if (hasLayout) opts.Add("controller", "Steam Deck controller layout", "The shortcuts' controller layouts and their entries in Steam's list.", true, true, null, found.Count > 0 ? "shortcut" : null);
             if (hasInstance) opts.Add("instance", "Game instance (the modpack)", inst + ". Its screenshots and any single-player worlds are deleted with it.", true, true);
             if (hasServer) opts.Add("server", "October Journey server", "The server's entry in the game's server list.", true, true, null, "instance");
             if (hasPrism) opts.Add("prism", "Prism Launcher", "The launcher itself, by its own uninstaller. Leave this off if you use Prism for anything else.", false, true);
@@ -380,9 +383,9 @@ static class Shortcuts
     }
     static string Field(List<Node> e, string key) { var n = e.FirstOrDefault(x => string.Equals(x.Key, key, StringComparison.OrdinalIgnoreCase)); return n == null ? null : n.Value as string; }
 
-    // Finds (write: false) or removes (write: true) every shortcut whose name starts with namePrefix and that starts
-    // Prism Launcher; returns them.
-    public static List<Removed> Remove(string path, string namePrefix, bool write)
+    // Finds (write: false) or removes (write: true) every shortcut whose name starts with one of namePrefixes and that
+    // starts Prism Launcher; returns them.
+    public static List<Removed> Remove(string path, string[] namePrefixes, bool write)
     {
         var removed = new List<Removed>();
         if (!File.Exists(path)) return removed;
@@ -397,7 +400,7 @@ static class Shortcuts
             var e = (List<Node>)n.Value;
             string name = Field(e, "AppName") ?? "", exe = Field(e, "Exe") ?? "", opts = Field(e, "LaunchOptions") ?? "";
             bool prism = exe.IndexOf("prismlauncher", StringComparison.OrdinalIgnoreCase) >= 0 || opts.IndexOf("org.prismlauncher.PrismLauncher", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (prism && name.StartsWith(namePrefix, StringComparison.Ordinal))
+            if (prism && namePrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)))
             {
                 var id = e.FirstOrDefault(x => string.Equals(x.Key, "appid", StringComparison.OrdinalIgnoreCase));
                 removed.Add(new Removed { Name = name, AppId = id == null ? 0 : unchecked((uint)(int)id.Value) });

@@ -6,17 +6,24 @@
 // Launcher and the saved uninstaller and installer:
 //   prism        Prism Launcher, if it isn't installed (official installer from GitHub, SHA-256 checked)
 //   server       the October Journey server in the instance's server list
-//   shortcut     a Steam shortcut "Minecraft (Prism Launcher) - <this computer>" (Steam must be closed; it asks)
-//   art          Steam library art for the shortcut (needs the shortcut)
-//   controller   the Steam Deck controller layout for the shortcut (needs the shortcut)
+//   game         a Steam shortcut "October Journey - <this computer>" that starts the game and joins the server
+//                (Prism's --launch and --server; the pack update and launch pop-up still run first)
+//   shortcut     a Steam shortcut "Minecraft (Prism Launcher) - <this computer>" that opens Prism Launcher
+//                (Steam must be closed for either shortcut; it asks)
+//   art          Steam library art: October Journey's for its shortcut, Prism Launcher's logo for Prism's
+//   controller   the Steam Deck controller layout for both shortcuts
 //   updates      keep the server entry, art and layout up to date on each launch (pack-options.json)
 //   uninstaller  save the uninstaller to %LOCALAPPDATA%\OctoberJourney and list it in Settings > Apps
 //   installer    save this installer there too, to change these choices later (Settings > Apps > Modify)
+// When the pack is already here but the October Journey shortcut isn't (set up before it existed), the first screen
+// also offers adding just that shortcut, with the art and layouts of both shortcuts and a refreshed saved uninstaller.
 // Flags: --yes  (no questions: everything above; stops if Steam is running)
+//        --add-shortcut  (with --yes: only add the October Journey shortcut, as that first-screen choice does)
 //        --skip=item,item  (leave those out, e.g. --skip=prism,art)
 //        --prism-dir=DIR  (where to install Prism Launcher; default %LOCALAPPDATA%\Programs\PrismLauncher)
 //        --tools-dir=DIR  (where to save the uninstaller and installer; default %LOCALAPPDATA%\OctoberJourney)
 //        --prism-root=DIR --steam-root=DIR  (testing: use these folders instead of the real ones; Steam may stay open)
+//        --config=URL  (testing: read config.json from there, e.g. file:///C:/.../installer/config.json)
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -57,37 +64,71 @@ static class Setup
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             Say("October Journey setup");
-            var cfg = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(Text(ConfigUrl));
+            var cfg = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(Text(Arg(args, "--config") ?? ConfigUrl));
             string repo = (string)cfg["repo_raw"];
             string steam = steamRoot ?? SteamPath();
             string prism = PrismExe();
             string device = DeviceName();
+            string instId = (string)cfg["instance_id"];
+            string prismName = (string)cfg["shortcut_name"] + " - " + device;
+            string gameName = (cfg.ContainsKey("game_shortcut_name") ? (string)cfg["game_shortcut_name"] : "October Journey") + " - " + device;
+            string server = (string)((Dictionary<string, object>)((object[])cfg["servers"])[0])["address"];
+            string instances = InstancesDir();
+            string inst = Path.Combine(instances, instId);
+            string mc = Path.Combine(inst, "minecraft");
+
+            // What's here already: the pack, and which of the two Steam shortcuts.
+            string acct = null;
+            bool hasPrismShortcut = false, hasGameShortcut = false;
+            if (steam != null)
+                try { acct = SteamAccount(steam); var f = Shortcuts.Find(Path.Combine(steam, "userdata", acct, "config", "shortcuts.vdf"), instId, prismName, gameName); hasPrismShortcut = f[0]; hasGameShortcut = f[1]; }
+                catch { }
+            bool packHere = File.Exists(Path.Combine(inst, "instance.cfg"));
+            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string savedTools = prismRoot == null ? SavedToolsDir() : null;
+            string toolsDefault = savedTools ?? (prismRoot != null ? Path.Combine(prismRoot, "OctoberJourney") : Path.Combine(localApp, "OctoberJourney"));
 
             // What to install.
             var opts = new Options();
             opts.Add("prism", "Prism Launcher", prism != null ? "Already installed." : "The game launcher, from Prism's official GitHub release (checked against its SHA-256).", true, prism == null);
             opts.Add("server", "October Journey server", "Adds the server to the game's server list.", true, true);
-            opts.Add("shortcut", "Steam library shortcut", steam == null ? "Steam isn't installed." : "\"Minecraft (Prism Launcher) - " + device + "\" in your Steam library. Steam has to be closed for this.", steam != null, steam != null, "prism");
-            opts.Add("art", "Steam library art", "Cover, banner, logo and icon for the shortcut.", steam != null, steam != null, "shortcut");
-            opts.Add("controller", "Steam Deck controller layout", "The pack's layout (R4 jump, L4 crouch, trackpad mouse) for the shortcut on Steam Deck controls.", steam != null, steam != null, "shortcut");
-            opts.Add("updates", "Keep these up to date when you play", "Each launch brings the server entry, art and controller layout up to date with the pack. Changes you make yourself are kept.", true, true, "server|art|controller");
+            opts.Add("game", "October Journey shortcut", steam == null ? "Steam isn't installed." : "\"" + gameName + "\" in your Steam library: updates the pack, then starts the game and joins the server. Steam has to be closed for this.", steam != null, steam != null, "prism");
+            opts.Add("shortcut", "Prism Launcher shortcut", steam == null ? "Steam isn't installed." : "\"" + prismName + "\" in your Steam library: opens Prism Launcher. Steam has to be closed for this.", steam != null, steam != null, "prism");
+            opts.Add("art", "Steam library art", "October Journey's own art for its shortcut, and Prism Launcher's logo for Prism's.", steam != null, steam != null, "game|shortcut");
+            opts.Add("controller", "Steam Deck controller layout", "The pack's layout (R4 jump, L4 crouch, trackpad mouse) for both shortcuts on Steam Deck controls.", steam != null, steam != null, "game|shortcut");
+            opts.Add("updates", "Keep these up to date when you play", "Each launch brings the server entry, art and controller layouts up to date with the pack. Changes you make yourself are kept.", true, true, "server|art|controller");
             opts.Add("uninstaller", "Save the uninstaller", "Listed in Settings > Apps, to remove October Journey later.", true, true);
             opts.Add("installer", "Save this installer", "Beside the uninstaller, to change these choices later (Settings > Apps > Modify).", true, true);
-            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (prism == null) opts.AddFolder("prismdir", "Prism Launcher", "where to install it.", Path.Combine(localApp, "Programs", "PrismLauncher"), "prism");
-            opts.AddFolder("toolsdir", "Uninstaller and installer", "where to save them.", prismRoot != null ? Path.Combine(prismRoot, "OctoberJourney") : Path.Combine(localApp, "OctoberJourney"), "uninstaller|installer");
-            string instances = InstancesDir();
-            opts.FixedPlaces = "Set by other programs: the game instance goes in Prism Launcher's instances folder (" + instances + "), and the Steam shortcut, art and layout go where Steam keeps them" + (steam != null ? " (" + steam + ")." : ".");
+            opts.AddFolder("toolsdir", "Uninstaller and installer", "where to save them.", toolsDefault, "uninstaller|installer");
+            opts.FixedPlaces = "Set by other programs: the game instance goes in Prism Launcher's instances folder (" + instances + "), and the Steam shortcuts, art and layouts go where Steam keeps them" + (steam != null ? " (" + steam + ")." : ".");
             if (prism == null) opts.SetFolder("prismdir", Arg(args, "--prism-dir"));
             opts.SetFolder("toolsdir", Arg(args, "--tools-dir"));
             opts.ApplySkips(skip);
+
+            // Setup from before the October Journey shortcut existed: offer to add just that (and the art and layouts that
+            // go with the two shortcuts), refreshing a saved uninstaller and installer so they know about it too.
+            bool offerAdd = packHere && steam != null && prism != null && !hasGameShortcut;
+            bool addOnly = args.Contains("--add-shortcut") && offerAdd;
+            Action onlyAdd = () =>
+            {
+                var keep = new List<string> { "game", "art", "controller" };
+                if (hasPrismShortcut) keep.Add("shortcut");
+                if (savedTools != null && File.Exists(Path.Combine(savedTools, "OctoberJourneyUninstall.exe"))) keep.Add("uninstaller");
+                if (savedTools != null && File.Exists(Path.Combine(savedTools, "OctoberJourneySetup.exe"))) keep.Add("installer");
+                opts.Only(keep.ToArray());
+            };
+            if (addOnly) onlyAdd();
             if (!quiet)
             {
                 string mode = Options.AskQuick(Title, "Installs the October Journey modpack: a Prism Launcher instance whose mods update every time you play.",
-                    "Quick install (recommended)", "Prism Launcher" + (prism != null ? " (already installed)" : "") + ", the server, " + (steam != null ? "the Steam shortcut with its art and controller layout, " : "") + "updates, and the uninstaller, in the usual folders.",
-                    "Choose what to install...", "Pick the items and where Prism Launcher and the uninstaller go.");
+                    "Quick install" + (offerAdd ? "" : " (recommended)"), "Prism Launcher" + (prism != null ? " (already installed)" : "") + ", the server, " + (steam != null ? "two Steam shortcuts (October Journey and Prism Launcher) with their art and controller layout, " : "") + "updates, and the uninstaller, in the usual folders.",
+                    "Choose what to install...", "Pick the items and where Prism Launcher and the uninstaller go.",
+                    offerAdd ? "Add the October Journey shortcut (new, recommended)" : null,
+                    offerAdd ? "October Journey is already set up here. This adds only the new \"" + gameName + "\" shortcut, which starts the game and joins the server, gives " + (hasPrismShortcut ? "the Prism Launcher shortcut Prism's own art, adds the controller layout to both" : "it the art and controller layout") + ", and updates the saved uninstaller. Nothing else changes." : null);
                 if (mode == null || (mode == "custom" && !opts.ShowDialog(Title, "The October Journey modpack is always installed. Choose what else to add:", "Install"))) { Say("Cancelled."); return 1; }
-                Say("Install mode: " + mode);
+                if (mode == "extra") { onlyAdd(); addOnly = true; }
+                Say("Install mode: " + (addOnly ? "add the October Journey shortcut" : mode));
             }
             Say("Chosen: " + string.Join(", ", opts.Chosen()));
             foreach (var key in new[] { "prismdir", "toolsdir" })
@@ -98,8 +139,6 @@ static class Setup
             if (prism == null) Say("Prism Launcher isn't installed: install it before playing, then the instance shows up in it.");
 
             // The instance (always), in Prism's instances folder.
-            string inst = Path.Combine(instances, (string)cfg["instance_id"]);
-            string mc = Path.Combine(inst, "minecraft");
             Directory.CreateDirectory(mc);
             File.WriteAllBytes(Path.Combine(inst, "mmc-pack.json"), Bytes(repo + "/clients/mmc-pack.json"));
             WriteInstanceCfg(Path.Combine(inst, "instance.cfg"), (string)cfg["instance_name"]);
@@ -119,33 +158,56 @@ static class Setup
                 Say("Server added to the server list.");
             }
 
-            // What each launch keeps up to date (read by pack-sync.ps1).
-            bool upd = opts.On("updates");
-            File.WriteAllText(Path.Combine(mc, "pack-options.json"), new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
-                { "steam_art", upd && opts.On("art") }, { "steam_controller", upd && opts.On("controller") }, { "server_entry", upd && opts.On("server") } }));
-
-            // Steam.
-            if (opts.On("shortcut") && steam != null && prism != null)
+            // What each launch keeps up to date (read by pack-sync.ps1), kept beside the player's own settings in the same
+            // file (mod switches, pop-ups). Adding only the new shortcut leaves it as it is.
+            if (!addOnly)
             {
-                string acct = SteamAccount(steam);
+                bool upd = opts.On("updates");
+                string poPath = Path.Combine(mc, "pack-options.json");
+                Dictionary<string, object> po = null;
+                try { po = new JavaScriptSerializer().DeserializeObject(File.ReadAllText(poPath)) as Dictionary<string, object>; } catch { }
+                if (po == null) po = new Dictionary<string, object>();
+                po["steam_art"] = upd && opts.On("art"); po["steam_controller"] = upd && opts.On("controller"); po["server_entry"] = upd && opts.On("server");
+                File.WriteAllText(poPath, new JavaScriptSerializer().Serialize(po));
+            }
+
+            // Steam: the October Journey shortcut (starts the game and joins the server) and the Prism Launcher one.
+            string play = null;
+            if ((opts.On("game") || opts.On("shortcut")) && steam != null && prism != null)
+            {
+                if (acct == null) acct = SteamAccount(steam);
                 if (steamRoot == null) WaitForSteamClosed();
-                string name = (string)cfg["shortcut_name"] + " - " + device;
                 string cfgDir = Path.Combine(steam, "userdata", acct, "config");
                 Directory.CreateDirectory(cfgDir);
-                string iconPath = Path.Combine(cfgDir, "grid", "{0}_icon.png");
-                uint appid = Shortcuts.Upsert(Path.Combine(cfgDir, "shortcuts.vdf"), name, prism, iconPath);
-                Say("Steam shortcut: " + name + " (app " + appid + ")");
-                if (opts.On("art")) Art(Path.Combine(cfgDir, "grid"), repo, appid, (Dictionary<string, object>)cfg["art"]);
-                if (opts.On("controller")) Controller(steam, acct, name.ToLowerInvariant(), repo);
-                // Where the pack sync puts later art and layout updates for this shortcut.
-                string ctrl = Path.Combine(steam, "steamapps", "common", "Steam Controller Configs", acct, "config", name.ToLowerInvariant());
-                File.WriteAllText(Path.Combine(mc, "steam-target.json"), new JavaScriptSerializer().Serialize(new Dictionary<string, object> { { "grid", Path.Combine(cfgDir, "grid") }, { "appid", appid }, { "controller", ctrl } }));
+                string grid = Path.Combine(cfgDir, "grid");
+                string layouts = Path.Combine(steam, "steamapps", "common", "Steam Controller Configs", acct, "config");
+                var targets = new List<object>();
+                Dictionary<string, object> gameTarget = null;
+                foreach (bool game in new[] { true, false })
+                {
+                    if (!opts.On(game ? "game" : "shortcut")) continue;
+                    string name = game ? gameName : prismName;
+                    uint appid = Shortcuts.Upsert(Path.Combine(cfgDir, "shortcuts.vdf"), name, prism, game ? "--launch " + instId + " --server " + server : "", Path.Combine(grid, "{0}_icon.png"), game, instId);
+                    Say("Steam shortcut: " + name + " (app " + appid + ")");
+                    object art = game ? cfg["art"] : (cfg.ContainsKey("art_prism") ? cfg["art_prism"] : null);
+                    if (opts.On("art")) { if (art != null) Art(grid, repo, appid, (Dictionary<string, object>)art); else Say("Prism Launcher art skipped: not in setup's settings yet."); }
+                    if (opts.On("controller")) Controller(steam, acct, name.ToLowerInvariant(), repo);
+                    var t = new Dictionary<string, object> { { "grid", grid }, { "appid", appid }, { "controller", Path.Combine(layouts, name.ToLowerInvariant()) }, { "art", game ? "pack" : "prism" } };
+                    targets.Add(t);
+                    if (game) gameTarget = t;
+                    if (play == null) play = name;
+                }
+                // Where the pack sync puts later art and layout updates: "targets", one per shortcut. The single grid /
+                // appid / controller beside it is for pack syncs from before there were two shortcuts.
+                var st = new Dictionary<string, object> { { "targets", targets } };
+                if (gameTarget != null) foreach (var k in new[] { "grid", "appid", "controller" }) st[k] = gameTarget[k];
+                File.WriteAllText(Path.Combine(mc, "steam-target.json"), new JavaScriptSerializer().Serialize(st));
             }
-            else if (opts.On("shortcut")) Say("Steam shortcut skipped: " + (steam == null ? "Steam isn't installed." : "Prism Launcher isn't installed."));
+            else if (opts.On("game") || opts.On("shortcut")) Say("Steam shortcuts skipped: " + (steam == null ? "Steam isn't installed." : "Prism Launcher isn't installed."));
 
             // The saved uninstaller and installer.
             SaveTools(cfg, prism, opts.FolderOf("toolsdir"), opts.On("uninstaller"), opts.On("installer"));
-            Done(opts.On("shortcut") && steam != null && prism != null, device);
+            Done(play, play != null && play == gameName);
             return 0;
         }
         catch (Exception e)
@@ -218,15 +280,26 @@ static class Setup
         Say("Listed in Settings > Apps as \"October Journey (Minecraft modpack)\".");
     }
 
-    static void Done(bool shortcut, string device)
+    static void Done(string shortcut, bool joins)
     {
-        string msg = "All set.\n\n" + (shortcut ? "Start Steam and play \"Minecraft (Prism Launcher) - " + device + "\"." : "Open Prism Launcher and play \"October Journey 26.3 (Fabric)\".") +
-            " The first time Prism opens, sign in with your Microsoft account. Every launch updates the mods.";
+        string msg = "All set.\n\n" + (shortcut == null ? "Open Prism Launcher and play \"October Journey 26.3 (Fabric)\"." :
+            "Start Steam and play \"" + shortcut + "\"" + (joins ? ": it updates the pack, starts the game and joins the server." : ".")) +
+            " The first time, sign in to Prism Launcher with your Microsoft account. Every launch updates the mods.";
         Say(msg.Replace("\n\n", " "));
         if (!quiet) MessageBox.Show(msg, Title, MessageBoxButtons.OK, MessageBoxIcon.Information);
     }
 
     static void Say(string s) { Console.WriteLine(s); log.WriteLine(DateTime.Now.ToString("s") + "  " + s); }
+
+    // Where an earlier setup saved the uninstaller and installer (its Settings > Apps entry), if it did.
+    static string SavedToolsDir()
+    {
+        using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney"))
+        {
+            var d = k == null ? null : k.GetValue("InstallLocation") as string;
+            return !string.IsNullOrEmpty(d) && Directory.Exists(d) ? d : null;
+        }
+    }
 
     // ------------------------------------------------------------------ downloads
     static byte[] Bytes(string url)
@@ -417,8 +490,38 @@ static class Shortcuts
     static Node Get(List<Node> e, string key) { return e.FirstOrDefault(n => string.Equals(n.Key, key, StringComparison.OrdinalIgnoreCase)); }
     static void Set(List<Node> e, string key, byte type, object value) { var n = Get(e, key); if (n == null) e.Add(new Node { Type = type, Key = key, Value = value }); else { n.Type = type; n.Value = value; } }
 
-    // Adds the shortcut, or updates the one that already runs Prism; returns its app id (as Steam names the art files).
-    public static uint Upsert(string path, string name, string exe, string iconPattern)
+    // The October Journey shortcut launches the instance (or has its name); the Prism Launcher one runs Prism without
+    // launching an instance (or has its name).
+    static string Text(List<Node> e, string key) { var n = Get(e, key); return n == null ? "" : (n.Value as string) ?? ""; }
+    static bool IsGame(List<Node> e, string instId, string name)
+    {
+        return Text(e, "LaunchOptions").IndexOf("--launch " + instId, StringComparison.OrdinalIgnoreCase) >= 0 || Text(e, "AppName") == name;
+    }
+    static bool IsPrism(List<Node> e, string name)
+    {
+        return (Text(e, "Exe").IndexOf("prismlauncher.exe", StringComparison.OrdinalIgnoreCase) >= 0 && Text(e, "LaunchOptions").IndexOf("--launch", StringComparison.OrdinalIgnoreCase) < 0) || Text(e, "AppName") == name;
+    }
+
+    // Which of the two shortcuts are there: { Prism Launcher, October Journey }.
+    public static bool[] Find(string path, string instId, string prismName, string gameName)
+    {
+        var found = new bool[2];
+        if (!File.Exists(path)) return found;
+        List<Node> root;
+        using (var r = new BinaryReader(File.OpenRead(path))) root = Read(r);
+        var top = Get(root, "shortcuts");
+        if (top == null) return found;
+        foreach (var n in (List<Node>)top.Value)
+        {
+            var e = (List<Node>)n.Value;
+            if (IsGame(e, instId, gameName)) found[1] = true;
+            else if (IsPrism(e, prismName)) found[0] = true;
+        }
+        return found;
+    }
+
+    // Adds a shortcut, or updates the matching one; returns its app id (as Steam names the art files).
+    public static uint Upsert(string path, string name, string exe, string launchOptions, string iconPattern, bool game, string instId)
     {
         List<Node> root;
         if (File.Exists(path)) { File.Copy(path, path + ".bak-setup", true); using (var r = new BinaryReader(File.OpenRead(path))) root = Read(r); }
@@ -429,8 +532,7 @@ static class Shortcuts
         foreach (var n in list)
         {
             var e = (List<Node>)n.Value;
-            var x = Get(e, "Exe"); var a = Get(e, "AppName");
-            if ((x != null && ((string)x.Value).IndexOf("prismlauncher.exe", StringComparison.OrdinalIgnoreCase) >= 0) || (a != null && (string)a.Value == name)) { entry = e; break; }
+            if (game ? IsGame(e, instId, name) : (!IsGame(e, instId, "\0") && IsPrism(e, name))) { entry = e; break; }
         }
         uint appid = Crc32.Of(quoted + name) | 0x80000000;
         if (entry == null)
@@ -451,6 +553,7 @@ static class Shortcuts
         Set(entry, "AppName", 1, name);
         Set(entry, "Exe", 1, quoted);
         Set(entry, "StartDir", 1, "\"" + Path.GetDirectoryName(exe) + "\\\"");
+        Set(entry, "LaunchOptions", 1, launchOptions);
         Set(entry, "icon", 1, string.Format(iconPattern, appid));
         using (var w = new BinaryWriter(File.Create(path))) Write(w, root);
         return appid;

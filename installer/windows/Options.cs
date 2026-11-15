@@ -45,6 +45,9 @@ class Options
     public string FolderOf(string key) { return folders.First(f => f.Key == key).Value; }
     public void SetFolder(string key, string value) { if (!string.IsNullOrEmpty(value)) folders.First(f => f.Key == key).Value = value; }
 
+    // Exactly these items on (the rest off), except items that can't be changed.
+    public void Only(params string[] keys) { foreach (var i in items) if (!i.Fixed) i.On = keys.Contains(i.Key); Settle(); }
+
     public void ForceOn(string key) { var i = items.FirstOrDefault(x => x.Key == key); if (i != null) { i.On = true; Settle(); } }
 
     public void ApplySkips(ICollection<string> skip)
@@ -81,8 +84,9 @@ class Options
         };
     }
 
-    // The first screen. Returns "quick", "custom" or null (cancelled).
-    public static string AskQuick(string title, string intro, string quickLabel, string quickHelp, string customLabel, string customHelp)
+    // The first screen. Returns "quick", "custom", "extra" (an optional first button, such as setup's "add the new
+    // shortcut") or null (cancelled).
+    public static string AskQuick(string title, string intro, string quickLabel, string quickHelp, string customLabel, string customHelp, string extraLabel = null, string extraHelp = null)
     {
         var form = NewForm(title);
         var flow = new FlowLayoutPanel { FlowDirection = FlowDirection.TopDown, AutoSize = true, WrapContents = false, Dock = DockStyle.Fill };
@@ -95,15 +99,16 @@ class Options
             flow.Controls.Add(b);
             return b;
         };
+        var extra = extraLabel == null ? null : big(extraLabel, extraHelp, DialogResult.Retry);
         var quick = big(quickLabel, quickHelp, DialogResult.Yes);
         big(customLabel, customHelp, DialogResult.No);
         var cancel = new Button { Text = "Cancel", DialogResult = DialogResult.Cancel, AutoSize = true, Anchor = AnchorStyles.Right };
         flow.Controls.Add(cancel);
         form.Controls.Add(flow);
-        form.AcceptButton = quick; form.CancelButton = cancel;
+        form.AcceptButton = extra ?? quick; form.CancelButton = cancel;
         if (ScreenshotPath != null) Snap(form, Path.Combine(Path.GetDirectoryName(ScreenshotPath), Path.GetFileNameWithoutExtension(ScreenshotPath) + "-start.png"), DialogResult.No);
         var r = form.ShowDialog();
-        return r == DialogResult.Yes ? "quick" : r == DialogResult.No ? "custom" : null;
+        return r == DialogResult.Retry ? "extra" : r == DialogResult.Yes ? "quick" : r == DialogResult.No ? "custom" : null;
     }
 
     public bool ShowDialog(string title, string intro, string okText)

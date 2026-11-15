@@ -1,3 +1,7 @@
+== 1.7.0 | 2026-11-14
+- New Steam shortcut, October Journey: it updates the pack, starts the game and joins the server in one go. To add it, close Steam, run the setup again and pick Add the October Journey shortcut.
+- The Prism Launcher shortcut now shows Prism Launcher's own logo, and both shortcuts get the Steam Deck controller layout.
+- Running the setup again keeps your mod switches and pop-up settings.
 == 1.6.0 | 2026-11-14
 - A pop-up like this one now shows before the game starts: what's new after an update, or that you're up to date (that one closes itself after 5 seconds).
 - Turn either pop-up off in Mods > October Journey (Update pop-up, No-update pop-up).

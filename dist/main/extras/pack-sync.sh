@@ -106,47 +106,55 @@ if [ "$code" != 0 ]; then
 fi
 switches apply
 
-# Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcut. steam-target.json
-# (written by setup) says where. First time: installed, keeping what was there as *.before-pack. After that a file is
-# replaced only while it is still the version last installed here, so art or a layout changed in Steam is kept. Steam reads
-# both when it starts: a change shows after Steam is next restarted (or after switching back to Game Mode).
+# Steam extras from the pack (library art, Steam Deck controller layout), into this device's Steam shortcuts.
+# steam-target.json (written by setup) says where: "targets", one per shortcut, each with its grid folder, app id,
+# controller layout folder and which art it gets ("pack": October Journey's, for the shortcut that starts the game;
+# "prism": Prism Launcher's logo, for the one that opens Prism). From before there were two shortcuts it may just have
+# grid / appid / controller for one shortcut with the pack's art. First time: installed, keeping what was there as
+# *.before-pack. After that a file is replaced only while it is still the version last installed here, so art or a
+# layout changed in Steam is kept. Steam reads both when it starts: a change shows after Steam is next restarted (or
+# after switching back to Game Mode).
 # pack-options.json (written by setup and the uninstaller) says which of these the player wants kept up to date:
 # steam_art, steam_controller, server_entry. Missing file or key: yes.
 opt() { python3 -c 'import json,sys
-try: print("1" if json.load(open(sys.argv[1])).get(sys.argv[2], True) else "0")
+try: print("1" if json.load(open(sys.argv[1], encoding="utf-8-sig")).get(sys.argv[2], True) else "0")
 except Exception: print("1")' "$here/pack-options.json" "$1" 2>/dev/null || echo 1; }
 OPT_ART=$(opt steam_art); OPT_CTRL=$(opt steam_controller); OPT_SERVER=$(opt server_entry)
 if [ -f "$here/steam-target.json" ] && command -v python3 >/dev/null 2>&1 && { [ "$OPT_ART" = 1 ] || [ "$OPT_CTRL" = 1 ]; }; then
 python3 - "$here" "$OPT_ART" "$OPT_CTRL" <<'PY' || echo "$(date '+%Y-%m-%d %H:%M:%S')  Steam extras skipped" >> "$here/pack-sync.log"
 import hashlib, json, os, re, shutil, sys, time
 here = sys.argv[1]; want_art, want_ctrl = sys.argv[2] == "1", sys.argv[3] == "1"
-t = json.load(open(os.path.join(here, "steam-target.json")))
+st = json.load(open(os.path.join(here, "steam-target.json")))
+legacy = not st.get("targets")
+targets = [dict(st, art="pack")] if legacy else st["targets"]
 sp = os.path.join(here, "steam-applied.json")
-state = json.load(open(sp)) if os.path.exists(sp) else {}
-g, a = t["grid"], str(t["appid"])
-items = [("steam/art/cover.png", os.path.join(g, a + "p.png")), ("steam/art/hero.png", os.path.join(g, a + "_hero.png")),
-         ("steam/art/logo.png", os.path.join(g, a + "_logo.png")), ("steam/art/icon.png", os.path.join(g, a + "_icon.png")),
-         ("steam/art/wide.png", os.path.join(g, a + ".png")), ("steam/controller_neptune.vdf", os.path.join(t["controller"], "controller_neptune.vdf"))]
+state = json.load(open(sp, encoding="utf-8-sig")) if os.path.exists(sp) else {}
 changed = []
-for src, dst in items:
-    if not (want_ctrl if src.endswith(".vdf") else want_art): continue
-    sp_ = os.path.join(here, src)
-    if not os.path.exists(sp_): continue
-    data = open(sp_, "rb").read()
-    if src.endswith(".vdf"):
-        data = re.sub(r'"url"\s*"[^"]*"', '"url"\t\t"autosave://%s"' % dst, data.decode("utf-8"), count=1).encode("utf-8")
-    new = hashlib.sha256(data).hexdigest()
-    have = hashlib.sha256(open(dst, "rb").read()).hexdigest() if os.path.exists(dst) else None
-    last = state.get(src)
-    if have == new: state[src] = new; continue
-    if have and last and have != last: continue
-    if have and not last: shutil.copy2(dst, dst + ".before-pack")
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
-    open(dst, "wb").write(data); state[src] = new; changed.append(os.path.basename(src))
-cs = os.path.join(os.path.dirname(t["controller"]), "configset_controller_neptune.vdf"); key = os.path.basename(t["controller"])
-txt = open(cs).read() if os.path.exists(cs) else '"controller_config"\n{\n}\n'
-if want_ctrl and ('"%s"' % key.lower()) not in txt.lower():
-    e = txt.rindex("}"); open(cs, "w").write(txt[:e] + '\t"%s"\n\t{\n\t\t"autosave"\t\t"1"\n\t}\n' % key + txt[e:]); changed.append("controller list")
+for t in targets:
+    g, a, art = t["grid"], str(t["appid"]), "steam/art-prism" if t.get("art") == "prism" else "steam/art"
+    items = [(art + "/cover.png", os.path.join(g, a + "p.png")), (art + "/hero.png", os.path.join(g, a + "_hero.png")),
+             (art + "/logo.png", os.path.join(g, a + "_logo.png")), (art + "/icon.png", os.path.join(g, a + "_icon.png")),
+             (art + "/wide.png", os.path.join(g, a + ".png")), ("steam/controller_neptune.vdf", os.path.join(t["controller"], "controller_neptune.vdf"))]
+    for src, dst in items:
+        if not (want_ctrl if src.endswith(".vdf") else want_art): continue
+        sp_ = os.path.join(here, src)
+        if not os.path.exists(sp_): continue
+        data = open(sp_, "rb").read()
+        if src.endswith(".vdf"):
+            data = re.sub(r'"url"\s*"[^"]*"', '"url"\t\t"autosave://%s"' % dst, data.decode("utf-8"), count=1).encode("utf-8")
+        new = hashlib.sha256(data).hexdigest()
+        have = hashlib.sha256(open(dst, "rb").read()).hexdigest() if os.path.exists(dst) else None
+        # What was last installed there (recorded by destination; by pack file before there were two shortcuts).
+        last = state.get(dst) or (state.get(src) if legacy else None)
+        if have == new: state[dst] = new; continue
+        if have and last and have != last: continue
+        if have and not last: shutil.copy2(dst, dst + ".before-pack")
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        open(dst, "wb").write(data); state[dst] = new; changed.append(os.path.basename(src))
+    cs = os.path.join(os.path.dirname(t["controller"]), "configset_controller_neptune.vdf"); key = os.path.basename(t["controller"])
+    txt = open(cs).read() if os.path.exists(cs) else '"controller_config"\n{\n}\n'
+    if want_ctrl and ('"%s"' % key.lower()) not in txt.lower():
+        e = txt.rindex("}"); open(cs, "w").write(txt[:e] + '\t"%s"\n\t{\n\t\t"autosave"\t\t"1"\n\t}\n' % key + txt[e:]); changed.append("controller list")
 json.dump(state, open(sp, "w"), indent=1)
 if changed:
     open(os.path.join(here, "pack-sync.log"), "a").write("%s  Steam extras updated: %s (shows after Steam restarts)\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), ", ".join(changed)))
