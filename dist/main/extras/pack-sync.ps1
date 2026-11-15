@@ -3,6 +3,9 @@
 # to date with packwiz-installer: new and updated mods are downloaded and checked, removed ones taken out. A Windows
 # Prism instance gets the main pack; Steam Deck-only mods are never installed here. Every run is noted in pack-sync.log.
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
+# The pack's name, from its profile (extras/profile.json, shipped with the pack): nothing about a server is fixed here.
+$packName = 'The pack'
+try { $n = (Get-Content (Join-Path $here 'extras/profile.json') -Raw -ErrorAction Stop | ConvertFrom-Json).name; if ($n) { $packName = $n } } catch { }
 $log = Join-Path $here 'pack-sync.log'
 function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $text); Write-Host "Pack sync: $text" }
 # For the pop-up: what this launch checked and how it went (pack-sync-status.txt, started afresh each launch), one line
@@ -161,7 +164,7 @@ function ApplyDefaultsOnce {
 function StopIfNoMods($why, $advice = 'Check your connection (Tailscale or internet) and press Play again.', $status = 'failed') {
     if (HasMods) { ApplySwitches; ApplyDefaultsOnce; Note "$why; starting with the mods already installed"; AfterPopup (ShowPopup $status); exit 0 }
     Note "$why, and no mods are installed yet: stopping the launch. Details: pack-sync.log and pack-sync-java.log in $here"
-    Write-Host "October Journey couldn't install its mods yet ($why). $advice"
+    Write-Host "$packName couldn't install its mods yet ($why). $advice"
     StopProgress
     exit 1
 }
@@ -445,7 +448,7 @@ if ((Test-Path $want) -and $opt.server_entry) {
             if ((Test-Path $datPath) -and -not (Test-Path "$datPath.before-pack")) { Copy-Item $datPath "$datPath.before-pack" }
             [IO.File]::WriteAllBytes($datPath, $ms.ToArray())
             Note ("server list: " + ($changes -join '; ')); Status 'updated' 'Server list' ($changes -join '; ')
-        } else { Status 'ok' 'Server list' 'October Journey is listed' }
+        } else { Status 'ok' 'Server list' ((@($servers | ForEach-Object { $_.name }) -join ', ') + ' is listed') }
         $sState | ConvertTo-Json | Set-Content -Encoding utf8 $sStatePath
     } catch { Note "server list skipped: $($_.Exception.Message)"; Status 'failed' 'Server list' $_.Exception.Message }
 }

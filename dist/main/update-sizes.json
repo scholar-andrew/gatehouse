@@ -1,5 +1,5 @@
 {
- "version": "1.9.9",
+ "version": "1.9.10",
  "files": {
   "config/fabric_loader_dependencies.json": {
    "hash": "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280",
@@ -11,12 +11,12 @@
    "preserve": true
   },
   "extras/changelog.txt": {
-   "hash": "14ab2df3bf270db2c582bc58e359897fb03e9b838538c294a1a064c253735abc",
-   "size": 12029
+   "hash": "989cbed20ef9ef6476a3f3d35556ed6959d40c9e468efad45503794bbf84be6d",
+   "size": 12284
   },
   "extras/launch-popup.jar": {
-   "hash": "e94c6b0a4562a483b9970261cc97db046e8accb137d81ff8a0b8caa297a67398",
-   "size": 67849
+   "hash": "67e303ce52a98a6b97afad01fa0fa937c1d72b609a95475f59dcc5ad986fdf05",
+   "size": 68053
   },
   "extras/launch-wrapper.exe": {
    "hash": "9bbfa275255fe81a9f5103ef3fefbd802fcd0030f8c103daa287673c54d6b8e5",
@@ -35,20 +35,24 @@
    "size": 4184
   },
   "extras/pack-sync.ps1": {
-   "hash": "33a3c1a1035c5419cd3ef98675c5e05c1c9700ba193ea1e8c1d94ab9ea9d710c",
-   "size": 34992
+   "hash": "aa7a3cb815ff305fc20abcb07100a3a9125eb108aaa47459058ccb49008ed54a",
+   "size": 35327
   },
   "extras/pack-sync.sh": {
-   "hash": "db849cc23c819af04bf263bcc67cdd3c863fd24554ade5d29465dacc2c1cdd83",
-   "size": 26834
+   "hash": "67ca8cdf60b7dbe39589ae5f8f6b2c30bb88b74df02e31c75f07eeb18f535d94",
+   "size": 27125
+  },
+  "extras/profile.json": {
+   "hash": "b8179cdea2c8e20dbccc8f0d5c986afe335c0dfb49a76d48e4e8def08fe99864",
+   "size": 66
   },
   "extras/server-changelog.txt": {
    "hash": "9a30d689ef8e787a43ae97b7d40f2198fe7c4885beefe00631d672f6f818c140",
    "size": 155
   },
   "extras/server-control.json": {
-   "hash": "893feeedde0420511e4ffa4d2672c8b364eb771472c945f7caee674d3890e10f",
-   "size": 309
+   "hash": "b658c3cec297642cb1d5d4c97ddf75f3b8efd5972e1933c3841c74eb1cb823b2",
+   "size": 339
   },
   "extras/server-state.json": {
    "hash": "40a6ae9280b70789660041e05bdde617c1869e1300c081c5175f3e57a4946acd",

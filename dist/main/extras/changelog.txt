@@ -1,3 +1,5 @@
+== 1.9.10 | 2026-11-15
+- Nothing you'll notice: the launcher and the update now take the pack's name and details from a settings file shipped with the pack instead of having them built in. Groundwork for using the same launcher with more than one server.
 == 1.9.9 | 2026-11-15
 - Fixed: the server showed a red dot while online when the server panel no longer accepted this device's saved sign-in. The dot now follows the server (green when online), and the Control line says the sign-in is no longer accepted and to sign in again under Server config; Start and Stop are greyed out until then.
 == 1.9.8 | 2026-11-15
