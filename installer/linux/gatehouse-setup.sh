@@ -418,7 +418,7 @@ if want_shortcut or want_game:
     st = {"targets": targets}
     if game_target: st.update({k: game_target[k] for k in ("grid", "appid", "controller")})
     json.dump(st, open(os.path.join(mc, "steam-target.json"), "w"))
-    if (want_updates or add_only) and (want_art or want_ctrl): open(os.path.join(work_dir, "steam-paths"), "w").write(grid + "\n" + root_l + "\n")
+    if (want_updates or add_only) and (want_art or want_ctrl): open(os.path.join(work_dir, "steam-paths"), "w").write(grid + "\n" + root_l + "\n" + svdf + "\n")   # (and Steam's shortcut list itself, for the launcher's Update Steam shortcuts)
     if play == names["game"]:
         say("all set. Start Steam (or switch to Game Mode) and play \"%s\": it updates the pack, starts the game and joins the server. The first time, sign in to Prism Launcher with your Microsoft account." % play)
     else:

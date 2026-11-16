@@ -82,7 +82,7 @@
   },
   "uninstall_linux": {
     "url": "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/linux/gatehouse-uninstall.sh",
-    "sha256": "D246FBAAA085B2AEDA02520A6FA7606FEDD9F1225664FCA0B44CBEA7ED1CE9A6"
+    "sha256": "6BD2F40898638A58A5F9E8642DF417EB6D55F7B780ECCA7381363AC169D9CD3A"
   },
   "_uninstall": "Setup saves these uninstallers on the device. After changing either one, put its new SHA-256 here (and upload the exe to the release), or setup skips it."
 }

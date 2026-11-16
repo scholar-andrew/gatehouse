@@ -195,7 +195,7 @@ def servers(mc, remove=False):
         root[root.index(lst)] = (9, "servers", (lt, [e for e in items if not hit(e)]))
         open(sd, "wb").write(b"\x0a" + nbt_write(8, "") + nbt_write(10, root))
     return len(gone)
-PERM = re.compile(r"Steam/userdata/\d+/config/grid$|Steam Controller Configs/\d+/config$")
+PERM = re.compile(r"Steam/userdata/\d+/config/grid$|Steam Controller Configs/\d+/config$|Steam/userdata/\d+/config/shortcuts\.vdf$")
 PY
 
 # What's here.

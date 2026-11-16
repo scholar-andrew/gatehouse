@@ -134,7 +134,11 @@ public final class LaunchPopup {
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
-				case "steam-update" -> { System.out.println("Steam running: " + SteamUpdate.steamRunning()); for (String l : SteamUpdate.run(Path.of(args[1]))) System.out.println(l); }
+				case "steam-update" -> {
+					System.out.println("Steam running: " + SteamUpdate.steamRunning());
+					try { for (String l : SteamUpdate.run(Path.of(args[1]))) System.out.println(l); }
+					catch (SteamUpdate.NeedsPermission ex) { System.out.println("needs permission: " + ex.getMessage()); }
+				}
 				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
 				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
@@ -1828,6 +1832,13 @@ public final class LaunchPopup {
 						if (running.equals("yes")) { col = new Color(0xE9B949); msg = "Steam is running. Quit Steam (Steam menu, Exit), then press this again: Steam would undo the change when it closes. This window can stay open."; }
 						else if (running.equals("asked")) { col = new Color(0x8F98A0); msg = about; }
 						else try { col = new Color(0x8BD46E); msg = String.join("\n", SteamUpdate.run(dir)) + "\nStart Steam to see it."; }
+						catch (SteamUpdate.NeedsPermission ex) {
+							boolean copied = false;
+							try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(ex.getMessage()), null); copied = true; } catch (RuntimeException ignored) {}
+							col = new Color(0xE9B949);
+							msg = "Not updated yet: Prism Launcher's sandbox isn't allowed to see Steam's shortcut list on this device. Allow it once: open Konsole (in Desktop Mode) and run\n" + ex.getMessage()
+									+ "\n" + (copied ? "(The command is copied: paste it there.) " : "") + "Then close Prism Launcher, start the pack again and press this button.";
+						}
 						catch (IOException | RuntimeException ex) { col = new Color(0xFF7B72); msg = "Not updated: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage()); }
 						Color c2 = col; String m2 = msg;
 						SwingUtilities.invokeLater(() -> { say.accept(c2, m2); steamB.setEnabled(true); });

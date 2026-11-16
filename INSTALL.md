@@ -136,9 +136,11 @@ Under the list, on a device where setup added Steam shortcuts, is **Update Steam
 with the pack without running setup again: the pack's shortcut starts through the Gatehouse launcher, both names end in the kind of device (PC, Laptop, Steam Deck, ROG) as setup names new ones,
 the shortcut that opened Prism Launcher becomes **Gatehouse Minecraft Launcher - ...** with Gatehouse's art and the
 controller layout under its new name, and the art and layout of both are put in place again. It changes Steam's
-`shortcuts.vdf` (backed up beside itself as `shortcuts.vdf.bak-launcher`), so Steam has to be closed: on Windows the
+`shortcuts.vdf` (backed up in the game folder as `shortcuts.vdf.bak-launcher`), so Steam has to be closed: on Windows the
 launcher checks and tells you to quit Steam first; inside Prism's Flatpak on Linux it can't see Steam, so it asks. On a
-Steam Deck that means Desktop Mode with Steam quit, starting the pack from Prism Launcher.
+Steam Deck that means Desktop Mode with Steam quit, starting the pack from Prism Launcher. On Linux, Prism's Flatpak also has to be
+allowed to see that one file. Setup allows it; on a device set up before pack 1.10.3 the button shows the command
+(`flatpak override --user --filesystem=<Steam's shortcuts.vdf> org.prismlauncher.PrismLauncher`) to run once in Konsole.
 
 A second tab, **Server updates**, starts with a live line saying whether the server answers right now (with ping and
 players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed

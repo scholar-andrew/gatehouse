@@ -21,8 +21,8 @@ import java.util.Map;
  *    - the shortcut that opened Prism Launcher becomes "Gatehouse Minecraft Launcher - ...", opening the launcher
  *      window, with Gatehouse's art and the controller layout under its new name
  *    - the art and controller layout of both are put in place again from the pack
- *  Steam's shortcut list (userdata/&lt;account&gt;/config/shortcuts.vdf, a small binary file) is backed up beside itself as
- *  shortcuts.vdf.bak-launcher first. Steam has to be closed: it writes that file itself when it exits. */
+ *  Steam's shortcut list (userdata/&lt;account&gt;/config/shortcuts.vdf, a small binary file) is backed up in the game
+ *  folder as shortcuts.vdf.bak-launcher first. Steam has to be closed: it writes that file itself when it exits. */
 final class SteamUpdate {
 	private SteamUpdate() {}
 
@@ -76,6 +76,11 @@ final class SteamUpdate {
 		} catch (IOException | InterruptedException | RuntimeException e) { return null; }
 	}
 
+	/** Prism's Flatpak isn't allowed to see Steam's shortcut list yet; the message is the command that allows it. */
+	static final class NeedsPermission extends IOException {
+		NeedsPermission(String command) { super(command); }
+	}
+
 	/** Does it; returns what was done, a line each. */
 	static List<String> run(Path mc) throws IOException {
 		List<String> did = new ArrayList<>();
@@ -86,7 +91,17 @@ final class SteamUpdate {
 		else if (st.containsKey("appid")) { Map<String, Object> one = new LinkedHashMap<>(st); one.put("art", "pack"); targets.add(one); }
 		if (targets.isEmpty()) throw new IOException("setup didn't add Steam shortcuts for this pack on this device (run setup to add them)");
 		Path vdf = Path.of(str(targets.get(0).get("grid"))).getParent().resolve("shortcuts.vdf");
-		if (!Files.isRegularFile(vdf)) throw new IOException("Steam's shortcut list isn't where setup left it (" + vdf + ")");
+		if (!Files.isRegularFile(vdf)) {
+			// Inside Prism's Flatpak only the folders setup allowed can be seen (the art and the controller layouts), and
+			// Steam's shortcut list isn't among them on an install set up before the launcher could change it. Allowing
+			// that one file is a change to Prism's permissions, so it's the player's to make: one command, given here.
+			if (Files.exists(Path.of("/.flatpak-info"))) {
+				String app = "org.prismlauncher.PrismLauncher";
+				try { for (String l : Files.readAllLines(Path.of("/.flatpak-info"))) if (l.startsWith("name=")) { app = l.substring(5).trim(); break; } } catch (IOException ignored) {}
+				throw new NeedsPermission("flatpak override --user --filesystem=" + vdf + " " + app);
+			}
+			throw new IOException("Steam's shortcut list isn't where setup left it (" + vdf + ")");
+		}
 		byte[] before = Files.readAllBytes(vdf);
 		List<Object[]> root = read(ByteBuffer.wrap(before).order(ByteOrder.LITTLE_ENDIAN));
 		List<Object[]> list = null;
@@ -158,7 +173,7 @@ final class SteamUpdate {
 			did.add("\"" + newName + "\": art and controller layout put in place (" + files + " files).");
 		}
 		if (changed > 0) {
-			Files.write(vdf.resolveSibling("shortcuts.vdf.bak-launcher"), before);
+			Files.write(mc.resolve("shortcuts.vdf.bak-launcher"), before);   // (in the game folder: beside the list itself may not be writable)
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			write(out, root);
 			Files.write(vdf, out.toByteArray());
