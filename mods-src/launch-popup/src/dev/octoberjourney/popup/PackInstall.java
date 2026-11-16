@@ -35,8 +35,20 @@ final class PackInstall {
 		if (Files.isRegularFile(inst.resolve("instance.cfg"))) throw new IOException("that server is already set up here (" + id + ")");
 		Files.createDirectories(mc.resolve("extras"));
 		Files.writeString(inst.resolve("mmc-pack.json"), "{\n    \"components\": [\n        { \"uid\": \"net.minecraft\", \"version\": \"" + version + "\", \"important\": true }\n    ],\n    \"formatVersion\": 1\n}\n", StandardCharsets.UTF_8);
-		String nl = System.getProperty("os.name", "").startsWith("Windows") ? "\r\n" : "\n";
-		Files.writeString(inst.resolve("instance.cfg"), String.join(nl, "[General]", "name=" + name + " (Minecraft " + version + ")", "ConfigVersion=1.3", "InstanceType=OneSix", "iconKey=default") + nl, StandardCharsets.UTF_8);
+		boolean win = System.getProperty("os.name", "").startsWith("Windows");
+		String nl = win ? "\r\n" : "\n";
+		// Its launcher window before the game (the same one a pack has, with nothing to update): the launcher, a small
+		// script Prism runs before the game, and the launch wrapper, all borrowed from a pack installed here.
+		boolean window = equip(instances, mc);
+		List<String> lines = new ArrayList<>(List.of("[General]", "name=" + name + " (Minecraft " + version + ")"));
+		if (window) {
+			lines.add("OverrideCommands=true");
+			lines.add(win ? "PreLaunchCommand=\"powershell -NoProfile -ExecutionPolicy Bypass -File \\\"$INST_MC_DIR\\\\plain-launch.ps1\\\"\"" : "PreLaunchCommand=bash $INST_MC_DIR/plain-launch.sh");
+			if (Files.isRegularFile(mc.resolve(win ? "launch-wrapper.exe" : "launch-wrapper.sh")))
+				lines.add(win ? "WrapperCommand=\"\\\"" + mc.toAbsolutePath().toString().replace('\\', '/') + "/launch-wrapper.exe\\\"\"" : "WrapperCommand=bash $INST_MC_DIR/launch-wrapper.sh");
+		}
+		lines.addAll(List.of("ConfigVersion=1.3", "InstanceType=OneSix", "iconKey=default"));
+		Files.writeString(inst.resolve("instance.cfg"), String.join(nl, lines) + nl, StandardCharsets.UTF_8);
 		// The server list (servers.dat: uncompressed NBT, one entry).
 		java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
 		java.io.DataOutputStream o = new java.io.DataOutputStream(b);
@@ -57,6 +69,46 @@ final class PackInstall {
 						+ "\", \"identities\": {\"" + ServerControl.jsonEsc(keeper.helperUrl) + "\": {\"id\": \"" + ServerControl.jsonEsc(keeper.deviceId) + "\", \"token\": \"" + ServerControl.jsonEsc(keeper.deviceToken) + "\"}}}\n", StandardCharsets.UTF_8);
 		}
 		return id;
+	}
+
+	/** Gives a plain server's game folder what its launcher window needs, copied from a pack installed on this device
+	 *  (the pack's update keeps those current): the launcher itself, the script Prism runs before the game, the launch
+	 *  wrapper, the script the Steam shortcuts run, and Gatehouse's art and the controller layout for a Steam shortcut.
+	 *  Only what differs is copied. False when no installed pack has them yet (the server then starts with no window). */
+	static boolean equip(Path instances, Path mc) {
+		boolean win = System.getProperty("os.name", "").startsWith("Windows");
+		String ext = win ? "ps1" : "sh";
+		Path from = null;
+		try (java.util.stream.Stream<Path> s = Files.list(instances)) {
+			for (Path d : (Iterable<Path>) s.filter(Files::isDirectory).sorted()::iterator) {
+				Path m = d.resolve("minecraft");
+				if (!m.toAbsolutePath().equals(mc.toAbsolutePath()) && Files.isRegularFile(m.resolve("extras/plain-launch." + ext)) && Files.isRegularFile(m.resolve("extras/launch-popup.jar")) && Files.isRegularFile(m.resolve("packwiz-installer-bootstrap.jar"))) { from = m; break; }
+			}
+		} catch (IOException e) { return false; }
+		if (from == null) return Files.isRegularFile(mc.resolve("plain-launch." + ext)) && Files.isRegularFile(mc.resolve("extras/launch-popup.jar"));
+		String[][] files = {{"extras/launch-popup.jar", "extras/launch-popup.jar"}, {"extras/plain-launch." + ext, "plain-launch." + ext}, {"extras/gatehouse-launcher." + ext, "extras/gatehouse-launcher." + ext},
+				{win ? "launch-wrapper.exe" : "launch-wrapper.sh", win ? "launch-wrapper.exe" : "launch-wrapper.sh"}, {"steam/controller_neptune.vdf", "steam/controller_neptune.vdf"},
+				{"steam/art-launcher/cover.png", "steam/art/cover.png"}, {"steam/art-launcher/hero.png", "steam/art/hero.png"}, {"steam/art-launcher/logo.png", "steam/art/logo.png"},
+				{"steam/art-launcher/icon.png", "steam/art/icon.png"}, {"steam/art-launcher/wide.png", "steam/art/wide.png"}};
+		for (String[] f : files) try {
+			Path src = from.resolve(f[0]), dst = mc.resolve(f[1]);
+			if (!Files.isRegularFile(src)) continue;
+			if (Files.isRegularFile(dst) && Files.size(dst) == Files.size(src) && java.util.Arrays.equals(Files.readAllBytes(src), Files.readAllBytes(dst))) continue;
+			Files.createDirectories(dst.getParent());
+			Files.copy(src, dst, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			if (!win && f[1].endsWith(".sh")) dst.toFile().setExecutable(true, false);
+		} catch (IOException ignored) {}   // (a file in use: next time)
+		return Files.isRegularFile(mc.resolve("plain-launch." + ext)) && Files.isRegularFile(mc.resolve("extras/launch-popup.jar"));
+	}
+
+	/** Keeps every plain server's borrowed files current (the launcher's menu calls this each time it opens). */
+	static void refreshPlain(Path instances) {
+		try (java.util.stream.Stream<Path> s = Files.list(instances)) {
+			for (Path d : (Iterable<Path>) s.filter(Files::isDirectory)::iterator) {
+				Path mc = d.resolve("minecraft");
+				if ("true".equals(str(ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(mc.resolve("extras/profile.json")))).get("plain")))) equip(instances, mc);
+			}
+		} catch (IOException | RuntimeException ignored) {}
 	}
 
 	/** What a profile would install, for the question before it: {instance id, pack name, repository address}. */

@@ -174,7 +174,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
     # The sync scripts themselves: each run swaps in the pack's copy for the next launch.
     # (and the launch wrappers, which each run copies beside itself: see clients/launch-wrapper.sh)
     # (and what the Gatehouse Steam shortcuts run: they point at these copies in extras/)
-    for n in ("pack-sync.ps1", "pack-sync.sh", "launch-wrapper.sh", "launch-wrapper.exe", "gatehouse-launcher.ps1", "gatehouse-launcher.sh"):
+    for n in ("pack-sync.ps1", "pack-sync.sh", "launch-wrapper.sh", "launch-wrapper.exe", "gatehouse-launcher.ps1", "gatehouse-launcher.sh", "plain-launch.ps1", "plain-launch.sh"):
         data = open(os.path.join(ROOT, "clients", n), "rb").read()
         rel = "extras/" + n
         os.makedirs(os.path.join(out, "extras"), exist_ok=True)

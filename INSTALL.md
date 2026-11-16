@@ -106,8 +106,10 @@ safe; it updates your setup without duplicating anything.
    address the Gatekeeper gives (it asks first, naming where the files come from; the mods download on the first
    Play; no Steam shortcut is added, and Prism Launcher has to be installed already). A plain server (no mods) has
    **Install** too: it makes a plain Minecraft instance in the server's version (`gatehouse-<server>` in Prism) with
-   the server in its server list; nothing is downloaded until Prism fetches the game on the first Play, and Play
-   starts it and joins directly, with no update window. A server with mods whose pack isn't published says so.
+   the server in its server list; nothing is downloaded until Prism fetches the game on the first Play. It gets the
+   same launcher window before the game as a pack, with nothing to update (a small script, `plain-launch`, and the
+   launcher itself are copied from a pack installed on this device and kept current by the menu). A server with mods
+   whose pack isn't published says so.
    **Gatekeepers** at the top right goes back.
 3. **The server's own launcher.** Play starts that pack: its update runs first and the window described below
    appears. Its **Menu** button comes back here without starting the game.
@@ -161,7 +163,10 @@ that means Desktop Mode with Steam quit, starting the pack from Prism Launcher),
 to see that one file: setup allows it, and on a device set up before pack 1.10.3 the button gives the command to run
 once in Konsole. When it's done it starts Steam again (on Linux, by asking the desktop to open a `steam:` link) and a
 ring pulses round **Quit**. The Gatehouse launcher's own shortcut has the same button on the launcher's main window:
-**Update Gatehouse's Steam config**.
+**Update Gatehouse's Steam config**. A server that has no Steam shortcut yet (one set up from the
+launcher's menu) has **Add <server> to Steam** in the same place: it adds the shortcut to Steam's list (named for the
+server and the kind of device, starting it through the Gatehouse launcher), then gives it Gatehouse's art and the
+controller layout. It finds Steam through another pack's shortcut on this device, or on Windows through the registry.
 
 A second tab, **Server updates**, starts with a live line saying whether the server answers right now (with ping and
 players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed

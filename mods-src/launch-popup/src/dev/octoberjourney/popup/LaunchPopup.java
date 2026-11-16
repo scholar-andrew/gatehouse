@@ -141,6 +141,7 @@ public final class LaunchPopup {
 				}
 				case "install-pack" -> System.out.println("installed: " + PackInstall.install(Path.of(args[1]), args[3], null, m -> System.out.println("   " + m)));   // (testing: args[1] is the instances folder)
 				case "install-plain" -> System.out.println("set up: " + PackInstall.vanilla(Path.of(args[1]), args[3], args[4], args[5], args[6], null));   // (testing: instances folder, server id, name, address, version)
+				case "steam-add" -> { System.out.println(SteamUpdate.canAdd(Path.of(args[1]))); System.out.println(SteamUpdate.add(Path.of(args[1]))); for (String l : SteamUpdate.run(Path.of(args[1]), "pack", true)) System.out.println(l); }
 				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
 				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
@@ -577,12 +578,12 @@ public final class LaunchPopup {
 		Runnable look = () -> new Thread(() -> {
 			String st, msg; Color col = grey;
 			try {
-				List<String> todo = SteamUpdate.run(mc, which, false);
+				List<String> todo = SteamUpdate.available(mc) ? SteamUpdate.run(mc, which, false) : List.of(SteamUpdate.canAdd(mc));
 				if (todo.isEmpty()) { st = "none"; msg = "Steam config is up to date."; }
 				else {
 					st = "ready";
 					boolean running = SteamUpdate.steamRunning().equals("yes");
-					msg = "To update: " + String.join("; ", todo) + "." + (running ? "\nSteam is running: quit Steam first (Steam menu, Exit)." : " Steam has to be closed.");
+					msg = (SteamUpdate.available(mc) ? "To update: " : "") + String.join("; ", todo) + "." + (running ? "\nSteam is running: quit Steam first (Steam menu, Exit)." : " Steam has to be closed.");
 					if (running) col = ORANGE;
 				}
 			} catch (SteamUpdate.NeedsPermission ex) { st = "permission"; msg = "Prism Launcher's sandbox isn't allowed to see Steam's shortcut list on this device yet. Press the button for the one command that allows it."; }
@@ -599,7 +600,7 @@ public final class LaunchPopup {
 		}, "steam-look").start();
 		b.setEnabled(false);
 		if (System.getenv("OJ_POPUP_PNG") != null) {   // (test pictures: one look, straight away)
-			try { List<String> todo = SteamUpdate.run(mc, which, false); b.setEnabled(!todo.isEmpty()); say.accept(grey, todo.isEmpty() ? "Steam config is up to date." : "To update: " + String.join("; ", todo) + ". Steam has to be closed."); }
+			try { List<String> todo = SteamUpdate.available(mc) ? SteamUpdate.run(mc, which, false) : List.of(SteamUpdate.canAdd(mc)); b.setEnabled(!todo.isEmpty()); say.accept(grey, todo.isEmpty() ? "Steam config is up to date." : (SteamUpdate.available(mc) ? "To update: " : "") + String.join("; ", todo) + ". Steam has to be closed."); }
 			catch (IOException | RuntimeException ex) { say.accept(grey, String.valueOf(ex.getMessage())); }
 		} else {
 			look.run();
@@ -626,7 +627,10 @@ public final class LaunchPopup {
 				if (running.equals("yes")) { col = ORANGE; msg = "Steam is running. Quit Steam (Steam menu, Exit), then press this again: Steam would undo the change when it closes. This window can stay open."; }
 				else if (running.equals("asked")) { col = grey; msg = "Nothing was changed."; }
 				else try {
-					List<String> did = SteamUpdate.run(mc, which, true);
+					List<String> did = new ArrayList<>();
+					if (!SteamUpdate.available(mc)) did.add(SteamUpdate.add(mc));
+					did.addAll(SteamUpdate.run(mc, which, true));
+					did.remove("Already up to date.");
 					boolean started = SteamUpdate.startSteam();
 					col = new Color(0x8BD46E); msg = String.join("\n", did) + "\n" + (started ? "Steam is starting again. You can press Quit here." : "Start Steam to see it. You can press Quit here.");
 					done = true;
@@ -862,6 +866,8 @@ public final class LaunchPopup {
 		else if (status.equals("failed")) headline = "The update didn't finish";
 		else if (!somethingHappened && serverNews) headline = NAME + playing + ": server changes";
 		else headline = NAME + playing + (somethingHappened ? "" : ": no updates");
+		boolean plainServer = "true".equals(s(asMap(parse(read(dir.resolve("extras/profile.json")))).get("plain")));
+		if (plainServer) headline = NAME;
 		String sub;
 		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing + " as installed. The Connection tab says what's wrong.";
 		else if (status.equals("failed")) sub = "Starting with the mods already installed. Details are in pack-sync.log in the game folder.";
@@ -901,6 +907,7 @@ public final class LaunchPopup {
 			rows.add(heading(fresh.size() > 1 || !seen.isEmpty() ? "What's new in " + v.version() + (v.date().isEmpty() ? "" : " (" + v.date() + ")") : "What's new"));
 			for (String n : v.notes()) rows.add(text("• " + n));
 		}
+		if (plainServer) sub = "A plain Minecraft server: there's no pack to update.";
 		// Started from the pack's own Steam shortcut (through the Gatehouse launcher, --play): the game starts straight
 		// away whenever it can: the update went through, the server is online, and this player may join. News that this
 		// window would have shown stays unseen, so it's shown the next time the window does appear.
@@ -1881,7 +1888,10 @@ public final class LaunchPopup {
 			JPanel clientTab = new JPanel(new BorderLayout(0, 6));
 			clientTab.add(scroller(deviceRows, big || serverNews), BorderLayout.CENTER);
 			Runnable[] haloQuit = {() -> {}};   // (set once the Quit button exists)
+			// (A server with no Steam shortcut yet, like one set up from the launcher's menu: the same button adds one.)
 			if (SteamUpdate.available(dir)) clientTab.add(steamRow(dir, "pack", "Update " + NAME + "'s Steam config", f, () -> haloQuit[0].run()), BorderLayout.SOUTH);
+			else if (Files.isRegularFile(dir.resolve("extras").resolve(System.getProperty("os.name", "").startsWith("Windows") ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")))
+				clientTab.add(steamRow(dir, "pack", "Add " + NAME + " to Steam", f, () -> haloQuit[0].run()), BorderLayout.SOUTH);
 			tabs.addTab("Client updates", clientTab);
 			ServerControl control = new ServerControl(dir);
 			Runnable[] hold = {() -> {}};   // set below: stops the countdown once the player uses a server control

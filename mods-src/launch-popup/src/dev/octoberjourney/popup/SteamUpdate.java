@@ -81,6 +81,109 @@ final class SteamUpdate {
 		NeedsPermission(String command) { super(command); }
 	}
 
+	/** Steam's settings folder for the account in use (userdata/&lt;account&gt;/config, where its shortcut list and art
+	 *  are): where another pack's shortcut was put, else (Windows) where the registry says Steam is, for the account
+	 *  that signed in last. */
+	private static Path steamConfig(Path mc) throws IOException {
+		Path instances = mc.toAbsolutePath().getParent().getParent();
+		try (java.util.stream.Stream<Path> s = Files.list(instances)) {
+			for (Path d : (Iterable<Path>) s.filter(Files::isDirectory).sorted()::iterator) {
+				Map<String, Object> st = ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(d.resolve("minecraft/steam-target.json"))));
+				String grid = str(st.get("grid"));
+				if (grid.isEmpty() && st.get("targets") instanceof List<?> l && !l.isEmpty()) grid = str(ServerControl.asMap(l.get(0)).get("grid"));
+				if (!grid.isEmpty() && Path.of(grid).getParent() != null) return Path.of(grid).getParent();
+			}
+		} catch (IOException ignored) {}
+		if (System.getProperty("os.name", "").startsWith("Windows")) try {
+			Process q = new ProcessBuilder("reg", "query", "HKCU\\Software\\Valve\\Steam", "/v", "SteamPath").redirectErrorStream(true).start();
+			String out = new String(q.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+			q.waitFor();
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("SteamPath\\s+REG_SZ\\s+(.+)").matcher(out);
+			if (m.find()) {
+				Path steam = Path.of(m.group(1).trim());
+				String best = null;
+				java.util.regex.Matcher u = java.util.regex.Pattern.compile("\"(7656\\d{13})\"\\s*\\{(.*?)\\}", java.util.regex.Pattern.DOTALL).matcher(LaunchPopup.readFile(steam.resolve("config/loginusers.vdf")));
+				while (u.find()) if (best == null || u.group(2).matches("(?s).*\"MostRecent\"\\s*\"1\".*")) best = u.group(1);
+				if (best != null) return steam.resolve("userdata").resolve(String.valueOf(Long.parseLong(best) - 76561197960265728L)).resolve("config");
+			}
+		} catch (IOException | InterruptedException | RuntimeException ignored) {}
+		throw new IOException("Steam's files weren't found on this device (Steam isn't installed, or on Linux no pack here has a Steam shortcut yet: run setup for one first)");
+	}
+
+	/** The server's name, as its game folder has it (extras/profile.json). */
+	private static String packName(Path mc) {
+		String n = str(ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(mc.resolve("extras/profile.json")))).get("name"));
+		return n.isEmpty() ? LaunchPopup.NAME : n;
+	}
+
+	/** What adding a shortcut would do, as one line; throws when it can't be done here. */
+	static String canAdd(Path mc) throws IOException {
+		steamConfig(mc);
+		boolean win = System.getProperty("os.name", "").startsWith("Windows");
+		if (!win && !Files.exists(Path.of("/.flatpak-info"))) throw new IOException("a Steam shortcut can only be added here when Prism Launcher is the Flatpak");
+		return "Add a Steam shortcut for " + packName(mc) + " (it starts this server through the Gatehouse launcher)";
+	}
+
+	/** Adds a Steam shortcut for the server whose game folder this is, as setup would have: it runs the Gatehouse
+	 *  launcher's script for this instance, which starts the game through Prism. Records it in steam-target.json, so
+	 *  the usual update then gives it its art and controller layout. Steam has to be closed. Returns what was done. */
+	static String add(Path mc) throws IOException {
+		boolean windows = System.getProperty("os.name", "").startsWith("Windows");
+		Path cfg = steamConfig(mc), vdf = cfg.resolve("shortcuts.vdf");
+		String instance = mc.toAbsolutePath().getParent().getFileName().toString();
+		Path script = mc.toAbsolutePath().resolve("extras").resolve(windows ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh");
+		if (!Files.isRegularFile(script)) throw new IOException("the launcher's script isn't in this server's folder yet: open the Gatehouse launcher's menu once, then try again");
+		if (!Files.isRegularFile(vdf) && Files.exists(Path.of("/.flatpak-info"))) {
+			String app = "org.prismlauncher.PrismLauncher";
+			try { for (String l : Files.readAllLines(Path.of("/.flatpak-info"))) if (l.startsWith("name=")) { app = l.substring(5).trim(); break; } } catch (IOException ignored) {}
+			throw new NeedsPermission("flatpak override --user --filesystem=" + vdf + " " + app);
+		}
+		byte[] before = Files.isRegularFile(vdf) ? Files.readAllBytes(vdf) : new byte[] {0, 's', 'h', 'o', 'r', 't', 'c', 'u', 't', 's', 0, 8, 8};
+		List<Object[]> root = read(ByteBuffer.wrap(before).order(ByteOrder.LITTLE_ENDIAN));
+		List<Object[]> list = null;
+		for (Object[] n : root) if (((String) n[1]).equalsIgnoreCase("shortcuts") && n[2] instanceof List<?>) list = nodes(n[2]);
+		if (list == null) throw new IOException("Steam's shortcut list isn't in a form this knows: nothing was changed");
+		String kind = deviceKind(), name = packName(mc) + " - " + (kind == null ? "PC" : kind), exe, startDir, opts, flatpak = "";
+		if (windows) {
+			Path ps = Path.of(System.getenv().getOrDefault("SystemRoot", "C:\\Windows"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
+			exe = "\"" + ps + "\""; startDir = "\"" + ps.getParent() + "\\\"";
+			Path prism = Path.of(System.getenv().getOrDefault("LOCALAPPDATA", ""), "Programs", "PrismLauncher", "prismlauncher.exe");
+			opts = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + script + "\"" + (Files.isRegularFile(prism) ? " -Prism \"" + prism + "\"" : "") + " -Play " + instance;
+		} else {
+			flatpak = "org.prismlauncher.PrismLauncher";
+			try { for (String l : Files.readAllLines(Path.of("/.flatpak-info"))) if (l.startsWith("name=")) { flatpak = l.substring(5).trim(); break; } } catch (IOException ignored) {}
+			exe = "\"/usr/bin/flatpak\""; startDir = "\"/usr/bin/\"";
+			opts = "run --command=bash " + flatpak + " \"" + script + "\" --play " + instance;
+		}
+		for (Object[] n : list) if (n[2] instanceof List<?> && name.equals(str(get(nodes(n[2]), "AppName")))) throw new IOException("Steam already has a shortcut called \"" + name + "\"");
+		java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+		crc.update((exe + name).getBytes(StandardCharsets.UTF_8));
+		long appid = (crc.getValue() | 0x80000000L) & 0xFFFFFFFFL;
+		Path grid = cfg.resolve("grid");
+		List<Object[]> e = new ArrayList<>();
+		e.add(new Object[] {(byte) 2, "appid", (int) appid});
+		for (String[] kv : new String[][] {{"AppName", name}, {"Exe", exe}, {"StartDir", startDir}, {"icon", grid.resolve(appid + "_icon.png").toString()}, {"ShortcutPath", ""}, {"LaunchOptions", opts}}) e.add(new Object[] {(byte) 1, kv[0], kv[1]});
+		for (Object[] kv : new Object[][] {{"IsHidden", 0}, {"AllowDesktopConfig", 1}, {"AllowOverlay", 1}, {"OpenVR", 0}, {"Devkit", 0}}) e.add(new Object[] {(byte) 2, kv[0], kv[1]});
+		e.add(new Object[] {(byte) 1, "DevkitGameID", ""});
+		e.add(new Object[] {(byte) 2, "DevkitOverrideAppID", 0});
+		e.add(new Object[] {(byte) 2, "LastPlayTime", 0});
+		e.add(new Object[] {(byte) 1, "FlatpakAppID", flatpak});
+		e.add(new Object[] {(byte) 0, "tags", new ArrayList<Object[]>()});
+		list.add(new Object[] {(byte) 0, String.valueOf(list.size()), e});
+		if (Files.isRegularFile(vdf)) Files.write(mc.resolve("shortcuts.vdf.bak-launcher"), before);
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		write(out, root);
+		Files.createDirectories(cfg);
+		Files.write(vdf, out.toByteArray());
+		read(ByteBuffer.wrap(Files.readAllBytes(vdf)).order(ByteOrder.LITTLE_ENDIAN));   // (reads back cleanly, or this throws)
+		// Where its art and controller layout go, for the update that follows and for each launch after.
+		Path layouts = cfg.getParent().getParent().getParent().resolve("steamapps").resolve("common").resolve("Steam Controller Configs").resolve(cfg.getParent().getFileName().toString()).resolve("config");
+		Map<String, Object> t = new LinkedHashMap<>();
+		t.put("grid", grid.toString()); t.put("appid", String.valueOf(appid)); t.put("controller", layouts.resolve(name.toLowerCase(java.util.Locale.ROOT)).toString()); t.put("art", "pack");
+		Files.writeString(mc.resolve("steam-target.json"), "{\"targets\": [" + one(t, true) + "], " + one(t, false) + "}\n", StandardCharsets.UTF_8);
+		return "\"" + name + "\" added to Steam.";
+	}
+
 	/** Does it for both shortcuts; returns what was done, a line each. */
 	static List<String> run(Path mc) throws IOException { return run(mc, "all", true); }
 

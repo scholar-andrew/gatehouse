@@ -1,6 +1,8 @@
 [
  {"version": "1.14.0", "date": "2026-11-16", "notes": [
-  "The Gatehouse launcher can now set up a connection to a plain (unmodded) server. In a Gatekeeper's list of servers, a plain one that isn't on this device has Install: it makes a plain Minecraft instance in Prism Launcher, in the server's version, with the server already in its server list. Play then starts it and joins. Prism downloads the game itself the first time.",
+  "The Gatehouse launcher can now set up a connection to a plain (unmodded) server. In a Gatekeeper's list of servers, a plain one that isn't on this device has Install: it makes a plain Minecraft instance in Prism Launcher, in the server's version, with the server already in its server list. Prism downloads the game itself the first time.",
+  "A plain server gets the same launcher window before the game as a pack does, with nothing to update: whether the server is on, Request server, the whitelist, Server controls and Network diagnosis are all there, and Play starts the game.",
+  "A server with no Steam shortcut yet (one set up from the launcher's menu) has an Add to Steam button under Client updates. It adds the shortcut, with Gatehouse's art and the controller layout; Steam has to be closed, as for the Steam config button.",
   "Each server in the list now shows its Minecraft version, and says whether it's a plain server or one with mods."
  ]},
  {"version": "1.13.1", "date": "2026-11-16", "notes": [

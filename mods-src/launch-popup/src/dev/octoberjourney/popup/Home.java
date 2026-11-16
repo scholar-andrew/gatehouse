@@ -144,6 +144,7 @@ final class Home {
 		String prismCmd = prism;
 		String openAt = null;   // (a Gatekeeper to open on: the one whose server's Menu button brought us back)
 		while (true) {
+			PackInstall.refreshPlain(instances);
 			List<String[]> packs = installed(instances);
 			if (play != null) {
 				String want = play; play = null;
@@ -316,7 +317,7 @@ final class Home {
 									ib.addActionListener(ev -> {
 										int ok = JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Set up <b>" + LaunchPopup.esc(plainName) + "</b> on this device?<br><br>It makes a plain Minecraft " + LaunchPopup.esc(version)
 												+ " instance in Prism Launcher with this server (" + LaunchPopup.esc(addr) + ") in its server list. No mods. Prism downloads the game the first time you press Play. "
-												+ "No Steam shortcut is added; Prism Launcher has to be installed already.</div></html>", "Install", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+												+ "Its own launcher window can add a Steam shortcut afterwards; Prism Launcher has to be installed already.</div></html>", "Install", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 										if (ok != JOptionPane.OK_OPTION) return;
 										try { PackInstall.vanilla(instances, id, plainName, addr, version, c); again[0] = url; f.dispose(); }
 										catch (IOException | RuntimeException ex) { sub.setText("Not set up: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage())); }
