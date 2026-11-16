@@ -299,7 +299,7 @@ public final class HostHelper {
 				"In Tailscale's admin page (login.tailscale.com): Machines, this machine's \u2026 menu, Share, and make a reusable invite link. That shares only this machine, not the rest of your network. Paste the link below."});
 		String machine = "";
 		try { machine = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
-		return m("steps", steps, "share_link", share, "name", setting("name", ""), "machine", machine, "java", System.getProperty("java.version", ""), "checked", java.time.LocalTime.now().withNano(0).toString());
+		return m("steps", steps, "share_link", share, "name", setting("name", ""), "machine", machine, "java", System.getProperty("java.version", ""), "checked", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
 	}
 
 	/** The Tailscale device a request came from, as Tailscale names it (empty if unknown). */
