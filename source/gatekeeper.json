@@ -1,7 +1,10 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.2.1",
+ "version": "2.2.2",
  "changes": [
+  {"version": "2.2.2", "date": "2026-11-16", "notes": [
+   "Nothing changed in what Gatekeeper does. This release exists so that Gatekeeper's own updating can be tried for real: the Update Gatekeeper line, the swap, and the restart."
+  ]},
   {"version": "2.2.1", "date": "2026-11-16", "notes": [
    "Updating itself is sturdier. What was fetched is checked to be a Gatekeeper that can run before anything is replaced. The old program is kept until the new one has answered: if the new one doesn't answer within 30 seconds, the old one is put back and started again, and the log says so.",
    "After the swap Gatekeeper is started through its scheduled task and then looked for; if it didn't come up that way it is started directly. Any Gatekeeper window that was open is closed for the swap and opened again afterwards.",
