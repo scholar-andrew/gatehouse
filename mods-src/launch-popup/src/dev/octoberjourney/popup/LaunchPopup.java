@@ -175,7 +175,7 @@ public final class LaunchPopup {
 			return;
 		}
 		if (args.length >= 2 && args[0].equals("--progress")) { progress(Path.of(args[1])); System.exit(exitCode); }
-		if (args.length >= 2 && args[0].equals("--home")) { home(args); System.exit(0); }
+		if (args.length >= 2 && args[0].equals("--home")) { Home.run(args); System.exit(0); }
 		summary(Path.of(args.length > 0 ? args[0] : "."), args.length > 1 ? args[1] : "ok");
 		System.exit(exitCode);
 	}
@@ -423,133 +423,21 @@ public final class LaunchPopup {
 		} catch (IOException | RuntimeException e) { return false; }
 	}
 
-	/** The Gatehouse launcher as a window of its own (what the "Gatehouse Minecraft Launcher" Steam shortcut opens):
-	 *    --home <Prism's instances folder> --prism <how to start Prism Launcher> [--play <instance id>]
-	 *  It lists the Gatehouse packs installed in Prism (instances whose game folder has extras/profile.json), each with
-	 *  whether its server is online right now and a Play button. Play starts that instance through Prism (--launch,
-	 *  and --server to join); the pack's update runs first and its window appears, as always. With --play, there's
-	 *  no window here at all: that's a pack's own Steam shortcut, and the game then starts straight away when it can
-	 *  (directLaunch). This program stays until Prism closes, so Steam sees the game as running. */
-	static void home(String[] args) throws Exception {
-		Path instances = Path.of(args[1]);
-		String prism = "prismlauncher", play = null;
-		for (int i = 2; i + 1 < args.length; i += 2) { if (args[i].equals("--prism")) prism = args[i + 1]; else if (args[i].equals("--play")) play = args[i + 1]; }
-		List<String[]> servers = new ArrayList<>();   // {instance id, name, address to join, game folder}
-		try (java.util.stream.Stream<Path> s = Files.list(instances)) {
-			for (Path d : (Iterable<Path>) s.filter(Files::isDirectory).sorted()::iterator) {
-				Path mc = Files.isDirectory(d.resolve("minecraft")) ? d.resolve("minecraft") : d.resolve(".minecraft");
-				String profile = read(mc.resolve("extras/profile.json"));
-				if (profile.isBlank()) continue;
-				String name = s(asMap(parse(profile)).get("name")), address = "";
-				try { if (parse(read(mc.resolve("extras/servers.json"))) instanceof List<?> l && !l.isEmpty()) address = s(asMap(l.get(0)).get("address")); } catch (RuntimeException ignored) {}
-				servers.add(new String[] {d.getFileName().toString(), name.isEmpty() ? d.getFileName().toString() : name, address, mc.toString()});
-			}
-		} catch (IOException ignored) {}
-		String prismCmd = prism;
-		if (play != null) for (String[] e : servers) if (e[0].equals(play)) { startGame(prismCmd, e, true); return; }
-		String[][] chosen = {null};
-		boolean[] openPrism = {false};
-		java.util.concurrent.CountDownLatch closed = new java.util.concurrent.CountDownLatch(1);
-		String shot = System.getenv("OJ_POPUP_PNG");
-		SwingUtilities.invokeAndWait(() -> {
-			dev.gatehouse.look.SteamLook.apply();
-			JFrame f = new JFrame(TOOL);
-			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-			JPanel p = new JPanel(new BorderLayout(0, 12));
-			p.setBorder(BorderFactory.createEmptyBorder(18, 20, 16, 20));
-			JLabel head = new JLabel(TOOL + " Minecraft Launcher");
-			head.setFont(head.getFont().deriveFont(Font.BOLD, 20f));
-			JLabel sub = new JLabel(servers.isEmpty() ? "No Gatehouse packs are installed in Prism Launcher yet." : "Pick a server to play. The pack updates first, as always.");
-			sub.setFont(sub.getFont().deriveFont(14f));
-			JPanel top = new JPanel(new BorderLayout(0, 4));
-			top.add(head, BorderLayout.NORTH); top.add(sub, BorderLayout.SOUTH);
-			p.add(top, BorderLayout.NORTH);
-			JPanel list = new JPanel();
-			list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-			List<Runnable> polls = new ArrayList<>();
-			for (String[] e : servers) {
-				JPanel row = new JPanel(new BorderLayout(14, 0));
-				row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(12, 14, 12, 14)));
-				JLabel name = new JLabel(e[1]);
-				name.setFont(name.getFont().deriveFont(Font.BOLD, 17f));
-				JLabel state = new JLabel("Checking the server\u2026", dot(GRAY), JLabel.LEFT);
-				state.setIconTextGap(8);
-				state.setFont(state.getFont().deriveFont(13f));
-				JPanel text = new JPanel(new BorderLayout(0, 4));
-				text.setOpaque(false);
-				text.add(name, BorderLayout.NORTH); text.add(state, BorderLayout.SOUTH);
-				PlayButton go = new PlayButton("Play");
-				go.setToolTipText("Updates this pack, then shows its window before the game starts");
-				go.addActionListener(ev -> { chosen[0] = e; f.dispose(); });
-				row.add(text, BorderLayout.CENTER); row.add(go, BorderLayout.EAST);
-				row.setAlignmentX(Component.LEFT_ALIGNMENT);
-				row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
-				list.add(row); list.add(Box.createVerticalStrut(8));
-				ServerControl c = new ServerControl(Path.of(e[3]));
-				Runnable poll = () -> {
-					String[] st = c.ban.equals("blacklist") ? new String[] {"off", "Not shown: this launcher is blacklisted"} : !c.configured() ? new String[] {"off", "No server set up for this pack"} : c.status();
-					Runnable ui = () -> { state.setIcon(dot(colour(st[0]))); state.setText(st[1]); };
-					if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
-				};
-				polls.add(poll);
-				if (shot != null) poll.run();
-			}
-			JPanel inner = new JPanel(new BorderLayout());
-			inner.add(list, BorderLayout.NORTH);
-			JScrollPane sc = new JScrollPane(inner);
-			sc.setBorder(null);
-			sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-			sc.getVerticalScrollBar().setUnitIncrement(16);
-			sc.setPreferredSize(new Dimension(640, Math.max(140, Math.min(430, servers.size() * 98 + 10))));
-			p.add(sc, BorderLayout.CENTER);
-			JButton prismB = new PlayButton("Open Prism Launcher", SLATE, Color.WHITE, 14f), quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
-			prismB.setToolTipText("Prism Launcher itself: accounts, other instances, settings");
-			prismB.addActionListener(ev -> { openPrism[0] = true; f.dispose(); });
-			quit.addActionListener(ev -> f.dispose());
-			JPanel bottom = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
-			bottom.add(prismB); bottom.add(quit);
-			List<Path> folders = new ArrayList<>();
-			for (String[] e : servers) folders.add(Path.of(e[3]));
-			Path launcherAt = SteamUpdate.launcherHome(folders);
-			JPanel south = new JPanel(new BorderLayout(0, 10));
-			if (launcherAt != null) south.add(steamRow(launcherAt, "launcher", "Update " + TOOL + "'s Steam config", f, () -> ((PlayButton) quit).halo()), BorderLayout.NORTH);
-			south.add(bottom, BorderLayout.SOUTH);
-			p.add(south, BorderLayout.SOUTH);
-			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent ev) { closed.countDown(); } });
-			f.setContentPane(p);
-			f.pack();
-			fit(f, false);
-			if (shot != null && !shot.isEmpty()) {   // (testing: a picture instead of the window)
-				f.validate();
-				java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-				java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-				try { javax.imageio.ImageIO.write(img, "png", new java.io.File(shot)); } catch (IOException ex) { ex.printStackTrace(); }
-				f.dispose();
-				return;
-			}
-			Timer timer = new Timer(5000, ev -> { if (f.isDisplayable()) for (Runnable r : polls) new Thread(r, "server-status").start(); else ((Timer) ev.getSource()).stop(); });
-			timer.setInitialDelay(0);
-			timer.start();
-			f.setLocationRelativeTo(null);
-			f.setVisible(true);
-			bringForwardOnce(f);
-		});
-		closed.await();
-		if (chosen[0] != null) startGame(prismCmd, chosen[0], false);
-		else if (openPrism[0]) run(List.of(prismCmd));
-	}
-
 	/** Starts an instance through Prism Launcher, joining its server, and waits for Prism to close. */
-	private static void startGame(String prism, String[] e, boolean direct) {
+	static void startGame(String prism, String[] e, boolean direct) {
 		Path note = Path.of(e[3]).resolve("direct-launch");
 		try { if (direct) Files.writeString(note, String.valueOf(System.currentTimeMillis()), StandardCharsets.UTF_8); else Files.deleteIfExists(note); } catch (IOException ignored) {}
 		List<String> cmd = new ArrayList<>(List.of(prism, "--launch", e[0]));
 		if (!e[2].isEmpty()) { cmd.add("--server"); cmd.add(e[2]); }
 		run(cmd);
 	}
-	private static void run(List<String> cmd) {
+	static void run(List<String> cmd) {
 		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would run: " + String.join(" ", cmd)); return; }   // (testing)
-		try { new ProcessBuilder(cmd).inheritIO().start().waitFor(); }
+		try {
+			ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
+			pb.environment().put("GATEHOUSE_HOME", "1");   // (so a pack's launcher knows this menu is waiting behind it)
+			pb.start().waitFor();
+		}
 		catch (IOException | InterruptedException ex) { System.err.println("couldn't start Prism Launcher (" + cmd.get(0) + "): " + ex.getMessage()); }
 	}
 
@@ -1892,7 +1780,7 @@ public final class LaunchPopup {
 	/** This device's own server settings: the API key from the panel, and an internet wake address. */
 	// ------------------------------------------------------------------ what's shown
 
-	private static Color colour(String state) {
+	static Color colour(String state) {
 		switch (state) {
 			case "ok": return GREEN;
 			case "updated": return BLUE;
@@ -1903,7 +1791,7 @@ public final class LaunchPopup {
 	}
 
 	/** A coloured dot. */
-	private static Icon dot(Color c) {
+	static Icon dot(Color c) {
 		return new Icon() {
 			public int getIconWidth() { return 12; }
 			public int getIconHeight() { return 12; }
@@ -2090,13 +1978,29 @@ public final class LaunchPopup {
 			bottom.add(legend, BorderLayout.WEST);
 			// Beside Play: run the update again, or don't start the game.
 			JButton again = new PlayButton("Restart", YELLOW, INK, 14f), quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
+			// Menu: back to the Gatehouse launcher's own window (the Gatekeepers and their servers), without starting the
+			// game. It leaves a note the menu looks for when it's the one that started this pack; started some other way
+			// (from Prism Launcher), the menu is opened here.
+			JButton menu = new PlayButton("Menu", SLATE, Color.WHITE, 14f);
+			menu.setToolTipText("Back to the Gatehouse launcher's menu (your Gatekeepers and their servers), without starting the game");
+			menu.addActionListener(e -> {
+				try { Files.writeString(dir.resolve("back-to-menu"), "1", StandardCharsets.UTF_8); } catch (IOException ignored) {}
+				if (System.getenv("GATEHOUSE_HOME") == null) try {
+					boolean win = System.getProperty("os.name", "").startsWith("Windows");
+					Path script = dir.toAbsolutePath().resolve("extras").resolve(win ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh");
+					Files.deleteIfExists(dir.resolve("back-to-menu"));
+					if (Files.isRegularFile(script)) new ProcessBuilder(win ? List.of("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script.toString()) : List.of("bash", script.toString())).start();
+				} catch (IOException ignored) {}
+				exitCode = QUIT; f.dispose();
+			});
+			menu.setVisible(Files.isRegularFile(dir.resolve("extras").resolve(System.getProperty("os.name", "").startsWith("Windows") ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")));
 			haloQuit[0] = () -> ((PlayButton) quit).halo();
 			again.setToolTipText("Run the update again");
 			quit.setToolTipText("Don't start the game");
 			again.addActionListener(e -> { exitCode = RESTART; f.dispose(); });
 			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
 			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
-			for (JButton b : new JButton[] {again, quit}) right.add(b);
+			for (JButton b : new JButton[] {menu, again, quit}) right.add(b);
 			right.add(play);
 			// The line about Play (why it's grey, or what a request did) sits above the buttons, wrapped to their width.
 			JPanel rightCol = new JPanel(new BorderLayout(0, 3));

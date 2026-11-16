@@ -370,6 +370,25 @@ public final class HostHelper {
 				else reply(x, 403, m("error", "this launcher is blacklisted"));
 				return;
 			}
+			if (path.equals("/v1/catalog") && x.getRequestMethod().equals("GET")) {
+				// What this Gatekeeper looks after, for a launcher's menu: its own name, and each Minecraft server with the
+				// address to join, whether it's on right now, and where its pack's profile is (for a launcher to install it).
+				List<Object> list = new ArrayList<>();
+				String keep = SERVER.get();
+				try {
+					for (Object o : servers()) {
+						Map<String, Object> s = Json.map(o);
+						SERVER.set(Json.str(s.get("id")));
+						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
+						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", setting("bind", "") + ":" + (port.isEmpty() ? "25565" : port),
+								"online", minecraftRunning(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted));
+					}
+				} finally { SERVER.set(keep); }
+				String name = setting("name", "");
+				if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
+				reply(x, 200, m("name", name, "servers", list, "suspended", ban[0].equals("suspend")));
+				return;
+			}
 			if (path.equals("/v1/pulled") && x.getRequestMethod().equals("POST")) {
 				// A launcher says it has just fetched an update from this machine (not from GitHub): what and how big.
 				Map<String, Object> b = body(x);

@@ -41,7 +41,8 @@
     "mcss_exe": "C:\\Minecraft\\MCSS\\mcss.exe",
     "tailscale_exe": "C:\\Program Files\\Tailscale\\tailscale.exe",
     "servers": [
-      { "id": "october-journey", "name": "October Journey", "dir": "C:\\Minecraft\\MCSS\\servers\\octoberserver", "minecraft": "127.0.0.1:25565", "mcss_server": "" }
+      { "id": "october-journey",
+        "profile": "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/config.json", "name": "October Journey", "dir": "C:\\Minecraft\\MCSS\\servers\\octoberserver", "minecraft": "127.0.0.1:25565", "mcss_server": "" }
     ]
   },
   "_servers_later": "To add a public address later, add another entry such as { \"name\": \"October Journey (public)\", \"address\": \"play.example.com\" }.",
