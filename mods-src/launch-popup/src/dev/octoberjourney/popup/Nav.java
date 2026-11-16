@@ -146,7 +146,7 @@ final class Nav {
 		if (i >= 0) land(stops.get(i));
 	}
 
-	private static void land(Component c) {
+	static void land(Component c) {
 		c.requestFocusInWindow();
 		if (c instanceof JComponent j) j.scrollRectToVisible(new Rectangle(0, 0, j.getWidth(), j.getHeight()));
 		c.repaint();

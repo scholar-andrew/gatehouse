@@ -197,7 +197,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
         files[rel] = {"hash": h, "size": mod_size[rel] if metafile is True else os.path.getsize(os.path.join(out, rel))}
         if metafile == "preserve":
             files[rel]["preserve"] = True
-    write(os.path.join(out, "update-sizes.json"), json.dumps({"version": meta["version"], "files": files}, indent=1) + "\n")
+    write(os.path.join(out, "update-sizes.json"), json.dumps({"version": meta["version"], "gatehouse": json.load(open(os.path.join(ROOT, "source", "gatehouse.json"), encoding="utf-8")).get("version", ""), "files": files}, indent=1) + "\n")
     name = meta["name"] + (" (Steam Deck)" if variant == "deck" else "")
     pack = (
         f"name = {toml_str(name)}\n"

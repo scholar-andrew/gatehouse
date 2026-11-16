@@ -66,17 +66,38 @@ final class Notes {
 	 *  the launcher is part of every pack, as extras/launch-popup.jar, with its hash in update-sizes.json), and if there
 	 *  is one, fetches it, checks it against that hash, and puts it in place of the newest copy here (the one the
 	 *  Steam shortcut's script runs). True when a newer one is now in place: the launcher should close and be reopened.
-	 *  Nothing found, nothing reachable, or anything going wrong: false, and nothing is changed. */
+	 *  Nothing found, nothing reachable, or anything going wrong: false, and nothing is changed.
+	 *  (The main window does this in two steps, newer() then fetch(), asking in between.) */
 	static boolean selfUpdate(Path instances) {
+		String[] found = newer(instances);
+		return found != null && fetch(found);
+	}
+
+	/** The fetching half: {where the pack is served, the hash wanted, the pack folder here to put it in, ...} from newer(). */
+	static boolean fetch(String[] found) {
+		try {
+			byte[] jar = LaunchPopup.fetchBytes(found[0] + "/extras/launch-popup.jar");
+			if (!found[1].equals(LaunchPopup.sha256(jar))) return false;
+			Path dst = Path.of(found[2]).resolve("extras/launch-popup.jar"), tmp = Path.of(found[2]).resolve("extras/launch-popup.jar.part");
+			Files.write(tmp, jar);
+			try { Files.move(tmp, dst, java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(tmp); }   // (in use, as when run straight from there on Windows: left as it was)
+			return true;
+		} catch (Exception e) { if (System.getenv("OJ_DEBUG") != null) e.printStackTrace(); return false; }
+	}
+
+	/** The looking half: null when this is the newest Gatehouse there is (or nothing could be reached), else
+	 *  {where the pack is served, the hash wanted, the pack folder here to put it in, its size in bytes or "",
+	 *  its version or ""}. Nothing is fetched or changed. */
+	static String[] newer(Path instances) {
 		try {
 			Path me = Path.of(Notes.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-			if (!Files.isRegularFile(me)) return false;
+			if (!Files.isRegularFile(me)) return null;
 			String mine = LaunchPopup.sha256(Files.readAllBytes(me));
 			boolean deck = false;
 			try { String p = Files.readString(Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); deck = p.equals("Jupiter") || p.equals("Galileo"); } catch (IOException | RuntimeException ignored) {}
 			List<Path> packs = new ArrayList<>();
 			try (java.util.stream.Stream<Path> s = Files.list(instances)) { s.filter(Files::isDirectory).map(d -> d.resolve("minecraft")).filter(m -> Files.isRegularFile(m.resolve("pack-sources.txt")) && Files.isRegularFile(m.resolve("extras/launch-popup.jar"))).forEach(packs::add); }
-			if (packs.isEmpty()) return false;
+			if (packs.isEmpty()) return null;
 			// (the newest copy among them is the one that gets run)
 			Path target = packs.get(0);
 			for (Path p : packs) if (Files.getLastModifiedTime(p.resolve("extras/launch-popup.jar")).compareTo(Files.getLastModifiedTime(target.resolve("extras/launch-popup.jar"))) > 0) target = p;
@@ -87,18 +108,15 @@ final class Notes {
 				tried.add(src);
 				for (String variant : deck ? new String[] {"deck", "main"} : new String[] {"main"}) try {
 					String base = src + "/" + variant;
-					String want = str(ServerControl.asMap(ServerControl.asMap(ServerControl.asMap(LaunchPopup.parseJson(new String(LaunchPopup.fetchBytes(base + "/update-sizes.json"), StandardCharsets.UTF_8))).get("files")).get("extras/launch-popup.jar")).get("hash"));
+					Map<String, Object> sizes = ServerControl.asMap(LaunchPopup.parseJson(new String(LaunchPopup.fetchBytes(base + "/update-sizes.json"), StandardCharsets.UTF_8)));
+					Map<String, Object> entry = ServerControl.asMap(ServerControl.asMap(sizes.get("files")).get("extras/launch-popup.jar"));
+					String want = str(entry.get("hash"));
 					if (want.isEmpty()) continue;
-					if (want.equals(mine)) return false;   // (this is the newest there is)
-					byte[] jar = LaunchPopup.fetchBytes(base + "/extras/launch-popup.jar");
-					if (!want.equals(LaunchPopup.sha256(jar))) return false;
-					Path dst = target.resolve("extras/launch-popup.jar"), tmp = target.resolve("extras/launch-popup.jar.part");
-					Files.write(tmp, jar);
-					try { Files.move(tmp, dst, java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(tmp); }   // (in use, as when run straight from there on Windows: left as it was)
-					return true;
+					if (want.equals(mine)) return null;   // (this is the newest there is)
+					return new String[] {base, want, target.toString(), str(entry.get("size")).replaceAll("\\..*$", ""), str(sizes.get("gatehouse"))};
 				} catch (IOException | RuntimeException next) { if (System.getenv("OJ_DEBUG") != null) next.printStackTrace(); /* the next place */ }
 			}
 		} catch (Exception e) { if (System.getenv("OJ_DEBUG") != null) e.printStackTrace(); }
-		return false;
+		return null;
 	}
 }

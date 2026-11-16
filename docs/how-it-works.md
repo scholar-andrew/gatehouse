@@ -195,8 +195,9 @@ their next launch; nobody has to touch a device.
   so a launcher change also needs a pack version, whose note can simply point at the Gatehouse updates tab.
 - **Gatehouse updating itself.** Opened directly (the Gatehouse shortcut, no server chosen), the launcher looks where
   the installed packs get their updates (`pack-sources.txt`), compares the hash of `extras/launch-popup.jar` in
-  `update-sizes.json` with its own, and if they differ fetches the new one, checks it against that hash, puts it in
-  place and ends with code 12. `gatehouse-launcher.ps1` / `.sh` see the 12 and open the new one once
+  `update-sizes.json` with its own, and if they differ says so under the heading (the version from `gatehouse` in
+  `update-sizes.json`, which the build takes from `source/gatehouse.json`, and the size) with Update Gatehouse and
+  Later. Update fetches the new one, checks it against that hash, puts it in place and ends with code 12. `gatehouse-launcher.ps1` / `.sh` see the 12 and open the new one once
   (`GATEHOUSE_UPDATED=1` stops it looking again). `--self-update <instances folder>` does only the looking, for tests.
 
 ### Changing one of the pack's own mods

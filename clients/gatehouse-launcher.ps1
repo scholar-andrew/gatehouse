@@ -35,7 +35,7 @@ foreach ($h in $javaHomes) {
 if (-not $java) { Prism-Instead }
 # Run from a copy: Windows locks a running file, and the pack's update has to be able to replace the launcher.
 $run = Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run.jar'
-try { Copy-Item $jar $run -Force } catch { $run = $jar }
+try { Copy-Item $jar $run -Force -ErrorAction Stop } catch { $run = $jar }
 $launcherArgs = @('-jar', "`"$run`"", '--home', "`"$Instances`"", '--prism', "`"$Prism`"")
 if ($Play) { $launcherArgs += @('--play', $Play) }
 $p = Start-Process -Wait -PassThru $java -ArgumentList $launcherArgs
@@ -43,7 +43,7 @@ $p = Start-Process -Wait -PassThru $java -ArgumentList $launcherArgs
 if ($p.ExitCode -eq 12) {
     $jar = Get-ChildItem $Instances -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'minecraft\extras\launch-popup.jar' } |
         Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
-    try { Copy-Item $jar $run -Force } catch { $run = $jar }
+    try { Copy-Item $jar $run -Force -ErrorAction Stop } catch { $run = $jar }
     $launcherArgs[1] = "`"$run`""
     $env:GATEHOUSE_UPDATED = '1'
     Start-Process -Wait $java -ArgumentList $launcherArgs

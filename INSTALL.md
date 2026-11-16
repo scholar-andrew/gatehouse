@@ -136,8 +136,11 @@ Both programs use the same dark look, sized for a Steam Deck's screen.
 Gatehouse and Gatekeeper each have a version and notes of their own, apart from any pack's or server's:
 
 - **Gatehouse updates**, a tab on the launcher's main window, lists what changed in the launcher, newest on top. When
-  you open Gatehouse directly it looks for a newer copy of itself, fetches it and reopens; that tab is then in front,
-  marked "(new)". You can read it any time.
+  you open Gatehouse directly it looks for a newer copy of itself and asks, under its heading: which version is
+  ready, which you have and how big it is, with **Update Gatehouse** and **Later**. Update fetches it and reopens,
+  with that tab in front, marked "(new)". This is apart from a pack's update, which that server's launcher asks
+  about; starting a server straight from its Steam shortcut still updates both, Gatehouse first. You can read the tab
+  any time.
 - **Gatekeeper updates**, a tab beside a Gatekeeper's servers, lists what changed in that Gatekeeper (it's asked for
   them; one from before Gatekeeper 2.0.0 says so instead).
 - A server's own window shows neither: its Client updates tab is about the pack, and Server updates about the server.

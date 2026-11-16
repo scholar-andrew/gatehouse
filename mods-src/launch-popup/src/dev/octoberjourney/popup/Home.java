@@ -230,7 +230,18 @@ final class Home {
 			JPanel headRow = new JPanel(new BorderLayout(10, 0));
 			headRow.add(head, BorderLayout.CENTER); headRow.add(backB, BorderLayout.EAST);
 			JPanel top = new JPanel(new BorderLayout(0, 4));
-			top.add(headRow, BorderLayout.NORTH); top.add(sub, BorderLayout.SOUTH);
+			// Gatehouse's own update, asked about here (apart from any pack's, which its server's launcher asks about).
+			JPanel ownUpdate = new JPanel(new BorderLayout(10, 0));
+			ownUpdate.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x3D6FD6)), BorderFactory.createEmptyBorder(8, 12, 8, 8)));
+			JLabel ownUpdateText = new JLabel(" ");
+			JButton ownUpdateGo = new LaunchPopup.PlayButton("Update " + LaunchPopup.TOOL), ownUpdateLater = new JButton("Later");
+			ownUpdateGo.setToolTipText("Fetches the newer " + LaunchPopup.TOOL + " and reopens it. No game or pack is touched.");
+			ownUpdateLater.setToolTipText("Carry on with this one; you'll be asked again the next time " + LaunchPopup.TOOL + " is opened");
+			JPanel ownUpdateButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			ownUpdateButtons.add(ownUpdateLater); ownUpdateButtons.add(ownUpdateGo);
+			ownUpdate.add(ownUpdateText, BorderLayout.CENTER); ownUpdate.add(ownUpdateButtons, BorderLayout.EAST);
+			ownUpdate.setVisible(false);
+			top.add(headRow, BorderLayout.NORTH); top.add(sub, BorderLayout.CENTER); top.add(ownUpdate, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
 			CardLayout cards = new CardLayout();
 			JPanel deck = new JPanel(cards);
@@ -599,10 +610,38 @@ final class Home {
 			else { showKeepers[0].run(); if (fresh && !seenVersion.isEmpty()) level1.setSelectedIndex(1); }
 			// Opened directly (not on the way back from a server): look for a newer Gatehouse; with one in place, close
 			// and let the shortcut's script open it. (GATEHOUSE_UPDATED: just reopened for that, so not again.)
-			if (openAt == null && shot == null && System.getenv("GATEHOUSE_UPDATED") == null) new Thread(() -> {
-				if (!Notes.selfUpdate(instances)) return;
-				SwingUtilities.invokeLater(() -> { sub.setText("A newer Gatehouse was fetched: reopening\u2026"); again[0] = "\u0000relaunch"; f.dispose(); });
-			}, "self-update").start();
+			// It asks first: the line under the heading says a newer one is there (which, and how big), with Update
+			// Gatehouse and Later. OJ_GATEHOUSE_NEWER (testing): pretend one was found, "version|bytes".
+			String pretend = System.getenv("OJ_GATEHOUSE_NEWER");
+			if (pretend != null || (openAt == null && shot == null && System.getenv("GATEHOUSE_UPDATED") == null)) {
+				Runnable look = () -> {
+					String[] found = pretend != null ? new String[] {"", "", "", pretend.replaceAll("^.*\\|", ""), pretend.replaceAll("\\|.*$", "")} : Notes.newer(instances);
+					if (found == null) return;
+					Runnable ui = () -> {
+						long bytes = 0; try { bytes = Long.parseLong(found[3]); } catch (NumberFormatException ignored) {}
+						String have = Notes.version(Notes.own());
+						ownUpdateText.setText("<html><b>A " + LaunchPopup.TOOL + " update is ready" + (found[4].isEmpty() || found[4].equals(have) ? "" : ": " + LaunchPopup.esc(found[4])) + ".</b> You have " + LaunchPopup.esc(have) + "." + (bytes > 0 ? " " + Math.max(1, Math.round(bytes / 1024.0)) + " KB to download." : "") + "</html>");
+						ownUpdateLater.addActionListener(ev -> { ownUpdate.setVisible(false); f.validate(); });
+						ownUpdateGo.addActionListener(ev -> {
+							ownUpdateGo.setEnabled(false); ownUpdateLater.setEnabled(false);
+							ownUpdateText.setText("Fetching the newer " + LaunchPopup.TOOL + "\u2026");
+							new Thread(() -> {
+								boolean ok = Notes.fetch(found);
+								SwingUtilities.invokeLater(() -> {
+									if (ok) { again[0] = "\u0000relaunch"; f.dispose(); return; }
+									ownUpdateText.setText("<html>Couldn't fetch it just now. Nothing was changed; it will be offered again next time.</html>");
+									ownUpdateLater.setText("Close"); ownUpdateLater.setEnabled(true);
+								});
+							}, "self-update").start();
+						});
+						ownUpdate.setVisible(true);
+						f.validate();
+						Nav.land(ownUpdateGo);
+					};
+					if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
+				};
+				if (shot != null) look.run(); else new Thread(look, "self-update").start();
+			}
 			f.pack();
 			LaunchPopup.fit(f, false);
 			if (shot != null && !shot.isEmpty()) {   // (testing: pictures instead of the window: <file>, and <file>-servers.png for the first Gatekeeper)
