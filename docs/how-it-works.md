@@ -193,6 +193,17 @@ their next launch; nobody has to touch a device.
   Gatekeeper). A change to Gatekeeper goes in `source/gatekeeper.json`, with its `version` raised (Gatekeeper's first
   screen, and the Gatekeeper updates tab beside its servers in a launcher). The launcher still travels inside each pack,
   so a launcher change also needs a pack version, whose note can simply point at the Gatehouse updates tab.
+- **The update inside the Gatehouse window (the first step of one program).** Launch in the main window runs the
+  pack's update script itself (`Home.startSync`: `pack-sync.ps1` / `.sh` with `GATEHOUSE_EMBED=1`, and the Java the
+  launcher runs on as `INST_JAVA`), and shows the checklist in its own window (`LaunchPopup.checklist` given that
+  window, which is also what `--progress` uses in a window of its own). Run that way the script opens no window, asks
+  about the download through the same status and answer files (no `self-update`: the main window updates Gatehouse
+  itself), and at the end writes `done|<status>` and `pack-sync-fresh.txt` (`<unix time>|<status>`) instead of waiting
+  for Play. Gatehouse then has Prism start the instance; Prism runs the script as always, which finds that note less
+  than three minutes old, keeps the first run's status file and records, and goes straight to the launcher window.
+  Without the note (the script ended early, a pack started from Prism itself) everything is as before. A script that
+  doesn't mention `GATEHOUSE_EMBED` (from before pack 1.18.0) is not run this way. `OJ_HOME_LAUNCH=<game folder>`
+  runs just this part, in a window that isn't shown, for tests.
 - **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
   Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
   `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)

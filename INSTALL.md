@@ -114,8 +114,9 @@ safe; it updates your setup without duplicating anything.
    Beside **Servers** is **Connections**: the server machine, MCSS and each server, each with what it's doing right
    now (including Starting and Shutting down) and the buttons your device is allowed: **Wake** or **Sleep**, **Start
    MCSS** or **Close MCSS**, **Start server** or **Stop server**. Stopping and closing ask first.
-3. **The server's own launcher.** **Launch** beside a server starts that pack: its update runs first and the window
-   described below appears, where **Play** starts the game. Its **Gatehouse** button comes back here without starting
+3. **The server's own launcher.** **Launch** beside a server starts that pack: its update runs first, in this same
+   window (a checklist, and a question before anything big is downloaded; **Quit** there goes back to the list), and
+   then the window described below appears in its place, where **Play** starts the game. Its **Gatehouse** button comes back here without starting
    the game.
 
 Along the bottom are **Open Prism Launcher** (accounts, other instances, settings), **Restart** (opens the launcher

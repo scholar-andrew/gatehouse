@@ -150,11 +150,45 @@ final class Home {
 	/** Launch pressed: Prism Launcher being started for that pack while the window is still up (it goes when the
 	 *  pack's own window has taken its place). */
 	private static volatile Thread launching;
+	private static volatile boolean launchBusy;
+
+	/** Starts a pack's update script from here (GATEHOUSE_EMBED=1: it opens no window of its own, reports into its
+	 *  status file, and ends when done instead of waiting for Play). Null when this pack has no such script, or one
+	 *  from before it could be run this way: the pack then updates in its own window, as it always did. */
+	static Process startSync(Path dir) {
+		try {
+			boolean win = System.getProperty("os.name", "").startsWith("Windows");
+			Path script = dir.resolve(win ? "pack-sync.ps1" : "pack-sync.sh");
+			if (!Files.isRegularFile(script) || !LaunchPopup.readFile(script).contains("GATEHOUSE_EMBED")) return null;
+			ProcessBuilder pb = new ProcessBuilder(win ? List.of("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script.toString()) : List.of("bash", script.toString()));
+			pb.directory(dir.toFile());
+			pb.environment().put("GATEHOUSE_EMBED", "1");
+			// (the Java this launcher runs on does for the update too: Prism isn't there to hand one over)
+			String java = ProcessHandle.current().info().command().orElse("");
+			if (!java.isEmpty() && pb.environment().get("INST_JAVA") == null) pb.environment().put("INST_JAVA", java);
+			pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
+			return pb.start();
+		} catch (IOException | RuntimeException e) { return null; }
+	}
 	private static volatile String prismFor = "prismlauncher";
 	/** Where a server's window was when its Gatehouse button was pressed: this window opens there. */
 	private static volatile java.awt.Rectangle cameBack;
 
 	static void run(String[] args) throws Exception {
+		// Testing: OJ_HOME_LAUNCH=<game folder> runs that pack's update the way Launch does, in a window that isn't
+		// shown, and says how it went (with OJ_POPUP_PNG, the checklist's pictures are taken too).
+		if (System.getenv("OJ_HOME_LAUNCH") != null) {
+			Path dir = Path.of(System.getenv("OJ_HOME_LAUNCH"));
+			Process sync = startSync(dir);
+			if (sync == null) { System.out.println("embedded update: this pack's script can't be run from Gatehouse"); return; }
+			JFrame[] tf = {null};
+			SwingUtilities.invokeAndWait(() -> { dev.gatehouse.look.SteamLook.apply(); tf[0] = new JFrame(); tf[0].setSize(900, 600); tf[0].addNotify(); });   // (laid out, never shown)
+			String done = LaunchPopup.checklist(dir, tf[0], sync);
+			sync.waitFor(20, java.util.concurrent.TimeUnit.SECONDS);
+			System.out.println("embedded update: " + done + "; script ended " + (sync.isAlive() ? "no" : "with " + sync.exitValue()) + "; note left: " + LaunchPopup.readFile(dir.resolve("pack-sync-fresh.txt")).trim().replaceAll("^\\d+", "<when>"));
+			SwingUtilities.invokeAndWait(() -> tf[0].dispose());
+			return;
+		}
 		Path instances = Path.of(args[1]), home = instances.toAbsolutePath().getParent().resolve("gatehouse");
 		String prism = "prismlauncher", play = null;
 		for (int i = 2; i + 1 < args.length; i += 2) { if (args[i].equals("--prism")) prism = args[i + 1]; else if (args[i].equals("--play")) play = args[i + 1]; }
@@ -337,25 +371,53 @@ final class Home {
 					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {missing, install, go});
 					go.setVisible(pack != null); missing.setVisible(pack == null);
 					if (pack != null) go.addActionListener(ev -> {
-						if (chosen[0] != null) return;
-						chosen[0] = pack;
-						if (System.getenv("OJ_HOME_DRY") != null || shot != null) { f.dispose(); return; }   // (testing)
-						Path note = Path.of(pack[3]).resolve(LaunchPopup.HANDOFF);
-						LaunchPopup.leaveBounds(note, f);
-						sub.setText("Opening " + pack[1] + "\u2026");
-						f.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
+						if (launchBusy) return;
+						if (System.getenv("OJ_HOME_DRY") != null || shot != null) { chosen[0] = pack; f.dispose(); return; }   // (testing)
+						launchBusy = true;
 						go.setEnabled(false);
-						Thread t = new Thread(() -> LaunchPopup.startGame(prismFor, pack, false), "launch");
-						launching = t;
-						t.start();
-						long since = System.currentTimeMillis();
-						// (its window is up: the note is gone. Or nothing came of it: Prism finished, or 30 seconds passed.)
-						new Timer(100, tick -> {
-							if (Files.exists(note) && t.isAlive() && System.currentTimeMillis() - since < 30_000) return;
-							((Timer) tick.getSource()).stop();
-							try { Files.deleteIfExists(note); } catch (IOException ignored) {}
-							f.dispose();
-						}).start();
+						f.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
+						// Prism Launcher starts the instance with this window still up; the window goes when the pack's
+						// own window has taken its place (the note is gone), or nothing came of it (Prism finished, or
+						// 30 seconds passed).
+						Runnable handOver = () -> {
+							chosen[0] = pack;
+							Path note = Path.of(pack[3]).resolve(LaunchPopup.HANDOFF);
+							LaunchPopup.leaveBounds(note, f);
+							Thread t = new Thread(() -> LaunchPopup.startGame(prismFor, pack, false), "launch");
+							launching = t;
+							t.start();
+							long since = System.currentTimeMillis();
+							new Timer(100, tick -> {
+								if (Files.exists(note) && t.isAlive() && System.currentTimeMillis() - since < 30_000) return;
+								((Timer) tick.getSource()).stop();
+								try { Files.deleteIfExists(note); } catch (IOException ignored) {}
+								launchBusy = false;
+								f.dispose();
+							}).start();
+						};
+						// The pack's update, run from here with its checklist in this window, when the pack's update
+						// script knows how to be run that way (one from before Gatehouse 2.1.0 opens its own window).
+						Process sync = startSync(Path.of(pack[3]));
+						if (sync == null) { sub.setText("Opening " + pack[1] + "\u2026"); handOver.run(); return; }
+						new Thread(() -> {
+							String done;
+							try { done = LaunchPopup.checklist(Path.of(pack[3]), f, sync); } catch (Exception ex) { done = "stopped"; }
+							boolean quit = LaunchPopup.embedQuit;
+							LaunchPopup.reuse = null; LaunchPopup.embedded = false; LaunchPopup.embedQuit = false;
+							if (done == null) {   // Quit (back to the list of servers, in the same place), or the window was closed
+								sync.destroy();
+								launchBusy = false;
+								if (!quit) return;
+								SwingUtilities.invokeLater(() -> { cameBack = f.getBounds(); again[0] = pack[4]; f.dispose(); });
+								return;
+							}
+							SwingUtilities.invokeLater(() -> {
+								f.setCursor(java.awt.Cursor.getDefaultCursor());
+								JLabel line = LaunchPopup.progressSub;
+								if (line != null) line.setText("Up to date. Opening " + pack[1] + "'s launcher\u2026");
+								handOver.run();
+							});
+						}, "embedded-sync").start();
 					});
 					serverList.add((JPanel) r[0]); serverList.add(Box.createVerticalStrut(8));
 					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install});
@@ -670,7 +732,7 @@ final class Home {
 				String[] found = pretend != null ? new String[] {"", "pretend", "", pretend.replaceAll("^.*\\|", ""), pretend.replaceAll("\\|.*$", "")} : Notes.newer(instances);
 				if (found == null) return;
 				Runnable ui = () -> {
-					if (!f.isDisplayable() && shot == null) return;
+					if ((!f.isDisplayable() && shot == null) || LaunchPopup.embedded) return;
 					if (found[1].equals(declined[0]) || (offered[0] != null && offered[0][1].equals(found[1]) && ownUpdate.isVisible())) return;
 					if (!ownUpdateGo.isEnabled() && ownUpdate.isVisible() && !ownUpdateLater.isEnabled()) return;   // (one is being fetched right now)
 					offered[0] = found;

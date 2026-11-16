@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.0.4",
+ "version": "2.1.0",
  "changes": [
+  {"version": "2.1.0", "date": "2026-11-16", "notes": [
+   "First step of making Gatehouse one program: pressing Launch beside a server now runs that pack's update inside the main Gatehouse window. The window stays where it is and shows the checklist, and the question about the download when there is one. Until now Prism Launcher ran the update, in a second window.",
+   "When the update is done, Prism Launcher starts the instance and that server's launcher opens in the same place, without updating a second time. (That launcher is still a second window underneath; bringing it into this one is the next step.)",
+   "Quit on the checklist cancels the launch and goes back to the list of servers.",
+   "This starts working one launch after this update arrives: the pack's update script has to be the new one first. A pack whose script is older, and a plain server, open as before."
+  ]},
   {"version": "2.0.4", "date": "2026-11-16", "notes": [
    "Updates are noticed while a window is open, with no need to reopen anything. The main window looks for a newer Gatehouse every couple of minutes; a server's launcher looks for a newer version of its pack. When one appears, the line under the heading shows up, with a chime.",
    "In a server's launcher that line says which pack version is ready and how much there is to download, with Update now (the update runs again, as with Restart) and Later.",

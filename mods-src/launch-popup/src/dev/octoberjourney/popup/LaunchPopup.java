@@ -235,20 +235,37 @@ public final class LaunchPopup {
 	/** The checklist while the sync runs: each step waiting, running (with packwiz-installer's latest line for the
 	 *  download), or done with a mark. Quit cancels the launch. Then the summary takes over the same window. */
 	static void progress(Path dir) throws Exception {
+		String done = checklist(dir, null, null);
+		if (done != null) summary(dir, done);
+	}
+
+	/** The checklist inside the main Gatehouse window (checklist() given that window): true while it is. Its Quit
+	 *  button then sets embedQuit and leaves the window to the caller. */
+	static volatile boolean embedded, embedQuit;
+	/** The line under the checklist's heading, for the caller to say what happens next. */
+	static volatile JLabel progressSub;
+
+	/** The checklist itself, until the sync says it's done. Returns how it went ("ok", "offline", "failed"), or null
+	 *  when the player quit. "into": show it in that window (the main Gatehouse window, which then runs the sync
+	 *  itself, "sync") instead of one of its own; "stopped" then means the sync ended without finishing. */
+	static String checklist(Path dir, JFrame into, Process sync) throws Exception {
 		loadProfile(dir);
+		embedded = into != null; embedQuit = false; asking = false;
 		String options = read(dir.resolve("pack-options.json"));
-		boolean ui = !GraphicsEnvironment.isHeadless() && (option(options, "popup_updates") || option(options, "popup_no_updates"));
+		boolean ui = !GraphicsEnvironment.isHeadless() && (into != null || option(options, "popup_updates") || option(options, "popup_no_updates"));
 		JLabel[] rows = new JLabel[STEPS.length];
 		if (ui) SwingUtilities.invokeAndWait(() -> {
 			dev.gatehouse.look.SteamLook.apply();
-			JFrame f = new JFrame(TOOL + " \u2013 " + NAME);
-			f.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+			JFrame f = into != null ? into : new JFrame(TOOL + " \u2013 " + NAME);
+			if (into == null) f.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+			else f.setTitle(TOOL + " \u2013 " + NAME);
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
 			JLabel h = new JLabel("Getting " + NAME + " ready");
 			h.setFont(h.getFont().deriveFont(Font.BOLD, 18f));
 			JLabel s = new JLabel("Checking for updates before the game starts.");
 			s.setFont(s.getFont().deriveFont(14f));
+			progressSub = s;
 			JPanel top = new JPanel(new BorderLayout(0, 4));
 			top.add(h, BorderLayout.NORTH); top.add(s, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
@@ -265,7 +282,7 @@ public final class LaunchPopup {
 			}
 			p.add(list, BorderLayout.CENTER);
 			JButton quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
-			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
+			quit.addActionListener(e -> { if (into != null) { embedQuit = true; return; } exitCode = QUIT; f.dispose(); });
 			JPanel bottom = new JPanel(new BorderLayout());
 			JLabel hint = new JLabel("Quit cancels this launch.");
 			hint.setForeground(new Color(0x8F98A0));
@@ -287,6 +304,13 @@ public final class LaunchPopup {
 			south.add(askPanel, BorderLayout.NORTH);
 			south.add(bottom, BorderLayout.SOUTH);
 			p.add(south, BorderLayout.SOUTH);
+			if (into != null) {   // (the window stays as it is, where it is: only what it shows changes)
+				f.setContentPane(p);
+				f.validate();
+				f.repaint();
+				reuse = f;
+				return;
+			}
 			f.addWindowListener(new java.awt.event.WindowAdapter() {
 				@Override public void windowClosing(java.awt.event.WindowEvent e) { exitCode = QUIT; f.dispose(); }
 			});
@@ -305,8 +329,10 @@ public final class LaunchPopup {
 		String done = null;
 		int tick = 0;
 		boolean askedOnce = false;
+		int ended = 0;
 		while (done == null) {
-			if (reuse != null && !reuse.isDisplayable()) return;   // quit
+			if (embedQuit) return null;
+			if (reuse != null && !reuse.isDisplayable() && (into == null || png == null)) return null;   // quit
 			Map<String, String[]> got = new LinkedHashMap<>();
 			for (String l : read(dir.resolve("pack-sync-status.txt")).split("\\R")) {
 				String[] f = l.split("\\|", 4);
@@ -350,9 +376,10 @@ public final class LaunchPopup {
 					}
 				});
 			}
+			if (done == null && sync != null && !sync.isAlive() && ++ended > 3) return "stopped";   // (it ended without saying it was done)
 			if (done == null) Thread.sleep(300);
 		}
-		summary(dir, done);
+		return done;
 	}
 
 	/** Before the download: works out what the update would fetch and, when there's something, shows the size in the
@@ -407,8 +434,7 @@ public final class LaunchPopup {
 					progressPlay.setEnabled(true);
 					progressPlay.addActionListener(e -> { synchronized (choice) { choice[0] = "go"; choice.notifyAll(); } });
 					askPanel.setVisible(true);
-					f.pack();
-					fit(f, false);
+					if (embedded) f.validate(); else { f.pack(); fit(f, false); }
 					if (handed != null) place(f, handed);
 					if (png != null) try {   // testing: a picture of the question
 						JComponent cp = (JComponent) f.getContentPane();
@@ -427,7 +453,7 @@ public final class LaunchPopup {
 				}
 				if (choice[0] == null) { asking = false; Files.deleteIfExists(pull); return; }   // quit
 				if (choice[0].equals("skip")) { skipped = size; reply = "skip|" + size; }
-				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); progressPlay.setText("Play"); progressPlay.setEnabled(false); f.pack(); if (handed != null) place(f, handed); });
+				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); progressPlay.setText("Play"); progressPlay.setEnabled(false); if (embedded) f.validate(); else f.pack(); if (handed != null) place(f, handed); });
 			}
 		} catch (Exception ignored) {}   // (size unknown: the update just runs, as it always did)
 		asking = false;
