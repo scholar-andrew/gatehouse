@@ -221,6 +221,7 @@ public final class LaunchPopup {
 			Thread.sleep(args.length > 1 ? Long.parseLong(args[1]) : 1500);
 			System.exit(0);
 		}
+		if (args.length >= 2 && args[0].equals("--steam")) System.exit(SteamUpdate.cli(args));   // (for the installers: a shortcut into Steam's library, or out of it)
 		if (args.length >= 2 && args[0].equals("--self-update")) {   // testing: look for a newer Gatehouse for this instances folder, as the main window does
 			System.out.println("Gatehouse " + Notes.version(Notes.own()) + "; newer one fetched: " + Notes.selfUpdate(Path.of(args[1])));
 			return;

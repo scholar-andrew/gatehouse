@@ -244,7 +244,14 @@ their next launch; nobody has to touch a device.
   the Windows script fetches `gatekeeper/oj-host.jar` (checked against `gatekeeper.json`) and
   `installer/keeper/install-keeper.ps1`, and runs that. Java, when none is found: the Temurin 21 runtime from
   Adoptium's API, with its checksum, into `%LOCALAPPDATA%\Gatehouse\jre`, which the launcher's script also searches.
-  Released as `gatehouse-install.zip` (the two scripts and `Install Gatehouse.cmd`).
+  Steam: the Windows script asks the launcher itself, `java -jar launch-popup.jar --steam from <file>` (lines: `add`,
+  name, program, start folder, options; or `remove`, name), which uses `SteamUpdate.addShortcut` / `removeShortcut`
+  (`--config`, `--art`, `--flatpak`; exit 3 when Steam is running). The Linux script does the same with `python3` on
+  the host, since Steam's files can't be seen from inside Prism's Flatpak. Both replace a shortcut of the same name,
+  renumber the list, keep the old list as `shortcuts.vdf.bak-gatehouse`, and copy or delete the five art files in
+  `grid`. `-Uninstall` / `--uninstall` (with `-Purge` / `--purge`) undo what was installed; the script copies itself
+  into `gatehouse/app` for that. Released as `gatehouse-install.zip` (the two scripts, `Install Gatehouse.cmd` and
+  `Uninstall Gatehouse.cmd`).
 - **Connect to this Gatekeeper.** `Connect.java`: the steps between having a pairing and the Gatekeeper answering,
   looked at every 2.5 seconds: a Tailscale address on this device (an interface address in 100.64.0.0/10, which also
   works inside Prism's Flatpak), the Gatekeeper's port reachable, and its answer to this device's introduction.

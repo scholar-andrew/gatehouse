@@ -184,6 +184,136 @@ final class SteamUpdate {
 		return "\"" + name + "\" added to Steam.";
 	}
 
+	// ---- any shortcut, for the installers (gatehouse-install): add one, or take one out again
+	/** Steam's settings folder for the account that signed in last, found without any pack: on Windows where the
+	 *  registry says Steam is; on Linux in the usual places in the home folder. */
+	static Path findConfig() throws IOException {
+		List<Path> steams = new ArrayList<>();
+		if (System.getProperty("os.name", "").startsWith("Windows")) try {
+			Process q = new ProcessBuilder("reg", "query", "HKCU\\Software\\Valve\\Steam", "/v", "SteamPath").redirectErrorStream(true).start();
+			String out = new String(q.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+			q.waitFor();
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("SteamPath\\s+REG_SZ\\s+(.+)").matcher(out);
+			if (m.find()) steams.add(Path.of(m.group(1).trim()));
+		} catch (IOException | InterruptedException | RuntimeException ignored) {}
+		else {
+			String home = System.getProperty("user.home", "");
+			for (String s : new String[] {".steam/steam", ".local/share/Steam", ".var/app/com.valvesoftware.Steam/.local/share/Steam"}) steams.add(Path.of(home, s));
+		}
+		for (Path steam : steams) {
+			String best = null;
+			java.util.regex.Matcher u = java.util.regex.Pattern.compile("\"(7656\\d{13})\"\\s*\\{(.*?)\\}", java.util.regex.Pattern.DOTALL).matcher(LaunchPopup.readFile(steam.resolve("config/loginusers.vdf")));
+			while (u.find()) if (best == null || u.group(2).matches("(?s).*\"MostRecent\"\\s*\"1\".*")) best = u.group(1);
+			if (best != null) return steam.resolve("userdata").resolve(String.valueOf(Long.parseLong(best) - 76561197960265728L)).resolve("config");
+		}
+		throw new IOException("Steam's files weren't found on this device (is Steam installed, and has it been signed in to?)");
+	}
+
+	private static List<Object[]> shortcutList(List<Object[]> root) throws IOException {
+		for (Object[] n : root) if (((String) n[1]).equalsIgnoreCase("shortcuts") && n[2] instanceof List<?>) return nodes(n[2]);
+		throw new IOException("Steam's shortcut list isn't in a form this knows: nothing was changed");
+	}
+	private static void save(Path cfg, byte[] before, List<Object[]> root) throws IOException {
+		Path vdf = cfg.resolve("shortcuts.vdf");
+		if (Files.isRegularFile(vdf)) Files.write(cfg.resolve("shortcuts.vdf.bak-gatehouse"), before);
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		write(out, root);
+		Files.createDirectories(cfg);
+		Files.write(vdf, out.toByteArray());
+		read(ByteBuffer.wrap(Files.readAllBytes(vdf)).order(ByteOrder.LITTLE_ENDIAN));   // (reads back cleanly, or this throws)
+	}
+	private static byte[] current(Path cfg) throws IOException {
+		Path vdf = cfg.resolve("shortcuts.vdf");
+		return Files.isRegularFile(vdf) ? Files.readAllBytes(vdf) : new byte[] {0, 's', 'h', 'o', 'r', 't', 'c', 'u', 't', 's', 0, 8, 8};
+	}
+	private static final String[][] ART = {{"cover.png", "p.png"}, {"hero.png", "_hero.png"}, {"logo.png", "_logo.png"}, {"icon.png", "_icon.png"}, {"wide.png", ".png"}};
+
+	/** Adds a shortcut to Steam's list (one of the same name is replaced), with art from a folder if one is given
+	 *  (cover.png, hero.png, logo.png, icon.png, wide.png). The list as it was is kept beside it as
+	 *  shortcuts.vdf.bak-gatehouse. Steam has to be closed. Returns the shortcut's app id. */
+	static long addShortcut(Path cfg, String name, String exe, String startDir, String opts, String flatpak, Path art) throws IOException {
+		byte[] before = current(cfg);
+		List<Object[]> root = read(ByteBuffer.wrap(before).order(ByteOrder.LITTLE_ENDIAN));
+		List<Object[]> list = shortcutList(root);
+		list.removeIf(n -> n[2] instanceof List<?> && name.equals(str(get(nodes(n[2]), "AppName"))));
+		String qexe = "\"" + exe + "\"", qdir = "\"" + startDir + "\"";
+		java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+		crc.update((qexe + name).getBytes(StandardCharsets.UTF_8));
+		long appid = (crc.getValue() | 0x80000000L) & 0xFFFFFFFFL;
+		Path grid = cfg.resolve("grid");
+		List<Object[]> e = new ArrayList<>();
+		e.add(new Object[] {(byte) 2, "appid", (int) appid});
+		for (String[] kv : new String[][] {{"AppName", name}, {"Exe", qexe}, {"StartDir", qdir}, {"icon", art == null ? "" : grid.resolve(appid + "_icon.png").toString()}, {"ShortcutPath", ""}, {"LaunchOptions", opts}}) e.add(new Object[] {(byte) 1, kv[0], kv[1]});
+		for (Object[] kv : new Object[][] {{"IsHidden", 0}, {"AllowDesktopConfig", 1}, {"AllowOverlay", 1}, {"OpenVR", 0}, {"Devkit", 0}}) e.add(new Object[] {(byte) 2, kv[0], kv[1]});
+		e.add(new Object[] {(byte) 1, "DevkitGameID", ""});
+		e.add(new Object[] {(byte) 2, "DevkitOverrideAppID", 0});
+		e.add(new Object[] {(byte) 2, "LastPlayTime", 0});
+		e.add(new Object[] {(byte) 1, "FlatpakAppID", flatpak == null ? "" : flatpak});
+		e.add(new Object[] {(byte) 0, "tags", new ArrayList<Object[]>()});
+		list.add(new Object[] {(byte) 0, "x", e});
+		for (int i = 0; i < list.size(); i++) list.get(i)[1] = String.valueOf(i);   // (Steam numbers them 0, 1, 2...)
+		save(cfg, before, root);
+		if (art != null) for (String[] a : ART) {
+			Path src = art.resolve(a[0]);
+			if (Files.isRegularFile(src)) { Files.createDirectories(grid); Files.copy(src, grid.resolve(appid + a[1]), StandardCopyOption.REPLACE_EXISTING); }
+		}
+		return appid;
+	}
+
+	/** Takes the shortcut of that name out of Steam's list, with the art this put there for it. Returns how many
+	 *  were removed (0: there was none, and nothing was written). Steam has to be closed. */
+	static int removeShortcut(Path cfg, String name) throws IOException {
+		if (!Files.isRegularFile(cfg.resolve("shortcuts.vdf"))) return 0;
+		byte[] before = current(cfg);
+		List<Object[]> root = read(ByteBuffer.wrap(before).order(ByteOrder.LITTLE_ENDIAN));
+		List<Object[]> list = shortcutList(root);
+		List<Long> ids = new ArrayList<>();
+		for (Object[] n : list) if (n[2] instanceof List<?> && name.equals(str(get(nodes(n[2]), "AppName"))) && get(nodes(n[2]), "appid") instanceof Integer id) ids.add(id & 0xFFFFFFFFL);
+		int had = list.size();
+		list.removeIf(n -> n[2] instanceof List<?> && name.equals(str(get(nodes(n[2]), "AppName"))));
+		if (list.size() == had) return 0;
+		for (int i = 0; i < list.size(); i++) list.get(i)[1] = String.valueOf(i);
+		save(cfg, before, root);
+		for (long id : ids) for (String[] a : ART) try { Files.deleteIfExists(cfg.resolve("grid").resolve(id + a[1])); } catch (IOException ignored) {}
+		return had - list.size();
+	}
+
+	/** For the installers: "--steam add <name> <program> <start folder> <options>" or "--steam remove <name>", with
+	 *  "--config <Steam's config folder>" (else it is looked for), "--art <folder>" and "--flatpak <app id>".
+	 *  Says what it did in a line. Ends with 0 when done, 3 when Steam is running (nothing changed), 1 otherwise. */
+	static int cli(String[] a) {
+		try {
+			List<String> plain = new ArrayList<>();
+			Path cfg = null, art = null; String flatpak = "";
+			for (int i = 1; i < a.length; i++) {
+				if (a[i].equals("--config") && i + 1 < a.length) cfg = Path.of(a[++i]);
+				else if (a[i].equals("--art") && i + 1 < a.length) art = Path.of(a[++i]);
+				else if (a[i].equals("--flatpak") && i + 1 < a.length) flatpak = a[++i];
+				else plain.add(a[i]);
+			}
+			boolean given = cfg != null;
+			// ("from <file>": what to do, a line each (add, the name, the program, its start folder, its options), so
+			// that nothing has to survive being passed on a command line)
+			if (plain.size() == 2 && plain.get(0).equals("from")) plain = new ArrayList<>(Files.readAllLines(Path.of(plain.get(1)), StandardCharsets.UTF_8));
+			if (!plain.isEmpty() && plain.get(0).startsWith("\uFEFF")) plain.set(0, plain.get(0).substring(1));
+			if (plain.isEmpty()) { System.out.println("Nothing asked for."); return 1; }
+			if (!given && steamRunning().equals("yes")) { System.out.println("Steam is running. It has to be closed for this (it writes its shortcut list itself when it exits). Nothing was changed."); return 3; }
+			if (cfg == null) cfg = findConfig();
+			if (plain.get(0).equals("add") && plain.size() >= 5) {
+				long id = addShortcut(cfg, plain.get(1), plain.get(2), plain.get(3), plain.get(4), flatpak, art);
+				System.out.println("\"" + plain.get(1) + "\" is in your Steam library (it shows when Steam next starts). App id " + id + ".");
+				return 0;
+			}
+			if (plain.get(0).equals("remove") && plain.size() >= 2) {
+				int n = removeShortcut(cfg, plain.get(1));
+				System.out.println(n == 0 ? "Steam has no shortcut called \"" + plain.get(1) + "\"." : "\"" + plain.get(1) + "\" was taken out of your Steam library.");
+				return 0;
+			}
+			System.out.println("Not understood: " + String.join(" ", plain));
+			return 1;
+		} catch (IOException | RuntimeException e) { System.out.println("Steam: " + e.getMessage()); return 1; }
+	}
+
 	/** Does it for both shortcuts; returns what was done, a line each. */
 	static List<String> run(Path mc) throws IOException { return run(mc, "all", true); }
 

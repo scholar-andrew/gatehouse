@@ -6,7 +6,9 @@
    "Gatehouse can be installed by itself, with no game and no server pack: a new installer (gatehouse-install.ps1 on Windows, gatehouse-install.sh on Linux and Steam Deck) sets up just the launcher. You then add a Gatekeeper and install its servers from Gatehouse.",
    "Installed that way, Gatehouse has a home of its own (a gatehouse\\app folder inside Prism Launcher's) and keeps itself and the scripts beside it up to date from there, whether or not any pack is installed.",
    "A plain server can be set up on a device with no pack installed: it takes its launcher files from Gatehouse's own home.",
-   "On Windows the same installer can install Gatekeeper instead, or both."
+   "On Windows the same installer can install Gatekeeper instead, or both.",
+   "The installer offers to add what it installed to your Steam library (Gatehouse, and on Windows Gatekeeper's window), with its art. Steam has to be closed while that's done; the installer never closes or starts it.",
+   "The same script removes it again (-Uninstall on Windows, --uninstall on Linux): the Steam shortcut, the Start menu or applications-menu entry, and Gatehouse's files. What Gatehouse remembered (its Gatekeepers, this device's identity with them) is kept unless you ask for it to go too. Prism Launcher and anything installed in it are left alone."
   ]},
   {"version": "2.6.2", "date": "2026-11-16", "notes": [
    "Fixed: removing a Gatekeeper and adding it again made this device look like a new one to its owner (a second entry in their Access Manager, with nothing allowed). When a pack from that Gatekeeper is installed, adding it again now picks up the same identity, so everything the owner had allowed still applies."

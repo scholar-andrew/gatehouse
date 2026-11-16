@@ -28,12 +28,26 @@ a server's owner gave you, and install that Gatekeeper's servers from its list.
   Game Mode.
 
 Both are plain text and say at the top what they change. Each download is checked against a published SHA-256
-before it is used; `-DryRun` / `--dry-run` says what would be done and does none of it. To remove a Gatehouse
-installed this way: delete the `gatehouse` folder in Prism Launcher's folder and the shortcut or menu entry (and
-`%LOCALAPPDATA%\Gatehouse` if Java was fetched for it).
+before it is used; `-DryRun` / `--dry-run` says what would be done and does none of it.
 
-Tested so far only on stand-ins on Windows 10: the files, the checks, the launcher starting from its own home and
-updating itself. Not yet run on a computer without Prism Launcher or Java, nor on a Steam Deck.
+**Steam.** Each offers to add what it installed to your Steam library, with its art: **Gatehouse**, and on Windows
+**Gatekeeper** (its window). Steam has to be closed while that is done, because Steam writes its own list of
+shortcuts when it exits; the script waits for you to close it (or skip), and never closes or starts Steam itself.
+Steam's list as it was is kept beside it as `shortcuts.vdf.bak-gatehouse`. On Linux this part needs `python3` (a
+Steam Deck has it).
+
+**Removing it.** The same script, kept in Gatehouse's folder: on Windows the Start menu has **Uninstall Gatehouse**
+(or double-click **Uninstall Gatehouse.cmd**, or run the script with `-Uninstall`); on Linux
+`bash <Prism's folder>/gatehouse/app/gatehouse-install.sh --uninstall`. It takes out the Steam shortcut, the Start
+menu or applications-menu entry, and Gatehouse's files; for Gatekeeper it runs Gatekeeper's own uninstall. What
+Gatehouse remembered (its Gatekeepers, and this device's identity with them) is kept unless you add `-Purge` /
+`--purge`, which on Windows also removes a Java that was fetched for Gatehouse. Prism Launcher and everything
+installed in it are left alone. A Gatehouse that came with a pack is removed by that pack's uninstaller instead.
+
+Tested so far only on stand-ins on Windows 10: the files and their checks, the launcher starting from its own home
+and updating itself, adding to and removing from a stand-in copy of Steam's list (other shortcuts in it come through
+unchanged), uninstalling with and without purge. Not yet run on a computer without Prism Launcher or Java, against a
+real Steam, or on a Steam Deck; Gatekeeper's part only as a dry run.
 
 ## Before you start
 - **Minecraft Java Edition** on your Microsoft account.
