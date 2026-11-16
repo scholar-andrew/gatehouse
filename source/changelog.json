@@ -1,4 +1,7 @@
 [
+ {"version": "1.9.14", "date": "2026-11-15", "notes": [
+  "Nothing you'll notice: the pack's old address on GitHub is no longer in the list of places updates are fetched from."
+ ]},
  {"version": "1.9.13", "date": "2026-11-15", "notes": [
   "If the owner dismisses your request to turn the server on, the launcher now says so (Request denied), and you can ask again.",
   "New names: the program on the server machine is Gatehouse Keeper, and its window there is the control panel. In the launcher, the Remote host panel tab is now Remote control panel, and Helper control is Keeper control."

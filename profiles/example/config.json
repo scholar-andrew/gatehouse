@@ -1,5 +1,6 @@
 {
   "_profile": "An example server profile (docs/profiles.md): copy this folder to profiles/<your id>/, change the names and addresses, add mods to source/mods.json, and build it with: python tools/build_pack.py --profile <your id>. Nothing here is a real server.",
+  "example": true,
   "pack_name": "Example Realm",
   "instance_id": "example-realm",
   "instance_name": "Example Realm 26.3 (Fabric)",

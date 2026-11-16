@@ -27,7 +27,8 @@
 //        --prism-dir=DIR  (where to install Prism Launcher; default %LOCALAPPDATA%\Programs\PrismLauncher)
 //        --tools-dir=DIR  (where to save the uninstaller and installer; default %LOCALAPPDATA%\OctoberJourney)
 //        --prism-root=DIR --steam-root=DIR  (testing: use these folders instead of the real ones; Steam may stay open)
-//        --config=URL  (testing: read config.json from there, e.g. file:///C:/.../installer/config.json)
+//        --profile=ID  (install another server profile published in this repository: dist/ID/config.json)
+//        --config=URL  (a profile's config.json anywhere, e.g. file:///C:/.../installer/config.json for testing)
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -50,6 +51,23 @@ static class Setup
     const string Title = "Gatehouse setup";
     // The pack being installed and its Prism instance, as its profile names them (set once the profile is read).
     static string Pack = "the pack", InstanceName = "the pack's instance";
+    // What this install is filed under on the device: the name of its tools folder and of its Settings > Apps key, and
+    // the names of the files saved there. An October Journey install from before setup knew about profiles keeps the
+    // names it has (OctoberJourney...), so it carries on untouched; every other install, of any profile, gets
+    // "Gatehouse-<instance id>" and Gatehouse... file names. So several packs can be installed side by side.
+    static string Key = "Gatehouse", SetupFile = "GatehouseSetup.exe", UninstallFile = "GatehouseUninstall.exe", MarkerFile = "Gatehouse.txt";
+    const string LegacyKey = "OctoberJourney", LegacyInstance = "october-journey", ProfileFile = "gatehouse-profile.json";
+    static string AppsKey { get { return @"Software\Microsoft\Windows\CurrentVersion\Uninstall\" + Key; } }
+    static void ChooseKey(string instanceId)
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string legacyDir = prismRoot != null ? Path.Combine(prismRoot, LegacyKey) : Path.Combine(local, LegacyKey);
+        bool legacyApps = false;
+        if (prismRoot == null) using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\" + LegacyKey)) legacyApps = k != null;
+        if (instanceId == LegacyInstance && (legacyApps || File.Exists(Path.Combine(legacyDir, LegacyKey + ".txt"))))
+        { Key = LegacyKey; SetupFile = "OctoberJourneySetup.exe"; UninstallFile = "OctoberJourneyUninstall.exe"; MarkerFile = "OctoberJourney.txt"; }
+        else Key = "Gatehouse-" + instanceId;
+    }
     static bool quiet;
     static string prismRoot, steamRoot;
     static string Arg(string[] a, string k) { var x = a.FirstOrDefault(s => s.StartsWith(k + "=")); return x == null ? null : x.Substring(k.Length + 1); }
@@ -70,7 +88,13 @@ static class Setup
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             Say("Gatehouse setup");
-            var cfg = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(Text(Arg(args, "--config") ?? ConfigUrl));
+            // Which profile: --config=<address of its config.json>, or --profile=<id> for one published in this
+            // repository (dist/<id>/config.json), or October Journey's.
+            string profileArg = Arg(args, "--profile");
+            string configUrl = Arg(args, "--config") ?? (profileArg != null ? ConfigUrl.Replace("/installer/config.json", "/dist/" + profileArg + "/config.json") : ConfigUrl);
+            var cfg = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(Text(configUrl));
+            ChooseKey((string)cfg["instance_id"]);
+            Say("Filed on this computer as: " + Key);
             Pack = (string)cfg["pack_name"]; InstanceName = (string)cfg["instance_name"];
             Say("Pack: " + Pack);
             string repo = (string)cfg["repo_raw"];
@@ -94,7 +118,7 @@ static class Setup
             bool packHere = File.Exists(Path.Combine(inst, "instance.cfg"));
             string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string savedTools = prismRoot == null ? SavedToolsDir() : null;
-            string toolsDefault = savedTools ?? (prismRoot != null ? Path.Combine(prismRoot, "OctoberJourney") : Path.Combine(localApp, "OctoberJourney"));
+            string toolsDefault = savedTools ?? (prismRoot != null ? Path.Combine(prismRoot, Key) : Path.Combine(localApp, Key));
 
             // What to install.
             var opts = new Options();
@@ -122,8 +146,8 @@ static class Setup
             {
                 var keep = new List<string> { "game", "art", "controller" };
                 if (hasPrismShortcut) keep.Add("shortcut");
-                if (savedTools != null && File.Exists(Path.Combine(savedTools, "OctoberJourneyUninstall.exe"))) keep.Add("uninstaller");
-                if (savedTools != null && File.Exists(Path.Combine(savedTools, "OctoberJourneySetup.exe"))) keep.Add("installer");
+                if (savedTools != null && File.Exists(Path.Combine(savedTools, UninstallFile))) keep.Add("uninstaller");
+                if (savedTools != null && File.Exists(Path.Combine(savedTools, SetupFile))) keep.Add("installer");
                 opts.Only(keep.ToArray());
             };
             if (addOnly) onlyAdd();
@@ -148,7 +172,8 @@ static class Setup
 
             // The instance (always), in Prism's instances folder.
             Directory.CreateDirectory(mc);
-            File.WriteAllBytes(Path.Combine(inst, "mmc-pack.json"), Bytes(repo + "/clients/mmc-pack.json"));
+            // (The instance's components, its Minecraft and loader versions: the profile's own file when it names one.)
+            File.WriteAllBytes(Path.Combine(inst, "mmc-pack.json"), Bytes(repo + "/" + (cfg.ContainsKey("mmc_pack") ? (string)cfg["mmc_pack"] : "clients/mmc-pack.json")));
             WriteInstanceCfg(Path.Combine(inst, "instance.cfg"), (string)cfg["instance_name"]);
             File.WriteAllBytes(Path.Combine(mc, "pack-sync.ps1"), Bytes(repo + "/clients/pack-sync.ps1"));
             File.WriteAllBytes(Path.Combine(mc, "launch-wrapper.exe"), Bytes(repo + "/clients/launch-wrapper.exe"));
@@ -235,15 +260,21 @@ static class Setup
     static void SaveTools(Dictionary<string, object> cfg, string prismExe, string dir, bool uninstaller, bool installer)
     {
         bool testing = prismRoot != null;
-        string un = Path.Combine(dir, "OctoberJourneyUninstall.exe"), setup = Path.Combine(dir, "OctoberJourneySetup.exe");
+        string un = Path.Combine(dir, UninstallFile), setup = Path.Combine(dir, SetupFile);
         // The uninstaller only treats a folder as its own when this file is there (or Settings > Apps names it).
         if (uninstaller || installer)
             try
             {
                 Directory.CreateDirectory(dir);
-                File.WriteAllText(Path.Combine(dir, "OctoberJourney.txt"), "Saved by Gatehouse setup for " + Pack + ": its installer and uninstaller.\r\n" +
-                    "Run OctoberJourneyUninstall.exe (or Settings > Apps > " + Pack + ") to remove " + Pack + ", or\r\n" +
-                    "OctoberJourneySetup.exe to add items. https://github.com/scholar-andrew/gatehouse\r\n");
+                File.WriteAllText(Path.Combine(dir, MarkerFile), "Saved by Gatehouse setup for " + Pack + ": its installer and uninstaller.\r\n" +
+                    "Run " + UninstallFile + " (or Settings > Apps > " + Pack + ") to remove " + Pack + ", or\r\n" +
+                    SetupFile + " to add items. https://github.com/scholar-andrew/gatehouse\r\n");
+                // What the uninstaller needs to know about this pack, since it works offline: saved beside it.
+                var servers = new List<object>();
+                if (cfg.ContainsKey("servers")) foreach (Dictionary<string, object> s in (object[])cfg["servers"]) servers.Add(new Dictionary<string, object> { { "name", s["name"] }, { "address", s["address"] } });
+                File.WriteAllText(Path.Combine(dir, ProfileFile), new JavaScriptSerializer().Serialize(new Dictionary<string, object> {
+                    { "key", Key }, { "pack_name", Pack }, { "instance_id", (string)cfg["instance_id"] }, { "shortcut_name", (string)cfg["shortcut_name"] },
+                    { "game_shortcut_name", cfg.ContainsKey("game_shortcut_name") ? (string)cfg["game_shortcut_name"] : Pack }, { "servers", servers } }));
             }
             catch { }
         if (installer)
@@ -271,7 +302,7 @@ static class Setup
             catch (Exception e) { Say("Uninstaller not added (" + e.Message + "); it can be downloaded from the release page."); uninstaller = false; }
         }
         if (testing) { if (uninstaller) Say("Testing: not listed in Settings > Apps."); return; }
-        const string key = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney";
+        string key = AppsKey;
         if (!uninstaller) return;
         using (var k = Registry.CurrentUser.CreateSubKey(key))
         {
@@ -303,7 +334,7 @@ static class Setup
     // Where an earlier setup saved the uninstaller and installer (its Settings > Apps entry), if it did.
     static string SavedToolsDir()
     {
-        using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney"))
+        using (var k = Registry.CurrentUser.OpenSubKey(AppsKey))
         {
             var d = k == null ? null : k.GetValue("InstallLocation") as string;
             return !string.IsNullOrEmpty(d) && Directory.Exists(d) ? d : null;

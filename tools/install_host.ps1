@@ -44,8 +44,15 @@ foreach ($k in 'bind', 'port', 'mcss_exe', 'tailscale_exe', 'servers') {
 }
 # The servers, one by one: a server host.json already has (same id, or same name from before ids) gets whatever the
 # profile says that it doesn't say yet; one it doesn't have is added.
+# (The servers come from every profile in this repository: October Journey's, and each profiles\<id>\config.json that
+# isn't marked as an example.)
+$allServers = @($hostProfile.servers | ForEach-Object { $_ })
+Get-ChildItem (Join-Path $root 'profiles') -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+    $pc = Join-Path $_.FullName 'config.json'
+    if (Test-Path $pc) { $pj = Get-Content $pc -Raw | ConvertFrom-Json; if (-not $pj.example -and $pj.host.servers) { $allServers += @($pj.host.servers | ForEach-Object { $_ }) } }
+}
 $have = @($now.servers | ForEach-Object { $_ })
-foreach ($ps in @($hostProfile.servers | ForEach-Object { $_ })) {
+foreach ($ps in $allServers) {
     $hit = $have | Where-Object { ($_.id -and $_.id -eq $ps.id) -or (-not $_.id -and $_.name -eq $ps.name) } | Select-Object -First 1
     if ($hit) { foreach ($pp in $ps.PSObject.Properties) { if ($null -eq $hit.($pp.Name) -or ("$($hit.($pp.Name))" -eq '' -and $pp.Name -eq 'id')) { $hit | Add-Member -NotePropertyName $pp.Name -NotePropertyValue $pp.Value -Force } } }
     else { $have += $ps }

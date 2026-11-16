@@ -3,5 +3,3 @@
 http://100.91.134.102:8467
 # 2. GitHub, when this PC can't be reached
 https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/dist
-# 3. The same repository under its old name (october-journey-pack), for now
-https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/dist

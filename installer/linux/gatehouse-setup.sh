@@ -1,8 +1,8 @@
 #!/bin/bash
 # Gatehouse setup for Linux: installs a server profile's pack (docs/profiles.md; by default October Journey's, whose
 # profile is CONFIG_URL below; --config= gives another). The pack's name in every message comes from the profile.
-# Kept from before the tool was called Gatehouse, so existing installs keep working: the folder it saves to
-# (~/.local/share/october-journey) and its app-menu files (october-journey-setup.desktop, -uninstall.desktop).
+# An October Journey install from before setup knew about profiles keeps its folder (~/.local/share/october-journey)
+# and app-menu files (october-journey-setup.desktop, -uninstall.desktop); any other install is gatehouse-<instance id>.
 # For Linux, including the Steam Deck (Flatpak Prism Launcher). Run it from a terminal (on a
 # Steam Deck: in Desktop Mode, from Konsole):
 #   bash gatehouse-setup.sh
@@ -29,7 +29,8 @@
 #        --tools-dir=DIR (where to save the uninstaller and installer; default ~/.local/share/october-journey)
 #        --pause (wait for Enter at the end; used by the app-menu entry)
 #        --prism-root=DIR --steam-root=DIR (testing: use these folders instead of the real ones)
-#        --config=URL (testing: read config.json from there, e.g. file:///home/.../installer/config.json)
+#        --profile=ID (install another server profile published in this repository: dist/ID/config.json)
+#        --config=URL (a profile's config.json anywhere, e.g. file:///home/.../installer/config.json for testing)
 set -euo pipefail
 CONFIG_URL="https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/config.json"
 YES=0; PRISM_ROOT=""; STEAM_ROOT=""; TESTING=0; SKIP=","; PAUSE=0; TOOLS_DIR=""; QUICK=0; ADD_FLAG=0; ADD_ONLY=0
@@ -40,6 +41,7 @@ for a in "$@"; do
     --pause) PAUSE=1 ;;
     --add-shortcut) ADD_FLAG=1 ;;
     --config=*) CONFIG_URL="${a#*=}" ;;
+    --profile=*) CONFIG_URL="${CONFIG_URL%/installer/config.json}/dist/${a#*=}/config.json" ;;
     --tools-dir=*) TOOLS_DIR="${a#*=}" ;;
     --prism-root=*) PRISM_ROOT="${a#*=}"; TESTING=1 ;;
     --steam-root=*) STEAM_ROOT="${a#*=}"; TESTING=1 ;;
@@ -71,9 +73,16 @@ choose() {  # choose item "question" default(y/n): sets C_<item> to 1 or 0
 PRISM_INSTALLED=0
 if [ "$TESTING" = 1 ] || flatpak info "$APP" >/dev/null 2>&1; then PRISM_INSTALLED=1; fi
 if [ "$TESTING" = 1 ]; then menu_dir="$PRISM_ROOT/applications"; else menu_dir="$HOME/.local/share/applications"; fi
-default_tools="$HOME/.local/share/october-journey"; [ "$TESTING" = 0 ] || default_tools="$PRISM_ROOT/october-journey"
+# What this install is filed under on the device: the name of its tools folder and of its app-menu files. An October
+# Journey install from before setup knew about profiles keeps the name it has (october-journey), so it carries on
+# untouched; every other install, of any profile, is "gatehouse-<instance id>". So several packs can sit side by side.
+INST_ID="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["instance_id"])' "$work/config.json")"
+KEY="gatehouse-$INST_ID"
+legacy_tools="$HOME/.local/share/october-journey"; [ "$TESTING" = 0 ] || legacy_tools="$PRISM_ROOT/october-journey"
+if [ "$INST_ID" = october-journey ] && { [ -d "$legacy_tools" ] || [ -f "$menu_dir/october-journey-uninstall.desktop" ] || [ -f "$menu_dir/october-journey-setup.desktop" ]; }; then KEY="october-journey"; fi
+default_tools="$HOME/.local/share/$KEY"; [ "$TESTING" = 0 ] || default_tools="$PRISM_ROOT/$KEY"
 # Where an earlier setup saved the uninstaller (its app-menu entry says).
-saved_tools="$(sed -n 's|^Exec=bash "\(.*\)/uninstall.sh".*|\1|p' "$menu_dir/october-journey-uninstall.desktop" 2>/dev/null | head -n 1 || true)"
+saved_tools="$(sed -n 's|^Exec=bash "\(.*\)/uninstall.sh".*|\1|p' "$menu_dir/$KEY-uninstall.desktop" 2>/dev/null | head -n 1 || true)"
 [ -n "$saved_tools" ] && [ -d "$saved_tools" ] && default_tools="$saved_tools"
 [ -n "$TOOLS_DIR" ] || TOOLS_DIR="$default_tools"
 
@@ -191,7 +200,7 @@ def say(s): print("Gatehouse setup:", s)
 # 1. The instance, the pack sync and the server list.
 inst = os.path.join(instances, cfg["instance_id"]); mc = os.path.join(inst, "minecraft")
 os.makedirs(mc, exist_ok=True)
-open(os.path.join(inst, "mmc-pack.json"), "wb").write(get(repo + "/clients/mmc-pack.json"))
+open(os.path.join(inst, "mmc-pack.json"), "wb").write(get(repo + "/" + cfg.get("mmc_pack", "clients/mmc-pack.json")))  # (the profile's own, when it names one)
 cfgp = os.path.join(inst, "instance.cfg")
 lines = open(cfgp).read().splitlines() if os.path.exists(cfgp) else ["[General]", "ConfigVersion=1.3", "InstanceType=OneSix", "iconKey=default"]
 lines = [l for l in lines if not l.startswith(("name=", "OverrideCommands=", "PreLaunchCommand=", "WrapperCommand="))]
@@ -391,6 +400,17 @@ fi
 # fetched or doesn't match, setup carries on without it (it's also on the release page). Testing puts both under
 # --prism-root instead.
 app_dir="$TOOLS_DIR"
+# What the uninstaller needs to know about this pack, since it works offline: saved beside it.
+if [ "$C_uninstaller" = 1 ] || [ "$C_installer" = 1 ]; then
+  mkdir -p "$app_dir"
+  python3 - "$work/config.json" "$app_dir/gatehouse-profile.json" "$KEY" <<'PY' || true
+import json, sys
+c = json.load(open(sys.argv[1]))
+json.dump({"key": sys.argv[3], "pack_name": c["pack_name"], "instance_id": c["instance_id"], "shortcut_name": c["shortcut_name"],
+           "game_shortcut_name": c.get("game_shortcut_name", c["pack_name"]),
+           "servers": [{"name": s["name"], "address": s["address"]} for s in c.get("servers", [])]}, open(sys.argv[2], "w"))
+PY
+fi
 if [ "$C_uninstaller" = 0 ]; then :
 elif python3 - "$work/config.json" "$work/uninstall.sh" <<'PY'
 import hashlib, json, sys, urllib.request
@@ -402,7 +422,7 @@ PY
 then
   mkdir -p "$app_dir" "$menu_dir"
   install -m 755 "$work/uninstall.sh" "$app_dir/uninstall.sh"
-  cat > "$menu_dir/october-journey-uninstall.desktop" <<EOF
+  cat > "$menu_dir/$KEY-uninstall.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Uninstall $PACK
@@ -422,7 +442,7 @@ if [ "$C_installer" = 1 ]; then
   if [ -f "$0" ]; then
     mkdir -p "$app_dir" "$menu_dir"
     [ "$(readlink -f "$0")" = "$(readlink -f "$app_dir/setup.sh" 2>/dev/null || true)" ] || install -m 755 "$0" "$app_dir/setup.sh"
-    cat > "$menu_dir/october-journey-setup.desktop" <<EOF
+    cat > "$menu_dir/$KEY-setup.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=$PACK setup

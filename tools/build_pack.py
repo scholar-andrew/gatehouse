@@ -303,6 +303,25 @@ def write_mod_list(meta: dict, mods: list, server: dict) -> None:
         f.write("\n".join(lines) + "\n")
 
 
+TOOL_KEYS = ("shortcut_name", "repo_raw", "prism_windows", "prism_flatpak", "bootstrap_sha256", "art", "art_prism", "uninstall_windows", "uninstall_linux")
+
+
+def write_profile_config() -> None:
+    """dist/<id>/config.json: the whole of what the installers read for this profile. A profile's own config.json only
+    says what is its own (names, pack sources, servers, the host); what belongs to the tool (Prism Launcher's version,
+    the uninstallers, the shared art, where the repository is) is filled in from installer/config.json, so it is kept in
+    one place. Setup installs the profile with --profile=<id>, or --config=<this file's address>."""
+    tool = json.load(open(os.path.join(ROOT, "installer", "config.json"), encoding="utf-8"))
+    prof = json.load(open(CONFIG, encoding="utf-8"))
+    full = {k: tool[k] for k in TOOL_KEYS if k in tool}
+    full.update(prof)
+    if os.path.isdir(os.path.join(PDIR, "art")):
+        full["art"] = {n: f"profiles/{PROFILE}/art/{n}.png" for n in ("cover", "hero", "logo", "icon", "wide")}
+    if os.path.isfile(os.path.join(PDIR, "mmc-pack.json")):   # (its own Minecraft and loader versions for the Prism instance)
+        full["mmc_pack"] = f"profiles/{PROFILE}/mmc-pack.json"
+    write(os.path.join(DIST, "config.json"), json.dumps(full, indent=2) + "\n")
+
+
 def main() -> None:
     src = json.load(open(os.path.join(SRC, "mods.json"), encoding="utf-8"))
     for variant in ("main", "deck"):
@@ -311,6 +330,8 @@ def main() -> None:
     with open(os.path.join(DIST, "server-mods.json"), "w", encoding="utf-8") as f:
         json.dump({"mods": sorted(m["file"] for m in load_server()[0].get("mods", {}).values())}, f, indent=1)
     os.makedirs(DIST, exist_ok=True)
+    if PROFILE:
+        write_profile_config()
     if not os.environ.get("OJ_DIST"):
         write_mod_list(src["pack"], src["mods"], {"mods": sorted(m["file"] for m in load_server()[0].get("mods", {}).values())})
         write_changelog_md(load_changelog(src["pack"]))

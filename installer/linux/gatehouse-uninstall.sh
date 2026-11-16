@@ -35,9 +35,23 @@ for a in "$@"; do
     --pause) PAUSE=1 ;;
     --prism-root=*) PRISM_ROOT="${a#*=}"; TESTING=1 ;;
     --steam-root=*) STEAM_ROOT="${a#*=}"; TESTING=1 ;;
+    --profile-file=*) PROFILE_FILE="${a#*=}" ;;
   esac
 done
 say() { echo "Gatehouse uninstall: $*"; }
+# Which pack this removes comes from the profile setup saved beside this script (gatehouse-profile.json: the pack's
+# name, its instance, its two shortcut names, its servers, and the name it is filed under). Without that file it is an
+# install from before setup saved one, which was always October Journey: the values here.
+KEY="october-journey"; PACK="October Journey"; INST_ID="october-journey"
+me_dir="$(dirname "$(readlink -f "$0" 2>/dev/null || echo "$0")")"
+[ -n "${PROFILE_FILE:-}" ] || PROFILE_FILE="$me_dir/gatehouse-profile.json"
+export GH_PROFILE=""
+if [ -f "$PROFILE_FILE" ]; then
+  pf() { python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$PROFILE_FILE" "$1"; }
+  KEY="$(pf key)"; PACK="$(pf pack_name)"; INST_ID="$(pf instance_id)"
+  export GH_PROFILE="$PROFILE_FILE"
+fi
+say "$PACK (filed as $KEY)"
 finish() { if [ "$PAUSE" = 1 ]; then read -r -p "Press Enter to close. " _ || true; fi; }
 instances_dir() {  # Prism's instances folder: <data>/instances, unless Prism's own settings name another
   python3 -c 'import os,sys
@@ -58,11 +72,18 @@ choose() {  # choose item "question" default(y/n): sets C_<item> to 1 or 0
 
 [ -n "$PRISM_ROOT" ] || PRISM_ROOT="$HOME/.var/app/$APP/data/PrismLauncher"
 [ -n "$STEAM_ROOT" ] || STEAM_ROOT="$HOME/.local/share/Steam"
-inst="$(instances_dir "$PRISM_ROOT")/october-journey"; mc="$inst/minecraft"
-if [ "$TESTING" = 1 ]; then menu_dir="$PRISM_ROOT/applications"; app_dir="$PRISM_ROOT/october-journey"
-else menu_dir="$HOME/.local/share/applications"; app_dir="$HOME/.local/share/october-journey"; fi
+inst="$(instances_dir "$PRISM_ROOT")/$INST_ID"; mc="$inst/minecraft"
+if [ "$TESTING" = 1 ]; then menu_dir="$PRISM_ROOT/applications"; app_dir="$PRISM_ROOT/$KEY"
+else menu_dir="$HOME/.local/share/applications"; app_dir="$HOME/.local/share/$KEY"; fi
+# The shortcut that just opens Prism Launcher is shared by every pack set up here: it stays while another pack's
+# instance is still installed.
+export GH_KEEP_PRISM_SHORTCUT=0
+for d in "$(dirname "$inst")"/*/; do
+  if [ "$(basename "$d")" != "$INST_ID" ] && [ -f "$d/minecraft/pack-sync.sh" ]; then GH_KEEP_PRISM_SHORTCUT=1; fi
+done
+[ "$GH_KEEP_PRISM_SHORTCUT" = 0 ] || say "another pack is installed here too: its Prism Launcher shortcut is left alone."
 # Setup may have saved them elsewhere: its app-menu entries say where; or this is the saved copy itself.
-for f in "$menu_dir/october-journey-uninstall.desktop" "$menu_dir/october-journey-setup.desktop"; do
+for f in "$menu_dir/$KEY-uninstall.desktop" "$menu_dir/$KEY-setup.desktop"; do
   if [ -f "$f" ]; then p="$(sed -n 's/^Exec=bash "\(.*\)" --pause$/\1/p' "$f" | head -1)"; [ -n "$p" ] && { app_dir="$(dirname "$p")"; break; }; fi
 done
 me="$(readlink -f "$0" 2>/dev/null || true)"
@@ -73,7 +94,10 @@ work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 # Steam's binary shortcuts.vdf and Minecraft's servers.dat, for both finding and removing.
 cat > "$work/lib.py" <<'PY'
 import json, os, re, shutil, struct
-PREFIX = ("Minecraft (Prism Launcher)", "October Journey")  # setup's two shortcuts, each " - <device>"
+_P = json.load(open(os.environ["GH_PROFILE"])) if os.environ.get("GH_PROFILE") else None   # (the saved profile, if any)
+PREFIX = (_P["shortcut_name"], _P["game_shortcut_name"]) if _P else ("Minecraft (Prism Launcher)", "October Journey")  # setup's two shortcuts, each " - <device>"
+if os.environ.get("GH_KEEP_PRISM_SHORTCUT") == "1": PREFIX = PREFIX[1:]
+DEFAULT_SERVERS = _P["servers"] if _P else [{"name": "October Journey", "address": "100.91.134.102:25565"}]
 APP = "org.prismlauncher.PrismLauncher"
 def rmap(b, i):
     out = []
@@ -151,8 +175,8 @@ def nbt_write(t, v):
     if t == 10: return b"".join(bytes([ct]) + nbt_write(8, n) + nbt_write(ct, x) for ct, n, x in v) + b"\x00"
 def our_servers(mc):
     try: s = json.load(open(os.path.join(mc, "extras", "servers.json")))
-    except Exception: s = [{"name": "October Journey", "address": "100.91.134.102:25565"}]
-    return {x["address"].lower() for x in s}, {x["name"] for x in s} | {"October Journey"}
+    except Exception: s = DEFAULT_SERVERS
+    return {x["address"].lower() for x in s}, {x["name"] for x in s} | {x["name"] for x in DEFAULT_SERVERS}
 def servers(mc, remove=False):
     """How many of our entries servers.dat has; with remove=True takes them out."""
     sd = os.path.join(mc, "servers.dat")
@@ -193,11 +217,11 @@ F_INSTANCE=0; [ -d "$inst" ] && F_INSTANCE=1
 [ "$F_INSTANCE" = 1 ] || F_SERVER=0
 [ "$TESTING" = 0 ] || F_PERMS=0
 F_PRISM=0; if [ "$TESTING" = 0 ] && flatpak info --user "$APP" >/dev/null 2>&1; then F_PRISM=1; fi
-F_SETUP=0; { [ -f "$app_dir/setup.sh" ] || [ -f "$menu_dir/october-journey-setup.desktop" ]; } && F_SETUP=1
-F_SELF=0; { [ -f "$app_dir/uninstall.sh" ] || [ -f "$menu_dir/october-journey-uninstall.desktop" ]; } && F_SELF=1
+F_SETUP=0; { [ -f "$app_dir/setup.sh" ] || [ -f "$menu_dir/$KEY-setup.desktop" ]; } && F_SETUP=1
+F_SELF=0; { [ -f "$app_dir/uninstall.sh" ] || [ -f "$menu_dir/$KEY-uninstall.desktop" ]; } && F_SELF=1
 
 if [ -z "$F_SHORTCUTS" ] && [ "$F_ART$F_LAYOUT$F_PERMS$F_INSTANCE$F_SERVER$F_PRISM$F_SETUP$F_SELF" = 00000000 ]; then
-  say "nothing of October Journey was found on this device."; finish; exit 0
+  say "nothing of $PACK was found on this device."; finish; exit 0
 fi
 
 # What to remove.
@@ -216,7 +240,7 @@ fi
 [ "$F_PERMS" = 0 ] || choose permissions "Remove Prism's permission to write Steam's art and controller layout folders?" y
 [ "$F_INSTANCE" = 0 ] || choose instance "Delete the game instance at $inst? Its screenshots and any single-player worlds go with it." y
 if [ "$C_instance" = 1 ]; then C_server=0
-elif [ "$F_SERVER" = 1 ]; then choose server "Remove the October Journey server from the server list?" y; fi
+elif [ "$F_SERVER" = 1 ]; then choose server "Remove the $PACK server from the server list?" y; fi
 if [ "$F_PRISM" = 1 ]; then
   if [ "$REMOVE_PRISM" = 1 ]; then C_prism=1; else choose prism "Uninstall Prism Launcher? (say no if you use Prism for anything else)" n; fi
 fi
@@ -297,8 +321,8 @@ elif [ "$F_INSTANCE" = 1 ]; then say "kept the instance; updates on launch won't
 if [ "$C_prism" = 1 ]; then flatpak uninstall --user -y "$APP"; say "Prism Launcher uninstalled."; fi
 
 # The saved installer and this uninstaller (bash has this file open, so removing it is safe).
-if [ "$C_installer" = 1 ]; then rm -f "$app_dir/setup.sh" "$menu_dir/october-journey-setup.desktop"; say "removed the saved installer."; fi
-if [ "$C_uninstaller" = 1 ]; then rm -f "$app_dir/uninstall.sh" "$menu_dir/october-journey-uninstall.desktop"; say "removed the saved uninstaller."; fi
+if [ "$C_installer" = 1 ]; then rm -f "$app_dir/setup.sh" "$menu_dir/$KEY-setup.desktop"; say "removed the saved installer."; fi
+if [ "$C_uninstaller" = 1 ]; then rm -f "$app_dir/uninstall.sh" "$app_dir/gatehouse-profile.json" "$menu_dir/$KEY-uninstall.desktop"; say "removed the saved uninstaller."; fi
 rmdir "$app_dir" 2>/dev/null || true
 
 say "done.$([ "$C_shortcut$C_art$C_controller" = 000 ] || echo " Start Steam again (or switch to Game Mode) whenever you like.")"
