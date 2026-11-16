@@ -78,6 +78,31 @@ page): unpack it and run `install-keeper.ps1`, a plain PowerShell script you can
 ([`installer/keeper/install-keeper.ps1`](../installer/keeper/install-keeper.ps1)); it needs Java 17 or newer, downloads
 nothing, and `-Uninstall` removes it. A new install goes to `%LOCALAPPDATA%\Programs\GatehouseKeeper`; the owner's
 own is in `C:\Minecraft\GatehouseKeeper` (kept current from this repository by `tools/install_host.ps1`).
+**Linux and SteamOS.** The same Gatekeeper runs there, installed by `install-keeper.sh` from the same zip
+([`installer/keeper/install-keeper.sh`](../installer/keeper/install-keeper.sh); on a Steam Deck: Desktop Mode,
+Konsole, `bash install-keeper.sh`), or fetched and checked for you by `bash gatehouse-install.sh --gatekeeper`. It
+asks for no system password: Gatekeeper goes to `~/.local/share/GatehouseKeeper`, runs as a systemd user service
+(`gatehouse-keeper`, `KillMode=process` so the script that restarts it after an update outlives it; an entry in
+`~/.config/autostart` where there is no systemd), and gets an entry in the applications menu. It needs MCSS's Linux
+build and Java 17 or newer (on SteamOS, the Java that Prism Launcher fetches is found and used). `--uninstall`
+removes it. Which system it is on is decided once (`HostHelper.SYSTEM`: `windows`, `linux`, or `steamos` from
+`/etc/os-release`; `OJ_OS` overrides it for tests), and what a system can't do stays listed where it would be, as
+**Not supported on SteamOS** (or Linux): Host setup has such lines (state `na`), and the Machine wake/sleep permission
+is greyed out. Differences:
+
+| | Windows | Linux | SteamOS |
+|---|---|---|---|
+| Starts at sign-in | scheduled task | systemd user service | systemd user service |
+| Updates itself | `update-restart.ps1` | `update-restart.sh` | `update-restart.sh` |
+| Closing MCSS | asks its window to close | asks it to end (SIGTERM) | asks it to end (SIGTERM) |
+| "Tailscale runs before anyone signs in" | Run unattended | `tailscaled` service enabled | `tailscaled` service enabled |
+| Sleep from a launcher | yes | yes (`systemctl suspend`) | not supported |
+| Gatekeeper in the Steam library | from `gatehouse-install.ps1` | not supported | not supported |
+| Options > Uninstall | in a window of its own | in Options, its answer shown | in Options, its answer shown |
+
+Tested so far only from Windows: Gatekeeper told it is on Linux or SteamOS (`OJ_OS`), and the scripts in a scratch
+home without systemd. Not yet run on a real Linux machine or a Steam Deck, and not with MCSS's Linux build.
+
 When it finishes Gatekeeper opens with **Server setup** (Status tab, any time later too): it finds MCSS
 (`mcss.exe`; Browse if it isn't in a usual place), lists the Minecraft servers in MCSS's `servers` folder (each has
 MCSS's own `mcss_server_config.json`, with its name and id; the port is read from `server.properties`) with a tick-box

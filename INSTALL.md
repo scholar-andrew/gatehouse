@@ -22,6 +22,10 @@ a server's owner gave you, and install that Gatekeeper's servers from its list.
   is missing, and the Java 21 runtime from Eclipse Adoptium if no Java 17 or newer is found (kept in
   `%LOCALAPPDATA%\Gatehouse\jre`, for Gatehouse's use only). It puts the launcher in
   `%APPDATA%\PrismLauncher\gatehouse\app` and a **Gatehouse** shortcut in the Start menu.
+- **Gatekeeper on Linux or SteamOS** (the machine that runs the servers): `bash gatehouse-install.sh --gatekeeper`,
+  or `bash install-keeper.sh` from `gatehouse-keeper.zip`. Putting the machine to sleep from a launcher is not
+  supported on SteamOS, and adding Gatekeeper to Steam is not supported on Linux or SteamOS; both are still listed
+  where they would be, marked so. Not yet tried on a real Linux machine.
 - **Linux, including Steam Deck:** `bash gatehouse-install.sh`. It offers Prism Launcher from Flathub if it's
   missing, puts the launcher in Prism's folder under `gatehouse/app`, and adds a **Gatehouse** entry to the
   applications menu. On a Steam Deck, in Desktop Mode, right-click that entry and choose Add to Steam to have it in

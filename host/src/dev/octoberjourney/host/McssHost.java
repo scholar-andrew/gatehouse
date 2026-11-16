@@ -83,7 +83,9 @@ final class McssHost implements ServerHost {
 		try {
 			for (ProcessHandle h : ps) {
 				// Windows: ask the window to close, like its X button (taskkill without /F sends WM_CLOSE; never /F).
-				new ProcessBuilder("taskkill", "/PID", String.valueOf(h.pid())).redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
+				// Linux and SteamOS: the ordinary request to end (SIGTERM), which a program may refuse; never the forced one.
+				if (HostHelper.WIN) new ProcessBuilder("taskkill", "/PID", String.valueOf(h.pid())).redirectErrorStream(true).start().waitFor(5, TimeUnit.SECONDS);
+				else h.destroy();
 			}
 			for (int i = 0; i < 60 && !processes().isEmpty(); i++) Thread.sleep(500);
 			return processes().isEmpty() ? new String[] {"ok", "MCSS closed properly"}

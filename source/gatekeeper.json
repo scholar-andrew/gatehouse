@@ -1,7 +1,14 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.4.0",
+ "version": "2.5.0",
  "changes": [
+  {"version": "2.5.0", "date": "2026-11-16", "notes": [
+   "Gatekeeper runs on Linux and SteamOS as well as Windows. It is the same program doing the same things: the servers, Access Manager, Host setup, the setup guide, updating itself, Options and Uninstall. On Linux it is installed by install-keeper.sh (a script you can read; no system password): it runs as a systemd user service, has an entry in the applications menu, and lives in ~/.local/share/GatehouseKeeper. It needs MC Server Soft's Linux build and Java 17 or newer.",
+   "What a system can't do is still listed where it would be, marked \"Not supported on SteamOS\" (or Linux). On SteamOS that is putting the machine to sleep from a launcher: a Steam Deck that is asleep can't be woken from another device, so the Machine wake/sleep permission is greyed out, and Host setup says so. Keep the Deck plugged in and awake while it serves.",
+   "Host setup and the setup guide use each system's own wording (a terminal and systemd on Linux instead of the icon by the clock), and on Linux check that Tailscale's service starts with the machine. On SteamOS they say that Tailscale doesn't officially support it and that a SteamOS update can remove it.",
+   "On Linux, closing MCSS asks it to end the ordinary way and never forces it, as on Windows.",
+   "Nothing changes for a Gatekeeper on Windows."
+  ]},
   {"version": "2.4.0", "date": "2026-11-16", "notes": [
    "A setup guide: the steps from a machine with nothing on it to a server your friends can join, one at a time. Tailscale (installing it, signing in, keeping the machine signed in), MC Server Soft (installing it, making a server, turning on its web API), choosing the servers, letting Gatekeeper use MCSS, ports, the whitelist, the invite for players, and pairing. Each step says what to do, has buttons that open the right page or the right part of Gatekeeper, and shows whether it's done; the guide looks again every few seconds, so a step ticks by itself.",
    "The guide opens by itself the first time Gatekeeper's window is opened on a machine that still has steps to do, and is always in Options (the wheel at the top right). Host setup stays as the list of everything at once.",

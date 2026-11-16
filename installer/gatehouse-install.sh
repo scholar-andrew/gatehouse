@@ -2,8 +2,13 @@
 # Gatehouse installer and uninstaller for Linux, including Steam Deck. A plain script: read it before you run it.
 #
 # It installs Gatehouse, the launcher players use, by itself: no game and no server pack. In Gatehouse you add a
-# Gatekeeper with what its owner gave you, and install its servers from there. (Gatekeeper, the program for the
-# machine that runs the servers, is Windows only: it works with MC Server Soft.)
+# Gatekeeper with what its owner gave you, and install its servers from there.
+#
+# With --gatekeeper it installs Gatekeeper instead, the program for the machine that runs the servers (it works with
+# MC Server Soft's Linux build): it fetches the published Gatekeeper, checks it against its published SHA-256,
+# fetches install-keeper.sh from the repository, and runs that, which says what it does (a systemd user service, a
+# menu entry, files in ~/.local/share/GatehouseKeeper; no system password). --gatekeeper --uninstall removes it.
+# Not supported on Linux or SteamOS: adding Gatekeeper to your Steam library.
 #
 # What it does to this computer, and nothing else:
 #   - Prism Launcher, only if it's missing and you agree: installed for your user from Flathub (flatpak).
@@ -23,7 +28,8 @@
 # Gatekeepers, and this device's identity with them).
 #
 # Run it:   bash gatehouse-install.sh
-# Options:  --uninstall [--purge]   remove instead of install
+# Options:  --gatekeeper            Gatekeeper (for the machine that runs the servers) instead of Gatehouse
+#           --uninstall [--purge]   remove instead of install
 #           --steam / --no-steam    add to Steam without being asked / don't
 #           --with-pack             (with --uninstall) this Gatehouse came with a pack: take out what is its own anyway
 #           --yes                   answer yes to the questions; Steam is then only touched if it is already closed
@@ -36,11 +42,11 @@
 set -u
 REPO="https://raw.githubusercontent.com/scholar-andrew/gatehouse/main"
 APP_ID="org.prismlauncher.PrismLauncher"
-YES=0; NO_PRISM=0; NO_MENU=0; DRY=0; SOURCE=""; PRISM_ROOT=""; UNINSTALL=0; PURGE=0; WITH_PACK=0; STEAM=0; NO_STEAM=0; STEAM_CONFIG=""; ROOT_GIVEN=0
+YES=0; NO_PRISM=0; NO_MENU=0; DRY=0; SOURCE=""; PRISM_ROOT=""; UNINSTALL=0; PURGE=0; WITH_PACK=0; GATEKEEPER=0; STEAM=0; NO_STEAM=0; STEAM_CONFIG=""; ROOT_GIVEN=0
 for a in "$@"; do
   case "$a" in
     --yes) YES=1 ;; --no-prism) NO_PRISM=1 ;; --no-menu) NO_MENU=1 ;; --dry-run) DRY=1 ;;
-    --uninstall) UNINSTALL=1 ;; --purge) PURGE=1 ;; --with-pack) WITH_PACK=1 ;; --steam) STEAM=1 ;; --no-steam) NO_STEAM=1 ;;
+    --uninstall) UNINSTALL=1 ;; --purge) PURGE=1 ;; --with-pack) WITH_PACK=1 ;; --gatekeeper) GATEKEEPER=1 ;; --steam) STEAM=1 ;; --no-steam) NO_STEAM=1 ;;
     --source=*) SOURCE="${a#*=}" ;; --prism-root=*) PRISM_ROOT="${a#*=}"; ROOT_GIVEN=1 ;; --steam-config=*) STEAM_CONFIG="${a#*=}" ;;
     *) echo "Unknown option: $a"; exit 2 ;;
   esac
@@ -50,6 +56,43 @@ SOURCE="${SOURCE%/}"
 say() { echo "$*"; }
 ask() { [ "$YES" = 1 ] && return 0; local r; read -r -p "$1 [Y/n] " r; case "$r" in n*|N*) return 1 ;; *) return 0 ;; esac; }
 stop() { say ""; say "Stopped: $*"; exit 1; }
+# ------------------------------------------------------------------ Gatekeeper (the machine that runs the servers)
+if [ "$GATEKEEPER" = 1 ]; then
+  say "Gatekeeper (for the machine that runs the servers)"
+  pass=""; [ "$YES" = 1 ] && pass="--yes"
+  kept="${XDG_DATA_HOME:-$HOME/.local/share}/GatehouseKeeper/install-keeper.sh"
+  if [ "$UNINSTALL" = 1 ]; then
+    [ "$PURGE" = 1 ] && pass="$pass --purge"
+    if [ "$DRY" = 1 ]; then say "  would run install-keeper.sh --uninstall$([ "$PURGE" = 1 ] && echo " --purge") (its own copy in $(dirname "$kept"), else fetched from $REPO/installer/keeper): it stops Gatekeeper and removes its service, its menu entry and its program."; say "Gatekeeper: nothing was changed (--dry-run)."; exit 0; fi
+    if [ -f "$kept" ]; then bash "$kept" --uninstall $pass; exit $?; fi
+    command -v curl >/dev/null 2>&1 || stop "curl is needed and wasn't found."
+    work="$(mktemp -d)" || stop "couldn't make a temporary folder."
+    curl -fsSL --max-time 60 "$REPO/installer/keeper/install-keeper.sh" -o "$work/install-keeper.sh" || { rm -rf "$work"; stop "couldn't fetch install-keeper.sh."; }
+    bash "$work/install-keeper.sh" --uninstall $pass; code=$?; rm -rf "$work"; exit $code
+  fi
+  if [ "$DRY" = 1 ]; then
+    say "  would read $SOURCE/gatekeeper/gatekeeper.json, fetch $SOURCE/gatekeeper/oj-host.jar (checked against it) and $REPO/installer/keeper/install-keeper.sh,"
+    say "  and run install-keeper.sh, which installs Gatekeeper and says what it does."
+    say "Not supported on Linux or SteamOS: adding Gatekeeper to your Steam library."
+    say "Gatekeeper: nothing was changed (--dry-run)."; exit 0
+  fi
+  command -v curl >/dev/null 2>&1 || stop "curl is needed and wasn't found."
+  command -v sha256sum >/dev/null 2>&1 || stop "sha256sum is needed and wasn't found."
+  work="$(mktemp -d)" || stop "couldn't make a temporary folder."
+  curl -fsSL --max-time 30 "$SOURCE/gatekeeper/gatekeeper.json" -o "$work/gatekeeper.json" || { rm -rf "$work"; stop "couldn't reach $SOURCE."; }
+  want="$(tr -d '\r\n' < "$work/gatekeeper.json" | sed -n 's/.*"sha256": *"\([0-9a-fA-F]*\)".*/\1/p')"
+  [ -n "$want" ] || { rm -rf "$work"; stop "what is published there doesn't say what Gatekeeper's checksum is."; }
+  curl -fsSL --max-time 120 "$SOURCE/gatekeeper/oj-host.jar" -o "$work/oj-host.jar" || { rm -rf "$work"; stop "couldn't fetch Gatekeeper."; }
+  got="$(sha256sum "$work/oj-host.jar" | cut -d' ' -f1)"
+  [ "$(echo "$got" | tr 'A-F' 'a-f')" = "$(echo "$want" | tr 'A-F' 'a-f')" ] || { rm -rf "$work"; stop "what was fetched doesn't match the published checksum. Nothing was installed."; }
+  curl -fsSL --max-time 60 "$REPO/installer/keeper/install-keeper.sh" -o "$work/install-keeper.sh" || { rm -rf "$work"; stop "couldn't fetch install-keeper.sh."; }
+  say "  Gatekeeper fetched and checked. Its own install script takes over:"
+  say ""
+  bash "$work/install-keeper.sh" $pass; code=$?; rm -rf "$work"
+  say "Not supported on Linux or SteamOS: adding Gatekeeper to your Steam library."
+  exit $code
+fi
+
 # The Steam Deck gets the Deck's build of what is published (the same launcher; the folder differs).
 variant=main
 case "$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null)" in Jupiter|Galileo) variant=deck ;; esac

@@ -87,6 +87,56 @@ public final class HostHelper {
 	static String setting(String key, String def) { Object v = cfg.get(key); return v == null || v.toString().isEmpty() ? def : v.toString(); }
 	static int port() { return Integer.parseInt(setting("port", "25570")); }
 
+	// ------------------------------------------------------------------ which system this machine runs
+	/** "windows", "linux" or "steamos" (OJ_OS says otherwise, for testing). Gatekeeper does the same things on each;
+	 *  what a system can't do is still listed where it would be, as "Not supported on <system>". */
+	static final String SYSTEM = whichSystem();
+	static final boolean WIN = SYSTEM.equals("windows"), STEAMOS = SYSTEM.equals("steamos");
+	static String whichSystem() {
+		String forced = System.getenv("OJ_OS");
+		if (forced != null && !forced.isBlank()) return forced.trim().toLowerCase(java.util.Locale.ROOT);
+		if (System.getProperty("os.name", "").startsWith("Windows")) return "windows";
+		for (String line : read(Path.of("/etc/os-release")).split("\\R")) if (line.replace("\"", "").trim().equals("ID=steamos")) return "steamos";
+		return "linux";
+	}
+	static String systemName() { return WIN ? "Windows" : STEAMOS ? "SteamOS" : "Linux"; }
+	static String notSupported() { return "Not supported on " + systemName(); }
+	/** One of two wordings: Windows', or Linux's and SteamOS's. */
+	static String say(String windows, String linux) { return WIN ? windows : linux; }
+	/** What MCSS's program file is called here. */
+	static String mcssFile() { return WIN ? "mcss.exe" : "mcss"; }
+	/** Is that program somewhere on the PATH? */
+	static boolean onPath(String program) {
+		for (String d : System.getenv().getOrDefault("PATH", "").split(java.io.File.pathSeparator))
+			if (!d.isEmpty() && Files.isRegularFile(Path.of(d, program))) return true;
+		return false;
+	}
+	/** Tailscale's own command: host.json "tailscale_exe", else where it usually is on this system. */
+	static String tailscaleExe() {
+		String set = setting("tailscale_exe", "");
+		if (!set.isEmpty()) return set;
+		if (WIN) return "C:\\Program Files\\Tailscale\\tailscale.exe";
+		for (String g : new String[] {"/usr/bin/tailscale", "/usr/local/bin/tailscale", "/usr/sbin/tailscale", "/opt/tailscale/tailscale", System.getProperty("user.home", "") + "/.local/bin/tailscale", "/snap/bin/tailscale"})
+			if (Files.isRegularFile(Path.of(g))) return g;
+		return "/usr/bin/tailscale";
+	}
+	/** Can a launcher put this machine to sleep? Not a Steam Deck (asleep, nothing can wake it from another device),
+	 *  and not a Linux without systemd. host.json "sleep_command" (testing) counts as yes. */
+	static boolean sleepSupported() { return !setting("sleep_command", "").isEmpty() || WIN || (!STEAMOS && onPath("systemctl")); }
+	/** What a command says (null when it can't be run or doesn't answer in time). */
+	static String commandSays(String... cmd) {
+		try {
+			Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+			p.getOutputStream().close();
+			byte[][] out = {new byte[0]};
+			Thread rd = new Thread(() -> { try { out[0] = p.getInputStream().readAllBytes(); } catch (IOException ignored) {} }, "command");
+			rd.start();
+			if (!p.waitFor(5, TimeUnit.SECONDS)) { p.destroyForcibly(); return null; }
+			rd.join(2000);
+			return new String(out[0], StandardCharsets.UTF_8);
+		} catch (Exception e) { return null; }
+	}
+
 	// ------------------------------------------------------------------ devices
 
 	/** devices.json: { "<device id>": {name, os, tailscale, ip, token_sha256, granted, first_seen, last_seen} }. */
@@ -168,7 +218,7 @@ public final class HostHelper {
 	/** What Tailscale's own command says (null when it isn't installed where expected, or doesn't answer in time). */
 	static String tailscaleSays(String... args) {
 		try {
-			String exe = setting("tailscale_exe", "C:\\Program Files\\Tailscale\\tailscale.exe");
+			String exe = tailscaleExe();
 			if (!Files.isRegularFile(Path.of(exe))) return null;
 			List<String> cmd = new ArrayList<>(List.of(exe)); cmd.addAll(List.of(args));
 			Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
@@ -227,17 +277,26 @@ public final class HostHelper {
 		List<String> ips = new ArrayList<>();
 		for (Object o : Json.list(self.get("TailscaleIPs"))) ips.add(Json.str(o));
 		String state = Json.str(ts.get("BackendState")), tsName = Json.str(self.get("DNSName")).replaceAll("\\.$", "");
-		if (raw == null) add.accept(new String[] {"Tailscale is installed", "todo", "Not found on this machine.", "Install Tailscale from tailscale.com/download and sign in with your account. (Installed somewhere unusual? Put the path of tailscale.exe in host.json as \"tailscale_exe\".)"});
+		if (raw == null) add.accept(new String[] {"Tailscale is installed", "todo", "Not found on this machine.", say("Install Tailscale from tailscale.com/download and sign in with your account. (Installed somewhere unusual? Put the path of tailscale.exe in host.json as \"tailscale_exe\".)",
+				"Install Tailscale from tailscale.com/download/linux, then in a terminal: sudo tailscale up, and sign in on the page it gives." + (STEAMOS ? " Tailscale doesn't officially support SteamOS, and a SteamOS update can remove it." : "") + " (Installed somewhere unusual? Put the path of the tailscale program in host.json as \"tailscale_exe\".)")});
 		else add.accept(new String[] {"Tailscale is installed", "ok", ""});
 		if (raw != null) {
 			if (state.equals("Running") && !ips.isEmpty()) add.accept(new String[] {"Tailscale is connected", "ok", ips.get(0) + (tsName.isEmpty() ? "" : "  (" + tsName + ")")});
-			else add.accept(new String[] {"Tailscale is connected", "todo", state.isEmpty() ? "Tailscale didn't answer." : "Tailscale says: " + state + ".", "Open Tailscale (its icon by the clock) and sign in or connect."});
+			else add.accept(new String[] {"Tailscale is connected", "todo", state.isEmpty() ? "Tailscale didn't answer." : "Tailscale says: " + state + ".", say("Open Tailscale (its icon by the clock) and sign in or connect.", "In a terminal: sudo tailscale up, and sign in on the page it gives.")});
 			if (state.equals("Running")) {
 				String exp = Json.str(self.get("KeyExpiry"));
 				if (exp.isEmpty()) add.accept(new String[] {"This machine stays signed in to Tailscale", "ok", "Key expiry is off for it."});
 				else add.accept(new String[] {"This machine stays signed in to Tailscale", "warn", "Its sign-in runs out on " + exp.replaceAll("T.*$", "") + "; players lose the server then, until you sign in again.",
 						"In Tailscale's admin page (login.tailscale.com): Machines, this machine's \u2026 menu, Disable key expiry."});
-				String prefs = tailscaleSays("debug", "prefs");
+				String prefs = WIN ? tailscaleSays("debug", "prefs") : null;
+				if (!WIN) {
+					// (on Linux Tailscale is a system service: it runs before anyone signs in when that service is enabled)
+					String early = "Tailscale runs before anyone signs in", service = onPath("systemctl") ? commandSays("systemctl", "is-enabled", "tailscaled") : null;
+					if (service == null) add.accept(new String[] {early, "na", "Gatekeeper can't see here whether Tailscale starts with the machine."});
+					else if (service.trim().startsWith("enabled")) add.accept(new String[] {early, "ok", "Its service starts with the machine."});
+					else add.accept(new String[] {early, "warn", "Its service isn't set to start with the machine" + (service.isBlank() ? "" : " (" + service.trim().split("\\R")[0] + ")") + ": after a restart, players can't reach this machine until Tailscale is started.",
+							"In a terminal: sudo systemctl enable --now tailscaled"});
+				}
 				if (prefs != null && prefs.contains("\"ForceDaemon\"")) {
 					if (prefs.replaceAll("\\s", "").contains("\"ForceDaemon\":true")) add.accept(new String[] {"Tailscale runs before anyone signs in to Windows", "ok", "Run unattended is on."});
 					else add.accept(new String[] {"Tailscale runs before anyone signs in to Windows", "warn", "Off: after a restart or a wake, players can't reach this machine until you sign in to Windows.",
@@ -245,6 +304,9 @@ public final class HostHelper {
 				}
 			}
 		}
+		// ---- what this system can't do, said where it would otherwise be
+		if (!sleepSupported()) add.accept(new String[] {"Launchers can put this machine to sleep", "na", STEAMOS ? "A Steam Deck that is asleep can't be woken from another device, so Gatekeeper doesn't put it to sleep. Keep it plugged in and awake while it serves."
+				: "Gatekeeper sleeps a Linux machine through systemd (systemctl suspend), which isn't on this one."});
 		// ---- Gatekeeper's own address
 		String bind = setting("bind", "");
 		if (bind.isEmpty()) add.accept(new String[] {"Gatekeeper listens on the Tailscale address", "todo", "No address chosen yet.", "Servers tab: Server setup. It fills the address in when Tailscale is connected."});
@@ -305,7 +367,7 @@ public final class HostHelper {
 		for (Object o : devices().values()) { String ls = Json.str(Json.map(o).get("last_seen")); if (!ls.isEmpty()) { reached++; if (ls.compareTo(last) > 0) last = ls; } }
 		if (reached > 0) add.accept(new String[] {"A launcher has reached this Gatekeeper", "ok", reached + " so far; the latest on " + last + "."});
 		else add.accept(new String[] {"A launcher has reached this Gatekeeper", "todo", "None yet. Everything above can look right from here and still be blocked from outside.",
-				"Pair a launcher on another device (Servers tab: Share pairing) and open it. If it can't connect: Windows Firewall has to allow Java for Gatekeeper on private networks (Windows asks the first time; otherwise Windows Security, Firewall, Allow an app)."});
+				"Pair a launcher on another device (Servers tab: Share pairing) and open it. If it can't connect: " + say("Windows Firewall has to allow Java for Gatekeeper on private networks (Windows asks the first time; otherwise Windows Security, Firewall, Allow an app).", "a firewall on this machine, if it has one, has to let Gatekeeper's port in on the Tailscale network (most desktop Linux systems, and SteamOS, have none switched on).")});
 		// ---- the invite players need
 		String share = setting("tailscale_share_link", "");
 		if (!share.isEmpty()) add.accept(new String[] {"Players have a way into Tailscale", "ok", "Your invite link goes out with the pairing link and file."});
@@ -319,7 +381,7 @@ public final class HostHelper {
 	/** The Tailscale device a request came from, as Tailscale names it (empty if unknown). */
 	static String tailscaleName(String ip) {
 		try {
-			Process p = new ProcessBuilder(setting("tailscale_exe", "C:\\Program Files\\Tailscale\\tailscale.exe"), "whois", "--json", ip).redirectErrorStream(true).start();
+			Process p = new ProcessBuilder(tailscaleExe(), "whois", "--json", ip).redirectErrorStream(true).start();
 			String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 			p.waitFor(5, TimeUnit.SECONDS);
 			Map<String, Object> node = Json.map(Json.map(Json.parse(out)).get("Node"));
@@ -507,6 +569,72 @@ public final class HostHelper {
 			return "Gatehouse on this device is out of date (" + theirs + "; " + newestHouse + " is out). Update it on its main window (Update Gatehouse, or Restart there), then come back.";
 		return "";
 	}
+	/** Linux and SteamOS: the script that takes over once this Gatekeeper has ended, doing what the Windows one does
+	 *  (see applyUpdate): nothing of this Gatekeeper left running, the old program kept, the new one put in place and
+	 *  started (through its systemd user service where it has one, else directly), asked whether it answers, and the
+	 *  old one put back and started when it doesn't. Written beside Gatekeeper's settings as update-restart.sh, so what
+	 *  runs can be read. The service is made with KillMode=process (install-keeper.sh), so this script isn't ended
+	 *  with the Gatekeeper that started it. */
+	static Path linuxUpdateScript(Path jar, Path fresh, String javaExe, long alsoWait) throws IOException {
+		java.util.function.Function<String, String> s = v -> "'" + v.replace("'", "'\\''") + "'";
+		String unit = setting("update_restart", "task").equals("task") ? setting("unit", "gatehouse-keeper") + ".service" : "";
+		// (the window's own display, so it can be opened again from here: a service doesn't always know of one)
+		StringBuilder display = new StringBuilder();
+		if (alsoWait > 0) try {
+			for (String kv : new String(Files.readAllBytes(Path.of("/proc/" + alsoWait + "/environ")), StandardCharsets.UTF_8).split("\0"))
+				for (String k : new String[] {"DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"})
+					if (kv.startsWith(k + "=")) display.append("export ").append(k).append('=').append(s.apply(kv.substring(k.length() + 1))).append('\n');
+		} catch (IOException | RuntimeException ignored) {}
+		String sh = "#!/bin/bash\n"
+				+ "# Written by Gatekeeper when it updates itself: puts the new Gatekeeper in place and starts it again.\n"
+				+ "jar=" + s.apply(jar.toString()) + "; new=" + s.apply(fresh.toString()) + "; old=\"$jar.old\"; log=" + s.apply(dir.resolve("host.log").toString()) + "\n"
+				+ "java=" + s.apply(javaExe) + "; work=" + s.apply(dir.toString()) + "; folder=" + s.apply(jar.getParent().toString()) + "; port=" + port() + "; unit=" + s.apply(unit) + "\n"
+				+ display
+				+ "say() { echo \"$(date '+%Y-%m-%d %H:%M:%S')  update: $1\" >> \"$log\"; }\n"
+				+ "# this Gatekeeper's own processes of one kind (--serve or --panel): only ones started from this very file\n"
+				+ "mine() { local p c; for p in /proc/[0-9]*; do c=\"$(tr '\\0' ' ' < \"$p/cmdline\" 2>/dev/null)\"; case \"$c\" in *\"$jar\"*\"$1\"*) echo \"${p#/proc/}\" ;; esac; done; }\n"
+				+ "answers() {\n"
+				+ "  local until=$((SECONDS + $1))\n"
+				+ "  while [ \"$SECONDS\" -lt \"$until\" ]; do\n"
+				+ "    if command -v curl >/dev/null 2>&1; then curl -fs -o /dev/null -m 2 \"http://127.0.0.1:$port/admin/update\" && return 0\n"
+				+ "    elif (exec 3<>\"/dev/tcp/127.0.0.1/$port\") 2>/dev/null; then return 0; fi\n"
+				+ "    sleep 0.4\n"
+				+ "  done\n"
+				+ "  return 1\n"
+				+ "}\n"
+				+ "has_unit() { [ -n \"$unit\" ] && command -v systemctl >/dev/null 2>&1 && systemctl --user cat \"$unit\" >/dev/null 2>&1; }\n"
+				+ "stop_it() { has_unit && systemctl --user stop \"$unit\" >/dev/null 2>&1; local p; for p in $(mine --serve); do kill -9 \"$p\" 2>/dev/null; done; }\n"
+				+ "start_it() {\n"
+				+ "  local i\n"
+				+ "  if has_unit; then\n"
+				+ "    systemctl --user reset-failed \"$unit\" >/dev/null 2>&1; systemctl --user start \"$unit\" >/dev/null 2>&1\n"
+				+ "    for i in 1 2 3 4 5 6 7 8 9 10 11 12; do [ -n \"$(mine --serve)\" ] && break; sleep 0.5; done\n"
+				+ "  fi\n"
+				+ "  if [ -z \"$(mine --serve)\" ]; then (cd \"$work\" && nohup \"$java\" -jar \"$jar\" --serve >/dev/null 2>&1 &); fi\n"
+				+ "}\n"
+				+ "for p in " + ProcessHandle.current().pid() + (alsoWait > 0 ? " " + alsoWait : "") + "; do i=0; while kill -0 \"$p\" 2>/dev/null && [ \"$i\" -lt 50 ]; do sleep 0.5; i=$((i + 1)); done; done\n"
+				+ "had_window=" + (alsoWait > 0 ? "1" : "0") + "; [ -n \"$(mine --panel)\" ] && had_window=1\n"
+				+ "stop_it; for p in $(mine --panel); do kill -9 \"$p\" 2>/dev/null; done\n"
+				+ "sleep 0.5\n"
+				+ "cp -f \"$jar\" \"$old\"\n"
+				+ "ok=0; mv -f \"$new\" \"$jar\" && ok=1\n"
+				+ "if [ \"$ok\" = 0 ]; then say 'oj-host.jar could not be replaced; the Gatekeeper that was running starts again'; rm -f \"$new\"; fi\n"
+				+ "start_it\n"
+				+ "if [ \"$ok\" = 1 ]; then\n"
+				+ "  if answers 30; then say 'the new Gatekeeper is in place and answering'; rm -f \"$old\"\n"
+				+ "  else\n"
+				+ "    say 'the new Gatekeeper did not answer within 30 seconds: going back to the one before'\n"
+				+ "    stop_it; sleep 1; cp -f \"$old\" \"$jar\"; start_it\n"
+				+ "    if answers 30; then say 'the Gatekeeper from before is running again (the update was undone)'; rm -f \"$old\"\n"
+				+ "    else say 'Gatekeeper is not answering: start it from the applications menu (Gatekeeper)'; fi\n"
+				+ "  fi\n"
+				+ "elif ! answers 30; then say 'Gatekeeper is not answering: start it from the applications menu (Gatekeeper)'; fi\n"
+				+ "if [ \"$had_window\" = 1 ]; then (cd \"$folder\" && nohup \"$java\" -jar \"$jar\" --panel >/dev/null 2>&1 &); fi\n";
+		Path script = dir.resolve("update-restart.sh");
+		Files.writeString(script, sh, StandardCharsets.UTF_8);
+		return script;
+	}
+
 	/** Fetches the published Gatekeeper, checks it, and arranges for it to take this one's place. Gatekeeper ends a
 	 *  moment after this returns ok. "alsoWait": the window's process, which has to end too (it holds the file open),
 	 *  and is opened again afterwards. */
@@ -532,6 +660,16 @@ public final class HostHelper {
 			// starts Gatekeeper (through its scheduled task, checking that it really came up; else directly), and then
 			// asks it whether it answers. If the new one doesn't answer within 30 seconds, the old jar goes back and is
 			// started instead. Everything it does is noted in host.log.
+			if (!WIN) {
+				Path sh = linuxUpdateScript(jar, fresh, javaExe, alsoWait);
+				// (in a session of its own where that can be had, so it outlives this Gatekeeper)
+				new ProcessBuilder(onPath("setsid") ? List.of("setsid", "bash", sh.toString()) : List.of("bash", sh.toString()))
+						.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+				log("updating to Gatekeeper " + newestKeeper + " (from " + newestKeeperAt + "): ending now, and starting again as the new one");
+				Thread endNow = new Thread(() -> { try { Thread.sleep(900); } catch (InterruptedException ignored) {} System.exit(0); }, "update");
+				endNow.setDaemon(true); endNow.start();
+				return new String[] {"ok", "Fetched and checked. Gatekeeper is restarting as " + newestKeeper + "."};
+			}
 			boolean task = setting("update_restart", "task").equals("task");
 			String ps = "$ErrorActionPreference = 'SilentlyContinue'\n"
 					+ "$jar = " + s.apply(jar.toString()) + "; $new = " + s.apply(fresh.toString()) + "; $old = $jar + '.old'; $log = " + s.apply(dir.resolve("host.log").toString()) + "\n"
@@ -670,16 +808,18 @@ public final class HostHelper {
 	static Map<String, Object> setupScan(String exe) {
 		String home = System.getProperty("user.home", "");
 		if (exe.isEmpty()) exe = setting("mcss_exe", "");
-		if (exe.isEmpty()) for (String g : new String[] {"C:\\Minecraft\\MCSS\\mcss.exe", "C:\\MCSS\\mcss.exe", home + "\\MCSS\\mcss.exe", home + "\\Documents\\MCSS\\mcss.exe", home + "\\Desktop\\MCSS\\mcss.exe", home + "\\Downloads\\MCSS\\mcss.exe"})
+		if (exe.isEmpty() && !WIN) for (String d : new String[] {home + "/MCSS", home + "/mcss", home + "/Documents/MCSS", home + "/Desktop/MCSS", home + "/Downloads/MCSS", home + "/Minecraft/MCSS", "/opt/mcss", "/opt/MCSS"})
+			for (String n : new String[] {"mcss", "MCSS"}) if (exe.isEmpty() && Files.isRegularFile(Path.of(d, n))) exe = Path.of(d, n).toString();
+		if (exe.isEmpty() && WIN) for (String g : new String[] {"C:\\Minecraft\\MCSS\\mcss.exe", "C:\\MCSS\\mcss.exe", home + "\\MCSS\\mcss.exe", home + "\\Documents\\MCSS\\mcss.exe", home + "\\Desktop\\MCSS\\mcss.exe", home + "\\Downloads\\MCSS\\mcss.exe"})
 			if (Files.isRegularFile(Path.of(g))) { exe = g; break; }
 		List<Object> found = new ArrayList<>();
 		String problem = "";
-		if (exe.isEmpty()) problem = "MCSS wasn't found in the usual places: use Browse to pick mcss.exe.";
+		if (exe.isEmpty()) problem = "MCSS wasn't found in the usual places: use Browse to pick " + mcssFile() + (WIN ? "." : " (the program in MCSS's folder; MCSS's Linux build is the one for this machine).");
 		else if (!Files.isRegularFile(Path.of(exe))) problem = "There's no file at that path.";
 		else {
 			List<Path> dirs = new ArrayList<>();
 			try (java.util.stream.Stream<Path> s = Files.list(Path.of(exe).toAbsolutePath().getParent().resolve("servers"))) { s.filter(Files::isDirectory).sorted().forEach(dirs::add); }
-			catch (IOException e) { problem = "There's no servers folder beside that mcss.exe."; }
+			catch (IOException e) { problem = "There's no servers folder beside that " + mcssFile() + "."; }
 			for (Path d : dirs) {
 				Map<String, Object> c = Json.map(Json.parse(read(d.resolve("mcss_server_config.json"))));
 				if (c.isEmpty()) continue;
@@ -1573,11 +1713,12 @@ public final class HostHelper {
 	 *  host.json "sleep_command" replaces the sleep itself (testing). */
 	static String[] sleepPc() {
 		if (anyServerRunning()) return new String[] {"refused", "The Minecraft server is still running: stop it first (Server controls, Stop server), then sleep the machine"};
+		if (!sleepSupported()) return new String[] {"refused", notSupported() + ": Gatekeeper doesn't put this machine to sleep" + (STEAMOS ? " (asleep, a Steam Deck can't be woken from another device)" : "")};
 		String custom = setting("sleep_command", "");
-		List<String> cmd = custom.isEmpty()
-				? List.of("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
+		List<String> cmd = !custom.isEmpty() ? (WIN ? List.of("cmd", "/c", custom) : List.of("sh", "-c", custom))
+				: WIN ? List.of("powershell", "-NoProfile", "-WindowStyle", "Hidden", "-Command",
 						"Start-Sleep 5; Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false)")
-				: List.of("cmd", "/c", custom);
+				: List.of("sh", "-c", "sleep 5; systemctl suspend");
 		try { new ProcessBuilder(cmd).start(); }
 		catch (IOException e) { return new String[] {"failed", "Couldn't sleep the PC: " + e.getMessage()}; }
 		return new String[] {"ok", "The server machine is going to sleep (in about 5 seconds). Wake server machine wakes it again from the home network."};
@@ -1753,7 +1894,7 @@ public final class HostHelper {
 				saveDevices(devs);
 				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/about")) {
-				reply(x, 200, m("gatekeeper", notesInside("gatekeeper"), "gatehouse", gatehouseNotes()));
+				reply(x, 200, m("gatekeeper", notesInside("gatekeeper"), "gatehouse", gatehouseNotes(), "system", systemName()));
 			} else if (path.equals("/admin/overview")) {
 				// The window's first screen: MCSS on this machine, and each server it runs.
 				List<Object> list = new ArrayList<>();
@@ -1807,12 +1948,12 @@ public final class HostHelper {
 		boolean ts = st.apply("Tailscale is installed", "todo").equals("ok"), tsOn = st.apply("Tailscale is connected", "wait").equals("ok");
 
 		add.apply(new Object[] {"welcome", "Welcome", "info", "This guide takes a machine from nothing to a Minecraft server your friends can join with the Gatehouse launcher.\n\nThree things are involved. Tailscale is a private network between this machine and the devices you let in, so nothing is opened to the internet. MC Server Soft (MCSS) runs the Minecraft servers. Gatekeeper, this program, sits between them: it lets the launchers you allow see, start and stop your servers.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""});
-		add.apply(new Object[] {"tailscale", "Install Tailscale", ts ? "ok" : "todo", "Tailscale makes the private network. Download it from its own site, install it, and sign in with an account (Google, Microsoft, GitHub and others work; it's free for personal use).\n\nThis step is done when Tailscale is installed on this machine.", dt.apply("Tailscale is installed"),
-				"Open Tailscale's download page", "open:https://tailscale.com/download"});
-		add.apply(new Object[] {"tailscale_on", "Sign in to Tailscale", !ts ? "wait" : tsOn ? "ok" : "todo", "Open Tailscale (its icon is by the clock), sign in, and make sure it says Connected.\n\nThis step is done when this machine has a Tailscale address.", dt.apply("Tailscale is connected")});
-		add.apply(new Object[] {"tailscale_stay", "Keep this machine signed in", !tsOn ? "wait" : st.apply("This machine stays signed in to Tailscale", "todo"), "By default Tailscale signs a machine out after some months, and players would lose the server until you signed in again. For a server, turn that off: in Tailscale's admin page, under Machines, open this machine's \u2026 menu and choose Disable key expiry.\n\nIn Tailscale's own menu by the clock, also turn on Run unattended (under Preferences), so players can reach the machine before anyone has signed in to Windows.", dt.apply("This machine stays signed in to Tailscale"),
+		add.apply(new Object[] {"tailscale", "Install Tailscale", ts ? "ok" : "todo", "Tailscale makes the private network. Download it from its own site, install it, and sign in with an account (Google, Microsoft, GitHub and others work; it's free for personal use)." + (STEAMOS ? "\n\nTailscale doesn't officially support SteamOS: it can be installed (Desktop Mode, Konsole), but a SteamOS update can remove it, and then this step shows as not done again." : "") + "\n\nThis step is done when Tailscale is installed on this machine.", dt.apply("Tailscale is installed"),
+				"Open Tailscale's download page", say("open:https://tailscale.com/download", "open:https://tailscale.com/download/linux")});
+		add.apply(new Object[] {"tailscale_on", "Sign in to Tailscale", !ts ? "wait" : tsOn ? "ok" : "todo", say("Open Tailscale (its icon is by the clock), sign in, and make sure it says Connected.", "In a terminal, run: sudo tailscale up, and sign in on the page it gives.") + "\n\nThis step is done when this machine has a Tailscale address.", dt.apply("Tailscale is connected")});
+		add.apply(new Object[] {"tailscale_stay", "Keep this machine signed in", !tsOn ? "wait" : st.apply("This machine stays signed in to Tailscale", "todo"), "By default Tailscale signs a machine out after some months, and players would lose the server until you signed in again. For a server, turn that off: in Tailscale's admin page, under Machines, open this machine's \u2026 menu and choose Disable key expiry.\n\n" + say("In Tailscale's own menu by the clock, also turn on Run unattended (under Preferences), so players can reach the machine before anyone has signed in to Windows.", "Tailscale's service should also start with the machine, so players can reach it after a restart. Host setup shows whether it does; in a terminal: sudo systemctl enable --now tailscaled"), dt.apply("This machine stays signed in to Tailscale"),
 				"Open Tailscale's admin page", "open:https://login.tailscale.com/admin/machines"});
-		add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo", "MC Server Soft (MCSS) is the program that runs the Minecraft servers. Download it from its site and unpack it somewhere permanent, for example C:\\Minecraft\\MCSS. It has no installer: the folder is the program.\n\nIf Gatekeeper doesn't find it by itself, use Server setup and Browse to mcss.exe.\n\nThis step is done when Gatekeeper knows where mcss.exe is.", mcss ? exe : "",
+		add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo", "MC Server Soft (MCSS) is the program that runs the Minecraft servers. Download it from its site and unpack it somewhere permanent, for example " + say("C:\\Minecraft\\MCSS", "an MCSS folder in your home folder (this machine needs MCSS's Linux build)") + ". It has no installer: the folder is the program.\n\nIf Gatekeeper doesn't find it by itself, use Server setup and Browse to " + mcssFile() + ".\n\nThis step is done when Gatekeeper knows where " + mcssFile() + " is.", mcss ? exe : "",
 				"Open MCSS's site", "open:https://www.mcserversoft.com/", "Server setup\u2026", "setup"});
 		add.apply(new Object[] {"mcss_server", "Make a server in MCSS", !mcss ? "wait" : inMcss > 0 ? "ok" : "todo", "In MCSS: Add Server, give it a name, pick the server type and Minecraft version (Vanilla is the plain game; Fabric or Forge are for mods), and create it. Start it once in MCSS and accept Minecraft's EULA when asked, so its files are made, then stop it again.\n\nThis step is done when MCSS has at least one server.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server" : " servers") + " in MCSS" : ""});
 		add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo", "Gatekeeper talks to MCSS through MCSS's own web API, on this machine only. In MCSS: Options, then Web API (or Web Panel), switch it on, and leave the port at 25560. MCSS has to be running for this.\n\nThis step is done when MCSS answers on that port.", api ? "MCSS answers" : mcss ? "No answer on " + setting("mcss_panel", "http://127.0.0.1:25560").replaceFirst("^https?://", "") + " (is MCSS running?)" : ""});
@@ -1842,6 +1983,15 @@ public final class HostHelper {
 	 *  its settings as install-keeper.ps1), with -Uninstall, in a PowerShell window of its own that stays open until
 	 *  Enter is pressed. Null when the script isn't in this program. */
 	static List<String> uninstallCommand(Path keeperDir, boolean purge) throws IOException {
+		if (!WIN) {
+			// Linux and SteamOS: install-keeper.sh, run here (no window of its own; what it says is shown in Options).
+			Path sh = dir.resolve("install-keeper.sh");
+			try (InputStream in = HostHelper.class.getResourceAsStream("/install-keeper.sh")) { if (in != null) Files.write(sh, in.readAllBytes()); }
+			if (!Files.isRegularFile(sh)) return null;
+			List<String> cmd = new ArrayList<>(List.of("bash", sh.toString(), "--uninstall", "--yes", "--from-panel", "--dir=" + keeperDir, "--unit=" + setting("unit", "gatehouse-keeper")));
+			if (purge) cmd.add("--purge");
+			return cmd;
+		}
 		Path script = dir.resolve("install-keeper.ps1");
 		try (InputStream in = HostHelper.class.getResourceAsStream("/install-keeper.ps1")) { if (in != null) Files.write(script, in.readAllBytes()); }
 		if (!Files.isRegularFile(script)) return null;
@@ -1921,7 +2071,8 @@ public final class HostHelper {
 			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow machine wake/sleep"), adminB = new JButton("Allow Gatekeeper control"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
 			serverB.setToolTipText("Server control: the selected launcher may start and stop this Minecraft server (through Gatekeeper; it needs no MCSS account).");
 			mcssB.setToolTipText("MCSS control: the selected launcher may start and close MCSS itself. It includes server control.");
-			sleepB.setToolTipText("Machine wake/sleep: the selected launcher may wake this machine and put it to sleep (sleep only while the Minecraft server is stopped).");
+			sleepB.setToolTipText(sleepSupported() ? "Machine wake/sleep: the selected launcher may wake this machine and put it to sleep (sleep only while the Minecraft server is stopped)." : "Machine wake/sleep: " + notSupported().toLowerCase(java.util.Locale.ROOT).replace(systemName().toLowerCase(java.util.Locale.ROOT), systemName()) + ".");
+			if (!sleepSupported()) { sleepB.setEnabled(false); sleepB.setText("Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1)); }
 			forget.setToolTipText("Takes the selected launcher off this list, with everything it was allowed. It can introduce itself again later and starts with nothing.");
 			refreshB.setToolTipText("Reads the list again now (it also refreshes by itself every few seconds).");
 			adminB.setToolTipText("Gatekeeper control lets that launcher manage the others' permissions from its Server config tab, as this panel does (not the MCSS key, and not Gatekeeper control itself).");
@@ -2100,12 +2251,12 @@ public final class HostHelper {
 						list.revalidate(); list.repaint();
 						java.awt.Window w = SwingUtilities.getWindowAncestor(list);
 						if (w != null) w.pack();
-					} catch (Exception ex) { problem.setText("Couldn't ask Gatekeeper: is it running? (Task Scheduler, Gatehouse Keeper)"); }
+					} catch (Exception ex) { problem.setText("Couldn't ask Gatekeeper: is it running? " + say("(Task Scheduler, Gatehouse Keeper)", "(systemctl --user status gatehouse-keeper)")); }
 				};
 				JButton browse = new JButton("Browse\u2026"), again = new JButton("Look again");
 				browse.addActionListener(ev -> {
-					javax.swing.JFileChooser fc = new javax.swing.JFileChooser(exeF.getText().isBlank() ? "C:\\" : exeF.getText());
-					fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("MCSS (mcss.exe)", "exe"));
+					javax.swing.JFileChooser fc = new javax.swing.JFileChooser(!exeF.getText().isBlank() ? exeF.getText() : WIN ? "C:\\" : System.getProperty("user.home", "/"));
+					if (WIN) fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("MCSS (mcss.exe)", "exe"));
 					if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { exeF.setText(fc.getSelectedFile().getAbsolutePath()); scan.run(); }
 				});
 				again.addActionListener(ev -> scan.run());
@@ -2114,7 +2265,7 @@ public final class HostHelper {
 				JPanel exeRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); exeRow.add(exeF); exeRow.add(browse); exeRow.add(again);
 				JPanel addrRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); addrRow.add(addrF);
 				java.util.function.Function<String, JLabel> subHead = hs -> { JLabel l = new JLabel(hs); l.setFont(l.getFont().deriveFont(Font.BOLD)); l.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0)); return l; };
-				for (javax.swing.JComponent c : new javax.swing.JComponent[] {subHead.apply("MCSS on this machine (mcss.exe)"), exeRow,
+				for (javax.swing.JComponent c : new javax.swing.JComponent[] {subHead.apply("MCSS on this machine (" + mcssFile() + ")"), exeRow,
 						subHead.apply("This machine's Tailscale address (launchers reach Gatekeeper on it)"), addrRow,
 						subHead.apply("Minecraft servers in MCSS (tick the ones Gatekeeper looks after)"), list, problem}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); }
 				scan.run();
@@ -2313,8 +2464,9 @@ public final class HostHelper {
 					String st = Json.str(s.get("state"));
 					if (st.equals("todo")) todo++; else if (st.equals("warn")) warn++;
 					if (same) continue;
+					boolean na = st.equals("na");
 					boolean justDone = stepDoneAt.containsKey(Json.str(s.get("title"))) && nowMs - stepDoneAt.get(Json.str(s.get("title"))) < 60_000;
-					String colour = st.equals("ok") ? "#3FB950" : st.equals("warn") ? "#E3B341" : "#F85149", word = st.equals("ok") ? (justDone ? "<b>Done just now</b>" : "Done") : st.equals("warn") ? "Worth changing" : "To do";
+					String colour = st.equals("ok") ? "#3FB950" : st.equals("warn") ? "#E3B341" : na ? "#8F98A0" : "#F85149", word = st.equals("ok") ? (justDone ? "<b>Done just now</b>" : "Done") : st.equals("warn") ? "Worth changing" : na ? notSupported() : "To do";
 					java.util.function.Function<String, String> esc = t -> t.replace("&", "&amp;").replace("<", "&lt;");
 					JLabel row = new JLabel("<html><div style='width:860px'><span style='color:" + colour + "'>\u25CF</span>&nbsp; <b>" + esc.apply(Json.str(s.get("title"))) + "</b> &nbsp;<span style='color:" + colour + "'>" + word + "</span>"
 							+ (Json.str(s.get("detail")).isEmpty() ? "" : "<br>&nbsp;&nbsp;&nbsp;&nbsp;" + esc.apply(Json.str(s.get("detail"))))
@@ -2426,7 +2578,7 @@ public final class HostHelper {
 			optBack.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			options.add(optBack);
 			optLine.accept("About", true);
-			optLine.accept("Gatekeeper " + Json.str(notesInside("gatekeeper").get("version")) + ", running from " + keeperDir + ". Its settings, its list of launchers and its log are in " + dir + ".", false);
+			optLine.accept("Gatekeeper " + Json.str(notesInside("gatekeeper").get("version")) + " on " + systemName() + ", running from " + keeperDir + ". Its settings, its list of launchers and its log are in " + dir + ".", false);
 			optLine.accept("Setup guide", true);
 			optLine.accept("The steps from a machine with nothing on it to a server your friends can join, each with a check for whether it's done.", false);
 			JButton guideB = new JButton("Open the setup guide");
@@ -2434,7 +2586,7 @@ public final class HostHelper {
 			guideRow.add(guideB); guideRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			options.add(guideRow);
 			optLine.accept("Uninstall", true);
-			optLine.accept("Removes Gatekeeper from this machine: it is stopped, and its start-up task, its Start menu shortcut and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
+			optLine.accept("Removes Gatekeeper from this machine: it is stopped, and " + say("its start-up task, its Start menu shortcut", "its start-up service, its entry in the applications menu") + " and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
 			javax.swing.JCheckBox forgetSettings = new javax.swing.JCheckBox("Also remove its settings: who is allowed to do what, its key for MCSS, and its log");
 			forgetSettings.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			JButton uninstall = new JButton("Uninstall Gatekeeper\u2026");
@@ -2455,8 +2607,19 @@ public final class HostHelper {
 					// Its own install script (carried inside this program, written out beside its settings), with -Uninstall,
 					// in a window of its own so what it did can be read. It stops Gatekeeper, this window included.
 					List<String> cmd = uninstallCommand(keeperDir, forgetSettings.isSelected());
-					if (cmd == null) { uninstallSaid.setText("The uninstall script isn't here. Use gatehouse-install.ps1 -Uninstall -Gatekeeper instead."); return; }
+					if (cmd == null) { uninstallSaid.setText(say("The uninstall script isn't here. Use gatehouse-install.ps1 -Uninstall -Gatekeeper instead.", "The uninstall script isn't here. Use install-keeper.sh --uninstall instead.")); return; }
 					if (System.getenv("OJ_UNINSTALL_DRY") != null) { uninstallSaid.setText("<html><div style='width:760px'>would run: " + String.join(" ", cmd).replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); System.out.println("would run: " + String.join(" ", cmd)); return; }
+					if (!WIN) {
+						// (no window of its own here: the script's answer is shown, and this window stays until it's closed)
+						uninstall.setEnabled(false);
+						uninstallSaid.setText("Removing Gatekeeper\u2026");
+						new Thread(() -> {
+							String out = commandSays(cmd.toArray(new String[0]));
+							String told = out == null ? "The uninstall script didn't finish." : out.trim();
+							SwingUtilities.invokeLater(() -> uninstallSaid.setText("<html><div style='width:760px'>" + told.replace("&", "&amp;").replace("<", "&lt;").replace("\n", "<br>") + "<br><br>You can close this window.</div></html>"));
+						}, "uninstall").start();
+						return;
+					}
 					new ProcessBuilder(cmd).start();
 					uninstallSaid.setText("Removing Gatekeeper in its own window. This one closes now.");
 					new javax.swing.Timer(1500, e2 -> System.exit(0)).start();
@@ -2647,7 +2810,7 @@ public final class HostHelper {
 				adminB.setText(pp[3] ? "Remove Gatekeeper control" : "Allow Gatekeeper control");
 				serverB.setText(pp[2] ? "Remove server control" : "Allow server control");
 				mcssB.setText(pp[0] ? "Remove MCSS control" : "Allow MCSS control");
-				sleepB.setText(pp[1] ? "Remove PC sleep" : "Allow machine wake/sleep");
+				sleepB.setText(!sleepSupported() ? "Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1) : pp[1] ? "Remove PC sleep" : "Allow machine wake/sleep");
 			};
 			table.getSelectionModel().addListSelectionListener(e -> labels.run());
 			model.addTableModelListener(e -> SwingUtilities.invokeLater(labels));
@@ -2673,7 +2836,7 @@ public final class HostHelper {
 			Runnable plabels = () -> {
 				int r = ptable.getSelectedRow();
 				boolean[] al = r >= 0 && r < pnames.size() ? pallow.getOrDefault(pnames.get(r), new boolean[4]) : new boolean[4];
-				for (int i = 0; i < 4; i++) pB[i].setText((al[i] ? "Remove " : "Allow ") + pwords[i]);
+				for (int i = 0; i < 4; i++) pB[i].setText(i == 2 && !sleepSupported() ? "Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1) : (al[i] ? "Remove " : "Allow ") + pwords[i]);
 			};
 			ptable.getSelectionModel().addListSelectionListener(e -> plabels.run());
 			pmodel.addTableModelListener(e -> SwingUtilities.invokeLater(plabels));
@@ -2846,6 +3009,7 @@ public final class HostHelper {
 			String[] pTips = {"Server control for this player: every confirmed device of theirs may start and stop this Minecraft server.", "MCSS control for this player: every confirmed device of theirs may start and close MCSS (it includes server control).",
 					"Machine wake/sleep for this player: every confirmed device of theirs may wake this machine and put it to sleep.", "Gatekeeper control for this player: their devices may manage the others' access from the launcher's Remote Gatekeeper tab."};
 			for (int i = 0; i < pB.length; i++) pB[i].setToolTipText(pTips[i]);
+			if (!sleepSupported()) { pB[2].setEnabled(false); pB[2].setToolTipText("Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1) + "."); }
 			pKick.addActionListener(e -> shutOut.accept(true, "kick")); pSuspend.addActionListener(e -> shutOut.accept(true, "suspend")); pBlack.addActionListener(e -> shutOut.accept(true, "blacklist")); pLift.addActionListener(e -> shutOut.accept(true, ""));
 			pLift.setToolTipText("Lifts a suspension or blacklisting of the selected player");
 			for (JButton b : new JButton[] {pKick, pSuspend, pBlack, pLift}) pbuttons.add(b);
