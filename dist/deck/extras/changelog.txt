@@ -1,3 +1,9 @@
+== 1.13.0 | 2026-11-16
+- The Gatehouse launcher's main window now has three levels. First, the Gatekeepers this device knows (the one your packs came with, and any you add), each with whether it's answering. Open one to see the servers it looks after, each with whether it's on and whether its pack is installed here. Play takes you to that server's own launcher, as before.
+- Add Gatekeeper: connect the launcher to another Gatekeeper by pasting the address or pairing link its owner gave you, or by opening the pairing file they sent. The launcher remembers every Gatekeeper it's been connected to.
+- Install: a server its Gatekeeper lists that isn't on this device yet has an Install button. It sets the pack up in Prism Launcher (the mods download on the first Play). It doesn't add a Steam shortcut.
+- Menu: a server's launcher has a new Menu button beside Restart and Quit. It goes back to the Gatehouse launcher's main window without starting the game.
+- For the owner: Gatekeeper opens on a first screen showing MCSS and each server it runs; Open goes into a server's pages and Servers comes back. Share pairing (Status tab) gives the address, a pairing link and a pairing file to hand to someone.
 == 1.12.0 | 2026-11-16
 - The Steam button under Client updates is now Update (this pack)'s Steam config, and it only looks after this pack's own shortcut. It is grey while there's nothing to update; otherwise the line beside it lists what would change. It turns orange while Steam is running (quit Steam first). When it's done it starts Steam again and a ring pulses round Quit.
 - The Gatehouse launcher's own Steam shortcut has its own button on the launcher's main window: Update Gatehouse's Steam config.
