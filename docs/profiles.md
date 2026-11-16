@@ -56,7 +56,7 @@ Still fixed in code or scripts:
 | The settings mod (`mods-src/octoberjourney`) | its name and id |
 
 Named after the project but not about the server (the tool's own names): the installer file names, the Java package
-`dev.octoberjourney`, the install folder `C:\Minecraft\OctoberJourneyHost`, the scheduled task and Start menu names.
+`dev.octoberjourney`, the install folder `C:\Minecraft\GatehouseHost`, the scheduled task and Start menu names.
 These change only when the tool gets its own name.
 
 ## Stages
@@ -85,6 +85,11 @@ These change only when the tool gets its own name.
    - the pack server on the PC is plain HTTP, with GitHub as the fallback.
 4. Windows-only parts of the helper (sleep, closing MCSS, scheduled tasks) stay separate from the rest.
 
-## Open decision
+## The tool's name
 
-The tool needs its own name before stage 3, since "October Journey" will then be just one of the servers.
+The tool is **Gatehouse** (decided 2026-11-15). Done: the host helper and panel (titles, the Start menu entry, the
+scheduled task, the folder `C:\Minecraft\GatehouseHost`), the launcher's title bar, and the settings mod's name in
+the game's mod menu. Still under the old name, to be done in this order: the installers and uninstallers (file names
+and wording, a new release), then the repository (first a pack update that points devices at the new address, then
+the rename once every device has launched). Names nobody sees (the Java package `dev.octoberjourney`, the mod's id
+`octoberjourney`, `oj-host.jar`) stay as they are.

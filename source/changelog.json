@@ -1,4 +1,7 @@
 [
+ {"version": "1.9.11", "date": "2026-11-15", "notes": [
+  "The launcher and its tools are now called Gatehouse. The window's title bar reads Gatehouse, and the pack's settings in the game's mod menu are now Gatehouse Settings (same switches, same place). The pack, the server and your shortcuts are still October Journey."
+ ]},
  {"version": "1.9.10", "date": "2026-11-15", "notes": [
   "Nothing you'll notice: the launcher and the update now take the pack's name and details from a settings file shipped with the pack instead of having them built in. Groundwork for using the same launcher with more than one server."
  ]},

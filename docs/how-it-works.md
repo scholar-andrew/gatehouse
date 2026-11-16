@@ -123,7 +123,7 @@ player-facing version). In order:
    small JSON reader of its own. It also compares the top version in `extras/changelog.txt` with
    `pack-version-seen.txt`, and then writes the new version there. A new version, or anything changed or failed, shows
    the notes for every version since the one seen (just the newest when none was seen). Otherwise it says "no updates", or that the pack couldn't be reached. It never closes or starts the game by itself, and the scripts wait for it with no time limit; closing the window counts as Quit. The
-   top-level `popup_updates` and `popup_no_updates` in `pack-options.json` (set in Mod Menu > October Journey Settings; missing
+   top-level `popup_updates` and `popup_no_updates` in `pack-options.json` (set in Mod Menu > Gatehouse Settings; missing
    means on) turn either kind off. With no display it just records the version. For testing, `OJ_POPUP_PNG=<file>`
    saves a picture of the window (and its text in `<file>.txt`) instead of showing it.
 8. Everything is logged to `minecraft/pack-sync.log`, and packwiz-installer's output to `pack-sync-java.log`.
@@ -222,7 +222,7 @@ The installers download everything else at run time, so they only need a new rel
 | `tools/build_mod.ps1 <mod>` | Builds `mods-src/chatlift`, `handofffix` or `octoberjourney` into `source/files/mods/`. |
 | `tools/build_popup.ps1` | Builds `mods-src/launch-popup` (plain Java 17, no Minecraft code) into `source/files/launch-popup.jar`. |
 | `mods-src/launch-popup/.../ServerControl.java` | The Server controls tab: status (Minecraft's server list ping for online, ping and players; panel port; MCSS API; the host helper's port, so a PC with MCSS closed still counts as awake), Wake on LAN, Start, Stop, opening the panel, sign-in. `java -jar launch-popup.jar --server <game folder> status\|wake\|start\|stop` runs one of them from a terminal (`OJ_WAKE_TEST=host:port` also sends the wake signal there, for testing). |
-| `tools/build_host.ps1`, `tools/install_host.ps1` | Build the host helper and panel (`host/`, plain Java 17) into `host/oj-host.jar`, and install it on the server PC: `C:\Minecraft\OctoberJourneyHost`, the sign-in scheduled task and the Start menu shortcut ([docs/server.md](server.md#the-host-helper-starting-and-closing-mcss)). |
+| `tools/build_host.ps1`, `tools/install_host.ps1` | Build the host helper and panel (`host/`, plain Java 17) into `host/oj-host.jar`, and install it on the server PC: `C:\Minecraft\GatehouseHost`, the sign-in scheduled task and the Start menu shortcut ([docs/server.md](server.md#the-host-helper-starting-and-closing-mcss)). |
 | `tools/mod_sizes.py` | Records each Modrinth mod's download size (`size` in `source/mods.json`) from Modrinth's listing, for the launcher's update size question. Run it after adding or updating a mod; the build refuses a mod without one. |
 | `tools/server_snapshot.py` | Records what the server runs from its files (`server/state.json`) with a note for players (`server/changelog.json`); `--check` reports drift. |
 | `tools/serve.ps1` | Serves `dist/` on the Tailscale address. Run at logon by the scheduled task "Minecraft pack server"; waits for Tailscale and restarts the server if it stops. |

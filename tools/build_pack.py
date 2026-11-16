@@ -212,7 +212,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
 OWN_MODS = {  # jars shipped in the pack itself, with where their source lives in this repo
     "chatlift": ("mods-src/chatlift", "Steam keyboard handling: lifts chat above Steam's keyboard, keeps Controlify's own keyboard for non-Steam controllers, lets Steam's keyboard type (Controlify mixed input). Made for this pack."),
     "handofffix": ("mods-src/handofffix", "Fixes Controlify losing the Steam Deck's controls after another controller is unplugged. Made for this pack."),
-    "octoberjourney": ("mods-src/octoberjourney", "October Journey Settings: the pack's own settings in Mod Menu (switch the pack's mods and the launch pop-ups on and off). Made for this pack."),
+    "octoberjourney": ("mods-src/octoberjourney", "Gatehouse Settings: the pack's settings in Mod Menu (switch the pack's mods and the launcher's windows on and off). Part of Gatehouse, the launcher these packs use."),
     "RoughlyEnoughItems": ("mods-src/rei-brewingfix", "Roughly Enough Items 26.3.824 with one class patched so brewing recipes load on the server. Also installed on the server."),
 }
 
@@ -271,7 +271,7 @@ def write_mod_list(meta: dict, mods: list, server: dict) -> None:
         "Every device gets every mod. Mods from Modrinth are downloaded from Modrinth's CDN and checked against the SHA-512 "
         "recorded here; the others are stored in this repo (`source/files/mods/`).",
         "",
-        "| Mod | File | From | Switch (Mod Menu > October Journey) |",
+        "| Mod | File | From | Switch (Mod Menu > Gatehouse Settings) |",
         "| --- | --- | --- | --- |",
     ]
     own = []

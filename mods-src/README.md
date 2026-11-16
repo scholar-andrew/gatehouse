@@ -22,7 +22,7 @@ Files: `ChatLift.java` (settings, lift, opening `steam://` links), `SteamKeyboar
 `mixin/ChatScreenMixin.java` (moves chat), `mixin/MinecraftMixin.java` (per-tick hook).
 
 ## octoberjourney (October Journey pack settings)
-`octoberjourney/`, built with `tools/build_mod.ps1 octoberjourney`. Made for this pack. Adds **October Journey Settings** to Mod
+`octoberjourney/`, built with `tools/build_mod.ps1 octoberjourney`. Made for this pack. Adds **Gatehouse Settings** to Mod
 Menu, whose settings screen has the two launch pop-up switches (**Update pop-up**, **No-update pop-up**, saved as
 `popup_updates` and `popup_no_updates` at the top of `pack-options.json`), then an on/off switch for each mod listed in
 `extras/mod-toggles.json` (with the pack's default and whether it's loaded right now in the tooltip). A mod switch

@@ -166,9 +166,9 @@ The window stays open while the server wakes or starts: nothing closes it but yo
 Nothing starts the game by itself: there are no countdowns. The window waits until you press **Play** (or Enter or
 Space on it); closing the window is the same as **Quit**. With nothing new it shows the checks with "no updates".
 Offline, it says so, and Play starts the game with what's already installed. To skip the window entirely, turn off
-both pop-up switches in **Mods > October Journey Settings**; the game then starts straight after the update.
+both pop-up switches in **Mods > Gatehouse Settings**; the game then starts straight after the update.
 
-Turn either pop-up off in **Mods > October Journey Settings** (**Update pop-up**, **No-update pop-up**). All the patch notes
+Turn either pop-up off in **Mods > Gatehouse Settings** (**Update pop-up**, **No-update pop-up**). All the patch notes
 are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Mods you can switch on and off
@@ -179,7 +179,7 @@ default except two:
 - **Nearby Chest Crafting**: craft with items from nearby chests. The server has it too; with it off you craft the
   usual way, and you can still join.
 
-To switch a mod: on Minecraft's title screen, click **Mods**, pick **October Journey Settings**, click its settings button, and
+To switch a mod: on Minecraft's title screen, click **Mods**, pick **Gatehouse Settings**, click its settings button, and
 flip the switch (hover a switch to see what the mod does). The same screen has the two launch pop-up switches. It takes effect the next time you start the game. The
 update before each launch then disables the mods you've switched off (Prism shows them as disabled), so they aren't
 loaded at all. Some mods need another: Reese's Sodium Options needs Sodium, and Controller Handoff Fix needs
@@ -231,7 +231,7 @@ What was tested where:
 | Update on launch respecting those choices | In a test instance | No | In a test instance |
 | Uninstaller downloaded from the release and opened by hand | Yes: first screen, item list and Cancel all worked (nothing removed) | No | No |
 
-Also checked in play: Steam shows the game as running until Minecraft quits; the Mods > October Journey Settings
+Also checked in play: Steam shows the game as running until Minecraft quits; the Mods > Gatehouse Settings
 screen (pages, mod switches, pop-up switches); joining the server with Nearby Chest Crafting, and with Jade, switched
 off.
 

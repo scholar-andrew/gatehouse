@@ -2,7 +2,7 @@
  "pack": {
   "name": "October Journey",
   "author": "Andrew",
-  "version": "1.9.10",
+  "version": "1.9.11",
   "minecraft": "26.3",
   "fabric": "0.19.5"
  },
@@ -357,9 +357,9 @@
    "size": 1125377
   },
   {
-   "title": "October Journey Settings",
-   "filename": "octoberjourney-1.2.1.jar",
-   "sha512": "85c4096ffa5dc5af27c094af672a7dd0d116c5c19008f5cc7f69860d53443721b80d10ae786d7ff3df29f37cf5a529bfc20d4035a7dd408599ba4d437783afeb"
+   "title": "Gatehouse Settings",
+   "filename": "octoberjourney-1.2.2.jar",
+   "sha512": "24ce390ac77abcfec0c0e90a574e694ac1955570a306e73db3d991de6e8da10d22f30c55b5c3287f4f96c8bd5651ee18ea43241e507e41f4a9743ffdabc1ff3c"
   }
  ]
 }

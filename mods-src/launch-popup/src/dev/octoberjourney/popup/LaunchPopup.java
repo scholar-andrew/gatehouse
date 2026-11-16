@@ -79,6 +79,9 @@ public final class LaunchPopup {
 	/** The name this launcher shows: the server profile's (extras/profile.json, shipped with the pack; see
 	 *  docs/profiles.md). Until that file has arrived (the first launch after an update that brings it), the name of the
 	 *  pack's first server in extras/servers.json, which older packs have too. Nothing about a server is fixed here. */
+	/** This tool's own name (the launcher, the installers and the host helper are Gatehouse; the pack and its server
+	 *  have the profile's name). */
+	static final String TOOL = "Gatehouse";
 	static String NAME = "Minecraft";
 	static void loadProfile(Path dir) {
 		String n = s(asMap(parse(read(dir.resolve("extras/profile.json")))).get("name"));
@@ -168,7 +171,7 @@ public final class LaunchPopup {
 			if (System.getProperty("os.name", "").startsWith("Windows")) {
 				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
 			}
-			JFrame f = new JFrame(NAME);
+			JFrame f = new JFrame(TOOL + " \u2013 " + NAME);
 			f.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
@@ -610,7 +613,7 @@ public final class LaunchPopup {
 			for (String m : removed) rows.add(row(GRAY, "Removed: " + m, null));
 		}
 		if (!switchedOn.isEmpty() || !switchedOff.isEmpty()) {
-			rows.add(heading("Mod switches (Mods > " + NAME + " Settings)"));
+			rows.add(heading("Mod switches (Mods > " + TOOL + " Settings)"));
 			for (String m : switchedOn) rows.add(row(GREEN, "Switched on: " + m, null));
 			for (String m : switchedOff) rows.add(row(GRAY, "Switched off: " + m, null));
 		}
@@ -1272,7 +1275,7 @@ public final class LaunchPopup {
 			if (System.getProperty("os.name", "").startsWith("Windows")) {
 				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
 			}
-			JFrame f = reuse != null ? reuse : new JFrame(NAME);
+			JFrame f = reuse != null ? reuse : new JFrame(TOOL + " \u2013 " + NAME);
 			for (java.awt.event.WindowListener l : f.getWindowListeners()) f.removeWindowListener(l);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));

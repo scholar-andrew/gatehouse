@@ -24,7 +24,7 @@ final class SwitchesScreen extends Screen {
 	SwitchesScreen(Screen parent) { this(parent, 0); }
 
 	private SwitchesScreen(Screen parent, int page) {
-		super(Component.literal("October Journey Settings"));
+		super(Component.literal("Gatehouse Settings"));
 		this.parent = parent;
 		this.page = page;
 	}

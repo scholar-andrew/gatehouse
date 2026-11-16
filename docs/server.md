@@ -74,7 +74,7 @@ home network); that address is also kept on the device, not in this public repos
 
 MCSS's web panel only exists while MCSS is running, so starting MCSS itself needs something else on the PC: the host
 helper (`host/`, built by `tools/build_host.ps1`, installed by `tools/install_host.ps1` into
-`C:\Minecraft\OctoberJourneyHost`). A scheduled task, "October Journey host helper", starts it (javaw, no window)
+`C:\Minecraft\GatehouseHost`). A scheduled task, "Gatehouse host helper", starts it (javaw, no window)
 when the owner signs in to Windows, in the owner's session, so MCSS opens on the desktop as usual.
 
 - It listens on the Tailscale address only (port 25570, `helper_url` in `server_control`), plus 127.0.0.1 for the
@@ -82,7 +82,7 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
 - Each launcher introduces itself from the pop-up's Server controls tab: an id and a secret it made itself, its
   computer name and system. The helper also asks Tailscale which device the request came from (`tailscale whois`).
   New launchers wait for permission.
-- **October Journey host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
+- **Gatehouse host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
   seen), with **Start MCSS** / **Close MCSS** for MCSS itself at the top (the same start and close the launchers
   ask for), and with their four permissions, **Server control**, **MCSS control**, **PC sleep** and **Helper control**, each switched on or off
   for the selected launcher, plus **Forget** and **Set MCSS key...**, and shows a log of every request.

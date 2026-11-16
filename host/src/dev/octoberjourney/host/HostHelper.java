@@ -45,7 +45,7 @@ import javax.swing.WindowConstants;
 import javax.swing.table.DefaultTableModel;
 
 /**
- * The October Journey host helper, on the PC that runs the server. Two modes:
+ * The Gatehouse host helper, on the PC that runs the server. Two modes:
  *
  *   --serve  (started at sign-in by a scheduled task) Listens on the Tailscale address only, for the launch pop-up's
  *            "Start MCSS" and "Close MCSS". Launchers introduce themselves (a device id they made, a secret only they
@@ -54,7 +54,7 @@ import javax.swing.table.DefaultTableModel;
  *            127.0.0.1 for the panel.
  *   --panel  The owner's window: the launchers that have asked, with Allow MCSS control / Revoke / Forget, and a log.
  *
- * Its folder (default C:\Minecraft\OctoberJourneyHost, or OJ_HOST_DIR) holds host.json (settings), devices.json (the
+ * Its folder (the one its jar is in, C:\Minecraft\GatehouseHost once installed; or OJ_HOST_DIR) holds host.json (settings), devices.json (the
  * launchers, with a hash of each secret, never the secret) and host.log. Closing MCSS is refused while the Minecraft
  * server is running, so the world is never cut off mid-save: stop the server first.
  */
@@ -67,7 +67,11 @@ public final class HostHelper {
 	static ServerHost host = new McssHost();
 
 	public static void main(String[] args) throws Exception {
-		dir = Path.of(System.getenv().getOrDefault("OJ_HOST_DIR", "C:\\Minecraft\\OctoberJourneyHost"));
+		// Its folder: where this program's own file is (tools/install_host.ps1 puts it in its folder), or OJ_HOST_DIR.
+		String own;
+		try { own = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().toString(); }
+		catch (Exception e) { own = "."; }
+		dir = Path.of(System.getenv().getOrDefault("OJ_HOST_DIR", own));
 		Files.createDirectories(dir);
 		cfg = Json.map(Json.parse(read(dir.resolve("host.json"))));
 		String mode = args.length > 0 ? args[0] : "--panel";
@@ -709,11 +713,11 @@ public final class HostHelper {
 		if (GraphicsEnvironment.isHeadless()) { System.out.println(call("GET", "/admin/devices", null)); return; }
 		SwingUtilities.invokeAndWait(() -> {
 			try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
-			JFrame f = new JFrame("October Journey host panel");
+			JFrame f = new JFrame("Gatehouse host panel");
 			f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
 			p.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-			JLabel head = new JLabel("October Journey host");
+			JLabel head = new JLabel("Gatehouse host");
 			head.setFont(head.getFont().deriveFont(Font.BOLD, 17f));
 			JLabel state = new JLabel(" ");
 			// MCSS itself: start it, or close it (how follows MCSS's own X-button setting, as for the launchers).
@@ -774,12 +778,12 @@ public final class HostHelper {
 				int row = table.getSelectedRow();
 				if (row < 0) { JOptionPane.showMessageDialog(f, "Pick a launcher in the list first."); return; }
 				String id = ids.get(row);
-				if (JOptionPane.showConfirmDialog(f, "<html><div style='width:380px'>" + confirm + "</div></html>", "October Journey host panel", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+				if (JOptionPane.showConfirmDialog(f, "<html><div style='width:380px'>" + confirm + "</div></html>", "Gatehouse host panel", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 				new Thread(() -> {
 					String msg;
 					try { msg = Json.str(Json.map(Json.parse(call("POST", path, "{\"id\":\"" + id + "\"}"))).get("message")); } catch (IOException ex) { msg = "The helper isn't running."; }
 					String m2 = "<html><div style='width:420px'>" + msg.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>";
-					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "October Journey host panel", JOptionPane.PLAIN_MESSAGE));
+					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "Gatehouse host panel", JOptionPane.PLAIN_MESSAGE));
 				}, "ask").start();
 			};
 			revokeB.addActionListener(e -> ask.accept("/admin/revoke", "Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."));
@@ -906,13 +910,13 @@ public final class HostHelper {
 						int seq = r.get("request_seq") instanceof Number n ? n.intValue() : 0;
 						boolean serverUp = Boolean.TRUE.equals(r.get("minecraft"));
 						if (asked.isEmpty() || serverUp) {
-							if (reqRow.isVisible()) { reqRow.setVisible(false); f.setTitle("October Journey host panel"); }
+							if (reqRow.isVisible()) { reqRow.setVisible(false); f.setTitle("Gatehouse host panel"); }
 						} else {
 							Map<String, Object> lastAsk = Json.map(asked.get(asked.size() - 1));
 							String by = Json.str(lastAsk.get("who")) + (Json.str(lastAsk.get("player")).isEmpty() ? "" : " (" + Json.str(lastAsk.get("player")) + ")");
 							reqText.setText(by + " asked for " + (Json.str(lastAsk.get("server")).isEmpty() ? "the server" : Json.str(lastAsk.get("server"))) + " to be turned on at " + Json.str(lastAsk.get("time")) + (asked.size() > 1 ? "  (" + asked.size() + " requests)" : ""));
 							reqRow.setVisible(true);
-							f.setTitle("Server requested by " + by + " \u2013 October Journey host panel");
+							f.setTitle("Server requested by " + by + " \u2013 Gatehouse host panel");
 							if (seq != seqSeen[0]) {   // a new one: flash the taskbar button
 								try { if (java.awt.Taskbar.isTaskbarSupported() && java.awt.Taskbar.getTaskbar().isSupported(java.awt.Taskbar.Feature.USER_ATTENTION_WINDOW)) java.awt.Taskbar.getTaskbar().requestWindowUserAttention(f); }
 								catch (RuntimeException ignored) {}
