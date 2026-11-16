@@ -23,7 +23,7 @@ doesn't work. Both programs carry the same steps inside them as a setup guide th
 | You want | Windows 10 or later | Linux, including Steam Deck / SteamOS |
 | --- | --- | --- |
 | **Gatehouse** (to play) | [gatehouse-install.zip](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-install.zip): unpack, run **Install Gatehouse.cmd**, choose Gatehouse | [gatehouse-install.sh](https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/gatehouse-install.sh): `bash gatehouse-install.sh` |
-| **Gatekeeper** (to host) | The same zip: choose Gatekeeper | The same script: `bash gatehouse-install.sh --gatekeeper` |
+| **Gatekeeper** (to host) | The same zip: choose Gatekeeper | Not usable for hosting yet (MC Server Soft is Windows only) |
 | **October Journey** (Gatehouse, the modpack and Steam shortcuts in one) | [GatehouseSetup.exe](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseSetup.exe) | [gatehouse-setup.sh](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-setup.sh) |
 
 The Gatehouse and Gatekeeper installers are plain scripts you can read first. They need no administrator rights,
@@ -35,9 +35,10 @@ updates and Gatekeeper updates tabs), and both update themselves.
 | | Windows | Linux | SteamOS (Steam Deck) |
 | --- | --- | --- | --- |
 | Gatehouse | Yes | Yes | Yes |
-| Gatekeeper | Yes | Yes (new, not yet run on a real machine) | Yes (new, not yet run on a real Deck); sleep from a launcher is not supported |
+| Gatekeeper | Yes | Not usable for hosting yet | Not usable for hosting yet |
 
-Details: [what works on which system](docs/guide.md#what-works-on-which-system).
+Gatekeeper installs and runs on Linux and SteamOS, but MC Server Soft is Windows only, and Gatekeeper starts, stops and reads servers through it, so on those systems it has no servers to
+look after yet. Details: [what works on which system](docs/guide.md#what-works-on-which-system).
 
 ## October Journey
 

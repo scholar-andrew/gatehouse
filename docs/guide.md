@@ -109,9 +109,10 @@ Along the bottom: **Open Prism Launcher**, **Restart**, and **Quit**.
 
 ### What you need
 
-- A machine that stays on while people play: **Windows 10 or later**, **Linux**, or **SteamOS**.
+- A machine that stays on while people play, running **Windows 10 or later**. (Hosting on Linux or SteamOS doesn't
+  work yet: see [What works on which system](#what-works-on-which-system).)
 - **Java 17 or newer** (your Minecraft servers need Java too).
-- **MC Server Soft** (MCSS). On Linux and SteamOS, its Linux build.
+- **MC Server Soft** (MCSS), which is Windows only.
 - A free **Tailscale** account.
 
 ### 1. Install Gatekeeper
@@ -122,22 +123,9 @@ unpack it, double-click **Install Gatehouse.cmd**, and choose **Gatekeeper** (or
 machine). Gatekeeper starts when you sign in to Windows, with no window, and **Gatekeeper** in the Start menu opens
 its window.
 
-**Linux and SteamOS.** On a Steam Deck, switch to Desktop Mode and open Konsole. Then:
-
-```bash
-curl -fsSLO https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/gatehouse-install.sh
-```
-
-```bash
-bash gatehouse-install.sh --gatekeeper
-```
-
-It fetches Gatekeeper, checks it against its published checksum, and installs it for your user: a background
-service that starts when you sign in, and **Gatekeeper** in the applications menu. On SteamOS it uses the Java that
-Prism Launcher fetches, so install Prism Launcher from Discover and open it once first.
-
-> Gatekeeper on Linux and SteamOS is new and has not yet been run on a real Linux machine or Steam Deck. See
-> [What works on which system](#what-works-on-which-system).
+**Linux and SteamOS.** Not usable for hosting yet. Gatekeeper itself installs and runs there
+(`bash gatehouse-install.sh --gatekeeper`), but it starts, stops and reads servers through MC Server Soft, and MCSS
+is Windows only. Until Gatekeeper can run servers without MCSS, host on Windows.
 
 ### 2. Follow the setup guide
 
@@ -216,12 +204,15 @@ The install scripts do the same from outside: `-Uninstall` on Windows, `--uninst
 
 **Gatehouse** runs on Windows and on Linux, including the Steam Deck.
 
-**Gatekeeper** runs on Windows, Linux and SteamOS. What a system can't do is still listed in Gatekeeper where it
-would be, marked "Not supported on SteamOS" or "Not supported on Linux".
+**Gatekeeper** is for Windows. The program also installs and runs on Linux and SteamOS, but it starts, stops and
+reads Minecraft servers through MC Server Soft, which is Windows only, so on those systems it has no servers to look
+after yet. What a system can't do is still listed in Gatekeeper where it would be, marked "Not supported on SteamOS"
+or "Not supported on Linux".
 
 | | Windows | Linux | SteamOS |
 | --- | --- | --- | --- |
-| Servers, Access Manager, Host setup, setup guide | Yes | Yes | Yes |
+| Seeing, starting and stopping servers | Yes | Not yet (needs MCSS) | Not yet (needs MCSS) |
+| Access Manager, Host setup, setup guide | Yes | Yes | Yes |
 | Starts when you sign in | Yes | Yes | Yes |
 | Updates itself | Yes | Yes | Yes |
 | Puts the machine to sleep from a launcher | Yes | Yes | Not supported |
@@ -233,7 +224,7 @@ shows when that has happened.
 
 **How far each has been tested.** Windows 10 is where both programs are used day to day. Gatehouse is used on a
 Steam Deck. Gatekeeper on Linux and SteamOS has so far only been tested from Windows with stand-ins: the install
-script, its background service and MCSS's Linux build have not been tried on a real machine. More detail, with
+script and its background service have not been tried on a real machine. More detail, with
 hardware: [INSTALL.md: Tested on](../INSTALL.md#tested-on).
 
 ## When something doesn't work

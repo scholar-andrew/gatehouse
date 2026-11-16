@@ -4,8 +4,8 @@
 # It installs Gatehouse, the launcher players use, by itself: no game and no server pack. In Gatehouse you add a
 # Gatekeeper with what its owner gave you, and install its servers from there.
 #
-# With --gatekeeper it installs Gatekeeper instead, the program for the machine that runs the servers (it works with
-# MC Server Soft's Linux build): it fetches the published Gatekeeper, checks it against its published SHA-256,
+# With --gatekeeper it installs Gatekeeper instead, the program for the machine that runs the servers. Note that
+# Gatekeeper runs servers through MC Server Soft, which is Windows only, so on Linux it can't host yet. It fetches the published Gatekeeper, checks it against its published SHA-256,
 # fetches install-keeper.sh from the repository, and runs that, which says what it does (a systemd user service, a
 # menu entry, files in ~/.local/share/GatehouseKeeper; no system password). --gatekeeper --uninstall removes it.
 # Not supported on Linux or SteamOS: adding Gatekeeper to your Steam library.

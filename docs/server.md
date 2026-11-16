@@ -86,8 +86,7 @@ own is in `C:\Minecraft\GatehouseKeeper` (kept current from this repository by `
 Konsole, `bash install-keeper.sh`), or fetched and checked for you by `bash gatehouse-install.sh --gatekeeper`. It
 asks for no system password: Gatekeeper goes to `~/.local/share/GatehouseKeeper`, runs as a systemd user service
 (`gatehouse-keeper`, `KillMode=process` so the script that restarts it after an update outlives it; an entry in
-`~/.config/autostart` where there is no systemd), and gets an entry in the applications menu. It needs MCSS's Linux
-build and Java 17 or newer (on SteamOS, the Java that Prism Launcher fetches is found and used). `--uninstall`
+`~/.config/autostart` where there is no systemd), and gets an entry in the applications menu. It needs Java 17 or newer (on SteamOS, the Java that Prism Launcher fetches is found and used). `--uninstall`
 removes it. Which system it is on is decided once (`HostHelper.SYSTEM`: `windows`, `linux`, or `steamos` from
 `/etc/os-release`; `OJ_OS` overrides it for tests), and what a system can't do stays listed where it would be, as
 **Not supported on SteamOS** (or Linux): Host setup has such lines (state `na`), and the Machine wake/sleep permission
@@ -104,7 +103,12 @@ is greyed out. Differences:
 | Options > Uninstall | in a window of its own | in Options, its answer shown | in Options, its answer shown |
 
 Tested so far only from Windows: Gatekeeper told it is on Linux or SteamOS (`OJ_OS`), and the scripts in a scratch
-home without systemd. Not yet run on a real Linux machine or a Steam Deck, and not with MCSS's Linux build.
+home without systemd. Not yet run on a real Linux machine or a Steam Deck.
+
+**It can't host there yet.** MC Server Soft is Windows only (its own site says so), and `McssHost` is the only
+`ServerHost` there is. On Linux and SteamOS Gatekeeper therefore installs, runs, pairs and manages access, but finds
+no MCSS and has no servers to start, stop or read. Hosting there needs a second `ServerHost` that runs the server
+files itself. Gatekeeper 2.5.0's own notes and setup guide wrongly speak of "MCSS's Linux build"; there is none.
 
 When it finishes Gatekeeper opens with **Server setup** (Status tab, any time later too): it finds MCSS
 (`mcss.exe`; Browse if it isn't in a usual place), lists the Minecraft servers in MCSS's `servers` folder (each has
