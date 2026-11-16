@@ -235,6 +235,7 @@ public final class LaunchPopup {
 			});
 			f.setContentPane(p);
 			f.pack();
+			fit(f, false);
 			f.setLocationRelativeTo(null);
 			if (System.getenv("OJ_POPUP_PNG") == null) { f.setVisible(true); bringForwardOnce(f); }   // (testing: pictures only)
 			reuse = f;
@@ -344,6 +345,7 @@ public final class LaunchPopup {
 					progressPlay.addActionListener(e -> { synchronized (choice) { choice[0] = "go"; choice.notifyAll(); } });
 					askPanel.setVisible(true);
 					f.pack();
+					fit(f, false);
 					if (png != null) try {   // testing: a picture of the question
 						JComponent cp = (JComponent) f.getContentPane();
 						cp.validate();
@@ -387,6 +389,44 @@ public final class LaunchPopup {
 			if (e.getKey().endsWith(".pw.toml")) modrinth++;   // (a mod listed by the pack and fetched from Modrinth)
 		}
 		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0, modrinth};
+	}
+
+	/** How big the build installed here is: the pack's files as they are on this device (packwiz-installer's record
+	 *  of what it put where), counted and added up, with the mods' share. Null when there's no record yet. */
+	static String buildSize(Path dir) {
+		try {
+			String record = read(dir.resolve("packwiz.json"));
+			if (record.isBlank()) return null;
+			long bytes = 0, files = 0, mods = 0, modBytes = 0;
+			for (Map.Entry<String, Object> e : asMap(asMap(parse(record)).get("cachedFiles")).entrySet()) {
+				String loc = s(asMap(e.getValue()).get("cachedLocation"));
+				Path p = dir.resolve(loc.isEmpty() ? e.getKey() : loc);
+				if (!Files.isRegularFile(p)) p = p.resolveSibling(p.getFileName() + ".disabled");   // (a mod switched off)
+				if (!Files.isRegularFile(p)) continue;
+				long size = Files.size(p);
+				bytes += size; files++;
+				if (e.getKey().startsWith("mods/")) { mods++; modBytes += size; }
+			}
+			if (files == 0) return null;
+			return sizeText(bytes) + " in " + files + " files (" + mods + " mods, " + sizeText(modBytes) + ")";
+		} catch (IOException | RuntimeException e) { return null; }
+	}
+
+	/** Keeps a window on the screen it opens on. The launcher is laid out for a Steam Deck's display (1280 x 800): the
+	 *  main window opens no taller than fits there, wide enough for its tabs, and its tabs scroll; it can still be
+	 *  resized. (Testing: OJ_POPUP_SCREEN=<width>x<height> stands in for the screen.) */
+	static void fit(java.awt.Window f, boolean main) {
+		int maxW, maxH;
+		String fake = System.getenv("OJ_POPUP_SCREEN");
+		if (fake != null && fake.matches("\\d+x\\d+")) { maxW = Integer.parseInt(fake.split("x")[0]); maxH = Integer.parseInt(fake.split("x")[1]); }
+		else {
+			java.awt.GraphicsConfiguration gc = f.getGraphicsConfiguration();
+			java.awt.Insets in = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(gc);
+			maxW = gc.getBounds().width - in.left - in.right; maxH = gc.getBounds().height - in.top - in.bottom;
+		}
+		Dimension d = f.getSize();
+		int w = Math.min(maxW, main ? Math.max(d.width, 900) : d.width), h = Math.min(maxH, main ? Math.min(d.height, 720) : d.height);
+		if (w != d.width || h != d.height) f.setSize(w, h);
 	}
 
 	static String sizeText(long bytes) {
@@ -649,6 +689,8 @@ public final class LaunchPopup {
 
 		// The window's content, top to bottom.
 		List<Component> rows = new ArrayList<>();
+		String build = buildSize(dir);
+		if (build != null) { rows.add(heading("This build")); rows.add(row(GREEN, current == null ? "Installed on this device" : "Version " + current, build)); }
 		if (!checks.isEmpty()) {
 			rows.add(heading("Checked"));
 			for (Check c : checks) rows.add(row(colour(c.state()), c.label(), c.detail()));
@@ -1785,6 +1827,8 @@ public final class LaunchPopup {
 			});
 			f.setContentPane(p);
 			f.pack();
+			fit(f, true);
+			f.validate();
 			// Testing: OJ_POPUP_PNG=<file> saves a picture of each tab (<file>, and <file> with "-server") and their text
 			// in <file>.txt, instead of showing the window.
 			String png = System.getenv("OJ_POPUP_PNG");

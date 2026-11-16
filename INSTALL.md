@@ -100,7 +100,7 @@ the launch. When the update is done, the same
 window shows what happened, with **Play** (blue; it only works while the server is online. While the server is off
 the same button reads **Request server**: it asks the owner's PC to turn the server on, where it chimes and shows who
 asked, and it turns back into Play by itself when the server comes up), **Restart** (run the update again) and **Quit** (don't start the game;
-Prism then says the pre-launch step failed, which is expected). It lists everything the update
+Prism then says the pre-launch step failed, which is expected). It starts with **This build** (the version installed on this device and its size), then lists everything the update
 checked, each with a coloured dot: the connection, mods and settings, your mod switches, the Steam art and controller
 layouts, the server list, and the update script itself. Green means up to date, blue updated, grey off or not set up,
 amber not checked (offline) and red failed. Below that:
@@ -114,6 +114,9 @@ unsuspend** or **Request unblacklist** when the owner has suspended or blacklist
 line above the button says which, and the owner's reason; you can add a message of your own). The game doesn't start
 until the owner agrees. When a request is granted the launcher chimes; when it's dismissed the button flashes red and
 shows the owner's reason, if they gave one.
+
+The window is laid out for a Steam Deck's display (1280 x 800): it never opens bigger than the screen, its tabs
+scroll, and you can resize it.
 
 A second tab, **Server updates**, starts with a live line saying whether the server answers right now (with ping and
 players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed
