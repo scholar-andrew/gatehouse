@@ -164,7 +164,7 @@ layout).
 | Y | Jumps to **Restart**. |
 | Start | Jumps to **Quit**. |
 | Right trigger | A left click where the pointer is. |
-| Right trackpad | Moves the pointer; pressing it is a left click (from the Steam layout). |
+| Right trackpad | Moves the pointer; pressing it clicks. (The Steam layout makes that press a right click, for the game; on a Steam Deck the launcher's windows take a right click as a left click.) |
 | Left trigger | Nothing. |
 
 On a row of tabs, left and right change the tab; in a list, up and down move the row. B, Y and Start only move the

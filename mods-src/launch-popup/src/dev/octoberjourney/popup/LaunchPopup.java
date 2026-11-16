@@ -263,6 +263,7 @@ public final class LaunchPopup {
 	static String checklist(Path dir, JFrame into, Process sync) throws Exception {
 		loadProfile(dir);
 		embedded = into != null; embedQuit = false; asking = false;
+		Nav.rightClickIsLeftClick();   // (the checklist's own window too)
 		String options = read(dir.resolve("pack-options.json"));
 		boolean ui = !GraphicsEnvironment.isHeadless() && (into != null || option(options, "popup_updates") || option(options, "popup_no_updates"));
 		JLabel[] rows = new JLabel[STEPS.length];

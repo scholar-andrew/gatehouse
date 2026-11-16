@@ -1,7 +1,7 @@
 [
  {"version": "1.20.1", "date": "2026-11-16", "notes": [
-  "Steam Deck controller layout: pressing the right trackpad is now a left mouse click (it was a right click). The trackpad still moves the pointer. It shows after Steam restarts, or after switching back to Game Mode; a layout you changed yourself in Steam is kept as it is.",
-  "The layout switching from 1.20.0 is taken out again: the pack's layout is back on every shortcut, Gatehouse's included."
+  "The Steam Deck layout switching from 1.20.0 is taken out again: the pack's layout is back on every shortcut, Gatehouse's included, and is unchanged (pressing the right trackpad is still a right click in the game).",
+  "In the launcher's own windows on a Steam Deck, that press now counts as a left click (Gatehouse 2.3.1; see the Gatehouse updates tab on its main window)."
  ]},
  {"version": "1.20.0", "date": "2026-11-16", "notes": [
   "Steam Deck: the pack's controller layout (back grips, trackpad as mouse) now goes only on the shortcuts that start a game. Gatehouse's own shortcut uses Steam's plain layout, and Gatehouse asks Steam to switch to the pack's layout when the game starts (Gatehouse 2.3.0; see the Gatehouse updates tab on its main window).",

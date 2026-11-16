@@ -37,6 +37,7 @@ final class Nav {
 
 	/** Turns it on (once, for every window of the launcher). */
 	static synchronized void start() {
+		rightClickIsLeftClick();
 		if (on) return;
 		on = true;
 		Pad.start(word -> SwingUtilities.invokeLater(() -> act(word)));
@@ -53,6 +54,33 @@ final class Nav {
 	}
 
 	private static java.awt.Robot robot;
+
+	private static boolean rightIsLeft;
+	/** On a Steam Deck the pack's controller layout makes a press of the right trackpad the RIGHT mouse button, which
+	 *  is what the game wants (use, place). Gatehouse's own windows have no use for a right click, so there every
+	 *  right click is taken as a left click: pressing the trackpad presses what the pointer is on. Done where the
+	 *  window's events are handed out, so nothing about the layout or Steam changes.
+	 *  (OJ_RIGHT_AS_LEFT=1: on any device, for testing.) */
+	static synchronized void rightClickIsLeftClick() {
+		if (rightIsLeft) return;
+		boolean deck = false;
+		try { String p = java.nio.file.Files.readString(java.nio.file.Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); deck = p.equals("Jupiter") || p.equals("Galileo"); } catch (java.io.IOException | RuntimeException ignored) {}
+		if (!deck && System.getenv("OJ_RIGHT_AS_LEFT") == null) return;
+		rightIsLeft = true;
+		final int R = java.awt.event.InputEvent.BUTTON3_DOWN_MASK, L = java.awt.event.InputEvent.BUTTON1_DOWN_MASK;
+		java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().push(new java.awt.EventQueue() {
+			@Override protected void dispatchEvent(java.awt.AWTEvent ev) {
+				if (ev instanceof java.awt.event.MouseEvent m && !(m instanceof java.awt.event.MouseWheelEvent)
+						&& (m.getButton() == java.awt.event.MouseEvent.BUTTON3 || (m.getModifiersEx() & R) != 0)) {
+					int mods = m.getModifiersEx() & ~R;
+					if ((m.getModifiersEx() & R) != 0) mods |= L;
+					ev = new java.awt.event.MouseEvent(m.getComponent(), m.getID(), m.getWhen(), mods, m.getX(), m.getY(), m.getXOnScreen(), m.getYOnScreen(),
+							m.getClickCount(), false, m.getButton() == java.awt.event.MouseEvent.BUTTON3 ? java.awt.event.MouseEvent.BUTTON1 : m.getButton());
+				}
+				super.dispatchEvent(ev);
+			}
+		});
+	}
 
 	static void act(String word) {
 		Window w = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();

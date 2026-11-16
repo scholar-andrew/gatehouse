@@ -221,6 +221,10 @@ their next launch; nobody has to touch a device.
   script also looks only for the first source that answers; the others are asked if the update from it fails.
   `Home.startSync` empties the status file before starting the script, so the checklist can't read the last run's
   `done`.
+- **Right click in the launcher's windows (Steam Deck).** The pack's layout makes a press of the right trackpad the
+  right mouse button, for the game. `Nav.rightClickIsLeftClick` (on Deck hardware; `OJ_RIGHT_AS_LEFT=1` for tests)
+  puts an event queue in front of the launcher's windows that hands every right-button mouse event on as a
+  left-button one. Steam and the layout aren't involved.
 - **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
   Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
   `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)
