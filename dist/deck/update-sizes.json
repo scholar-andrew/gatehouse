@@ -1,5 +1,5 @@
 {
- "version": "1.9.12",
+ "version": "1.9.13",
  "files": {
   "config/fabric_loader_dependencies.json": {
    "hash": "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280",
@@ -11,12 +11,12 @@
    "preserve": true
   },
   "extras/changelog.txt": {
-   "hash": "57c3eaa1b1daa37ae29e5bcc62df540145ab5a1b324f6711323b548ddd293e7e",
-   "size": 12783
+   "hash": "a0d203f94679f9b2ddade2577fb2894e2d2616fd66051c22776b9f664b422894",
+   "size": 13154
   },
   "extras/launch-popup.jar": {
-   "hash": "cd73a9ac6992a3870061de71efa07bcbde0171c3f72b3fd12e2165fcc408fb7b",
-   "size": 68107
+   "hash": "7602ea457dc5187e6b426458c1898c73375db77947e381b517b90b997f767522",
+   "size": 68210
   },
   "extras/launch-wrapper.exe": {
    "hash": "9bbfa275255fe81a9f5103ef3fefbd802fcd0030f8c103daa287673c54d6b8e5",
