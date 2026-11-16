@@ -225,6 +225,24 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.
 
+### Keeping Gatekeeper up to date
+
+Each build of the pack publishes the Gatekeeper it was made with beside it: `dist/gatekeeper/oj-host.jar` and
+`gatekeeper.json` (`version`, `sha256`, `size`, and `gatehouse`: the launcher's version in that same build). A running
+Gatekeeper looks every five minutes at the pack server on its own machine if there is one (`host.json` `pack_port`,
+8467), then at GitHub; `host.json` `update_sources` lists other places.
+
+- **A newer Gatekeeper is out:** its window says so at the top of the Servers tab, with a chime and **Update
+  Gatekeeper** (`GET` / `POST /admin/update`). Update fetches the jar, checks it against the published `sha256`, leaves
+  it as `oj-host.jar.new`, and ends Gatekeeper; a short PowerShell command (not a program: Windows locks a running
+  program's file) waits for it to end, puts the new jar in place and starts Gatekeeper again, through its scheduled
+  task or directly. Running Minecraft servers are not touched. What happened is in `host.log`.
+- **Until then** Gatekeeper starts no server, and `/v1/phase` tells launchers `blocked`, with the reason: they show
+  Update needed instead of Play.
+- **A launcher that is behind** the published Gatehouse (it says which it is in `X-Gatehouse`, from Gatehouse 2.5.0)
+  is told `blocked` for itself.
+- Nothing reachable to compare with: nothing is blocked. `host.json` `require_current: false` turns the blocking off.
+
 ### Host setup
 
 The fourth tab on Gatekeeper's first screen. It asks the running Gatekeeper (`GET /admin/checklist`) for the steps a
@@ -235,7 +253,10 @@ machine needs before players can use it, each marked done, to do, or worth chang
 - Gatekeeper listening on this machine's Tailscale address.
 - MCSS found, and Gatekeeper holding its own key for it.
 - The servers chosen in Server setup, each on its own port, with their whitelists on and online-mode not off (read
-  from each `server.properties`).
+  from each `server.properties`). The whitelist step has a button, **Turn the whitelist on** (`POST
+  /admin/whitelist/on`): a running server is told `whitelist on` in its console, one that's off gets
+  `white-list=true` in the file. It asks first.
+- Gatekeeper itself being up to date (see above).
 - Whether any launcher has ever reached this Gatekeeper: the only check that sees it from outside. If none can,
   Windows Firewall has to allow Gatekeeper's Java on private networks.
 - A Tailscale invite link for players. Make it in Tailscale's admin page (Machines, this machine, Share, a reusable

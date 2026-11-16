@@ -210,7 +210,12 @@ public final class HostHelper {
 	 *  Tailscale's admin page; Gatekeeper only carries it in the pairing. */
 	static Map<String, Object> checklist() {
 		List<Object> steps = new ArrayList<>();
-		java.util.function.Consumer<String[]> add = s -> steps.add(m("title", s[0], "state", s[1], "detail", s[2], "how", s.length > 3 ? s[3] : ""));
+		java.util.function.Consumer<String[]> add = s -> steps.add(m("title", s[0], "state", s[1], "detail", s[2], "how", s.length > 3 ? s[3] : "",
+				"action", s.length > 4 ? s[4] : "", "action_label", s.length > 5 ? s[5] : "", "action_ask", s.length > 6 ? s[6] : ""));
+		// ---- Gatekeeper itself
+		if (outdated()) add.accept(new String[] {"Gatekeeper is up to date", "todo", "This is " + ownVersion() + "; " + newestKeeper + " is out. Until it's updated Gatekeeper starts no server, and launchers aren't offered Play.",
+				"Servers tab: Update Gatekeeper. It restarts by itself in a few seconds; running Minecraft servers aren't touched."});
+		else add.accept(new String[] {"Gatekeeper is up to date", "ok", ownVersion() + (newestKeeper.isEmpty() ? " (nowhere to compare with could be reached)" : "")});
 		// ---- Tailscale on this machine
 		String raw = tailscaleSays("status", "--json");
 		Map<String, Object> ts = raw == null || raw.isEmpty() ? new LinkedHashMap<>() : Json.map(Json.parse(raw.substring(Math.max(0, raw.indexOf('{')))));
@@ -251,7 +256,7 @@ public final class HostHelper {
 		List<Object> servers = servers();
 		if (servers.isEmpty()) add.accept(new String[] {"Servers are chosen", "todo", "None yet.", "Servers tab: Server setup, and tick the servers players should see."});
 		else {
-			List<String> names = new ArrayList<>(), open = new ArrayList<>(), offline = new ArrayList<>(), moved = new ArrayList<>();
+			List<String> names = new ArrayList<>(), open = new ArrayList<>(), offline = new ArrayList<>(), moved = new ArrayList<>(), openLists = new ArrayList<>();
 			Map<String, List<String>> byPort = new LinkedHashMap<>();
 			for (Object o : servers) {
 				Map<String, Object> s = Json.map(o);
@@ -265,7 +270,11 @@ public final class HostHelper {
 				byPort.computeIfAbsent(now, k -> new ArrayList<>()).add(name);
 				String props = read(Path.of(Json.str(s.get("dir"))).resolve("server.properties"));
 				if (!props.isEmpty()) {
-					if (!props.replace(" ", "").contains("white-list=true")) open.add(name);
+					if (!props.replace(" ", "").contains("white-list=true")) {
+						open.add(name);
+						int listed = Json.list(Json.parse(read(Path.of(Json.str(s.get("dir"))).resolve("whitelist.json")))).size();
+						openLists.add(name + " has " + (listed == 0 ? "nobody" : listed + (listed == 1 ? " player" : " players")) + " on its whitelist");
+					}
 					if (props.replace(" ", "").contains("online-mode=false")) offline.add(name);
 				}
 			}
@@ -282,7 +291,8 @@ public final class HostHelper {
 			else if (servers.size() > 1) add.accept(new String[] {"Each server has its own port", "ok", ""});
 			if (!moved.isEmpty()) add.accept(new String[] {"Gatekeeper has each server's current port", "warn", "A port was changed since Server setup: " + String.join("; ", moved) + ". Launchers are still told the old one.",
 					"Servers tab: Server setup, then Save. It reads the ports again."});
-			if (!open.isEmpty()) add.accept(new String[] {"Only whitelisted players can join", "warn", "The whitelist is off for " + String.join(", ", open) + ": anyone who can reach this machine can join.", "Turn it on in that server's server.properties (white-list=true), or with /whitelist on in its console. Gatekeeper adds players to it when you allow them."});
+			if (!open.isEmpty()) add.accept(new String[] {"Only whitelisted players can join", "warn", "The whitelist is off for " + String.join(", ", open) + ": anyone who can reach this machine can join.", "The button turns it on: a running server is told in its console, one that's off gets it in its settings file. Then only players on the whitelist can join; you add them in that server's Access Manager.",
+					"whitelist_on", "Turn the whitelist on", "Turn the whitelist on for " + String.join(" and ", open) + "? Right now " + String.join("; ", openLists) + ". After this, only players on a server's whitelist can join it (you add them in its Access Manager)."});
 			else add.accept(new String[] {"Only whitelisted players can join", "ok", ""});
 			if (!offline.isEmpty()) add.accept(new String[] {"Players are checked against their Minecraft accounts", "warn", "online-mode is off for " + String.join(", ", offline) + ": anyone can join under any name.", "Set online-mode=true in that server's server.properties unless you mean it to be off."});
 		}
@@ -430,10 +440,144 @@ public final class HostHelper {
 		return new String[] {"ok", "The Minecraft server is running: it's being stopped first (the world is saved), then MCSS closes. A minute or so in all."};
 	}
 
+	// ------------------------------------------------------------------ keeping up to date
+	//
+	// Each build of the pack publishes the Gatekeeper it was built with beside it: <source>/gatekeeper/oj-host.jar and
+	// gatekeeper.json ({version, sha256, size, gatehouse: the launcher's version in that same build}). A running
+	// Gatekeeper looks there every five minutes: the pack server on this machine if there is one (host.json
+	// "pack_port", 8467), then GitHub; or the places listed in host.json "update_sources".
+	//   - A newer Gatekeeper: its window offers to update. Fetched, checked against that sha256, put beside the
+	//     running one as oj-host.jar.new; a short PowerShell command then waits for Gatekeeper to end, swaps the file
+	//     and starts Gatekeeper again (Windows locks a running program's file). Minecraft servers aren't touched.
+	//   - While Gatekeeper is behind it starts no server, and tells launchers that joining is blocked (they don't
+	//     offer Play). A launcher that is itself behind the published Gatehouse is told the same, for itself.
+	//   - Nothing can be reached, or host.json "require_current" is false: nothing is blocked.
+	static volatile String newestKeeper = "", newestKeeperSha = "", newestKeeperAt = "", newestHouse = "";
+	static String ownVersion() { return Json.str(notesInside("gatekeeper").get("version")); }
+	static int cmpVersion(String a, String b) {
+		String[] x = a.trim().split("\\."), y = b.trim().split("\\.");
+		for (int i = 0; i < Math.max(x.length, y.length); i++) {
+			int p = 0, q = 0;
+			try { if (i < x.length) p = Integer.parseInt(x[i].replaceAll("\\D.*$", "")); } catch (NumberFormatException ignored) {}
+			try { if (i < y.length) q = Integer.parseInt(y[i].replaceAll("\\D.*$", "")); } catch (NumberFormatException ignored) {}
+			if (p != q) return Integer.compare(p, q);
+		}
+		return 0;
+	}
+	static List<String> updateSources() {
+		List<String> out = new ArrayList<>();
+		for (Object o : Json.list(cfg.get("update_sources"))) { String s = Json.str(o).trim().replaceAll("/+$", ""); if (!s.isEmpty()) out.add(s); }
+		if (!out.isEmpty()) return out;
+		String bind = setting("bind", "");
+		if (!bind.isEmpty()) out.add("http://" + bind + ":" + setting("pack_port", "8467") + "/gatekeeper");
+		out.add("https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/dist/gatekeeper");
+		return out;
+	}
+	static byte[] fetchBytes(String url) throws IOException {
+		HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+		c.setConnectTimeout(4000); c.setReadTimeout(20000);
+		if (c.getResponseCode() != 200) throw new IOException("answered " + c.getResponseCode());
+		try (InputStream in = c.getInputStream()) { return in.readAllBytes(); }
+	}
+	static String sha256(byte[] b) {
+		try { StringBuilder sb = new StringBuilder(); for (byte x : java.security.MessageDigest.getInstance("SHA-256").digest(b)) sb.append(String.format("%02x", x)); return sb.toString(); }
+		catch (java.security.NoSuchAlgorithmException e) { return ""; }
+	}
+	static synchronized void lookForNewer() {
+		for (String src : updateSources()) try {
+			Map<String, Object> mf = Json.map(Json.parse(new String(fetchBytes(src + "/gatekeeper.json"), StandardCharsets.UTF_8)));
+			String v = Json.str(mf.get("version")), sha = Json.str(mf.get("sha256"));
+			if (v.isEmpty() || sha.isEmpty()) continue;
+			if (!v.equals(newestKeeper) && cmpVersion(v, ownVersion()) > 0) log("a newer Gatekeeper is published: " + v + " (this is " + ownVersion() + "). Servers aren't started until it's updated.");
+			newestKeeper = v; newestKeeperSha = sha; newestKeeperAt = src; newestHouse = Json.str(mf.get("gatehouse"));
+			return;
+		} catch (IOException | RuntimeException next) { /* the next place */ }
+	}
+	static boolean requireCurrent() { return !setting("require_current", "true").equals("false"); }
+	static boolean outdated() { return requireCurrent() && !newestKeeper.isEmpty() && cmpVersion(newestKeeper, ownVersion()) > 0; }
+	/** Why this launcher may not join right now ("": it may): Gatekeeper is behind, or that launcher's Gatehouse is. */
+	static String blockedFor(HttpExchange x) {
+		if (outdated()) return "This server's Gatekeeper is out of date (" + ownVersion() + "; " + newestKeeper + " is out). Its owner has to update it before anyone can start or join the server.";
+		String theirs = header(x, "X-Gatehouse");
+		if (requireCurrent() && !newestHouse.isEmpty() && !theirs.isEmpty() && cmpVersion(newestHouse, theirs) > 0)
+			return "Gatehouse on this device is out of date (" + theirs + "; " + newestHouse + " is out). Update it on its main window (Update Gatehouse, or Restart there), then come back.";
+		return "";
+	}
+	/** Fetches the published Gatekeeper, checks it, and arranges for it to take this one's place. Gatekeeper ends a
+	 *  moment after this returns ok. "alsoWait": the window's process, which has to end too (it holds the file open),
+	 *  and is opened again afterwards. */
+	static String[] applyUpdate(long alsoWait) {
+		lookForNewer();
+		if (newestKeeper.isEmpty() || cmpVersion(newestKeeper, ownVersion()) <= 0) return new String[] {"ok", "This is already the newest Gatekeeper (" + ownVersion() + ")."};
+		try {
+			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+			if (!Files.isRegularFile(jar)) return new String[] {"refused", "Gatekeeper isn't running from a file it can replace."};
+			byte[] b = fetchBytes(newestKeeperAt + "/oj-host.jar");
+			if (!sha256(b).equalsIgnoreCase(newestKeeperSha)) return new String[] {"failed", "What was fetched doesn't match what was published (its checksum differs). Nothing was changed."};
+			Path fresh = jar.resolveSibling("oj-host.jar.new");
+			Files.write(fresh, b);
+			String javaExe = ProcessHandle.current().info().command().orElse("javaw"), q = "'", folder = jar.getParent().toString();
+			java.util.function.Function<String, String> s = v -> q + v.replace("'", "''") + q;
+			String start = "Start-Process " + s.apply(javaExe) + " -ArgumentList '-jar', " + s.apply("\"" + jar + "\"") + ", '--serve' -WorkingDirectory " + s.apply(dir.toString());
+			String ps = "$ErrorActionPreference = 'SilentlyContinue'\n"
+					+ "foreach ($p in " + ProcessHandle.current().pid() + (alsoWait > 0 ? ", " + alsoWait : "") + ") { Wait-Process -Id $p -Timeout 25 }\n"
+					+ "Start-Sleep -Milliseconds 500; $ok = $false\n"
+					+ "for ($i = 0; $i -lt 40 -and -not $ok; $i++) { try { Move-Item -LiteralPath " + s.apply(fresh.toString()) + " -Destination " + s.apply(jar.toString()) + " -Force -ErrorAction Stop; $ok = $true } catch { Start-Sleep -Milliseconds 500 } }\n"
+					+ "Add-Content -LiteralPath " + s.apply(dir.resolve("host.log").toString()) + " -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  update: ' + $(if ($ok) { 'the new Gatekeeper is in place' } else { 'oj-host.jar could not be replaced; the old one starts again' }))\n"
+					+ (setting("update_restart", "task").equals("task")
+							? "schtasks /run /tn " + s.apply(setting("task", "Gatehouse Keeper")) + " 2>$null | Out-Null\nif ($LASTEXITCODE -ne 0) { " + start + " }\n"
+							: start + "\n")
+					+ (alsoWait > 0 ? "Start-Sleep -Seconds 3; Start-Process " + s.apply(javaExe) + " -ArgumentList '-jar', " + s.apply("\"" + jar + "\"") + ", '--panel' -WorkingDirectory " + s.apply(folder) + "\n" : "");
+			new ProcessBuilder("powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-EncodedCommand", java.util.Base64.getEncoder().encodeToString(ps.getBytes(StandardCharsets.UTF_16LE)))
+					.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+			log("updating to Gatekeeper " + newestKeeper + " (from " + newestKeeperAt + "): ending now, and starting again as the new one");
+			Thread end = new Thread(() -> { try { Thread.sleep(900); } catch (InterruptedException ignored) {} System.exit(0); }, "update");
+			end.setDaemon(true); end.start();
+			return new String[] {"ok", "Fetched and checked. Gatekeeper is restarting as " + newestKeeper + "."};
+		} catch (Exception e) { return new String[] {"failed", "Couldn't update: " + e.getMessage() + ". Nothing was changed."}; }
+	}
+
+	/** Turns the whitelist on for every chosen server that has it off. A server that's running is told in its console
+	 *  ("whitelist on": it takes effect at once and the server saves the setting itself); one that's off has
+	 *  white-list=true written into its server.properties. */
+	static String[] whitelistOn() {
+		List<String> done = new ArrayList<>(), not = new ArrayList<>();
+		String keep = SERVER.get();
+		try {
+			for (Object o : servers()) {
+				Map<String, Object> sv = Json.map(o);
+				SERVER.set(Json.str(sv.get("id")));
+				Path props = serverDir().resolve("server.properties");
+				String t = read(props), name = serverName();
+				if (t.isEmpty() || t.replace(" ", "").contains("white-list=true")) continue;
+				if (minecraftRunning()) {
+					String[] r = host.command("whitelist on");
+					if (r[0].equals("ok")) {
+						for (int i = 0; i < 12 && !read(props).replace(" ", "").contains("white-list=true"); i++) try { Thread.sleep(300); } catch (InterruptedException ignored) {}
+						done.add(name + " (told in its console; in effect now)");
+						continue;
+					}
+					not.add(name + " is running and couldn't be told: " + r[1]);
+					continue;
+				}
+				String nl = t.contains("\r\n") ? "\r\n" : "\n";
+				String out = t.matches("(?s).*(^|\\R)\\s*white-list\\s*=.*") ? t.replaceAll("(?m)^\\s*white-list\\s*=.*$", "white-list=true") : t + (t.endsWith("\n") ? "" : nl) + "white-list=true" + nl;
+				try { Files.writeString(props, out, StandardCharsets.UTF_8); done.add(name + " (in its settings file; in effect when it next starts)"); }
+				catch (IOException e) { not.add(name + ": couldn't write its server.properties (" + e.getMessage() + ")"); }
+			}
+		} finally { SERVER.set(keep); }
+		if (done.isEmpty() && not.isEmpty()) return new String[] {"ok", "The whitelist is already on for every server."};
+		String msg = (done.isEmpty() ? "" : "Whitelist on for " + String.join("; ", done) + ". ") + (not.isEmpty() ? "" : "Not done: " + String.join("; ", not) + ".");
+		log("whitelist turned on from Host setup: " + msg);
+		return new String[] {not.isEmpty() ? "ok" : done.isEmpty() ? "failed" : "ok", msg.trim()};
+	}
+
 	// ------------------------------------------------------------------ Gatekeeper
 
 	static void serve() throws Exception {
 		log("helper starting (port " + port() + ")");
+		Thread newer = new Thread(() -> { while (true) { try { lookForNewer(); } catch (RuntimeException ignored) {} try { Thread.sleep(300_000); } catch (InterruptedException e) { return; } } }, "newer");
+		newer.setDaemon(true); newer.start();
 		// Once a minute, also with no panel or launcher open, the server's log is read for joins (through Gatekeeper's
 		// own local call, so it takes its turn with the other requests): the log starts afresh when the server restarts.
 		Thread watch = new Thread(() -> {
@@ -570,6 +714,7 @@ public final class HostHelper {
 	 *  it starts MCSS and carries on in the background, starting the server as soon as MCSS answers (up to 2 minutes).
 	 *  Returns at once with what is happening; how it ended goes in the log. */
 	static String[] startServerFully(String by) {
+		if (outdated()) return new String[] {"refused", "Gatekeeper is out of date (" + ownVersion() + "; " + newestKeeper + " is out), and starts no server until it's updated: the owner does that in Gatekeeper's window."};
 		if (!host.hasAccess()) return new String[] {"refused", "Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
 		if (host.running()) {
 			int st = host.serverStatus();
@@ -691,7 +836,7 @@ public final class HostHelper {
 			}
 			if (path.equals("/v1/phase") && x.getRequestMethod().equals("GET")) {
 				// What this server and MCSS are doing right now, for any launcher Gatekeeper knows (not a blacklisted one).
-				reply(x, 200, m("phase", serverPhase(), "mcss_phase", mcssPhase()));
+				reply(x, 200, m("phase", serverPhase(), "mcss_phase", mcssPhase(), "blocked", blockedFor(x)));
 				return;
 			}
 			if (path.equals("/v1/catalog") && x.getRequestMethod().equals("GET")) {
@@ -1511,6 +1656,18 @@ public final class HostHelper {
 				scan.put("share_link", setting("tailscale_share_link", ""));   // (for the pairing)
 				scan.put("name", setting("name", ""));
 				reply(x, 200, scan);
+			} else if (path.equals("/admin/update")) {
+				if (x.getRequestMethod().equals("POST")) {
+					long pid = 0; try { pid = (long) Double.parseDouble(Json.str(body(x).get("panel_pid"))); } catch (NumberFormatException ignored) {}
+					String[] r = applyUpdate(pid);
+					reply(x, 200, m("result", r[0], "message", r[1]));
+				} else {
+					if ("1".equals(x.getRequestURI().getQuery())) lookForNewer();   // (?1: look now)
+					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", outdated(), "gatehouse", newestHouse, "from", newestKeeperAt));
+				}
+			} else if (path.equals("/admin/whitelist/on")) {
+				String[] r = whitelistOn();
+				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/checklist")) {
 				if (x.getRequestMethod().equals("POST")) {
 					Map<String, Object> asked = body(x);
@@ -1937,7 +2094,48 @@ public final class HostHelper {
 			overview.add(overScroll, BorderLayout.CENTER);
 			javax.swing.JTabbedPane firstTabs = new javax.swing.JTabbedPane();
 			JPanel ownNotes = new JPanel(new BorderLayout()), launcherNotes = new JPanel(new BorderLayout());
-			firstTabs.addTab("Servers", overview); firstTabs.addTab("Gatekeeper updates", ownNotes); firstTabs.addTab("Gatehouse updates", launcherNotes);
+			// A newer Gatekeeper: said at the top of the first screen, with Update Gatekeeper. Asked every minute (the
+			// running Gatekeeper looks at the published one every five), and a chime when it first shows.
+			JPanel ownUpdate = new JPanel(new BorderLayout(10, 0));
+			ownUpdate.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0), BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x3D6FD6)), BorderFactory.createEmptyBorder(8, 12, 8, 8))));
+			JLabel ownUpdateText = new JLabel(" ");
+			JButton ownUpdateGo = new JButton("Update Gatekeeper");
+			ownUpdateGo.setToolTipText("Fetches the newer Gatekeeper, checks it, and restarts Gatekeeper as it (a few seconds). Running Minecraft servers aren't touched.");
+			ownUpdate.add(ownUpdateText, BorderLayout.CENTER); ownUpdate.add(ownUpdateGo, BorderLayout.EAST);
+			ownUpdate.setVisible(false);
+			JPanel serversTab = new JPanel(new BorderLayout());
+			serversTab.add(ownUpdate, BorderLayout.NORTH); serversTab.add(overview, BorderLayout.CENTER);
+			Runnable askUpdate = () -> new Thread(() -> {
+				try {
+					Map<String, Object> u = Json.map(Json.parse(call("GET", "/admin/update", null)));
+					boolean behind = Boolean.TRUE.equals(u.get("outdated")) || "true".equals(Json.str(u.get("outdated")));
+					SwingUtilities.invokeLater(() -> {
+						if (behind && !ownUpdate.isVisible()) chime();
+						if (behind && ownUpdateGo.isEnabled()) ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
+						ownUpdate.setVisible(behind);
+					});
+				} catch (Exception ignored) {}
+			}, "update").start();
+			ownUpdateGo.addActionListener(ev -> {
+				ownUpdateGo.setEnabled(false);
+				ownUpdateText.setText("Fetching and checking the newer Gatekeeper\u2026");
+				new Thread(() -> {
+					String result = "failed", msg;
+					try { Map<String, Object> r = Json.map(Json.parse(call("POST", "/admin/update", Json.write(m("panel_pid", ProcessHandle.current().pid()))))); result = Json.str(r.get("result")); msg = Json.str(r.get("message")); }
+					catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
+					String res = result, said = msg;
+					SwingUtilities.invokeLater(() -> {
+						ownUpdateText.setText("<html>" + said.replace("<", "&lt;") + (res.equals("ok") ? " This window closes and opens again by itself." : "") + "</html>");
+						if (res.equals("ok")) new javax.swing.Timer(1200, e2 -> System.exit(0)).start(); else ownUpdateGo.setEnabled(true);
+					});
+				}, "update").start();
+			});
+			if (System.getenv("OJ_PANEL_PNG") == null) { askUpdate.run(); new javax.swing.Timer(60_000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else askUpdate.run(); }).start(); }
+			else try {
+				Map<String, Object> u = Json.map(Json.parse(call("GET", "/admin/update?1", null)));
+				if (Boolean.TRUE.equals(u.get("outdated")) || "true".equals(Json.str(u.get("outdated")))) { ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>"); ownUpdate.setVisible(true); }
+			} catch (Exception ignored) {}
+			firstTabs.addTab("Servers", serversTab); firstTabs.addTab("Gatekeeper updates", ownNotes); firstTabs.addTab("Gatehouse updates", launcherNotes);
 			// Host setup: the steps this machine needs to serve players, each with how it stands, and the invite link.
 			JPanel hostSetup = new JPanel(new BorderLayout(0, 8));
 			hostSetup.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
@@ -1973,6 +2171,7 @@ public final class HostHelper {
 			// MCSS, in Tailscale, in a file) shows here without pressing anything. The line at the bottom says when it
 			// last looked; a step that has just turned to Done says so for a minute, and the list is only redrawn when
 			// something changed.
+			Runnable[] stepReload = {() -> {}};
 			Map<String, String> stepWas = new LinkedHashMap<>();
 			Map<String, Long> stepDoneAt = new LinkedHashMap<>();
 			String[] drawn = {""};
@@ -1986,7 +2185,7 @@ public final class HostHelper {
 					if (was != null && !was.equals("ok") && st.equals("ok")) stepDoneAt.put(title, nowMs);
 					if (!st.equals("ok")) stepDoneAt.remove(title);
 					stepWas.put(title, st);
-					sig.append(title).append('|').append(st).append('|').append(Json.str(s.get("detail"))).append('|').append(Json.str(s.get("how"))).append('|').append(stepDoneAt.containsKey(title) && nowMs - stepDoneAt.get(title) < 60_000).append('\n');
+					sig.append(title).append('|').append(st).append('|').append(Json.str(s.get("detail"))).append('|').append(Json.str(s.get("how"))).append('|').append(stepDoneAt.containsKey(title) && nowMs - stepDoneAt.get(title) < 60_000).append('|').append(Json.str(s.get("action"))).append('|').append(Json.str(s.get("action_ask"))).append('\n');
 				}
 				String checked = Json.str(r.get("checked"));
 				boolean same = sig.toString().equals(drawn[0]);
@@ -2005,6 +2204,24 @@ public final class HostHelper {
 							+ (Json.str(s.get("how")).isEmpty() ? "" : "<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8F98A0'>" + esc.apply(Json.str(s.get("how"))) + "</span>") + "</div></html>");
 					row.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0)); row.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 					stepList.add(row);
+					// A step Gatekeeper can do itself has a button for it (it asks first, and says what it did).
+					String action = Json.str(s.get("action")), actionAsk = Json.str(s.get("action_ask"));
+					if (action.equals("whitelist_on")) {
+						JButton does = new JButton(Json.str(s.get("action_label")));
+						does.addActionListener(ev -> {
+							if (JOptionPane.showConfirmDialog(f, "<html><div style='width:440px'>" + actionAsk.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>", "Host setup", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+							does.setEnabled(false);
+							new Thread(() -> {
+								String said;
+								try { said = Json.str(Json.map(Json.parse(call("POST", "/admin/whitelist/on", "{}"))).get("message")); } catch (Exception ex) { said = "Couldn't ask Gatekeeper: is it running?"; }
+								String msg = said;
+								SwingUtilities.invokeLater(() -> { shareSaid.setText(msg); stepReload[0].run(); });
+							}, "whitelist-on").start();
+						});
+						JPanel br = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 22, 0));
+						br.add(does); br.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+						stepList.add(br);
+					}
 				}
 				if (!shareF.isFocusOwner()) shareF.setText(Json.str(r.get("share_link")));
 				if (!nameF.isFocusOwner()) nameF.setText(Json.str(r.get("name")));
@@ -2018,6 +2235,7 @@ public final class HostHelper {
 				try { Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/checklist", null))); SwingUtilities.invokeLater(() -> fillSteps.accept(r)); }
 				catch (Exception ex) { SwingUtilities.invokeLater(() -> shareSaid.setText("Couldn't ask Gatekeeper: is it running?")); }
 			}, "checklist").start();
+			stepReload[0] = loadSteps;
 			recheck.addActionListener(ev -> { shareSaid.setText("Checking\u2026"); loadSteps.run(); shareSaid.setText(" "); });
 			shareSave.addActionListener(ev -> new Thread(() -> {
 				String said;

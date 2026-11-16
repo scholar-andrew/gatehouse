@@ -55,6 +55,10 @@ final class ServerControl {
 	volatile String requestStatus = "";
 	/** What MCSS is doing, as Gatekeeper last said: "running", "starting", "closing", "off" (or empty: not told). */
 	volatile String mcssPhase = "";
+	/** Why the Gatekeeper won't have this device join right now ("": it may): the Gatekeeper is out of date, or this
+	 *  Gatehouse is. It says so with what it reports about the server (/v1/phase). */
+	volatile String blocked = "";
+	private static final String OWN_VERSION = Notes.version(Notes.own());
 	/** Whether this launcher is shut out, as Gatekeeper says (remembered, so it holds while the server machine can't be
 	 *  asked): "blacklist" (told nothing about the machine, MCSS or the server), "suspend" (may not start the game or
 	 *  use any control), or empty. Scope "machine" (this device) or "user" (the player, on every device). */
@@ -364,6 +368,7 @@ final class ServerControl {
 			Map<String, Object> ph = helper("GET", "/v1/phase", null);
 			if ("200".equals(str(ph.get("_code")))) {
 				mcssPhase = str(ph.get("mcss_phase"));
+				blocked = str(ph.get("blocked"));
 				switch (str(ph.get("phase"))) {
 					case "online": return new String[] {"ok", "Online", "online", ping, players};
 					case "starting": return new String[] {"warn", "Starting\u2026", "starting", "", ""};
@@ -468,6 +473,7 @@ final class ServerControl {
 		c.setRequestProperty("X-Token", deviceToken);
 		if (!serverKey.isEmpty()) c.setRequestProperty("X-Server", serverKey);   // (which of the machine's servers this pack is for)
 		c.setRequestProperty("X-Access", kind());
+		if (!OWN_VERSION.isEmpty()) c.setRequestProperty("X-Gatehouse", OWN_VERSION);   // (which Gatehouse this is: a Gatekeeper holds launchers to the published one)
 		c.setRequestProperty("X-Saved", saved());
 		if (saved().equals("signin")) c.setRequestProperty("X-Access-User", username.replaceAll("[^\\x20-\\x7E]", "?"));
 		if (!player().isEmpty()) c.setRequestProperty("X-Player", player());

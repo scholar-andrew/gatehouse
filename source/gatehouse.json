@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.4.1",
+ "version": "2.5.0",
  "changes": [
+  {"version": "2.5.0", "date": "2026-11-16", "notes": [
+   "A server's launcher can now show Update needed instead of Play, with the reason. Its Gatekeeper says so in two cases: the Gatekeeper itself is out of date (its owner has to update it), or Gatehouse on this device is (update it on the main window: the Update Gatehouse line, or Restart).",
+   "Gatehouse tells a Gatekeeper which version it is, so the Gatekeeper can tell.",
+   "A pack started straight from its own Steam shortcut shows its launcher instead of going straight into the game when joining is blocked like this."
+  ]},
   {"version": "2.4.1", "date": "2026-11-16", "notes": [
    "Any Gatekeeper can now be removed from the list. Until now Remove was only there for one with no packs installed. It asks first. Gatehouse forgets the Gatekeeper and this device's link to it; packs installed from it stay, move to Other packs, and update and start as before.",
    "A removed Gatekeeper stays off the list (an installed pack that names it no longer brings it back) until you add it again with its address, link or file.",

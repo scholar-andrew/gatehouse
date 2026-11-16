@@ -323,10 +323,34 @@ def write_profile_config() -> None:
     write(os.path.join(DIST, "config.json"), json.dumps(full, indent=2) + "\n")
 
 
+def publish_gatekeeper() -> None:
+    """Gatekeeper, published beside the pack so a running Gatekeeper can update itself: gatekeeper/oj-host.jar and
+    gatekeeper/gatekeeper.json (its version and checksum, and the launcher's version in this same build, which is
+    what Gatekeeper holds launchers to). The jar is the one tools/build_host.ps1 built; if its own notes aren't the
+    current source/gatekeeper.json, the build stops rather than publish a Gatekeeper that would never count as new."""
+    import zipfile
+    jar = os.path.join(ROOT, "host", "oj-host.jar")
+    want = json.load(open(os.path.join(ROOT, "source", "gatekeeper.json"), encoding="utf-8")).get("version", "")
+    with zipfile.ZipFile(jar) as z:
+        inside = json.loads(z.read("gatekeeper-notes.json").decode("utf-8")).get("version", "")
+    if inside != want:
+        sys.exit(f"host/oj-host.jar is Gatekeeper {inside}, but source/gatekeeper.json says {want}: run tools/build_host.ps1 first")
+    data = open(jar, "rb").read()
+    out = os.path.join(DIST, "gatekeeper")
+    os.makedirs(out, exist_ok=True)
+    with open(os.path.join(out, "oj-host.jar"), "wb") as f:
+        f.write(data)
+    house = json.load(open(os.path.join(ROOT, "source", "gatehouse.json"), encoding="utf-8")).get("version", "")
+    write(os.path.join(out, "gatekeeper.json"), json.dumps({"version": want, "sha256": sha256(data), "size": len(data), "gatehouse": house}, indent=1) + "\n")
+    print(f"gatekeeper: {want} ({len(data)} bytes), with Gatehouse {house}")
+
+
 def main() -> None:
     src = json.load(open(os.path.join(SRC, "mods.json"), encoding="utf-8"))
     for variant in ("main", "deck"):
         build(variant, src["pack"], src["mods"])
+    if not PROFILE:
+        publish_gatekeeper()
     # A record of what the server runs, kept beside the pack (a reference list; nothing checks it automatically).
     with open(os.path.join(DIST, "server-mods.json"), "w", encoding="utf-8") as f:
         json.dump({"mods": sorted(m["file"] for m in load_server()[0].get("mods", {}).values())}, f, indent=1)

@@ -1,7 +1,15 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.1.2",
+ "version": "2.2.0",
  "changes": [
+  {"version": "2.2.0", "date": "2026-11-16", "notes": [
+   "Gatekeeper now updates itself, as Gatehouse does. Each build of the pack publishes the Gatekeeper it was made with (on the owner's pack server and on GitHub). A running Gatekeeper looks there every five minutes; when a newer one is out, its window says so at the top of the Servers tab, with a chime and an Update Gatekeeper button. Update fetches it, checks it against the published checksum, and restarts Gatekeeper as the new one in a few seconds. Minecraft servers that are running aren't touched.",
+   "While Gatekeeper is out of date it starts no server (from its own window, for a launcher, or for a request it grants), and it tells launchers that joining is blocked: they show Update needed instead of Play, with the reason.",
+   "A launcher whose Gatehouse is behind the published one is told the same, for itself only, until that player updates Gatehouse. (From Gatehouse 2.5.0, which is the first to say which version it is.)",
+   "Host setup has a step for this, Gatekeeper is up to date.",
+   "Host setup: the whitelist step now has a button, Turn the whitelist on. It asks first, saying how many players each server's whitelist has. A running server is told in its console (it takes effect at once); one that's off gets white-list=true in its settings file.",
+   "If nothing to compare with can be reached, nothing is blocked. host.json \"require_current\": false turns the blocking off altogether."
+  ]},
   {"version": "2.1.2", "date": "2026-11-16", "notes": [
    "You can set the name launchers list this Gatekeeper under: Host setup, Name shown in launchers. Left empty it is this machine's own name, as before. Launchers that are open pick a change up within a few seconds; pairings made after it carry the new name.",
    "Fixed: a Gatekeeper with no MCSS chosen yet answered launchers with an error instead of its list of servers."

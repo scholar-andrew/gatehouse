@@ -523,7 +523,7 @@ public final class LaunchPopup {
 			if (c.hasHelper()) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) {}
 			if (!c.ban.isEmpty() || c.whitelisted.equals("no")) return false;
 			String[] s = c.status();
-			return s.length > 2 && s[2].equals("online");
+			return s.length > 2 && s[2].equals("online") && c.blocked.isEmpty();
 		} catch (IOException | RuntimeException e) { return false; }
 	}
 
@@ -2202,7 +2202,9 @@ public final class LaunchPopup {
 			long[] requestWait = {0};
 			String[] requestNote = {""}, noteFor = {""}, asked = {""};
 			long[] startingUntil = {0};   // (the owner said yes to Request server: "Server starting" until it's on, at most 6 minutes)
+			// ("blocked": the Gatekeeper says nobody, or not this Gatehouse, may join until something is updated)
 			java.util.function.Supplier<String> mode = () -> !serverShown[0] ? "next" : control.ban.equals("blacklist") ? "unblacklist" : control.ban.equals("suspend") ? "unsuspend"
+					: !control.blocked.isEmpty() ? "blocked"
 					: control.hasHelper() && control.whitelisted.equals("no") ? "whitelist" : !serverLive[0] && control.hasHelper() ? "server" : "play";
 			Runnable label = () -> {
 				if (!asked[0].isEmpty()) {
@@ -2225,9 +2227,9 @@ public final class LaunchPopup {
 				if (startingUntil[0] > 0 && serverLive[0]) { startingUntil[0] = 0; requestNote[0] = ""; chime(); }
 				boolean starting = m.equals("server") && System.currentTimeMillis() < startingUntil[0];
 				play.setText(switch (m) { case "next" -> "Next: server updates"; case "unblacklist" -> "Request unblacklist"; case "unsuspend" -> "Request unsuspend";
-					case "whitelist" -> "Request whitelist"; case "server" -> starting ? "Server starting" : "Request server"; default -> "Play"; });
+					case "whitelist" -> "Request whitelist"; case "server" -> starting ? "Server starting" : "Request server"; case "blocked" -> "Update needed"; default -> "Play"; });
 				// "Next" only turns the page, so it always works; Play waits for the server; a request, one a minute.
-				play.setEnabled(m.equals("next") || (m.equals("play") ? serverLive[0] : !starting && System.currentTimeMillis() >= requestWait[0]));
+				play.setEnabled(m.equals("next") || (m.equals("play") ? serverLive[0] : !m.equals("blocked") && !starting && System.currentTimeMillis() >= requestWait[0]));
 				String who = control.banScope.equals("user") ? "Your account" + (control.player().isEmpty() ? "" : " (" + control.player() + ")") : "This device";
 				String reason = control.banReason.isEmpty() ? "." : ": " + control.banReason + (control.banReason.matches(".*[.!?]$") ? "" : ".");
 				String why = switch (m) {
@@ -2236,6 +2238,7 @@ public final class LaunchPopup {
 					case "unblacklist" -> who + " is blacklisted on this server" + reason + " Request unblacklist asks the owner to let you back.";
 					case "unsuspend" -> who + " is suspended on this server" + reason + " Request unsuspend asks the owner to let you back.";
 					case "whitelist" -> "You aren't on the server's whitelist yet. Request whitelist asks the owner to add you.";
+					case "blocked" -> control.blocked;
 					default -> "The server is off. Request server asks the owner to turn it on.";
 				};
 				if (!requestNote[0].isEmpty() && noteFor[0].equals(m)) why = requestNote[0];

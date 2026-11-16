@@ -229,6 +229,11 @@ their next launch; nobody has to touch a device.
   `gatekeepers-removed.json` and deletes this device's folder for it under `keepers/`. While it is on the removed
   list, packs that name it are treated as packs with no Gatekeeper (Other packs) and don't bring it back. Add
   Gatekeeper with the same address takes it off the removed list.
+- **Publishing Gatekeeper.** `tools/build_pack.py` copies `host/oj-host.jar` to `dist/gatekeeper/` with
+  `gatekeeper.json` (its version and checksum, and the Gatehouse version of this build). It stops if the jar's own
+  notes aren't the current `source/gatekeeper.json`: run `tools/build_host.ps1` first. Because running Gatekeepers
+  hold themselves and their launchers to what is published, building the pack publishes Gatekeeper too: install the
+  new Gatekeeper on the server machine before building, or its servers won't start until it's updated.
 - **Connect to this Gatekeeper.** `Connect.java`: the steps between having a pairing and the Gatekeeper answering,
   looked at every 2.5 seconds: a Tailscale address on this device (an interface address in 100.64.0.0/10, which also
   works inside Prism's Flatpak), the Gatekeeper's port reachable, and its answer to this device's introduction.
