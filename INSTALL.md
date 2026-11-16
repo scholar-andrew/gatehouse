@@ -129,6 +129,17 @@ window first.
 
 Both programs use the same dark look, sized for a Steam Deck's screen.
 
+### Notes about Gatehouse and Gatekeeper themselves
+
+Gatehouse and Gatekeeper each have a version and notes of their own, apart from any pack's or server's:
+
+- **Gatehouse updates**, a tab on the launcher's main window, lists what changed in the launcher, newest on top. When
+  you open Gatehouse directly it looks for a newer copy of itself, fetches it and reopens; that tab is then in front,
+  marked "(new)". You can read it any time.
+- **Gatekeeper updates**, a tab beside a Gatekeeper's servers, lists what changed in that Gatekeeper (it's asked for
+  them; one from before Gatekeeper 2.0.0 says so instead).
+- A server's own window shows neither: its Client updates tab is about the pack, and Server updates about the server.
+
 ### Using a controller
 
 Every window of the launcher can be driven with a controller: the Steam Deck's own controls, a Steam Controller, or

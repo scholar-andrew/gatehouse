@@ -101,6 +101,28 @@ public final class HostHelper {
 		catch (IOException ignored) {}
 	}
 
+	/** Notes that came inside this program: "gatekeeper" (its own) or "gatehouse" (the launcher's, as of this build). */
+	static Map<String, Object> notesInside(String which) {
+		try (InputStream in = HostHelper.class.getResourceAsStream("/" + which + "-notes.json")) { return in == null ? new LinkedHashMap<>() : Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))); }
+		catch (IOException | RuntimeException e) { return new LinkedHashMap<>(); }
+	}
+	private static Map<String, Object> gatehouseNotes;
+	private static long gatehouseNotesAt;
+	/** Gatehouse's notes, for the tab here: the newest from the repository (host.json "gatehouse_notes_url"; looked up
+	 *  again after ten minutes), else the copy that came with this Gatekeeper. */
+	static synchronized Map<String, Object> gatehouseNotes() {
+		if (gatehouseNotes != null && System.currentTimeMillis() - gatehouseNotesAt < 600_000) return gatehouseNotes;
+		Map<String, Object> got = new LinkedHashMap<>();
+		try {
+			HttpURLConnection c = (HttpURLConnection) new URL(setting("gatehouse_notes_url", "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/source/gatehouse.json")).openConnection();
+			c.setConnectTimeout(4000); c.setReadTimeout(6000);
+			if (c.getResponseCode() == 200) try (InputStream in = c.getInputStream()) { got = Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))); }
+		} catch (IOException | RuntimeException ignored) {}
+		if (Json.list(got.get("changes")).isEmpty()) { got = notesInside("gatehouse"); got.put("_from", "the copy that came with this Gatekeeper"); } else got.put("_from", "the repository");
+		gatehouseNotes = got; gatehouseNotesAt = System.currentTimeMillis();
+		return got;
+	}
+
 	/** The end of the log for the server being looked at: its own lines (they carry its name) and the lines about the
 	 *  machine as a whole (no name); another server's lines are left out. */
 	static List<Object> logFor(int max) {
@@ -519,6 +541,11 @@ public final class HostHelper {
 			if (ban[0].equals("blacklist") && !path.equals("/v1/request")) {
 				if (path.equals("/v1/mcss")) reply(x, 200, m("state", "pending", "ban", ban[0], "ban_scope", ban[1], "ban_reason", ban[2], "requests", requestStates(id, false), "request_reasons", requestStates(id, true)));
 				else reply(x, 403, m("error", "this launcher is blacklisted"));
+				return;
+			}
+			if (path.equals("/v1/about") && x.getRequestMethod().equals("GET")) {
+				// Which Gatekeeper this is and what changed in it, for the Gatekeeper updates tab in a launcher.
+				reply(x, 200, notesInside("gatekeeper"));
 				return;
 			}
 			if (path.equals("/v1/phase") && x.getRequestMethod().equals("GET")) {
@@ -1362,6 +1389,8 @@ public final class HostHelper {
 				else { boolean g = Boolean.TRUE.equals(b.get("granted")) || "true".equals(Json.str(b.get("granted"))); d.put("granted", g); log((g ? "allowed MCSS control for " : "revoked MCSS control from ") + who(d)); }
 				saveDevices(devs);
 				reply(x, 200, m("ok", true));
+			} else if (path.equals("/admin/about")) {
+				reply(x, 200, m("gatekeeper", notesInside("gatekeeper"), "gatehouse", gatehouseNotes()));
 			} else if (path.equals("/admin/overview")) {
 				// The window's first screen: MCSS on this machine, and each server it runs.
 				List<Object> list = new ArrayList<>();
@@ -1733,7 +1762,43 @@ public final class HostHelper {
 			JPanel overTop = new JPanel(new BorderLayout()); overTop.add(overList, BorderLayout.NORTH);
 			JScrollPane overScroll = new JScrollPane(overTop); overScroll.setBorder(null);
 			overview.add(overScroll, BorderLayout.CENTER);
-			stack.add(overview, "overview"); stack.add(tabs, "server");
+			javax.swing.JTabbedPane firstTabs = new javax.swing.JTabbedPane();
+			JPanel ownNotes = new JPanel(new BorderLayout()), launcherNotes = new JPanel(new BorderLayout());
+			firstTabs.addTab("Servers", overview); firstTabs.addTab("Gatekeeper updates", ownNotes); firstTabs.addTab("Gatehouse updates", launcherNotes);
+			// A program's notes as a scrolling list, newest on top.
+			java.util.function.BiConsumer<JPanel, Object[]> fillNotes = (panel, what) -> {
+				Map<String, Object> notes = Json.map(what[0]);
+				JPanel list = new JPanel();
+				list.setLayout(new javax.swing.BoxLayout(list, javax.swing.BoxLayout.Y_AXIS));
+				list.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
+				String v = Json.str(notes.get("version"));
+				JLabel now = new JLabel(v.isEmpty() ? "No notes to show." : what[1] + " " + v + (Json.str(notes.get("_from")).isEmpty() ? " is what's running here." : " is the newest (from " + Json.str(notes.get("_from")) + ")."));
+				now.setForeground(new Color(0x8F98A0)); now.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				list.add(now);
+				for (Object o : Json.list(notes.get("changes"))) {
+					Map<String, Object> ch = Json.map(o);
+					JLabel h = new JLabel(Json.str(ch.get("version")) + (Json.str(ch.get("date")).isEmpty() ? "" : " (" + Json.str(ch.get("date")) + ")"));
+					h.setFont(h.getFont().deriveFont(Font.BOLD, 14f)); h.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); h.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+					list.add(h);
+					for (Object n : Json.list(ch.get("notes"))) {
+						JLabel l = new JLabel("<html><div style='width:820px'>\u2022 " + String.valueOf(n).replace("&", "&amp;").replace("<", "&lt;") + "</div></html>");
+						l.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 0)); l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+						list.add(l);
+					}
+				}
+				JPanel top2 = new JPanel(new BorderLayout()); top2.add(list, BorderLayout.NORTH);
+				JScrollPane sp = new JScrollPane(top2); sp.setBorder(null); sp.getVerticalScrollBar().setUnitIncrement(16);
+				panel.removeAll(); panel.add(sp, BorderLayout.CENTER); panel.revalidate(); panel.repaint();
+			};
+			fillNotes.accept(ownNotes, new Object[] {notesInside("gatekeeper"), "Gatekeeper"});
+			fillNotes.accept(launcherNotes, new Object[] {notesInside("gatehouse"), "Gatehouse"});
+			// (Gatehouse's newest notes are fetched by the running Gatekeeper; asked for when that tab is opened)
+			firstTabs.addChangeListener(ev -> { if (firstTabs.getSelectedIndex() == 2) new Thread(() -> {
+				try { Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/about", null))); if (!Json.map(r.get("gatehouse")).isEmpty()) SwingUtilities.invokeLater(() -> fillNotes.accept(launcherNotes, new Object[] {r.get("gatehouse"), "Gatehouse"})); } catch (Exception ignored) {}
+			}, "about").start(); });
+			String ownV = Json.str(notesInside("gatekeeper").get("version"));
+			if (!ownV.isEmpty()) f.setTitle("Gatekeeper " + ownV);
+			stack.add(firstTabs, "overview"); stack.add(tabs, "server");
 			p.add(stack, BorderLayout.CENTER);
 			JButton backB = new JButton("\u2039 Servers");
 			backB.setToolTipText("Back to MCSS and the list of servers on this machine");
@@ -2174,6 +2239,11 @@ public final class HostHelper {
 						java.awt.image.BufferedImage oi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D og = oi.createGraphics(); p.paint(og); og.dispose();
 						javax.imageio.ImageIO.write(oi, "png", new java.io.File(shot + "-overview.png"));
+						firstTabs.setSelectedIndex(1); p.validate();
+						java.awt.image.BufferedImage ni = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D ng = ni.createGraphics(); p.paint(ng); ng.dispose();
+						javax.imageio.ImageIO.write(ni, "png", new java.io.File(shot + "-notes.png"));
+						firstTabs.setSelectedIndex(0);
 					} catch (IOException ex) { ex.printStackTrace(); }
 					inServer[0] = true; backB.setVisible(true); levels.show(stack, "server");
 					try {

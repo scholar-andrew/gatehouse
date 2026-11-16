@@ -185,6 +185,10 @@ public final class LaunchPopup {
 			Thread.sleep(args.length > 1 ? Long.parseLong(args[1]) : 1500);
 			System.exit(0);
 		}
+		if (args.length >= 2 && args[0].equals("--self-update")) {   // testing: look for a newer Gatehouse for this instances folder, as the main window does
+			System.out.println("Gatehouse " + Notes.version(Notes.own()) + "; newer one fetched: " + Notes.selfUpdate(Path.of(args[1])));
+			return;
+		}
 		if (args.length >= 2 && args[0].equals("--home")) { Home.run(args); System.exit(0); }
 		summary(Path.of(args.length > 0 ? args[0] : "."), args.length > 1 ? args[1] : "ok");
 		System.exit(exitCode);
@@ -1845,7 +1849,7 @@ public final class LaunchPopup {
 
 	static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"); }
 
-	private static JComponent heading(String s) {
+	static JComponent heading(String s) {
 		JLabel l = new JLabel(s);
 		l.setFont(l.getFont().deriveFont(Font.BOLD, 14f));
 		l.setBorder(BorderFactory.createEmptyBorder(10, 0, 3, 0));
@@ -1861,7 +1865,7 @@ public final class LaunchPopup {
 		return l;
 	}
 
-	private static JComponent text(String s) {
+	static JComponent text(String s) {
 		// (Swing's HTML widths come out about a third wider than given on a normal display.)
 		JLabel l = new JLabel("<html><div style='width:410px'>" + esc(s) + "</div></html>");
 		l.setFont(l.getFont().deriveFont(Font.PLAIN, 14f));

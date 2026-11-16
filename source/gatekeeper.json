@@ -1,0 +1,11 @@
+{
+ "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
+ "version": "2.0.0",
+ "changes": [
+  {"version": "2.0.0", "date": "2026-11-16", "notes": [
+   "Gatekeeper now has its own version and its own notes, here, and tells launchers which version it is. Gatehouse shows these notes on a Gatekeeper updates tab beside this Gatekeeper's servers.",
+   "The first screen has two more tabs: Gatekeeper updates (these notes) and Gatehouse updates (the launcher's notes, fetched from the repository, with the copy that came with this Gatekeeper as a fallback).",
+   "Everything before this is in the pack's notes (CHANGELOG.md in the repository), up to pack 1.16.0: Server setup, Share pairing, Access Manager, presence, Updates Pulled, per-server state from MCSS, the safe Close MCSS and the rest."
+  ]}
+ ]
+}

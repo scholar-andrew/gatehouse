@@ -28,6 +28,12 @@ main() {
   done
   [ -n "$java" ] || java="$(command -v java)"
   [ -n "$java" ] || prism_instead "$@"
-  exec "$java" -jar "$jar" --home "$instances" --prism "$prism" "$@"
+  "$java" -jar "$jar" --home "$instances" --prism "$prism" "$@"; code=$?
+  # 12: it fetched a newer copy of itself. Open that one (once: it's told not to look again).
+  if [ "$code" = 12 ]; then
+    jar="$(ls -t "$instances"/*/minecraft/extras/launch-popup.jar 2>/dev/null | head -1)"
+    GATEHOUSE_UPDATED=1 exec "$java" -jar "$jar" --home "$instances" --prism "$prism" "$@"
+  fi
+  exit "$code"
 }
 main "$@"; exit

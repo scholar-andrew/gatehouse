@@ -166,6 +166,7 @@ final class Home {
 			boolean[] openPrism = {false};
 			String[] again = {null};
 			window(instances, home, packs, openAt, chosen, openPrism, again);
+			if ("\u0000relaunch".equals(again[0])) System.exit(LaunchPopup.RELAUNCH);   // (a newer Gatehouse is in place: the shortcut's script opens it)
 			if (again[0] != null) { openAt = again[0]; continue; }
 			if (chosen[0] != null) LaunchPopup.startGame(prismCmd, chosen[0], false);
 			else if (openPrism[0]) LaunchPopup.run(List.of(prismCmd));
@@ -233,7 +234,7 @@ final class Home {
 			CardLayout cards = new CardLayout();
 			JPanel deck = new JPanel(cards);
 			JPanel keeperList = new JPanel(), serverList = new JPanel(), connList = new JPanel();
-			javax.swing.JTabbedPane level2 = new javax.swing.JTabbedPane();
+			javax.swing.JTabbedPane level1 = new javax.swing.JTabbedPane(), level2 = new javax.swing.JTabbedPane();
 			for (JPanel l : new JPanel[] {keeperList, serverList, connList}) l.setLayout(new BoxLayout(l, BoxLayout.Y_AXIS));
 			for (Object[] c : new Object[][] {{keeperList, "keepers"}, {serverList, "Servers"}, {connList, "Connections"}}) {
 				JPanel inner = new Fitted();   // (as wide as the window, never wider: a long line is cut short, not the buttons pushed out)
@@ -242,8 +243,22 @@ final class Home {
 				sc.setBorder(null);
 				sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 				sc.getVerticalScrollBar().setUnitIncrement(16);
-				if (c[1].equals("keepers")) deck.add(sc, "keepers"); else level2.addTab((String) c[1], sc);
+				if (c[1].equals("keepers")) level1.addTab("Gatekeepers", sc); else level2.addTab((String) c[1], sc);
 			}
+			// Gatehouse's own notes, newest on top: always there to read, and in front when Gatehouse has just updated.
+			Map<String, Object> own = Notes.own();
+			String seenFile = "gatehouse-version-seen.txt", ownVersion = Notes.version(own), seenVersion = LaunchPopup.readFile(home.resolve(seenFile)).trim();
+			boolean fresh = !ownVersion.isEmpty() && !ownVersion.equals(seenVersion);
+			level1.addTab(fresh && !seenVersion.isEmpty() ? "Gatehouse updates (new)" : "Gatehouse updates", Notes.panel(own, "Gatehouse", "No notes came with this copy of Gatehouse."));
+			level1.addChangeListener(ev -> {
+				if (level1.getSelectedIndex() != 1 || ownVersion.isEmpty()) return;
+				try { Files.createDirectories(home); Files.writeString(home.resolve(seenFile), ownVersion + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) {}
+				level1.setTitleAt(1, "Gatehouse updates");
+			});
+			// A Gatekeeper's own notes, asked of it: the third tab beside its servers.
+			JPanel keeperNotes = new JPanel(new BorderLayout());
+			level2.addTab("Gatekeeper updates", keeperNotes);
+			deck.add(level1, "keepers");
 			deck.add(level2, "servers");
 			deck.setPreferredSize(new Dimension(680, 330));
 			p.add(deck, BorderLayout.CENTER);
@@ -302,6 +317,27 @@ final class Home {
 				};
 				for (String[] pk : packs) if (pk[4].equals(url)) add.accept(pk[0].startsWith("gatehouse-") ? pk[0].substring("gatehouse-".length()) : pk[0], pk);
 				ServerControl c = url.isEmpty() ? null : client(home, url, packs);
+				level2.setSelectedIndex(0);
+				level2.setEnabledAt(2, c != null);
+				keeperNotes.removeAll();
+				JLabel asking = new JLabel(c == null ? " " : "Asking the Gatekeeper\u2026");
+				asking.setBorder(BorderFactory.createEmptyBorder(10, 12, 0, 0));
+				keeperNotes.add(asking, BorderLayout.NORTH);
+				if (c != null) {
+					Runnable about = () -> {
+						Map<String, Object> r;
+						try { r = c.helper("GET", "/v1/about", null); if ("401".equals(str(r.get("_code")))) { c.hello(); r = c.helper("GET", "/v1/about", null); } } catch (IOException | RuntimeException e) { r = null; }
+						Map<String, Object> got = r;
+						Runnable ui = () -> {
+							keeperNotes.removeAll();
+							if (got != null && "200".equals(str(got.get("_code")))) keeperNotes.add(Notes.panel(got, "Gatekeeper", "This Gatekeeper sent no notes."), BorderLayout.CENTER);
+							else { JLabel no = new JLabel(got == null ? "This Gatekeeper isn't answering, so its notes can't be shown." : "This Gatekeeper is from before it kept notes of its own (before Gatekeeper 2.0.0)."); no.setForeground(new Color(0x8F98A0)); no.setBorder(BorderFactory.createEmptyBorder(10, 12, 0, 0)); keeperNotes.add(no, BorderLayout.NORTH); }
+							keeperNotes.revalidate(); keeperNotes.repaint();
+						};
+						if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
+					};
+					if (shot != null) about.run(); else new Thread(about, "about").start();
+				}
 				Runnable poll = () -> {
 					Map<String, Object> cat = c == null ? null : catalog(c);
 					Runnable ui = () -> {
@@ -552,18 +588,32 @@ final class Home {
 			p.add(south, BorderLayout.SOUTH);
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent ev) { closed.countDown(); } });
 			f.setContentPane(p);
-			if (openAt != null && (openAt.isEmpty() ? hasLoose : true)) showServers.accept(openAt); else showKeepers[0].run();
+			if (openAt != null && (openAt.isEmpty() ? hasLoose : true)) showServers.accept(openAt);
+			else { showKeepers[0].run(); if (fresh && !seenVersion.isEmpty()) level1.setSelectedIndex(1); }
+			// Opened directly (not on the way back from a server): look for a newer Gatehouse; with one in place, close
+			// and let the shortcut's script open it. (GATEHOUSE_UPDATED: just reopened for that, so not again.)
+			if (openAt == null && shot == null && System.getenv("GATEHOUSE_UPDATED") == null) new Thread(() -> {
+				if (!Notes.selfUpdate(instances)) return;
+				SwingUtilities.invokeLater(() -> { sub.setText("A newer Gatehouse was fetched: reopening\u2026"); again[0] = "\u0000relaunch"; f.dispose(); });
+			}, "self-update").start();
 			f.pack();
 			LaunchPopup.fit(f, false);
 			if (shot != null && !shot.isEmpty()) {   // (testing: pictures instead of the window: <file>, and <file>-servers.png for the first Gatekeeper)
 				try {
-					for (int n = 0; n < 3; n++) {
+					level1.setSelectedIndex(1);
+					f.validate();
+					java.awt.image.BufferedImage gi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+					java.awt.Graphics2D gg = gi.createGraphics(); p.paint(gg); gg.dispose();
+					javax.imageio.ImageIO.write(gi, "png", new java.io.File(shot.replaceAll("\\.png$", "") + "-gatehouse.png"));
+					level1.setSelectedIndex(0);
+					for (int n = 0; n < 4; n++) {
 						if (n == 1) { if (keepers.isEmpty()) break; showServers.accept(keepers.get(0)[0]); }
 						if (n == 2) level2.setSelectedIndex(1);
+						if (n == 3) level2.setSelectedIndex(2);
 						f.validate();
 						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-						javax.imageio.ImageIO.write(img, "png", new java.io.File(n == 0 ? shot : shot.replaceAll("\\.png$", "") + (n == 1 ? "-servers.png" : "-connections.png")));
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(n == 0 ? shot : shot.replaceAll("\\.png$", "") + (n == 1 ? "-servers.png" : n == 2 ? "-connections.png" : "-gatekeeper.png")));
 					}
 				} catch (IOException ex) { ex.printStackTrace(); }
 				f.dispose();

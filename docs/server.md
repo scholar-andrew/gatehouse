@@ -225,6 +225,14 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.
 
+### Gatekeeper's and Gatehouse's own notes
+
+Gatekeeper's window is titled with its version, and its first screen has three tabs: Servers, Gatekeeper updates (what
+changed in Gatekeeper, newest on top) and Gatehouse updates (what changed in the launcher: the newest from the
+repository, or the copy that came with this Gatekeeper when that can't be reached). Launchers ask a Gatekeeper for its
+notes (`GET /v1/about`) and show them on a Gatekeeper updates tab beside its servers. `host.json` may name another
+place for Gatehouse's notes with `gatehouse_notes_url`.
+
 ## Server changes for players
 
 Players see what changed on the server in the launch pop-up's **Server** tab: mods added, updated or removed, the

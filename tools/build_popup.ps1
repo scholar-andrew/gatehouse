@@ -19,6 +19,8 @@ if ($LASTEXITCODE) { throw 'javac failed' }
 $files22 = @(Get-ChildItem (Join-Path $root 'mods-src\launch-popup\src22') -Recurse -Filter *.java | ForEach-Object FullName)
 & (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 22 -cp (Join-Path $out 'classes') -d (Join-Path $out 'classes') @files22
 if ($LASTEXITCODE) { throw 'javac (Java 22 part) failed' }
+# Gatehouse's own version and notes go inside it (source\gatehouse.json), apart from any pack's.
+Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $out 'classes\gatehouse-notes.json')
 # (so that Java doesn't warn about that reader calling into Windows)
 Set-Content -Path (Join-Path $out 'manifest.txt') -Value 'Enable-Native-Access: ALL-UNNAMED' -Encoding ascii
 $jar = Join-Path $root 'source\files\launch-popup.jar'

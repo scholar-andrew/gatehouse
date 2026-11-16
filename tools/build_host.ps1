@@ -12,6 +12,10 @@ $files = @(Get-ChildItem (Join-Path $root 'host\src') -Recurse -Filter *.java | 
 $files += @(Get-ChildItem (Join-Path $root 'mods-src\look\src') -Recurse -Filter *.java | ForEach-Object FullName)
 & (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 17 -d (Join-Path $out 'classes') @files
 if ($LASTEXITCODE) { throw 'javac failed' }
+# Gatekeeper's own version and notes go inside it (source\gatekeeper.json), and a copy of Gatehouse's (source\gatehouse.json)
+# for when the newest can't be fetched.
+Copy-Item (Join-Path $root 'source\gatekeeper.json') (Join-Path $out 'classes\gatekeeper-notes.json')
+Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $out 'classes\gatehouse-notes.json')
 $jar = Join-Path $root 'host\oj-host.jar'
 Remove-Item $jar -ErrorAction SilentlyContinue
 & (Join-Path $jdk 'jar.exe') --create --file $jar --main-class dev.octoberjourney.host.HostHelper -C (Join-Path $out 'classes') .
