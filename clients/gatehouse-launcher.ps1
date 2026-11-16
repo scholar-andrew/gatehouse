@@ -34,17 +34,31 @@ foreach ($h in $javaHomes) {
 }
 if (-not $java) { Prism-Instead }
 # Run from a copy: Windows locks a running file, and the pack's update has to be able to replace the launcher.
-$run = Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run.jar'
-try { Copy-Item $jar $run -Force -ErrorAction Stop } catch { $run = $jar }
-$launcherArgs = @('-jar', "`"$run`"", '--home', "`"$Instances`"", '--prism', "`"$Prism`"")
-if ($Play) { $launcherArgs += @('--play', $Play) }
-$p = Start-Process -Wait -PassThru $java -ArgumentList $launcherArgs
-# 12: it fetched a newer copy of itself. Open that one (once: it's told not to look again).
-if ($p.ExitCode -eq 12) {
-    $jar = Get-ChildItem $Instances -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'minecraft\extras\launch-popup.jar' } |
-        Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
-    try { Copy-Item $jar $run -Force -ErrorAction Stop } catch { $run = $jar }
-    $launcherArgs[1] = "`"$run`""
+# The launcher ends with 12 when a newer copy of itself is in place (it updated itself): the newest is then opened in
+# its place, each time that happens (GATEHOUSE_RELAUNCH tells the launcher that this script does that). Only the
+# launcher itself is waited for, not programs it started: Prism Launcher may still be open, and waiting for that
+# too would leave an updated launcher unopened until Prism closed.
+$env:GATEHOUSE_RELAUNCH = 'loop'
+$runs = @((Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run.jar'), (Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run-2.jar'))
+for ($round = 0; $round -lt 8; $round++) {
+    if ($round -gt 0) {
+        $jar = Get-ChildItem $Instances -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'minecraft\extras\launch-popup.jar' } |
+            Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
+        if (-not $jar) { break }
+    }
+    # (the copy that just ran can stay locked for a moment after it ends: a second name, and a few tries)
+    $run = $null
+    foreach ($try in 1..10) {
+        foreach ($r in $runs) { try { Copy-Item $jar $r -Force -ErrorAction Stop; $run = $r; break } catch { } }
+        if ($run) { break }
+        Start-Sleep -Milliseconds 200
+    }
+    if (-not $run) { $run = $jar }
+    $launcherArgs = @('-jar', "`"$run`"", '--home', "`"$Instances`"", '--prism', "`"$Prism`"")
+    if ($Play -and $round -eq 0) { $launcherArgs += @('--play', $Play) }
+    $p = Start-Process -PassThru $java -ArgumentList $launcherArgs
+    $null = $p.Handle   # (so its exit code is kept)
+    $p.WaitForExit()
+    if ($p.ExitCode -ne 12) { break }
     $env:GATEHOUSE_UPDATED = '1'
-    Start-Process -Wait $java -ArgumentList $launcherArgs
 }

@@ -234,9 +234,12 @@ Gatekeeper looks every five minutes at the pack server on its own machine if the
 
 - **A newer Gatekeeper is out:** its window says so at the top of the Servers tab, with a chime and **Update
   Gatekeeper** (`GET` / `POST /admin/update`). Update fetches the jar, checks it against the published `sha256`, leaves
-  it as `oj-host.jar.new`, and ends Gatekeeper; a short PowerShell command (not a program: Windows locks a running
-  program's file) waits for it to end, puts the new jar in place and starts Gatekeeper again, through its scheduled
-  task or directly. Running Minecraft servers are not touched. What happened is in `host.log`.
+  checks that it is a Gatekeeper that can run, leaves it as `oj-host.jar.new`, writes `update-restart.ps1` beside
+  its settings and ends. That script (readable; Windows locks a running program's file, so something else has to do
+  the swap) waits for Gatekeeper to end, closes any Gatekeeper window still holding the file, keeps the old jar as
+  `oj-host.jar.old`, puts the new one in place, starts Gatekeeper through its scheduled task (directly if it doesn't
+  come up that way) and asks it whether it answers. No answer within 30 seconds: the old jar goes back and is
+  started instead. Running Minecraft servers are not touched. Each step is in `host.log` ("update: ...").
 - **Until then** Gatekeeper starts no server, and `/v1/phase` tells launchers `blocked`, with the reason: they show
   Update needed instead of Play.
 - **A launcher that is behind** the published Gatehouse (it says which it is in `X-Gatehouse`, from Gatehouse 2.5.0)

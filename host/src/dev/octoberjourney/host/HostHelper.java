@@ -516,19 +516,52 @@ public final class HostHelper {
 			if (!sha256(b).equalsIgnoreCase(newestKeeperSha)) return new String[] {"failed", "What was fetched doesn't match what was published (its checksum differs). Nothing was changed."};
 			Path fresh = jar.resolveSibling("oj-host.jar.new");
 			Files.write(fresh, b);
+			// (the checksum says it is what was published; this says what was published is a Gatekeeper that can start)
+			boolean sound = false;
+			try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(fresh.toFile())) { sound = z.getEntry("dev/octoberjourney/host/HostHelper.class") != null && z.getEntry("META-INF/MANIFEST.MF") != null && z.getEntry("gatekeeper-notes.json") != null; }
+			catch (IOException | RuntimeException notAJar) { sound = false; }
+			if (!sound) { Files.deleteIfExists(fresh); return new String[] {"failed", "What was published isn't a Gatekeeper that can run. Nothing was changed."}; }
 			String javaExe = ProcessHandle.current().info().command().orElse("javaw"), q = "'", folder = jar.getParent().toString();
 			java.util.function.Function<String, String> s = v -> q + v.replace("'", "''") + q;
-			String start = "Start-Process " + s.apply(javaExe) + " -ArgumentList '-jar', " + s.apply("\"" + jar + "\"") + ", '--serve' -WorkingDirectory " + s.apply(dir.toString());
+			// The command that takes over once this Gatekeeper has ended. It makes sure nothing of this Gatekeeper still
+			// holds the file (only processes started from this very jar), keeps the old jar, puts the new one in place,
+			// starts Gatekeeper (through its scheduled task, checking that it really came up; else directly), and then
+			// asks it whether it answers. If the new one doesn't answer within 30 seconds, the old jar goes back and is
+			// started instead. Everything it does is noted in host.log.
+			boolean task = setting("update_restart", "task").equals("task");
 			String ps = "$ErrorActionPreference = 'SilentlyContinue'\n"
+					+ "$jar = " + s.apply(jar.toString()) + "; $new = " + s.apply(fresh.toString()) + "; $old = $jar + '.old'; $log = " + s.apply(dir.resolve("host.log").toString()) + "\n"
+					+ "$java = " + s.apply(javaExe) + "; $work = " + s.apply(dir.toString()) + "; $folder = " + s.apply(folder) + "; $port = " + port() + "\n"
+					+ "function Say($t) { Add-Content -LiteralPath $log -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  update: ' + $t) }\n"
+					+ "function Mine($what) { @(Get-CimInstance Win32_Process -Filter \"Name='javaw.exe' or Name='java.exe'\" | Where-Object { $_.CommandLine -and $_.CommandLine.Contains($jar) -and $_.CommandLine.Contains($what) }) }\n"
+					+ "function Answers($secs) { $until = (Get-Date).AddSeconds($secs); while ((Get-Date) -lt $until) { try { $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 ('http://127.0.0.1:' + $port + '/admin/update'); if ($r.StatusCode -eq 200) { return $true } } catch { }; Start-Sleep -Milliseconds 400 }; return $false }\n"
+					+ "function Start-It {\n"
+					+ (task ? "  schtasks /run /tn " + s.apply(setting("task", "Gatehouse Keeper")) + " 2>$null | Out-Null\n  for ($i = 0; $i -lt 12 -and -not (Mine '--serve'); $i++) { Start-Sleep -Milliseconds 500 }\n" : "")
+					+ "  if (-not (Mine '--serve')) { Start-Process $java -ArgumentList '-jar', ('\"' + $jar + '\"'), '--serve' -WorkingDirectory $work }\n}\n"
 					+ "foreach ($p in " + ProcessHandle.current().pid() + (alsoWait > 0 ? ", " + alsoWait : "") + ") { Wait-Process -Id $p -Timeout 25 }\n"
-					+ "Start-Sleep -Milliseconds 500; $ok = $false\n"
-					+ "for ($i = 0; $i -lt 40 -and -not $ok; $i++) { try { Move-Item -LiteralPath " + s.apply(fresh.toString()) + " -Destination " + s.apply(jar.toString()) + " -Force -ErrorAction Stop; $ok = $true } catch { Start-Sleep -Milliseconds 500 } }\n"
-					+ "Add-Content -LiteralPath " + s.apply(dir.resolve("host.log").toString()) + " -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + '  update: ' + $(if ($ok) { 'the new Gatekeeper is in place' } else { 'oj-host.jar could not be replaced; the old one starts again' }))\n"
-					+ (setting("update_restart", "task").equals("task")
-							? "schtasks /run /tn " + s.apply(setting("task", "Gatehouse Keeper")) + " 2>$null | Out-Null\nif ($LASTEXITCODE -ne 0) { " + start + " }\n"
-							: start + "\n")
-					+ (alsoWait > 0 ? "Start-Sleep -Seconds 3; Start-Process " + s.apply(javaExe) + " -ArgumentList '-jar', " + s.apply("\"" + jar + "\"") + ", '--panel' -WorkingDirectory " + s.apply(folder) + "\n" : "");
-			new ProcessBuilder("powershell.exe", "-NoProfile", "-WindowStyle", "Hidden", "-EncodedCommand", java.util.Base64.getEncoder().encodeToString(ps.getBytes(StandardCharsets.UTF_16LE)))
+					+ "$hadWindow = " + (alsoWait > 0 ? "$true" : "$false") + "; if (Mine '--panel') { $hadWindow = $true }\n"
+					+ "Mine '--serve' | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }; Mine '--panel' | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }\n"
+					+ "Start-Sleep -Milliseconds 500\n"
+					+ "Copy-Item -LiteralPath $jar -Destination $old -Force\n"
+					+ "$ok = $false\n"
+					+ "for ($i = 0; $i -lt 40 -and -not $ok; $i++) { try { Move-Item -LiteralPath $new -Destination $jar -Force -ErrorAction Stop; $ok = $true } catch { Start-Sleep -Milliseconds 500 } }\n"
+					+ "if (-not $ok) { Say 'oj-host.jar could not be replaced; the Gatekeeper that was running starts again'; Remove-Item -LiteralPath $new -Force }\n"
+					+ "Start-It\n"
+					+ "if ($ok) {\n"
+					+ "  if (Answers 30) { Say 'the new Gatekeeper is in place and answering'; Remove-Item -LiteralPath $old -Force }\n"
+					+ "  else {\n"
+					+ "    Say 'the new Gatekeeper did not answer within 30 seconds: going back to the one before'\n"
+					+ "    Mine '--serve' | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }\n"
+					+ "    Start-Sleep -Seconds 1; Copy-Item -LiteralPath $old -Destination $jar -Force\n"
+					+ "    Start-It\n"
+					+ "    if (Answers 30) { Say 'the Gatekeeper from before is running again (the update was undone)'; Remove-Item -LiteralPath $old -Force } else { Say 'Gatekeeper is not answering: start it from the Start menu (Gatekeeper)' }\n"
+					+ "  }\n"
+					+ "} elseif (-not (Answers 30)) { Say 'Gatekeeper is not answering: start it from the Start menu (Gatekeeper)' }\n"
+					+ "if ($hadWindow) { Start-Process $java -ArgumentList '-jar', ('\"' + $jar + '\"'), '--panel' -WorkingDirectory $folder }\n";
+			// (kept as a file beside Gatekeeper's settings, so what runs can be read: update-restart.ps1)
+			Path script = dir.resolve("update-restart.ps1");
+			Files.writeString(script, "# Written by Gatekeeper when it updates itself: puts the new Gatekeeper in place and starts it again.\r\n" + ps.replace("\n", "\r\n"), StandardCharsets.UTF_8);
+			new ProcessBuilder("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script.toString())
 					.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
 			log("updating to Gatekeeper " + newestKeeper + " (from " + newestKeeperAt + "): ending now, and starting again as the new one");
 			Thread end = new Thread(() -> { try { Thread.sleep(900); } catch (InterruptedException ignored) {} System.exit(0); }, "update");

@@ -248,7 +248,12 @@ final class Home {
 			String[] again = {null};
 			window(instances, home, packs, openAt, chosen, openPrism, again);
 			if ("\u0000restart".equals(again[0])) { openAt = null; continue; }   // (Restart: the main window again, from the top)
-			if ("\u0000relaunch".equals(again[0])) System.exit(LaunchPopup.RELAUNCH);   // (a newer Gatehouse is in place: the shortcut's script opens it)
+			if ("\u0000relaunch".equals(again[0])) {
+				// A newer Gatehouse is in place. The shortcut's script opens it when this ends with RELAUNCH; a script from
+				// before 2.6.1 does that only once, so on a second update under one of those the new one is opened from here.
+				if (System.getenv("GATEHOUSE_RELAUNCH") == null && System.getenv("GATEHOUSE_UPDATED") != null && Notes.reopen(instances, args)) System.exit(0);
+				System.exit(LaunchPopup.RELAUNCH);
+			}
 			if (again[0] != null) { openAt = again[0]; continue; }
 			if (chosen[0] != null) {
 				Thread t = launching; launching = null;

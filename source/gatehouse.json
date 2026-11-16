@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.6.0",
+ "version": "2.6.1",
  "changes": [
+  {"version": "2.6.1", "date": "2026-11-16", "notes": [
+   "Fixed: after Gatehouse updated itself it didn't always open again. Three causes, all dealt with. The shortcut's script reopened it only once, so a second update in the same sitting just closed it; it now reopens it every time. On Windows the script waited for everything Gatehouse had started, so with Prism Launcher still open the new Gatehouse didn't appear until Prism was closed; it now waits for Gatehouse alone. And the copy Gatehouse runs from could still be locked for a moment; it now tries again, under a second name if need be.",
+   "Gatehouse never updates backwards. A source that is behind (GitHub's copy can lag by some minutes) used to be offered as an update because it was different; now only a newer version is.",
+   "The script changes arrive with a pack's update, so they take effect one launch after this. Until then, on a second update under the old script, Gatehouse opens the new one itself."
+  ]},
   {"version": "2.6.0", "date": "2026-11-16", "notes": [
    "Third step of making Gatehouse one program: the two ways left that still opened a second window now stay in this one.",
    "A plain server: Launch shows its launcher (whether it's on, Request server, the whitelist, Server controls, Play) inside the main window, like a pack's.",

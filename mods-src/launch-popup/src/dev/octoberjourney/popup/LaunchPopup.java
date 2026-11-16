@@ -412,7 +412,7 @@ public final class LaunchPopup {
 			if (selfUpdate) try {
 				String want = s(asMap(asMap(asMap(parse(sizes)).get("files")).get("extras/launch-popup.jar")).get("hash"));
 				Path me = Path.of(LaunchPopup.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-				if (!want.isEmpty() && Files.isRegularFile(me) && !want.equals(sha256(Files.readAllBytes(me)))) {
+				if (!want.isEmpty() && Files.isRegularFile(me) && !want.equals(sha256(Files.readAllBytes(me))) && !Notes.servedIsOlder(asMap(parse(sizes)))) {
 					byte[] jar = fetchBytes(base + "/extras/launch-popup.jar");
 					if (want.equals(sha256(jar))) {
 						Files.write(dir.resolve("extras").resolve("launch-popup.jar.new"), jar);

@@ -37,6 +37,49 @@ final class Notes {
 		} catch (IOException | RuntimeException e) { return new java.util.LinkedHashMap<>(); }
 	}
 	static String version(Map<String, Object> notes) { return str(notes.get("version")); }
+	/** Version numbers compared part by part ("2.10.0" is after "2.9.1"): below zero when a is the older. */
+	static int cmp(String a, String b) {
+		String[] x = a.trim().split("\\."), y = b.trim().split("\\.");
+		for (int i = 0; i < Math.max(x.length, y.length); i++) {
+			int p = 0, q = 0;
+			try { if (i < x.length) p = Integer.parseInt(x[i].replaceAll("\\D.*$", "")); } catch (NumberFormatException ignored) {}
+			try { if (i < y.length) q = Integer.parseInt(y[i].replaceAll("\\D.*$", "")); } catch (NumberFormatException ignored) {}
+			if (p != q) return Integer.compare(p, q);
+		}
+		return 0;
+	}
+	/** Is what a source serves (the "gatehouse" version in its update-sizes.json) older than this launcher? A source
+	 *  can lag behind another (GitHub's copy is cached for some minutes): a launcher never "updates" backwards. */
+	static boolean servedIsOlder(Map<String, Object> sizes) {
+		String served = str(sizes.get("gatehouse")), mine = version(own());
+		return !served.isEmpty() && !mine.isEmpty() && cmp(served, mine) < 0;
+	}
+
+	/** After this launcher updated itself, when nothing started it that would open the new one (a shortcut script
+	 *  from before it reopened more than once): the new one is started from here. True when it was. */
+	static boolean reopen(Path instances, String[] args) {
+		try {
+			Path newest = null;
+			try (java.util.stream.Stream<Path> s = Files.list(instances)) {
+				for (Path j : (Iterable<Path>) s.map(d -> d.resolve("minecraft/extras/launch-popup.jar")).filter(Files::isRegularFile)::iterator)
+					if (newest == null || Files.getLastModifiedTime(j).compareTo(Files.getLastModifiedTime(newest)) > 0) newest = j;
+			}
+			String javaExe = ProcessHandle.current().info().command().orElse("");
+			if (newest == null || javaExe.isEmpty()) return false;
+			Path run = newest;
+			if (System.getProperty("os.name", "").startsWith("Windows")) {   // (from a copy, under the name this one isn't using)
+				Path me = Path.of(Notes.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+				run = instances.toAbsolutePath().getParent().resolve(me.getFileName().toString().equals("gatehouse-launcher-run-2.jar") ? "gatehouse-launcher-run.jar" : "gatehouse-launcher-run-2.jar");
+				Files.copy(newest, run, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+			List<String> cmd = new ArrayList<>(List.of(javaExe, "-jar", run.toString()));
+			for (int i = 0; i < args.length; i++) { if (args[i].equals("--play")) { i++; continue; } cmd.add(args[i]); }
+			ProcessBuilder pb = new ProcessBuilder(cmd).inheritIO();
+			pb.environment().put("GATEHOUSE_UPDATED", "1");
+			pb.start();
+			return true;
+		} catch (Exception e) { return false; }
+	}
 
 	/** A scrolling list of a program's notes, newest on top; "none" is said when there are none to show. */
 	static JComponent panel(Map<String, Object> notes, String title, String none) {
@@ -140,7 +183,7 @@ final class Notes {
 					Map<String, Object> sizes = ServerControl.asMap(LaunchPopup.parseJson(new String(LaunchPopup.fetchBytes(base + "/update-sizes.json"), StandardCharsets.UTF_8)));
 					Map<String, Object> entry = ServerControl.asMap(ServerControl.asMap(sizes.get("files")).get("extras/launch-popup.jar"));
 					String want = str(entry.get("hash"));
-					if (want.isEmpty()) continue;
+					if (want.isEmpty() || servedIsOlder(sizes)) continue;   // (nothing there, or an older one than this: the next place)
 					if (want.equals(mine)) return null;   // (this is the newest there is)
 					return new String[] {base, want, target.toString(), str(entry.get("size")).replaceAll("\\..*$", ""), str(sizes.get("gatehouse"))};
 				} catch (IOException | RuntimeException next) { if (System.getenv("OJ_DEBUG") != null) next.printStackTrace(); /* the next place */ }

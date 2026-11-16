@@ -1,7 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.2.0",
+ "version": "2.2.1",
  "changes": [
+  {"version": "2.2.1", "date": "2026-11-16", "notes": [
+   "Updating itself is sturdier. What was fetched is checked to be a Gatekeeper that can run before anything is replaced. The old program is kept until the new one has answered: if the new one doesn't answer within 30 seconds, the old one is put back and started again, and the log says so.",
+   "After the swap Gatekeeper is started through its scheduled task and then looked for; if it didn't come up that way it is started directly. Any Gatekeeper window that was open is closed for the swap and opened again afterwards.",
+   "The restart is done by a script you can read, update-restart.ps1 in Gatekeeper's folder, instead of a command passed along in encoded form. Each step it takes is written to host.log."
+  ]},
   {"version": "2.2.0", "date": "2026-11-16", "notes": [
    "Gatekeeper now updates itself, as Gatehouse does. Each build of the pack publishes the Gatekeeper it was made with (on the owner's pack server and on GitHub). A running Gatekeeper looks there every five minutes; when a newer one is out, its window says so at the top of the Servers tab, with a chime and an Update Gatekeeper button. Update fetches it, checks it against the published checksum, and restarts Gatekeeper as the new one in a few seconds. Minecraft servers that are running aren't touched.",
    "While Gatekeeper is out of date it starts no server (from its own window, for a launcher, or for a request it grants), and it tells launchers that joining is blocked: they show Update needed instead of Play, with the reason.",
