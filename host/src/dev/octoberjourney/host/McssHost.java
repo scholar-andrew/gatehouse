@@ -183,14 +183,28 @@ final class McssHost implements ServerHost {
 					Map<String, Object> s = Json.map(o);
 					String id = Json.str(s.get("mcss_server"));
 					if (id.isEmpty()) id = Json.str(Json.map(Json.parse(read(Path.of(Json.str(s.get("dir"))).resolve("mcss_server_config.json")))).get("guid"));
-					if (!id.isEmpty()) per.put(id, m("viewStats", true, "viewConsole", true, "useConsole", true, "editServer", false, "useServerActions", true, "viewSchedulerTasks", false,
-							"createSchedulerTasks", false, "editSchedulerTask", false, "deleteSchedulerTasks", false, "triggerSchedulerTask", false));
+					if (!id.isEmpty()) per.put(id, m("viewStats", true, "viewConsole", true, "useConsole", true, "useServerActions", true, "editServer", false,
+							"viewBackups", false, "createBackup", false, "editBackup", false, "deleteBackups", false, "triggerBackup", false,
+							"viewSchedulerTasks", false, "createSchedulerTasks", false, "editSchedulerTask", false, "deleteSchedulerTasks", false, "triggerSchedulerTask", false));
 				}
-				lasting = Json.str(Json.map(Json.parse(mcssApi(key, "POST", "/api/v2/keys", Json.write(m("name", name, "isAdmin", false, "hasAccessToAllServers", false, "customServerPermissions", per))))).get("apiKey"));
+				Map<String, Object> madeKey = Json.map(Json.parse(mcssApi(key, "POST", "/api/v2/keys", Json.write(m("name", name, "isAdmin", false, "hasAccessToAllServers", false, "customServerPermissions", per)))));
+				lasting = Json.str(madeKey.get("apiKey"));
+				String kid = Json.str(madeKey.get("apiKeyId"));
+				if (!lasting.isEmpty()) {
+					if (kid.isEmpty()) for (Object k : Json.list(Json.parse(mcssApi(key, "GET", "/api/v2/keys", null)))) if (name.equals(Json.str(Json.map(k).get("name")))) kid = Json.str(Json.map(k).get("apiKeyId"));
+					// The key has to work before it's trusted: it must be able to see this server. One that can't is
+					// taken out of MCSS again, and the sign-in's own key is kept instead.
+					boolean sees;
+					try { mcssApi(lasting, "GET", "/api/v2/servers/" + serverId(), null); sees = true; } catch (IOException e) { sees = false; }
+					if (!sees) {
+						log("the key Gatekeeper made in MCSS (\"" + name + "\") can't see the server: removed again, keeping the sign-in's own key");
+						if (!kid.isEmpty()) try { mcssApi(key, "DELETE", "/api/v2/keys/" + kid, null); } catch (IOException ignored) {}
+						lasting = "";
+					}
+				}
 				if (!lasting.isEmpty()) {
 					made = name;
-					String old = setting("mcss_key_id", ""), kid = "";
-					for (Object k : Json.list(Json.parse(mcssApi(key, "GET", "/api/v2/keys", null)))) if (name.equals(Json.str(Json.map(k).get("name")))) kid = Json.str(Json.map(k).get("apiKeyId"));
+					String old = setting("mcss_key_id", "");
 					if (!old.isEmpty() && !old.equals(kid)) try { mcssApi(key, "DELETE", "/api/v2/keys/" + old, null); } catch (IOException ignored) {}   // (the one it made last time)
 					cfg.put("mcss_key_id", kid);
 				}
