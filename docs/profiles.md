@@ -18,12 +18,34 @@ builds `profiles/<id>/` (its `config.json`, `source/`, optional `art/` and `serv
 out byte-for-byte the same as before (115 files compared). `profiles/example/` is a made-up second profile to copy;
 its pack installs into a fresh folder and the launcher shows its name and adds its server to the game's list.
 
-Still to do in stage 3, waiting for a real second server:
-- the installers' and uninstallers' own wording still says October Journey (a second profile installs today with
-  `--config=<its config.json address>`, but the messages name the wrong pack);
-- publishing a second pack (its `dist/<id>/` isn't built into the repo, and its pack sources would point there);
-- the tool's own name. The audience for now is the owner running several servers
-for the same group; the design keeps a later move to other hosts cheap (see "Rules").
+**Stage 3, third part, is built: installers and uninstallers work for any profile** (2026-11-15).
+- Setup takes `--profile=<id>` (a profile published in this repository, `dist/<id>/config.json`) or `--config=<address>`.
+- The build writes that `dist/<id>/config.json`: the profile's own settings on top of the tool's (Prism Launcher's
+  version, the uninstallers, the shared art, the repository), which stay in `installer/config.json` only.
+- Each install is filed under its own name on the device: `Gatehouse-<instance id>` (the tools folder, the
+  Settings > Apps key; `gatehouse-<instance id>` and its app-menu files on Linux), with `GatehouseSetup.exe`,
+  `GatehouseUninstall.exe` saved there. An October Journey install from before this keeps `OctoberJourney` /
+  `october-journey` and its old file names, untouched; a fresh one gets the new names.
+- Setup saves `gatehouse-profile.json` beside the uninstaller (pack name, instance, shortcut names, servers, the
+  name it is filed under). The uninstaller removes that pack; with no such file it is an old October Journey install.
+- The shortcut that only opens Prism Launcher is shared: an uninstaller leaves it while another pack is installed.
+- A profile may bring its own `mmc-pack.json` (its Minecraft and loader versions for the Prism instance).
+- Checked in scratch folders on Windows and on the Steam Deck: October Journey and the example profile installed side
+  by side, each removed by its own uninstaller with the other left whole, and an old-style install still recognised.
+
+## Adding a second server (the steps)
+
+1. Copy `profiles/example/` to `profiles/<id>/`; in its `config.json` remove `"example": true` and set the names, the
+   instance id, the servers, `server_control` (with `"server": "<id>"`), `host.servers`, and `pack_sources`:
+   `http://<this PC's Tailscale address>:8467/<id>` and `https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/dist/<id>`.
+2. Put its mods in `profiles/<id>/source/mods.json` (and `tools/mod_sizes.py` for their sizes), its notes in
+   `source/changelog.json`.
+3. `python tools/build_pack.py --profile <id>`, commit and push: that publishes `dist/<id>/`.
+4. `tools\install_host.ps1` on the server PC adds its server to the Keeper.
+5. On each device: `GatehouseSetup.exe --profile=<id>` (or `bash gatehouse-setup.sh --profile=<id>`).
+
+Not exercised with a real second server: Steam shortcuts and art for a second pack, and two packs' launchers talking
+to the Keeper from the same device at once.
 
 ## The idea
 
@@ -106,8 +128,7 @@ October Journey. Still under the old name: the repository, in progress (2026-11-
 2. done 2026-11-15, after all three devices had the new list: the repository is `scholar-andrew/gatehouse`. (GitHub
    still served the old raw-file address straight after the rename.)
 3. done with it: the repository address in the profile (`repo_raw`, the uninstaller addresses), in the installers
-   (their built-in profile address) and in the docs; and a new installer release (setup v4). Still to do, later: drop the old address
-   from `pack_sources`.
+   (their built-in profile address) and in the docs; and a new installer release (setup v4). The old address was dropped from `pack_sources` in pack 1.9.14.
 (Whether GitHub keeps serving a renamed repository's old raw-file addresses wasn't tested: the sign-in here can't delete
 a test repository. Listing both addresses makes the answer not matter.)
 The repository (first a pack update that points devices at the new address, then
