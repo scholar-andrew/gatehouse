@@ -226,9 +226,20 @@ public final class HostHelper {
 			// switch the other three permissions, forget a launcher). Only the panel on this PC gives or removes it, and
 			// the Keeper's MCSS key can't be read or set from a launcher.
 			boolean canAdmin = Boolean.TRUE.equals(d.get("admin"));
+			// A launcher that is shut out: blacklisted, it is told nothing but that; suspended, it still sees how things
+			// are but may do nothing. Either way it can still ask to be let back in (/v1/request).
+			String[] ban = banOf(d);
+			if (!ban[0].isEmpty()) { granted = false; canSleep = false; canServer = false; canAdmin = false; }
+			if (ban[0].equals("blacklist") && !path.equals("/v1/request")) {
+				if (path.equals("/v1/mcss")) reply(x, 200, m("state", "pending", "ban", ban[0], "ban_scope", ban[1], "ban_reason", ban[2], "requests", requestStates(id, false), "request_reasons", requestStates(id, true)));
+				else reply(x, 403, m("error", "this launcher is blacklisted"));
+				return;
+			}
 			if (path.equals("/v1/request") && x.getRequestMethod().equals("POST")) {
-				// "Please turn the server on", from any launcher this helper knows (allowed anything or not).
-				String[] r = requestServer(d, id);
+				// A request for the owner, from any launcher the Keeper knows (allowed anything or not): the server turned on
+				// (the default), a permission, the whitelist, or to be let back in.
+				Map<String, Object> rb = body(x);
+				String[] r = request(d, id, Json.str(rb.get("type")).isEmpty() ? "server" : Json.str(rb.get("type")), Json.str(rb.get("message")));
 				reply(x, 200, m("result", r[0], "message", r[1]));
 				return;
 			}
@@ -251,7 +262,12 @@ public final class HostHelper {
 				if (changed) saveDevices(devs);
 				reply(x, 200, m("clear_access", clear, "state", granted ? "granted" : "pending", "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(),
 						"sleep", canSleep, "server", canServer, "admin", canAdmin, "server_ready", host.hasAccess(),
-						"request", minecraftRunning() ? "" : requestState.getOrDefault(id, "")));
+						"request", minecraftRunning() ? "" : requestState.getOrDefault(id + "|server", ""),
+						"perm", m("machine", ban[0].isEmpty() ? permState(d, "machine") : "none", "mcss", ban[0].isEmpty() ? permState(d, "mcss") : "none",
+								"server", !ban[0].isEmpty() ? "none" : permState(d, "mcss").equals("allowed") ? "allowed" : permState(d, "server")),
+						"ban", ban[0], "ban_scope", ban[1], "ban_reason", ban[2],
+						"whitelisted", Json.str(d.get("player")).isEmpty() ? "unknown" : whitelisted(Json.str(d.get("player"))) ? "yes" : "no",
+						"requests", requestStates(id, false), "request_reasons", requestStates(id, true)));
 				return;
 			}
 			if (path.startsWith("/v1/admin/")) {
@@ -265,13 +281,33 @@ public final class HostHelper {
 					List<Object> last = new ArrayList<>();
 					for (int i = Math.max(0, lines.length - 100); i < lines.length; i++) if (!lines[i].isBlank()) last.add(lines[i]);
 					reply(x, 200, m("log", last));
+				} else if ((path.equals("/v1/admin/whitelist") || path.equals("/v1/admin/kick") || path.equals("/v1/admin/ban")) && post) {
+					Map<String, Object> b = body(x);
+					String player = Json.str(b.get("player")), kind = Json.str(b.get("kind")), reason = clean(Json.str(b.get("reason")), 200);
+					String[] r;
+					if (path.endsWith("whitelist")) r = setWhitelisted(player, Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value"))));
+					else if (path.endsWith("kick")) r = kick(player, reason);
+					else if (!kind.isEmpty() && !kind.equals("blacklist") && !kind.equals("suspend")) r = new String[] {"refused", "unknown kind"};
+					else if (!player.isEmpty()) {
+						boolean keeper = false;
+						for (Object o : devs.values()) if (player.equals(Json.str(Json.map(o).get("player"))) && Boolean.TRUE.equals(Json.map(o).get("admin"))) keeper = true;
+						r = keeper && !kind.isEmpty() ? new String[] {"refused", "That player has a launcher with Keeper control: only the control panel on the server PC can do that"} : banPlayer(player, kind, reason);
+					} else {
+						String tid = Json.str(b.get("id"));
+						Map<String, Object> tt = Json.map(devs.get(tid));
+						if (tt.isEmpty()) r = new String[] {"refused", "unknown launcher"};
+						else if (!kind.isEmpty() && (tid.equals(id) || Boolean.TRUE.equals(tt.get("admin")))) r = new String[] {"refused", "That launcher has Keeper control: only the control panel on the server PC can do that"};
+						else { if (kind.isEmpty()) { tt.remove("ban"); tt.remove("ban_reason"); } else { tt.put("ban", kind); tt.put("ban_reason", reason); } saveDevices(devs); r = new String[] {"ok", who(tt) + (kind.isEmpty() ? " is no longer blacklisted or suspended." : " is " + (kind.equals("blacklist") ? "blacklisted" : "suspended") + " (this device).")}; }
+					}
+					log(path.substring(10) + " " + (player.isEmpty() ? Json.str(b.get("id")) : player.replaceAll("[^\\w]", "")) + ": " + r[1] + " (asked by " + who(d) + ")");
+					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else if (path.equals("/v1/admin/players") && !post) {
 					reply(x, 200, m("players", playerList()));
 				} else if (path.equals("/v1/admin/player/perm") && post) {
 					Map<String, Object> b = body(x);
 					String perm = Json.str(b.get("perm"));
 					if (perm.equals("admin")) { reply(x, 403, m("error", "Keeper control is only given or removed in the control panel on the server PC")); return; }
-					String[] r = playerPerm(Json.str(b.get("player")), perm, Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value"))));
+					String[] r = playerPerm(Json.str(b.get("player")), perm, stateOf(b));
 					log("(asked by " + who(d) + ")");
 					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else if ((path.equals("/v1/admin/perm") || path.equals("/v1/admin/forget") || path.equals("/v1/admin/revoke")) && post) {
@@ -293,11 +329,10 @@ public final class HostHelper {
 						devs.remove(tid); log("forgot " + who(t) + " (asked by " + who(d) + ")");
 					} else {
 						String perm = Json.str(b.get("perm"));
-						boolean v = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
-						String key = perm.equals("mcss") ? "granted" : perm.equals("sleep") ? "sleep" : perm.equals("server") ? serverKey() : null;
-						if (key == null) { reply(x, 403, m("error", perm.equals("admin") ? "Keeper control is only given or removed in the control panel on the server PC" : "unknown permission")); return; }
-						t.put(key, v);
-						log((v ? "allowed " : "removed ") + (perm.equals("mcss") ? "MCSS control" : perm.equals("sleep") ? "PC sleep" : "server control") + (v ? " for " : " from ") + who(t) + " (asked by " + who(d) + ")");
+						String st = stateOf(b);
+						if (perm.equals("admin") || devKey(perm) == null) { reply(x, 403, m("error", perm.equals("admin") ? "Keeper control is only given or removed in the control panel on the server PC" : "unknown permission")); return; }
+						setPermState(t, perm, st);
+						log(permName(perm) + " for " + who(t) + ": " + (st.equals("none") ? "not allowed" : st) + " (asked by " + who(d) + ")");
 					}
 					saveDevices(devs);
 					reply(x, 200, m("ok", true));
@@ -417,7 +452,7 @@ public final class HostHelper {
 					if (!fresh) continue;
 					log("player " + name + " joined from " + who(d) + ": that launcher is now theirs");
 					Map<String, Object> pd = Json.map(defaults.get(name));
-					for (String[] pm : PERMS) if (Boolean.TRUE.equals(pd.get(pkey(pm))) && !Boolean.TRUE.equals(d.get(dkey(pm)))) { d.put(dkey(pm), true); log("allowed " + pm[2] + " for " + who(d) + " (allowed for player " + name + ")"); }
+					for (String[] pm : PERMS) if (Boolean.TRUE.equals(pd.get(pkey(pm))) && !Boolean.TRUE.equals(d.get(dkey(pm))) && !Boolean.TRUE.equals(Json.map(d.get("deny")).get(dkey(pm)))) { d.put(dkey(pm), true); log("allowed " + pm[2] + " for " + who(d) + " (allowed for player " + name + ")"); }
 				}
 			}
 			if (changed) saveDevices(devs);
@@ -451,39 +486,123 @@ public final class HostHelper {
 			boolean listed = false;
 			for (Object o : wl) if (e.getKey().equalsIgnoreCase(Json.str(Json.map(o).get("name")))) listed = true;
 			Json.map(e.getValue()).put("whitelisted", listed);
+			Map<String, Object> pdx = Json.map(defaults.get(e.getKey()));
+			for (String pn : new String[] {"machine", "mcss", "server", "admin"}) Json.map(e.getValue()).put("state_" + pn, permState(pdx, pn));
+			Json.map(e.getValue()).put("ban", Json.str(pdx.get("ban"))); Json.map(e.getValue()).put("ban_reason", Json.str(pdx.get("ban_reason")));
 			Map<String, Object> pd = Json.map(defaults.get(e.getKey()));
 			for (String[] pm : PERMS) Json.map(e.getValue()).put("allow_" + pm[0], Boolean.TRUE.equals(pd.get(pkey(pm))));
 		}
 		return out;
 	}
 
-	/** Allows or removes one permission for a player: on every launcher confirmed as theirs now, and remembered for
-	 *  launchers they join from later. A launcher that only says it's theirs gets nothing until the server confirms it. */
-	static String[] playerPerm(String name, String perm, boolean v) throws IOException {
-		String[] pm = null;
-		for (String[] q : PERMS) if (q[0].equals(perm)) pm = q;
-		if (pm == null || !name.matches("\\w{1,16}")) return new String[] {"refused", "unknown player or permission"};
+	/** Sets one permission for a player (allowed, denied or none): on every launcher confirmed as theirs now, and
+	 *  remembered for launchers they join from later. A launcher that is denied that same thing itself keeps its own
+	 *  setting, whatever the player is given. A launcher that only says it's theirs gets nothing until the server
+	 *  confirms it. */
+	static String[] playerPerm(String name, String perm, String state) throws IOException {
+		if (perm.equals("sleep")) perm = "machine";
+		if (devKey(perm) == null || !name.matches("\\w{1,16}")) return new String[] {"refused", "unknown player or permission"};
 		Map<String, Object> defaults = players();
 		Map<String, Object> pd = Json.map(defaults.get(name));
 		if (!(defaults.get(name) instanceof Map)) defaults.put(name, pd);
-		pd.put(pkey(pm), v);
-		Files.writeString(dir.resolve("players.json"), Json.write(defaults), StandardCharsets.UTF_8);
+		setPermState(pd, perm, state);
+		savePlayers(defaults);
 		Map<String, Object> devs = devices();
-		int n = 0, waiting = 0;
+		int n = 0, waiting = 0, kept = 0;
 		for (Object o : devs.values()) {
 			Map<String, Object> d = Json.map(o);
 			if (!name.equals(Json.str(d.get("player")))) continue;
 			if (!Boolean.TRUE.equals(d.get("player_confirmed"))) { waiting++; continue; }
-			d.put(dkey(pm), v); n++;
+			if (!state.equals("denied") && permState(d, perm).equals("denied")) { kept++; continue; }
+			setPermState(d, perm, state); n++;
 		}
 		saveDevices(devs);
-		String msg = (v ? "Allowed " : "Removed ") + pm[2] + (v ? " for " : " from ") + name + ": " + n + " launcher" + (n == 1 ? "" : "s") + " changed"
-				+ (waiting > 0 ? "; " + waiting + " not confirmed yet (" + name + " has to join the server from it once)" : "") + (v ? ". Launchers they join from later get it too." : ".");
+		String msg = permName(perm) + " for " + name + ": " + (state.equals("none") ? "not allowed" : state) + ". " + n + " launcher" + (n == 1 ? "" : "s") + " changed"
+				+ (kept > 0 ? "; " + kept + " kept its own Denied" : "")
+				+ (waiting > 0 ? "; " + waiting + " not confirmed yet (" + name + " has to join the server from it once)" : "") + (state.equals("allowed") ? ". Launchers they join from later get it too." : ".");
 		log(msg);
 		return new String[] {"ok", msg};
 	}
 
-	// ------------------------------------------------------------------ requests for the server
+	// ------------------------------------------------------------------ what a launcher may do: three states, and bans
+
+	/** Where each permission is kept on a launcher (and, for a player, in players.json): machine (wake and sleep the
+	 *  server machine), mcss (start and close MCSS; it includes server), server (start and stop the Minecraft server
+	 *  being looked at), admin (Keeper control). */
+	static String devKey(String perm) { return perm.equals("machine") || perm.equals("sleep") ? "sleep" : perm.equals("mcss") ? "granted" : perm.equals("server") ? serverKey() : perm.equals("admin") ? "admin" : null; }
+	static String permName(String perm) { return perm.equals("machine") || perm.equals("sleep") ? "machine wake and sleep" : perm.equals("mcss") ? "MCSS control" : perm.equals("server") ? "server control" : "Keeper control"; }
+	/** A permission is one of three things: "allowed", "denied" (refused on purpose: nothing given to the player's other
+	 *  devices or to the player as a whole changes it), or "none" (simply not allowed). */
+	static String permState(Map<String, Object> holder, String perm) {
+		String k = devKey(perm);
+		if (k == null) return "none";
+		if (Boolean.TRUE.equals(Json.map(holder.get("deny")).get(k))) return "denied";
+		return Boolean.TRUE.equals(holder.get(k)) ? "allowed" : "none";
+	}
+	static void setPermState(Map<String, Object> holder, String perm, String state) {
+		String k = devKey(perm);
+		Map<String, Object> deny = Json.map(holder.get("deny"));
+		if (state.equals("denied")) deny.put(k, true); else deny.remove(k);
+		if (deny.isEmpty()) holder.remove("deny"); else holder.put("deny", deny);
+		holder.put(k, state.equals("allowed"));
+	}
+	static String stateOf(Map<String, Object> body) {
+		String s = Json.str(body.get("state"));
+		if (s.equals("allowed") || s.equals("denied") || s.equals("none")) return s;
+		return Boolean.TRUE.equals(body.get("value")) || "true".equals(Json.str(body.get("value"))) ? "allowed" : "none";
+	}
+
+	/** Whether a launcher is shut out: {kind, scope, reason}. kind: "blacklist" (the launcher still updates the game
+	 *  but is told nothing about the machine, MCSS or the server), "suspend" (it sees them but can't start the game or
+	 *  do anything), or "". scope: "machine" (this launcher) or "user" (the player it belongs to, on every device). */
+	static String[] banOf(Map<String, Object> d) {
+		String k = Json.str(d.get("ban"));
+		if (!k.isEmpty()) return new String[] {k, "machine", Json.str(d.get("ban_reason"))};
+		String player = Json.str(d.get("player"));
+		if (!player.isEmpty()) {
+			Map<String, Object> pd = Json.map(players().get(player));
+			if (!Json.str(pd.get("ban")).isEmpty()) return new String[] {Json.str(pd.get("ban")), "user", Json.str(pd.get("ban_reason"))};
+		}
+		return new String[] {"", "", ""};
+	}
+	static String banText(String[] ban, String player) {
+		if (ban[0].isEmpty()) return "";
+		return (ban[0].equals("blacklist") ? "Blacklisted" : "Suspended") + (ban[1].equals("user") ? " (player " + player + ")" : " (this device)");
+	}
+	static String clean(String s, int max) { s = s == null ? "" : s.replaceAll("[\\p{Cntrl}]", " ").trim(); return s.length() > max ? s.substring(0, max) : s; }
+	static void savePlayers(Map<String, Object> all) throws IOException { Files.writeString(dir.resolve("players.json"), Json.write(all), StandardCharsets.UTF_8); }
+
+	/** Kicks a player from the running server (its own "kick" command). */
+	static String[] kick(String name, String reason) {
+		if (!name.matches("\\w{1,16}")) return new String[] {"refused", "That isn't a Minecraft name"};
+		if (!minecraftRunning()) return new String[] {"refused", "The server isn't running, so nobody is on it"};
+		String[] r = host.command("kick " + name + (clean(reason, 120).isEmpty() ? "" : " " + clean(reason, 120)));
+		return r[0].equals("ok") ? new String[] {"ok", "Asked the server to kick " + name} : r;
+	}
+
+	/** Blacklists or suspends a player on every device (kind "blacklist" or "suspend"), or lifts it (""). They are
+	 *  kicked if they're on, and taken off the server's whitelist so the server itself keeps them out; lifting it puts
+	 *  them back on if this is what took them off. */
+	static String[] banPlayer(String name, String kind, String reason) throws IOException {
+		if (!name.matches("\\w{1,16}")) return new String[] {"refused", "That isn't a Minecraft name"};
+		Map<String, Object> all = players();
+		Map<String, Object> pd = Json.map(all.get(name));
+		if (!(all.get(name) instanceof Map)) all.put(name, pd);
+		List<String> did = new ArrayList<>();
+		if (kind.isEmpty()) {
+			pd.remove("ban"); pd.remove("ban_reason");
+			if (Boolean.TRUE.equals(pd.remove("wl_restore"))) { String[] w = setWhitelisted(name, true); did.add(w[0].equals("ok") ? "back on the whitelist" : "not put back on the whitelist (" + w[1] + ")"); }
+			savePlayers(all);
+			return new String[] {"ok", name + " is no longer blacklisted or suspended" + (did.isEmpty() ? "" : "; " + String.join("; ", did)) + "."};
+		}
+		pd.put("ban", kind); pd.put("ban_reason", clean(reason, 200));
+		if (minecraftRunning()) { String[] k = kick(name, kind.equals("blacklist") ? "Blacklisted" : "Suspended"); if (k[0].equals("ok")) did.add("kicked if they were on"); }
+		if (whitelisted(name)) { String[] w = setWhitelisted(name, false); if (w[0].equals("ok")) { pd.put("wl_restore", true); did.add("taken off the whitelist"); } else did.add("still on the whitelist (" + w[1] + ")"); }
+		savePlayers(all);
+		return new String[] {"ok", name + " is " + (kind.equals("blacklist") ? "blacklisted" : "suspended") + " on every device" + (did.isEmpty() ? "" : "; " + String.join("; ", did)) + "."};
+	}
+
+	// ------------------------------------------------------------------ requests from launchers
 
 	static boolean startMinimized;
 	static final List<Object> requests = new ArrayList<>();   // the last few, newest last: {who, player, time}
@@ -495,19 +614,104 @@ public final class HostHelper {
 
 	/** A launcher asks for the server to be turned on: noted for the control panel, with a chime here and the panel
 	 *  brought up minimized (its taskbar button flashes) if it isn't open. One a minute from each launcher. */
-	static synchronized String[] requestServer(Map<String, Object> d, String id) {
+	static final Map<String, Long> requestTime = new java.util.concurrent.ConcurrentHashMap<>();
+	static final Map<String, String> requestReason = new java.util.concurrent.ConcurrentHashMap<>();
+	static final List<String> REQUEST_TYPES = List.of("server", "perm:machine", "perm:mcss", "perm:server", "whitelist", "unblacklist", "unsuspend");
+
+	static String requestWords(String type) {
+		return switch (type) {
+			case "server" -> "the server to be turned on";
+			case "perm:machine" -> "permission to wake and sleep the server machine";
+			case "perm:mcss" -> "permission to start and close MCSS";
+			case "perm:server" -> "permission to start and stop the Minecraft server";
+			case "whitelist" -> "a place on the whitelist";
+			case "unblacklist" -> "the blacklist to be lifted";
+			case "unsuspend" -> "the suspension to be lifted";
+			default -> type;
+		};
+	}
+
+	/** A launcher asks for something: noted for the control panel, with a chime here and the panel brought up minimized
+	 *  (its taskbar button flashes) if it isn't open. One a minute of each kind from each launcher. A launcher that is
+	 *  shut out may only ask to be let back in. */
+	static synchronized String[] request(Map<String, Object> d, String id, String type, String message) {
+		if (!REQUEST_TYPES.contains(type)) return new String[] {"refused", "unknown request"};
+		String[] ban = banOf(d);
+		if (!ban[0].isEmpty() && !type.equals(ban[0].equals("blacklist") ? "unblacklist" : "unsuspend")) return new String[] {"refused", "This launcher is " + (ban[0].equals("blacklist") ? "blacklisted" : "suspended")};
+		if (ban[0].isEmpty() && (type.equals("unblacklist") || type.equals("unsuspend"))) return new String[] {"refused", "This launcher isn't blacklisted or suspended"};
+		String player = Json.str(d.get("player"));
+		if (type.equals("server") && minecraftRunning()) return new String[] {"refused", "The server is already running"};
+		if (type.startsWith("perm:") && permState(d, type.substring(5)).equals("allowed")) return new String[] {"refused", "This device already has that permission"};
+		if (type.equals("whitelist")) {
+			if (player.isEmpty()) return new String[] {"refused", "The owner's PC doesn't know your Minecraft name yet: start the game once, then ask again"};
+			if (whitelisted(player)) return new String[] {"refused", player + " is already on the whitelist"};
+		}
 		long now = System.currentTimeMillis();
-		Long last = lastRequest.get(id);
+		String key = id + "|" + type;
+		Long last = lastRequest.get(key);
 		if (last != null && now - last < 60_000) return new String[] {"refused", "Already asked a moment ago: the owner has been told"};
-		if (minecraftRunning()) return new String[] {"refused", "The server is already running"};
-		lastRequest.put(id, now);
-		requestState.put(id, "asked");
-		requests.add(m("id", id, "who", who(d), "player", Json.str(d.get("player")), "server", servers().size() > 1 ? serverName() : "", "time", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))));
-		while (requests.size() > 5) requests.remove(0);
+		lastRequest.put(key, now);
+		requestState.put(key, "asked"); requestTime.put(key, now); requestReason.remove(key);
+		requests.removeIf(o -> id.equals(Json.str(Json.map(o).get("id"))) && type.equals(Json.str(Json.map(o).get("type"))));
+		requests.add(m("id", id, "type", type, "who", who(d), "player", player, "server", servers().size() > 1 ? serverName() : "", "server_id", Json.str(server().get("id")),
+				"time", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")), "message", clean(message, 300)));
+		while (requests.size() > 12) requests.remove(0);
 		requestSeq++;
-		log("server requested by " + who(d) + (Json.str(d.get("player")).isEmpty() ? "" : " (" + Json.str(d.get("player")) + ")"));
+		log(who(d) + (player.isEmpty() ? "" : " (" + player + ")") + " asked for " + requestWords(type) + (clean(message, 300).isEmpty() ? "" : ": \"" + clean(message, 300) + "\""));
 		if (!"false".equals(setting("request_alert", "true"))) { chime(); openPanel(); }
-		return new String[] {"ok", "Asked: the owner's PC chimed and shows your request. This turns into Play when the server is online."};
+		return new String[] {"ok", "Asked: the owner's PC chimed and shows your request."};
+	}
+
+	/** The owner's answer to one request (found by launcher id and kind). Granting does the thing asked for; dismissing
+	 *  tells the launcher it was denied, with the owner's reason if one was given. */
+	static synchronized String[] answerRequest(String id, String type, boolean grant, String reason) throws IOException {
+		Map<String, Object> req = null;
+		for (Object o : requests) if (id.equals(Json.str(Json.map(o).get("id"))) && type.equals(Json.str(Json.map(o).get("type")))) req = Json.map(o);
+		if (req == null) return new String[] {"refused", "That request is gone"};
+		String key = id + "|" + type, keep = SERVER.get();
+		String[] r = {"ok", "Dismissed"};
+		try {
+			SERVER.set(Json.str(req.get("server_id")));
+			if (grant) {
+				Map<String, Object> devs = devices();
+				Map<String, Object> d = Json.map(devs.get(id));
+				String player = Json.str(req.get("player"));
+				if (type.equals("server")) {
+					if (!host.running()) { String[] s = host.start(); r = new String[] {s[0].equals("ok") ? "wait" : s[0], s[0].equals("ok") ? "MCSS is starting: press Grant again in a few seconds" : s[1]}; }
+					else r = host.serverAction(true);
+					if (r[0].equals("wait")) return r;
+				} else if (type.startsWith("perm:")) {
+					if (d.isEmpty()) return new String[] {"refused", "That launcher is gone"};
+					setPermState(d, type.substring(5), "allowed"); saveDevices(devs);
+					r = new String[] {"ok", "Allowed " + permName(type.substring(5)) + " for " + who(d)};
+				} else if (type.equals("whitelist")) r = setWhitelisted(player, true);
+				else {   // unblacklist, unsuspend: whichever ban applies is lifted
+					if (!Json.str(d.get("ban")).isEmpty()) { d.remove("ban"); d.remove("ban_reason"); saveDevices(devs); r = new String[] {"ok", who(d) + " is no longer blacklisted or suspended"}; }
+					if (!player.isEmpty() && !Json.str(Json.map(players().get(player)).get("ban")).isEmpty()) r = banPlayer(player, "", "");
+				}
+				if (!r[0].equals("ok")) return r;
+			}
+			requestState.put(key, grant ? "granted" : "denied"); requestTime.put(key, System.currentTimeMillis());
+			if (!grant && !clean(reason, 200).isEmpty()) requestReason.put(key, clean(reason, 200)); else requestReason.remove(key);
+			requests.remove(req);
+			log("request from " + Json.str(req.get("who")) + " for " + requestWords(type) + ": " + (grant ? "granted (" + r[1] + ")" : "dismissed" + (clean(reason, 200).isEmpty() ? "" : ": \"" + clean(reason, 200) + "\"")));
+			return r;
+		} finally { SERVER.set(keep); }
+	}
+
+	/** What became of this launcher's recent requests, for its next status reply: {kind: asked | granted | denied} and
+	 *  the reasons given with dismissals. Forgotten after ten minutes. */
+	static Map<String, Object> requestStates(String id, boolean reasons) {
+		Map<String, Object> out = new LinkedHashMap<>();
+		long now = System.currentTimeMillis();
+		for (String type : REQUEST_TYPES) {
+			String key = id + "|" + type;
+			Long at = requestTime.get(key);
+			if (at == null || now - at > 600_000 || !requestState.containsKey(key)) continue;
+			if (!reasons) out.put(type, requestState.get(key));
+			else if (requestReason.containsKey(key)) out.put(type, requestReason.get(key));
+		}
+		return out;
 	}
 
 	/** A short, soft three-note chime (made here, no sound file): E, G sharp, B, each fading out. */
@@ -607,6 +811,9 @@ public final class HostHelper {
 			Map<String, Object> d = Json.map(v);
 			d.put("access_text", accessText(d));
 			d.put("server", Boolean.TRUE.equals(d.get(serverKey())));   // (as shown: for the server being looked at)
+			for (String pn : new String[] {"machine", "mcss", "server", "admin"}) d.put("state_" + pn, permState(d, pn));
+			d.put("ban_text", banText(banOf(d), Json.str(d.get("player"))));
+			d.put("ban_kind", banOf(d)[0]); d.put("ban_scope", banOf(d)[1]);
 			d.remove("token_sha256"); d.remove("issued_pending");
 		}
 		return all;
@@ -683,6 +890,34 @@ public final class HostHelper {
 				String[] r = path.endsWith("start") ? host.start() : host.close("true".equals(Json.str(body(x).get("force"))));
 				log((path.endsWith("start") ? "start" : "close") + " MCSS from the control panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
+			} else if (path.equals("/admin/ban")) {
+				// Blacklist or suspend (kind), or lift it (kind empty): a launcher by its id, or a player on every device.
+				Map<String, Object> b = body(x);
+				String kind = Json.str(b.get("kind")), reason = clean(Json.str(b.get("reason")), 200), player = Json.str(b.get("player"));
+				if (!kind.isEmpty() && !kind.equals("blacklist") && !kind.equals("suspend")) { reply(x, 400, m("error", "unknown kind")); return; }
+				String[] r;
+				if (!player.isEmpty()) r = banPlayer(player, kind, reason);
+				else {
+					Map<String, Object> devs = devices();
+					Map<String, Object> d = Json.map(devs.get(Json.str(b.get("id"))));
+					if (d.isEmpty()) { reply(x, 404, m("error", "unknown device")); return; }
+					if (kind.isEmpty()) { d.remove("ban"); d.remove("ban_reason"); } else { d.put("ban", kind); d.put("ban_reason", reason); }
+					saveDevices(devs);
+					String on = Json.str(d.get("player"));
+					if (!kind.isEmpty() && !on.isEmpty() && minecraftRunning()) kick(on, kind.equals("blacklist") ? "Blacklisted" : "Suspended");
+					r = new String[] {"ok", who(d) + (kind.isEmpty() ? " is no longer blacklisted or suspended." : " is " + (kind.equals("blacklist") ? "blacklisted" : "suspended") + " (this device only: the server itself can't tell devices apart, so the player can still join from another).")};
+				}
+				log(r[1] + (reason.isEmpty() ? "" : " Reason: \"" + reason + "\""));
+				reply(x, 200, m("result", r[0], "message", r[1]));
+			} else if (path.equals("/admin/kick")) {
+				Map<String, Object> b = body(x);
+				String[] r = kick(Json.str(b.get("player")), Json.str(b.get("reason")));
+				log("kick " + Json.str(b.get("player")).replaceAll("[^\\w]", "") + ": " + r[1]);
+				reply(x, 200, m("result", r[0], "message", r[1]));
+			} else if (path.equals("/admin/request/answer")) {
+				Map<String, Object> b = body(x);
+				String[] r = answerRequest(Json.str(b.get("id")), Json.str(b.get("type")), Boolean.TRUE.equals(b.get("grant")) || "true".equals(Json.str(b.get("grant"))), Json.str(b.get("reason")));
+				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/whitelist")) {
 				Map<String, Object> b = body(x);
 				boolean on = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
@@ -693,13 +928,17 @@ public final class HostHelper {
 				reply(x, 200, m("players", playerList()));
 			} else if (path.equals("/admin/player/perm")) {
 				Map<String, Object> b = body(x);
-				String[] r = playerPerm(Json.str(b.get("player")), Json.str(b.get("perm")), Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value"))));
+				String[] r = playerPerm(Json.str(b.get("player")), Json.str(b.get("perm")), stateOf(b));
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/requests/clear")) {
 				// Dismiss: each launcher that asked is told its request was denied (it sees it the next time it asks how
 				// things are, every few seconds while its window is open).
 				synchronized (HostHelper.class) {
-					for (Object o : requests) { String rid = Json.str(Json.map(o).get("id")); if (!rid.isEmpty()) requestState.put(rid, "denied"); log("request to turn the server on, from " + Json.str(Json.map(o).get("who")) + ": dismissed"); }
+					for (Object o : requests) {
+						String rk = Json.str(Json.map(o).get("id")) + "|" + Json.str(Json.map(o).get("type"));
+						requestState.put(rk, "denied"); requestTime.put(rk, System.currentTimeMillis());
+						log("request from " + Json.str(Json.map(o).get("who")) + " for " + requestWords(Json.str(Json.map(o).get("type"))) + ": dismissed");
+					}
 					requests.clear();
 				}
 				reply(x, 200, m("ok", true));
@@ -734,13 +973,10 @@ public final class HostHelper {
 				if (d.isEmpty()) { reply(x, 404, m("error", "unknown device")); return; }
 				if (path.endsWith("forget")) { devs.remove(id); log("forgot " + who(d)); }
 				else if (path.endsWith("perm")) {
-					String perm = Json.str(b.get("perm"));
-					boolean v = Boolean.TRUE.equals(b.get("value")) || "true".equals(Json.str(b.get("value")));
-					if (perm.equals("sleep")) { d.put("sleep", v); log((v ? "allowed PC sleep for " : "removed PC sleep from ") + who(d)); }
-					else if (perm.equals("mcss")) { d.put("granted", v); log((v ? "allowed MCSS control for " : "removed MCSS control from ") + who(d)); }
-					else if (perm.equals("server")) { d.put(serverKey(), v); log((v ? "allowed server control for " : "removed server control from ") + who(d)); }
-					else if (perm.equals("admin")) { d.put("admin", v); log((v ? "allowed Keeper control for " : "removed Keeper control from ") + who(d)); }
-					else { reply(x, 400, m("error", "unknown permission")); return; }
+					String perm = Json.str(b.get("perm")), st = stateOf(b);
+					if (devKey(perm) == null) { reply(x, 400, m("error", "unknown permission")); return; }
+					setPermState(d, perm, st);
+					log(permName(perm) + " for " + who(d) + ": " + (st.equals("none") ? "not allowed" : st));
 				}
 				else { boolean g = Boolean.TRUE.equals(b.get("granted")) || "true".equals(Json.str(b.get("granted"))); d.put("granted", g); log((g ? "allowed MCSS control for " : "revoked MCSS control from ") + who(d)); }
 				saveDevices(devs);
