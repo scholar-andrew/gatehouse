@@ -11,11 +11,11 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "989cbed20ef9ef6476a3f3d35556ed6959d40c9e468efad45503794bbf84be6d"
+hash = "4f2bfec94de9c4feb29342be02d7ce403f8f0b4dd5aaf38e73ec862bc4ebdeb3"
 
 [[files]]
 file = "extras/launch-popup.jar"
-hash = "67e303ce52a98a6b97afad01fa0fa937c1d72b609a95475f59dcc5ad986fdf05"
+hash = "cd73a9ac6992a3870061de71efa07bcbde0171c3f72b3fd12e2165fcc408fb7b"
 
 [[files]]
 file = "extras/launch-wrapper.exe"
@@ -27,7 +27,7 @@ hash = "9eb66830a01861e56ba43a8ee0fc2553940cfae8e26e3191f5a1ad50c9ddd88f"
 
 [[files]]
 file = "extras/mod-names.json"
-hash = "c79765289140f7fb3b7a985ec82b4b0bffd2e62cbc48a304cf5ba72d2367d655"
+hash = "48f6a911b6cd5570d53547d4f3e76e15b740e9fd9ff4c0c108d75c2dafddc81e"
 
 [[files]]
 file = "extras/mod-toggles.json"
@@ -149,8 +149,8 @@ hash = "a4f3ae5afad624f8a35b971a0c816a54b2ad6f733f259b55cd5879c2c8a9df4d"
 metafile = true
 
 [[files]]
-file = "mods/octoberjourney-1.2.1.jar"
-hash = "37661d3b484ccd4d4596cd830134ac85d4db89b1a090069a1f31ad12c5495d3e"
+file = "mods/octoberjourney-1.2.2.jar"
+hash = "7127ac60242d72ec3ec7f44068cef4a6829caa3c077f4683ffd80ea2ce47ffcf"
 
 [[files]]
 file = "mods/placeholder-api.pw.toml"
