@@ -1,3 +1,5 @@
+== 1.26.0 | 2026-11-16
+- Nothing changed in the pack itself. The Gatehouse launcher has a setup guide, in Options (Gatehouse 2.9.0; see the Gatehouse updates tab on its main window).
 == 1.25.0 | 2026-11-16
 - Nothing changed in the pack itself. The Gatehouse launcher has a settings wheel on its main window, with Options and Uninstall (Gatehouse 2.8.0; see the Gatehouse updates tab there).
 == 1.24.0 | 2026-11-16
