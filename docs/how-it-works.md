@@ -225,6 +225,15 @@ their next launch; nobody has to touch a device.
   right mouse button, for the game. `Nav.rightClickIsLeftClick` (on Deck hardware; `OJ_RIGHT_AS_LEFT=1` for tests)
   puts an event queue in front of the launcher's windows that hands every right-button mouse event on as a
   left-button one. Steam and the layout aren't involved.
+- **Connect to this Gatekeeper.** `Connect.java`: the steps between having a pairing and the Gatekeeper answering,
+  looked at every 2.5 seconds: a Tailscale address on this device (an interface address in 100.64.0.0/10, which also
+  works inside Prism's Flatpak), the Gatekeeper's port reachable, and its answer to this device's introduction.
+  Whether the owner's invite was accepted can't be seen, so that step ticks with reachability. A pairing may carry the
+  invite: `ts=` in the link, `tailscale_share` in the file, kept with the Gatekeeper in `gatekeepers.json`; only a
+  `https://login.tailscale.com/` link is kept or opened (`Connect.invite`). Shown when an added Gatekeeper doesn't
+  answer (it is now remembered all the same) and from the Connect button on one that isn't answering.
+  `OJ_CONNECT_FAKE=<tailscale><reach><pair>` (each 0 or 1) stands in for the checks; `OJ_CONNECT_SHOT=<pairing>` with
+  `OJ_POPUP_PNG` writes `<file>-connect.png`.
 - **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
   Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
   `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)

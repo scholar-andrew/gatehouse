@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.3.1",
+ "version": "2.4.0",
  "changes": [
+  {"version": "2.4.0", "date": "2026-11-16", "notes": [
+   "New: Connect to this Gatekeeper. When a Gatekeeper you add doesn't answer, Gatehouse no longer just says so: it remembers it and shows the steps to get connected, each with how it stands and what to do. Tailscale running on this device, the owner's invite accepted, this device reaching the Gatekeeper, and the Gatekeeper knowing this device. It looks again every few seconds, so each step ticks by itself, and it chimes when you're connected.",
+   "A pairing link or file can now carry the owner's Tailscale invite (from Gatekeeper 2.1.0, Host setup). The steps then have an Open invite button, which gives this device access to that one machine. Only a link from login.tailscale.com is ever opened.",
+   "A Gatekeeper in the list that isn't answering has a Connect button that opens the same steps.",
+   "Gatehouse doesn't install Tailscale, sign in or accept anything for you: its buttons open Tailscale's own download page, Tailscale itself, and the invite in your browser."
+  ]},
   {"version": "2.3.1", "date": "2026-11-16", "notes": [
    "Taken out again: the Steam Deck controller-layout switching from 2.3.0. Gatehouse no longer asks Steam to change layouts, and its own Steam shortcut gets the pack's layout back with the next update (shows after Steam restarts, or after switching back to Game Mode).",
    "Instead, on a Steam Deck, Gatehouse's own windows take a right click as a left click. The pack's layout makes a press of the right trackpad a right click, which is what the game wants; in Gatehouse that press now presses whatever the pointer is on. Nothing about the layout or Steam changes, and the game is as before."

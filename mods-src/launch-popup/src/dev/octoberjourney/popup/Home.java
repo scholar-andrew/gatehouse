@@ -103,19 +103,22 @@ final class Home {
 		if (t.startsWith("{")) {
 			Map<String, Object> m = ServerControl.asMap(LaunchPopup.parseJson(t));
 			String a = norm(str(m.get("address")));
-			return a.isEmpty() ? null : new String[] {a, str(m.get("name"))};
+			return a.isEmpty() ? null : new String[] {a, str(m.get("name")), Connect.invite(str(m.get("tailscale_share")))};
 		}
-		String name = "";
+		String name = "", share = "";
 		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://pair/")) {
 			t = t.substring("gatehouse://pair/".length());
 			int q = t.indexOf('?');
 			if (q >= 0) {
-				for (String kv : t.substring(q + 1).split("&")) if (kv.startsWith("name=")) try { name = java.net.URLDecoder.decode(kv.substring(5), StandardCharsets.UTF_8); } catch (RuntimeException ignored) {}
+				for (String kv : t.substring(q + 1).split("&")) try {
+					if (kv.startsWith("name=")) name = java.net.URLDecoder.decode(kv.substring(5), StandardCharsets.UTF_8);
+					else if (kv.startsWith("ts=")) share = Connect.invite(java.net.URLDecoder.decode(kv.substring(3), StandardCharsets.UTF_8));   // (the owner's Tailscale invite)
+				} catch (RuntimeException ignored) {}
 				t = t.substring(0, q);
 			}
 		}
 		String a = norm(t);
-		return a.isEmpty() ? null : new String[] {a, name};
+		return a.isEmpty() ? null : new String[] {a, name, share};
 	}
 
 	/** This device's line to one Gatekeeper: a small folder of its own (so the launcher's usual code can talk to it),
@@ -180,6 +183,13 @@ final class Home {
 	private static volatile java.awt.Rectangle cameBack;
 
 	static void run(String[] args) throws Exception {
+		// Testing: OJ_CONNECT_SHOT=<pairing link>, with OJ_POPUP_PNG: a picture of the Connect steps for it (<file>-connect.png).
+		if (System.getenv("OJ_CONNECT_SHOT") != null && System.getenv("OJ_POPUP_PNG") != null) {
+			String[] got = parsePairing(System.getenv("OJ_CONNECT_SHOT"));
+			System.out.println("pairing read as: " + (got == null ? "nothing" : shown(got[0]) + " | " + got[1] + " | invite " + (got[2].isEmpty() ? "none" : got[2])));
+			if (got != null) { String[] g = got; SwingUtilities.invokeAndWait(() -> { dev.gatehouse.look.SteamLook.apply(); try { Connect.picture(System.getenv("OJ_POPUP_PNG").replaceAll("\\.png$", "") + "-connect.png", g[0], g[1], g[2]); } catch (IOException e) { e.printStackTrace(); } }); }
+			return;
+		}
 		// Testing: OJ_HOME_LAUNCH=<game folder> runs that pack's update the way Launch does, in a window that isn't
 		// shown, and says how it went (with OJ_POPUP_PNG, the checklist's pictures are taken too).
 		if (System.getenv("OJ_HOME_LAUNCH") != null) {
@@ -250,12 +260,12 @@ final class Home {
 	private static List<String[]> savedKeepers(Path home) {
 		List<String[]> out = new ArrayList<>();
 		if (LaunchPopup.parseJson(LaunchPopup.readFile(home.resolve("gatekeepers.json"))) instanceof List<?> l)
-			for (Object o : l) { String u = norm(str(ServerControl.asMap(o).get("url"))); if (!u.isEmpty()) out.add(new String[] {u, str(ServerControl.asMap(o).get("name"))}); }
+			for (Object o : l) { String u = norm(str(ServerControl.asMap(o).get("url"))); if (!u.isEmpty()) out.add(new String[] {u, str(ServerControl.asMap(o).get("name")), Connect.invite(str(ServerControl.asMap(o).get("tailscale_share")))}); }
 		return out;
 	}
 	private static void saveKeepers(Path home, List<String[]> keepers) {
 		StringBuilder sb = new StringBuilder("[");
-		for (String[] k : keepers) sb.append(sb.length() > 1 ? ",\n " : "\n ").append("{\"url\": \"").append(ServerControl.jsonEsc(k[0])).append("\", \"name\": \"").append(ServerControl.jsonEsc(k[1])).append("\"}");
+		for (String[] k : keepers) sb.append(sb.length() > 1 ? ",\n " : "\n ").append("{\"url\": \"").append(ServerControl.jsonEsc(k[0])).append("\", \"name\": \"").append(ServerControl.jsonEsc(k[1])).append(k.length > 2 && !k[2].isEmpty() ? "\", \"tailscale_share\": \"" + ServerControl.jsonEsc(k[2]) : "").append("\"}");
 		try { Files.createDirectories(home); Files.writeString(home.resolve("gatekeepers.json"), sb.append("\n]\n").toString(), StandardCharsets.UTF_8); } catch (IOException ignored) {}
 	}
 
@@ -264,7 +274,7 @@ final class Home {
 		// The Gatekeepers: the ones remembered, and any an installed pack names that isn't remembered yet.
 		List<String[]> keepers = savedKeepers(home);
 		boolean added = false;
-		for (String[] p : packs) if (!p[4].isEmpty()) { boolean have = false; for (String[] k : keepers) if (k[0].equals(p[4])) have = true; if (!have) { keepers.add(new String[] {p[4], ""}); added = true; } }
+		for (String[] p : packs) if (!p[4].isEmpty()) { boolean have = false; for (String[] k : keepers) if (k[0].equals(p[4])) have = true; if (!have) { keepers.add(new String[] {p[4], "", ""}); added = true; } }
 		if (added) saveKeepers(home, keepers);
 		boolean loose = false;
 		for (String[] p : packs) if (p[4].isEmpty()) loose = true;
@@ -666,10 +676,17 @@ final class Home {
 					open.setToolTipText("Shows the servers this Gatekeeper looks after");
 					JButton remove = new JButton("Remove");
 					remove.setToolTipText("Forgets this Gatekeeper on this device (packs already installed stay)");
+					JButton connect = new JButton("Connect\u2026");
+					connect.setToolTipText("Walks through getting this device connected to this Gatekeeper: Tailscale, the owner's invite, and pairing");
+					connect.setVisible(false);
+					connect.addActionListener(ev -> {
+						ServerControl cc = client(home, k[0], packs);
+						if (Connect.show(f, k[0], k[1], k.length > 2 ? k[2] : "", cc::hello)) showServers.accept(k[0]);
+					});
 					boolean used = false;
 					for (String[] pk : packs) if (pk[4].equals(k[0])) used = true;
 					remove.setVisible(!used);
-					Object[] r = row.apply(k[1].isEmpty() ? "Gatekeeper at " + shown(k[0]) : k[1], new Component[] {remove, open});
+					Object[] r = row.apply(k[1].isEmpty() ? "Gatekeeper at " + shown(k[0]) : k[1], new Component[] {remove, connect, open});
 					open.addActionListener(ev -> showServers.accept(k[0]));
 					remove.addActionListener(ev -> { keepers.remove(k); saveKeepers(home, keepers); showKeepers[0].run(); });
 					keeperList.add((JPanel) r[0]); keeperList.add(Box.createVerticalStrut(8));
@@ -688,6 +705,8 @@ final class Home {
 							if (!nm.isEmpty() && !nm.equals(k[1])) { k[1] = nm; saveKeepers(home, keepers); SwingUtilities.invokeLater(() -> ((JLabel) r[1]).setText(nm)); }
 						}
 						set.accept((JLabel) r[2], st);
+						boolean silent = cat == null;
+						SwingUtilities.invokeLater(() -> { if (connect.isVisible() != silent) { connect.setVisible(silent); keeperList.revalidate(); } });
 					};
 					polls.add(poll);
 					if (shot != null) poll.run(); else new Thread(poll, "catalog").start();
@@ -728,10 +747,10 @@ final class Home {
 				file.addActionListener(e2 -> {
 					javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 					fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Gatekeeper pairing file (.gatekeeper)", "gatekeeper", "json"));
-					if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { String[] got = parsePairing(LaunchPopup.readFile(fc.getSelectedFile().toPath())); field.setText(got == null ? "" : "gatehouse://pair/" + shown(got[0]) + (got[1].isEmpty() ? "" : "?name=" + java.net.URLEncoder.encode(got[1], StandardCharsets.UTF_8))); }
+					if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { String[] got = parsePairing(LaunchPopup.readFile(fc.getSelectedFile().toPath())); field.setText(got == null ? "" : "gatehouse://pair/" + shown(got[0]) + "?name=" + java.net.URLEncoder.encode(got[1], StandardCharsets.UTF_8) + (got[2].isEmpty() ? "" : "&ts=" + java.net.URLEncoder.encode(got[2], StandardCharsets.UTF_8))); }
 				});
 				JPanel form = new JPanel(new BorderLayout(0, 8));
-				form.add(new JLabel("<html><div style='width:420px'>Paste the address or pairing link the Gatekeeper's owner gave you (in Gatekeeper: Status, Share pairing), or open the pairing file they sent. This device has to be in that owner's Tailscale network.</div></html>"), BorderLayout.NORTH);
+				form.add(new JLabel("<html><div style='width:420px'>Paste the address or pairing link the Gatekeeper's owner gave you (in Gatekeeper: Status, Share pairing), or open the pairing file they sent. If this device can't reach it yet, the next window walks through getting connected.</div></html>"), BorderLayout.NORTH);
 				JPanel line = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); line.add(field); line.add(file);
 				form.add(line, BorderLayout.CENTER);
 				if (JOptionPane.showConfirmDialog(f, form, "Add Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
@@ -745,8 +764,15 @@ final class Home {
 					try { state = c.hello(); } catch (IOException | RuntimeException ignored) {}
 					String st = state;
 					SwingUtilities.invokeLater(() -> {
-						if (st == null || st.isEmpty()) { sub.setText("Pick a Gatekeeper to see its servers."); JOptionPane.showMessageDialog(f, "<html><div style='width:400px'>No Gatekeeper answers at " + shown(got[0]) + ". Is its machine awake, and is this device in its owner's Tailscale network?</div></html>", "Add Gatekeeper", JOptionPane.PLAIN_MESSAGE); return; }
-						keepers.add(new String[] {got[0], got[1]});
+						keepers.add(new String[] {got[0], got[1], got[2]});
+						if (st == null || st.isEmpty()) {
+							// It doesn't answer (yet): remembered all the same, and the steps to get connected are shown.
+							saveKeepers(home, keepers);
+							sub.setText("Pick a Gatekeeper to see its servers.");
+							showKeepers[0].run();
+							if (Connect.show(f, got[0], got[1], got[2], c::hello)) showServers.accept(got[0]);
+							return;
+						}
 						saveKeepers(home, keepers);
 						showServers.accept(got[0]);
 					});

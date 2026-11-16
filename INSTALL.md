@@ -132,6 +132,23 @@ window first.
 
 Both programs use the same dark look, sized for a Steam Deck's screen.
 
+### Connecting to a Gatekeeper for the first time
+
+A Gatekeeper is reached over Tailscale, a private network between its owner's machine and the devices they let in.
+**Add Gatekeeper** takes the address, pairing link or pairing file the owner gave you. If it can't be reached yet,
+Gatehouse keeps it in the list and shows the steps, each ticking by itself when it's done:
+
+1. **Tailscale is running on this device and connected.** Get Tailscale opens Tailscale's own download page; sign in
+   with your own Tailscale account (making one is free). On a Steam Deck this is done in Desktop Mode, following
+   Tailscale's own guide for the Steam Deck.
+2. **You've accepted the owner's invite.** Open invite opens it in your browser, when the pairing came with one. It
+   gives this device access to that one machine only. Without one, ask the owner for their invite link.
+3. **This device can reach the Gatekeeper.** If the first two are done and this isn't, its machine may be asleep.
+4. **The Gatekeeper knows this device.** After that the owner decides what this device may do.
+
+Gatehouse doesn't install Tailscale, sign in or accept anything for you. A Gatekeeper in the list that isn't
+answering has a **Connect** button that shows the same steps.
+
 ### Notes about Gatehouse and Gatekeeper themselves
 
 Gatehouse and Gatekeeper each have a version and notes of their own, apart from any pack's or server's:
