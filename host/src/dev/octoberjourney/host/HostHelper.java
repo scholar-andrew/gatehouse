@@ -273,6 +273,35 @@ public final class HostHelper {
 		return new String[] {"ok", "Saved: the Keeper looks after " + keep.size() + " server" + (keep.size() == 1 ? "" : "s") + (setting("bind", "").isEmpty() ? ". It still needs this machine's Tailscale address before launchers can reach it." : ". Launchers pair with " + setting("bind", "") + ":" + port() + ".")};
 	}
 
+	/** Starts the Minecraft server, whatever it takes: with MCSS running, it asks MCSS to start it; with MCSS closed,
+	 *  it starts MCSS and carries on in the background, starting the server as soon as MCSS answers (up to 2 minutes).
+	 *  Returns at once with what is happening; how it ended goes in the log. */
+	static String[] startServerFully(String by) {
+		if (!host.hasAccess()) return new String[] {"refused", "The Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
+		if (host.running()) {
+			int st = host.serverStatus();
+			if (st == 1) return new String[] {"ok", "The server is already on"};
+			if (st == 3) return new String[] {"ok", "The server is already starting"};
+			return host.serverAction(true);
+		}
+		String[] s = host.start();
+		if (!s[0].equals("ok")) return s;
+		String which = SERVER.get();
+		Thread t = new Thread(() -> {
+			SERVER.set(which);
+			try {
+				for (int i = 0; i < 120 && host.serverStatus() < 0; i++) Thread.sleep(1000);
+				if (host.serverStatus() < 0) { log("start " + serverName() + " (asked by " + by + "): MCSS started, but it isn't answering the Gatekeeper (if its sign-in ended, sign in again on the Status tab)"); return; }
+				Thread.sleep(1500);
+				String[] r = host.serverStatus() == 1 || host.serverStatus() == 3 ? new String[] {"ok", "it was already coming up"} : host.serverAction(true);
+				log("start " + serverName() + " (asked by " + by + "), after starting MCSS: " + r[1]);
+			} catch (InterruptedException ignored) {}
+		}, "start-server");
+		t.setDaemon(true);
+		t.start();
+		return new String[] {"ok", "MCSS wasn't running: it's starting now, and the server starts as soon as MCSS is ready (a minute or two in all)"};
+	}
+
 	static void reply(HttpExchange x, int code, Map<String, Object> body) throws IOException {
 		byte[] b = Json.write(body).getBytes(StandardCharsets.UTF_8);
 		x.getResponseHeaders().set("Content-Type", "application/json");
@@ -448,7 +477,7 @@ public final class HostHelper {
 				if (path.equals("/v1/server") && x.getRequestMethod().equals("GET")) reply(x, 200, m("status", host.serverStatus()));
 				else if (path.equals("/v1/server/log") && x.getRequestMethod().equals("GET")) reply(x, 200, m("lines", serverLog(80)));
 				else if ((path.equals("/v1/server/start") || path.equals("/v1/server/stop")) && x.getRequestMethod().equals("POST")) {
-					String[] r = host.serverAction(path.endsWith("start"));
+					String[] r = path.endsWith("start") ? startServerFully(who(d)) : host.serverAction(false);
 					log((path.endsWith("start") ? "start" : "stop") + " the Minecraft server asked by " + who(d) + ": " + r[1]);
 					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else reply(x, 404, m("error", "no such call"));
@@ -781,9 +810,7 @@ public final class HostHelper {
 				Map<String, Object> d = Json.map(devs.get(id));
 				String player = Json.str(req.get("player"));
 				if (type.equals("server")) {
-					if (!host.running()) { String[] s = host.start(); r = new String[] {s[0].equals("ok") ? "wait" : s[0], s[0].equals("ok") ? "MCSS is starting: press Grant again in a few seconds" : s[1]}; }
-					else r = host.serverAction(true);
-					if (r[0].equals("wait")) return r;
+					r = startServerFully("the owner, for " + who(d));
 				} else if (type.startsWith("perm:")) {
 					if (d.isEmpty()) return new String[] {"refused", "That launcher is gone"};
 					setPermState(d, type.substring(5), "allowed"); saveDevices(devs);
@@ -1053,8 +1080,7 @@ public final class HostHelper {
 			} else if (path.equals("/admin/server/start")) {
 				// From the panel's request banner: MCSS first if it isn't running (it needs a moment before it takes the start).
 				String[] r;
-				if (!host.running()) { String[] s = host.start(); r = new String[] {s[0].equals("ok") ? "wait" : s[0], s[0].equals("ok") ? "MCSS is starting: press Start server again in a few seconds" : s[1]}; }
-				else r = host.serverAction(true);
+				r = startServerFully("the owner");
 				log("start the Minecraft server from the control panel: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/keytest")) {

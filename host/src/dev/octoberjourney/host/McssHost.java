@@ -99,10 +99,11 @@ final class McssHost implements ServerHost {
 	}
 
 	/** One call to MCSS's own API on this PC, with the Keeper's key (host.json "mcss_api_key", set in the panel). */
-	private String mcssApi(String method, String path, String body) throws IOException {
+	private String mcssApi(String method, String path, String body) throws IOException { return mcssApi(setting("mcss_api_key", ""), method, path, body); }
+	private String mcssApi(String key, String method, String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + path).openConnection();
 		c.setConnectTimeout(3000); c.setReadTimeout(8000); c.setRequestMethod(method);
-		c.setRequestProperty("apiKey", setting("mcss_api_key", ""));
+		c.setRequestProperty("apiKey", key);
 		if (body != null) { c.setDoOutput(true); c.setRequestProperty("Content-Type", "application/json"); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
 		int code = c.getResponseCode();
 		if (code < 200 || code >= 300) throw new IOException("HTTP " + code);
@@ -152,7 +153,7 @@ final class McssHost implements ServerHost {
 	}
 
 	@Override public void setKey(String key) {
-		cfg.remove("mcss_user");
+		cfg.remove("mcss_user"); cfg.remove("mcss_key_id"); cfg.put("mcss_key_lasting", true);
 		cfg.put("mcss_api_key", key);
 		try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); } catch (IOException e) { log("couldn't save host.json: " + e); }
 		log(!hasAccess() ? "the Keeper's MCSS key was cleared" : "the Keeper's MCSS key was set");
@@ -171,11 +172,36 @@ final class McssHost implements ServerHost {
 			String key;
 			try (InputStream in = c.getInputStream()) { key = Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("apiKey")); }
 			if (key.isEmpty()) return new String[] {"failed", "MCSS signed in but handed back no key"};
-			cfg.put("mcss_api_key", key); cfg.put("mcss_user", user);
+			// What a sign-in hands back only lasts until MCSS restarts. So it's used once, to make the Gatekeeper an
+			// API key of its own in MCSS (these servers only: view, console, start and stop), and that is what's kept.
+			// (An account that isn't allowed to make keys: the sign-in's own key is kept, and it says so.)
+			String lasting = "", made = "";
+			try {
+				String name = "Gatekeeper " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss"));
+				Map<String, Object> per = new LinkedHashMap<>();
+				for (Object o : servers()) {
+					Map<String, Object> s = Json.map(o);
+					String id = Json.str(s.get("mcss_server"));
+					if (id.isEmpty()) id = Json.str(Json.map(Json.parse(read(Path.of(Json.str(s.get("dir"))).resolve("mcss_server_config.json")))).get("guid"));
+					if (!id.isEmpty()) per.put(id, m("viewStats", true, "viewConsole", true, "useConsole", true, "editServer", false, "useServerActions", true, "viewSchedulerTasks", false,
+							"createSchedulerTasks", false, "editSchedulerTask", false, "deleteSchedulerTasks", false, "triggerSchedulerTask", false));
+				}
+				lasting = Json.str(Json.map(Json.parse(mcssApi(key, "POST", "/api/v2/keys", Json.write(m("name", name, "isAdmin", false, "hasAccessToAllServers", false, "customServerPermissions", per))))).get("apiKey"));
+				if (!lasting.isEmpty()) {
+					made = name;
+					String old = setting("mcss_key_id", ""), kid = "";
+					for (Object k : Json.list(Json.parse(mcssApi(key, "GET", "/api/v2/keys", null)))) if (name.equals(Json.str(Json.map(k).get("name")))) kid = Json.str(Json.map(k).get("apiKeyId"));
+					if (!old.isEmpty() && !old.equals(kid)) try { mcssApi(key, "DELETE", "/api/v2/keys/" + old, null); } catch (IOException ignored) {}   // (the one it made last time)
+					cfg.put("mcss_key_id", kid);
+				}
+			} catch (IOException | RuntimeException e) { lasting = ""; }
+			cfg.put("mcss_api_key", lasting.isEmpty() ? key : lasting); cfg.put("mcss_user", user); cfg.put("mcss_key_lasting", !lasting.isEmpty());
 			Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8);
 			boolean works = serverStatus() >= 0;
-			log("the Keeper signed in to MCSS as " + user + (works ? "" : " (but that account can't see the server)"));
-			return new String[] {works ? "ok" : "failed", works ? "Signed in as " + user : "Signed in as " + user + ", but that account can't see the server (give it access to it in MCSS's panel)"};
+			log("the Gatekeeper signed in to MCSS as " + user + (lasting.isEmpty() ? " (MCSS wouldn't let that account make a key: this sign-in ends when MCSS restarts)" : " and made itself the key \"" + made + "\"") + (works ? "" : " (but it can't see the server)"));
+			if (!works) return new String[] {"failed", "Signed in as " + user + ", but that account can't see the server (give it access to it in MCSS's panel)"};
+			return new String[] {"ok", lasting.isEmpty() ? "Signed in as " + user + ". MCSS wouldn't let that account make an API key, so this sign-in ends whenever MCSS restarts. To stay signed in, sign in with an MCSS account that has admin rights, or use Set MCSS key."
+					: "Signed in as " + user + ". The Gatekeeper made itself an MCSS key (\"" + made + "\", under API Keys in MCSS) and keeps that, so it stays signed in when MCSS restarts."};
 		} catch (IOException e) {
 			return new String[] {"failed", "MCSS's panel isn't answering (is MCSS running?)"};
 		}
