@@ -132,6 +132,7 @@ public final class LaunchPopup {
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
+				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
 				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
 				case "admin-devices" -> System.out.println("admin devices: " + c.helper("GET", "/v1/admin/devices", null));
@@ -1118,7 +1119,39 @@ public final class LaunchPopup {
 		JLabel signHelp = new JLabel(wrap("Sign in with your own account on the server panel. Only the key the panel hands back is saved, on this device; your password isn't. If the owner allowed this device through Gatehouse Keeper, you don't need to sign in."));
 		signHelp.setForeground(new Color(0x6B7280));
 		showWho.run();
-		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
+		// Which Gatehouse Keeper this launcher talks to: the pack's, or one this device was paired with by address.
+		JLabel keeperHead = new JLabel("Gatehouse Keeper");
+		keeperHead.setFont(keeperHead.getFont().deriveFont(Font.BOLD, 14f));
+		keeperHead.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
+		JLabel keeperNow = new JLabel(), keeperNote = new JLabel(" ");
+		Runnable showKeeper = () -> keeperNow.setText(wrap(!c.hasHelper() ? "This launcher isn't paired with a Keeper: it can show whether the server is online, and nothing more."
+				: "This launcher talks to the Keeper at " + c.helperLabel() + (c.keeperUrl.isEmpty() ? " (the one this pack names)." : " (paired on this device).")));
+		showKeeper.run();
+		javax.swing.JTextField keeperField = new javax.swing.JTextField(c.keeperUrl.replaceFirst("(?i)^https?://", ""), 20);
+		JButton pairB = new JButton("Pair"), unpairB = new JButton("Use the pack's Keeper");
+		unpairB.setVisible(!c.packHelperUrl.isEmpty());
+		java.util.function.Consumer<String> pairWith = address -> {
+			hold.run();
+			pairB.setEnabled(false); unpairB.setEnabled(false);
+			keeperNote.setText("Asking\u2026");
+			new Thread(() -> {
+				String[] r = c.pair(address);
+				SwingUtilities.invokeLater(() -> {
+					pairB.setEnabled(true); unpairB.setEnabled(true);
+					keeperNote.setForeground(r[0].equals("ok") ? new Color(0x2E7D32) : RED);
+					keeperNote.setText(wrap(r[1]));
+					if (r[0].equals("ok")) { keeperField.setText(c.keeperUrl.replaceFirst("(?i)^https?://", "")); showKeeper.run(); showWho.run(); onPerms.run(); }
+				});
+			}, "pair").start();
+		};
+		pairB.addActionListener(e -> { if (keeperField.getText().isBlank()) { keeperNote.setForeground(RED); keeperNote.setText("Type the Keeper's address first (the owner copies it from the control panel)."); } else pairWith.accept(keeperField.getText()); });
+		unpairB.addActionListener(e -> pairWith.accept(""));
+		JPanel keeperRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+		keeperRow.add(new JLabel("Keeper address")); keeperRow.add(keeperField);
+		for (JButton bt : new JButton[] {pairB, unpairB}) { bt.setFont(bt.getFont().deriveFont(13f)); keeperRow.add(bt); }
+		JLabel keeperHelp = new JLabel(wrap("To pair with another Keeper, ask its owner for the pairing address (control panel on the server machine: Status, Copy pairing address) and type it here. This device has to be in that owner's Tailscale network."));
+		keeperHelp.setForeground(new Color(0x6B7280));
+		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote, keeperHead, keeperNow, keeperHelp, keeperRow, keeperNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
 
 		if (live) {
 			refresh.run();

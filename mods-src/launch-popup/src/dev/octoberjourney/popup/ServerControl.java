@@ -30,7 +30,15 @@ import java.util.Map;
  */
 final class ServerControl {
 	final Path dir;
-	final String panelUrl, serverId, minecraft, mac, helperUrl;
+	final String panelUrl, serverId, minecraft, mac;
+	/** Where Gatehouse Keeper is: the address this device was paired with (Server config, kept in server-access.json),
+	 *  else the one the pack names. */
+	volatile String helperUrl;
+	final String packHelperUrl;
+	volatile String keeperUrl = "";
+	/** This launcher's id and secret for each Keeper it has talked to, by address: a Keeper is never shown the secret
+	 *  made for another one. */
+	final Map<String, String[]> identities = new java.util.LinkedHashMap<>();
 	final List<String> broadcasts = new ArrayList<>();
 	final int wakePort;
 	String apiKey, wakeAddress, username;
@@ -87,7 +95,7 @@ final class ServerControl {
 		panelUrl = str(c.get("panel_url"));
 		serverId = str(c.get("mcss_server"));
 		minecraft = str(c.get("minecraft"));
-		helperUrl = str(c.get("helper_url"));
+		packHelperUrl = str(c.get("helper_url"));
 		mac = str(w.get("mac"));
 		serverKey = str(c.get("server")).replaceAll("[^\\w.-]", "");
 		if (w.get("broadcasts") instanceof List<?> l) for (Object o : l) broadcasts.add(str(o));
@@ -102,15 +110,68 @@ final class ServerControl {
 		deviceToken = str(a.get("device_token"));
 		ban = str(a.get("ban")); banScope = str(a.get("ban_scope")); banReason = str(a.get("ban_reason"));
 		permMcss = "true".equals(str(a.get("perm_mcss"))); permSleep = "true".equals(str(a.get("perm_sleep"))); permServer = "true".equals(str(a.get("perm_server"))); permAdmin = "true".equals(str(a.get("perm_admin")));
-		if (!helperUrl.isEmpty() && (deviceId.isEmpty() || deviceToken.length() < 32)) {
+		keeperUrl = str(a.get("keeper_url"));
+		helperUrl = keeperUrl.isEmpty() ? packHelperUrl : keeperUrl;
+		for (Map.Entry<String, Object> e : asMap(a.get("identities")).entrySet()) identities.put(e.getKey(), new String[] {str(asMap(e.getValue()).get("id")), str(asMap(e.getValue()).get("token"))});
+		// (An id and secret saved before pairing existed belong to the pack's Keeper.)
+		if (!deviceId.isEmpty() && deviceToken.length() >= 32 && !packHelperUrl.isEmpty() && !identities.containsKey(packHelperUrl)) identities.put(packHelperUrl, new String[] {deviceId, deviceToken});
+		identity();
+	}
+
+	/** This launcher's id and secret for the Keeper in use: the ones it has for that address, else new ones. */
+	private void identity() {
+		if (helperUrl.isEmpty()) return;
+		String[] have = identities.get(helperUrl);
+		if (have == null || have[0].isEmpty() || have[1].length() < 32) {
 			java.security.SecureRandom r = new java.security.SecureRandom();
-			deviceId = java.util.UUID.randomUUID().toString();
 			byte[] t = new byte[32]; r.nextBytes(t);
 			StringBuilder b = new StringBuilder(); for (byte x : t) b.append(String.format("%02x", x));
-			deviceToken = b.toString();
-			try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
+			have = new String[] {java.util.UUID.randomUUID().toString(), b.toString()};
+			identities.put(helperUrl, have);
 		}
+		boolean changed = !have[0].equals(deviceId) || !have[1].equals(deviceToken);
+		deviceId = have[0]; deviceToken = have[1];
+		if (changed) try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
 	}
+
+	/** Pairs this launcher with a Gatehouse Keeper by its address (the owner copies it from the control panel: Status,
+	 *  Copy pairing address), or with an empty address goes back to the Keeper the pack names. The address has to
+	 *  answer as a Keeper before it's kept. What the old Keeper allowed doesn't carry over: this launcher introduces
+	 *  itself to the new one and waits for its owner. Returns {"ok" or "failed", what to tell the player}. */
+	String[] pair(String address) {
+		String url = address.trim().replaceAll("/+$", "");
+		if (!url.isEmpty()) {
+			if (!url.matches("(?i)https?://.*")) url = "http://" + url;
+			try {
+				URI u = URI.create(url);
+				if (u.getHost() == null) return new String[] {"failed", "That doesn't look like an address (for example 100.101.102.103:25570)."};
+				if (u.getPort() < 0) url = u.getScheme() + "://" + u.getHost() + ":25570";
+			} catch (RuntimeException e) { return new String[] {"failed", "That doesn't look like an address (for example 100.101.102.103:25570)."}; }
+			try {
+				HttpURLConnection c = (HttpURLConnection) new URL(url + "/v1/mcss").openConnection();
+				c.setConnectTimeout(4000); c.setReadTimeout(5000);
+				int code = c.getResponseCode();
+				String body;
+				try (java.io.InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream()) { body = in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+				if (!(body.trim().startsWith("{") && (code == 200 || code == 401 || code == 403))) return new String[] {"failed", "Something answers at " + url + ", but it isn't Gatehouse Keeper."};
+			} catch (IOException | RuntimeException e) { return new String[] {"failed", "Nothing answers at " + url + ". Is the server machine awake, and is this device in its Tailscale network? (Connection, Network diagnosis)"}; }
+		} else if (packHelperUrl.isEmpty() && keeperUrl.isEmpty()) return new String[] {"failed", "Type the Keeper's address first."};
+		String before = helperUrl;
+		keeperUrl = url.equals(packHelperUrl) ? "" : url;
+		helperUrl = keeperUrl.isEmpty() ? packHelperUrl : keeperUrl;
+		if (!helperUrl.equals(before)) {
+			permMcss = false; permSleep = false; permServer = false; permAdmin = false;
+			ban = ""; banScope = ""; banReason = ""; whitelisted = "unknown";
+			permStates.clear(); reqStates.clear(); reqReasons.clear();
+		}
+		identity();
+		try { save(apiKey, wakeAddress); } catch (IOException e) { return new String[] {"failed", "Couldn't save: " + e.getMessage()}; }
+		if (helperUrl.isEmpty()) return new String[] {"ok", "Not paired with a Keeper now."};
+		try { hello(); } catch (IOException | RuntimeException ignored) {}
+		return new String[] {"ok", (keeperUrl.isEmpty() ? "Back with the pack's Keeper, " : "Paired with the Keeper at ") + helperLabel() + ". Its owner decides what this device may do. Press Restart to carry on with it."};
+	}
+	/** The Keeper's address as shown: host and port. */
+	String helperLabel() { return helperUrl.replaceFirst("(?i)^https?://", "").replaceAll("/+$", ""); }
 
 	boolean configured() { return !panelUrl.isEmpty() || !mac.isEmpty() || !minecraft.isEmpty(); }
 	boolean canWake() { return mac.replaceAll("[^0-9A-Fa-f]", "").length() == 12; }
@@ -159,11 +220,15 @@ final class ServerControl {
 	void save(String key, String wake) throws IOException {
 		if (!key.trim().equals(apiKey)) accessRejected = false;
 		apiKey = key.trim(); wakeAddress = wake.trim();
+		StringBuilder ids = new StringBuilder();
+		for (Map.Entry<String, String[]> e : identities.entrySet())
+			ids.append(ids.length() == 0 ? "" : ", ").append('"').append(jsonEsc(e.getKey())).append("\": {\"id\": \"").append(jsonEsc(e.getValue()[0])).append("\", \"token\": \"").append(jsonEsc(e.getValue()[1])).append("\"}");
 		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
 				+ "\", \"username\": \"" + jsonEsc(username) + "\", \"device_id\": \"" + jsonEsc(str(deviceId))
 				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\", \"perm_mcss\": " + permMcss + ", \"perm_sleep\": " + permSleep
 				+ ", \"perm_server\": " + permServer + ", \"perm_admin\": " + permAdmin
-				+ ", \"ban\": \"" + jsonEsc(ban) + "\", \"ban_scope\": \"" + jsonEsc(banScope) + "\", \"ban_reason\": \"" + jsonEsc(banReason) + "\"}\n", StandardCharsets.UTF_8);
+				+ ", \"ban\": \"" + jsonEsc(ban) + "\", \"ban_scope\": \"" + jsonEsc(banScope) + "\", \"ban_reason\": \"" + jsonEsc(banReason) + "\""
+				+ ", \"keeper_url\": \"" + jsonEsc(keeperUrl) + "\", \"identities\": {" + ids + "}}\n", StandardCharsets.UTF_8);
 	}
 
 	/** Signs in to the panel with the player's own account, as the panel's web page does (POST /auth), and keeps the
