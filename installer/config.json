@@ -78,11 +78,11 @@
   },
   "uninstall_windows": {
     "url": "https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseUninstall.exe",
-    "sha256": "F90C4A99131815F0B4D3F1DCF59DC2265C46D6E38E63EF2F67E6CF92C2079924"
+    "sha256": "FFBF0B7F32053602792C8545B6935295D205BFF4875F2A52D96CE06C4DDABC6E"
   },
   "uninstall_linux": {
     "url": "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/linux/gatehouse-uninstall.sh",
-    "sha256": "D7BBF6D8419C3D049BBAF105B6B8778B89F2A496004F5FC98829D8262BB1274D"
+    "sha256": "D246FBAAA085B2AEDA02520A6FA7606FEDD9F1225664FCA0B44CBEA7ED1CE9A6"
   },
   "_uninstall": "Setup saves these uninstallers on the device. After changing either one, put its new SHA-256 here (and upload the exe to the release), or setup skips it."
 }

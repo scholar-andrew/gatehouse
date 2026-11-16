@@ -43,8 +43,9 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
    uninstaller and installer ([Choosing what to install](#choosing-what-to-install)). It installs
    Prism Launcher from Flathub if you want it, and asks before closing Steam. It needs `bash`, `curl`, `python3` and
    `flatpak` (SteamOS already has them) and Steam installed at `~/.local/share/Steam`.
-3. Start Steam (on a Steam Deck, go back to Game Mode) and play **Minecraft (Prism Launcher) - your device's name**
-   (`steamdeck` on a Steam Deck). Sign in to your Microsoft account the first time Prism opens.
+3. Start Steam (on a Steam Deck, go back to Game Mode) and open **Gatehouse Minecraft Launcher - Steam Deck** (or PC, Laptop, ROG: your kind of device), then **Open Prism
+   Launcher** to sign in to your Microsoft account the first time. After that, **October Journey - Steam Deck** starts
+   the game.
 
 ## Choosing what to install
 The modpack itself (a Prism Launcher instance whose mods update every time you play) is always installed. Everything
@@ -56,7 +57,7 @@ choose item by item (Windows: checkboxes; Linux: a question per item; all on by 
 | **Prism Launcher** | The game launcher | Only offered when it isn't installed. Without it, the Steam shortcuts can't be made; install Prism later and the instance shows up in it. |
 | **October Journey server** | The server in the game's server list | |
 | **October Journey shortcut** | **October Journey - your device's name** in Steam: updates the pack (and shows the [launch pop-up](#before-the-game-starts-the-launch-pop-up)), then starts the game and joins the server | Needs Steam and Prism. Steam has to be closed. |
-| **Prism Launcher shortcut** | **Minecraft (Prism Launcher) - your device's name** in Steam: opens Prism Launcher | Needs Steam and Prism. Steam has to be closed. |
+| **Gatehouse launcher shortcut** | **Gatehouse Minecraft Launcher - your kind of device** in Steam: opens the Gatehouse launcher (your packs, whether each server is online, Play, and a button for Prism Launcher) | Needs Steam and Prism. Steam has to be closed. |
 | **Steam library art** | Cover, banner, logo and icon: October Journey's own for its shortcut, Prism Launcher's logo for Prism's | Needs a shortcut. |
 | **Steam Deck controller layout** | The pack's layout for Steam Deck controls, on both shortcuts | Needs a shortcut. |
 | **Keep these up to date when you play** | Each launch brings the server entry, art and layout up to date with the pack | Only for the ones you chose. Changes you make yourself are kept either way. On Linux this also gives Prism's Flatpak access to the two Steam folders it needs. |
@@ -90,6 +91,19 @@ installer's folder, and on Windows `--prism-dir=DIR` picks Prism Launcher's; for
 ## Staying up to date
 Nothing to do: every launch checks for mod changes and installs them before the game starts. Running setup again is
 safe; it updates your setup without duplicating anything.
+
+### The Gatehouse launcher
+
+**Gatehouse Minecraft Launcher** in your Steam library opens a window listing the packs you have installed, each with
+whether its server is online right now and a **Play** button, plus **Open Prism Launcher** (accounts, other instances,
+settings) and **Quit**. Play starts that pack: its update runs first, as always.
+
+When you start a pack from here, or from its own Steam shortcut, the game starts straight away if there is nothing new
+to show and the server is online. Otherwise the window described below appears first: after an update, when the
+server has news, when the server is off, or when you aren't on the whitelist or have been suspended or blacklisted.
+Starting the instance from inside Prism Launcher always shows it.
+
+Both programs use the same dark look, sized for a Steam Deck's screen.
 
 ### Before the game starts: the launch pop-up
 From the moment you press Play, one October Journey window shows the update's steps as a checklist, each ticked off as
@@ -166,6 +180,12 @@ your password. You don't need it if the owner allowed your device through Gateho
 device. Only mods the game can join the server without are listed. A mod that needs another one goes off with it. A
 change is applied when the update runs again, so press **Restart** before you play. (The same switches are in the
 game, under Mod Menu.)
+
+Under that, **Gatehouse Keeper** says which Keeper this launcher talks to: the one the pack names, or one you paired
+it with. To pair with another Keeper, ask its owner for the pairing address (control panel on the server machine:
+Status, **Copy pairing address**), type it in **Keeper address** and press **Pair**. The launcher checks that a Keeper
+answers there, introduces itself, and waits for that owner to allow it; what another Keeper allowed doesn't carry
+over. **Use the pack's Keeper** goes back. Your device has to be in that owner's Tailscale network.
 
 One more tab, **Remote control panel**, appears only on a device the owner has allowed **Keeper control**. It has two
 tabs inside:
@@ -293,18 +313,23 @@ happens only if you chose that item, except the game instance, which is always i
      SHA-256 in `config.json`), `pack-sources.txt` (where updates come from), `pack-options.json` (which of the server
      entry, art and layout each launch keeps up to date: item *Keep these up to date*), and, with item *October Journey
      server*, `servers.dat` with the server added (existing entries are kept).
-3. **Steam** (items *October Journey shortcut* and *Prism Launcher shortcut*, and Steam installed). It finds Steam through the registry (`HKCU\Software\Valve\Steam`) and your
+3. **Steam** (items *October Journey shortcut* and *Gatehouse launcher shortcut*, and Steam installed). It finds Steam through the registry (`HKCU\Software\Valve\Steam`) and your
    Steam account number from Steam's `config\loginusers.vdf` (the account you used most recently). Steam must be closed
    for this part; setup asks you to quit it and waits.
    - Adds non-Steam game shortcuts to `Steam\userdata\<account>\config\shortcuts.vdf`, or updates existing ones
-     instead of adding them again. Both run `prismlauncher.exe`. **October Journey - PC (or Laptop, Steam Deck, ROG: your kind of device)** adds
-     `--launch october-journey --server <the server's address>` (Prism launches the instance, which runs the update
-     first, and Minecraft joins the server). **Minecraft (Prism Launcher) - PC (or Laptop, Steam Deck, ROG: your kind of device)** has no options, so
-     it opens Prism. The old file is kept as `shortcuts.vdf.bak-setup`.
+     instead of adding them again (a shortcut from an earlier setup that ran Prism directly is changed in place and
+     keeps its art). Both run the Gatehouse launcher: a plain script the pack keeps up to date,
+     `<instance>\minecraft\extras\gatehouse-launcher.ps1`, through Windows' own `powershell.exe` with no window.
+     **October Journey - PC (or Laptop, Steam Deck, ROG: your kind of device)** adds `-Play october-journey`: the
+     launcher starts the instance through Prism (`--launch october-journey --server <the server's address>`), the
+     update runs first, and Minecraft joins the server. **Gatehouse Minecraft Launcher - PC (...)** opens the launcher's
+     window. The old file is kept as `shortcuts.vdf.bak-setup`.
    - Item *Steam library art*: saves five PNGs per shortcut in `Steam\userdata\<account>\config\grid\`, named after
      the shortcut's app ID. The October Journey shortcut gets the art made for this pack, from
-     [`installer/art`](installer/art). The Prism Launcher shortcut gets Prism Launcher's logo on a plain background, from
-     [`installer/art-prism`](installer/art-prism); its [NOTICE](installer/art-prism/NOTICE.md) has the logo's licence.
+     [`installer/art`](installer/art). The Gatehouse launcher shortcut gets Gatehouse's own art, from
+     [`installer/art-launcher`](installer/art-launcher). (A Prism Launcher shortcut from an earlier setup that hasn't
+     been run again keeps Prism's logo, from [`installer/art-prism`](installer/art-prism); its
+     [NOTICE](installer/art-prism/NOTICE.md) has the logo's licence.)
    - Item *Steam Deck controller layout*: saves the layout as
      `Steam\steamapps\common\Steam Controller Configs\<account>\config\<shortcut name>\controller_neptune.vdf` for
      each shortcut (an existing one is kept as `.bak-setup`) and lists it in `configset_controller_neptune.vdf` in the
@@ -403,7 +428,7 @@ The downloaded copy works too on a setup made before setup saved the uninstaller
 
 | Item | What goes | Default |
 | --- | --- | --- |
-| **Steam library shortcuts** | Each Steam shortcut named **October Journey - ...** or **Minecraft (Prism Launcher) - ...** that starts Prism Launcher, in every Steam account on the device. The shortcut list is backed up first as `shortcuts.vdf.bak-uninstall`; other shortcuts are kept. Their art and controller layouts go with them. | yes |
+| **Steam library shortcuts** | Each Steam shortcut named **October Journey - ...** or **Gatehouse Minecraft Launcher - ...** (or **Minecraft (Prism Launcher) - ...** from an earlier setup) that starts Prism Launcher or the Gatehouse launcher, in every Steam account on the device. The shortcut list is backed up first as `shortcuts.vdf.bak-uninstall`; other shortcuts are kept. Their art and controller layouts go with them. | yes |
 | **Steam library art** | The shortcuts' art, and the `.before-pack` copies the update script kept | yes |
 | **Steam Deck controller layout** | The shortcuts' layout folders and their entries in Steam's layout list | yes |
 | **Prism's Steam folder permissions** (Linux) | The two Flatpak folder permissions setup gave Prism; other Flatpak settings for Prism are kept | yes |

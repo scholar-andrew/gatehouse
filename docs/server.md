@@ -73,8 +73,18 @@ home network); that address is also kept on the device, not in this public repos
 ## Gatehouse Keeper (starting and closing MCSS)
 
 MCSS's web panel only exists while MCSS is running, so starting MCSS itself needs something else on the PC: the host
-helper (`host/`, built by `tools/build_host.ps1`, installed by `tools/install_host.ps1` into
-`C:\Minecraft\GatehouseKeeper`). A scheduled task, "Gatehouse Keeper", starts it (javaw, no window)
+helper (`host/`, built by `tools/build_host.ps1`). It is installed from **gatehouse-keeper.zip** (on the releases
+page): unpack it and run `install-keeper.ps1`, a plain PowerShell script you can read first
+([`installer/keeper/install-keeper.ps1`](../installer/keeper/install-keeper.ps1)); it needs Java 17 or newer, downloads
+nothing, and `-Uninstall` removes it. A new install goes to `%LOCALAPPDATA%\Programs\GatehouseKeeper`; the owner's
+own is in `C:\Minecraft\GatehouseKeeper` (kept current from this repository by `tools/install_host.ps1`).
+When it finishes the control panel opens with **Server setup** (Status tab, any time later too): it finds MCSS
+(`mcss.exe`; Browse if it isn't in a usual place), lists the Minecraft servers in MCSS's `servers` folder (each has
+MCSS's own `mcss_server_config.json`, with its name and id; the port is read from `server.properties`) with a tick-box
+each, and offers this machine's Tailscale address. Saving writes `host.json` (`mcss_exe`, `bind`, `servers`) and the
+Keeper starts listening on the new address at once. Servers it already had keep their place and id.
+**Copy pairing address** gives the address (`<Tailscale address>:25570`) a launcher is paired with in its Server
+config tab (`keeper_url` in its `server-access.json`; it keeps a separate id and secret for each Keeper). A scheduled task, "Gatehouse Keeper", starts it (javaw, no window)
 when the owner signs in to Windows, in the owner's session, so MCSS opens on the desktop as usual.
 
 - It listens on the Tailscale address only (port 25570, `helper_url` in `server_control`), plus 127.0.0.1 for the

@@ -28,7 +28,8 @@ its pack installs into a fresh folder and the launcher shows its name and adds i
   `october-journey` and its old file names, untouched; a fresh one gets the new names.
 - Setup saves `gatehouse-profile.json` beside the uninstaller (pack name, instance, shortcut names, servers, the
   name it is filed under). The uninstaller removes that pack; with no such file it is an old October Journey install.
-- The shortcut that only opens Prism Launcher is shared: an uninstaller leaves it while another pack is installed.
+- The Gatehouse launcher shortcut is shared: it lists every pack installed in Prism, and an uninstaller leaves it
+  while another pack is installed. Each pack's own shortcut starts that pack through the launcher.
 - A profile may bring its own `mmc-pack.json` (its Minecraft and loader versions for the Prism instance).
 - Checked in scratch folders on Windows and on the Steam Deck: October Journey and the example profile installed side
   by side, each removed by its own uninstaller with the other left whole, and an old-style install still recognised.

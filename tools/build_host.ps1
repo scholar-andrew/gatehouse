@@ -8,6 +8,8 @@ $out = Join-Path $env:TEMP 'packmod-build-host'
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory $out | Out-Null
 $files = @(Get-ChildItem (Join-Path $root 'host\src') -Recurse -Filter *.java | ForEach-Object FullName)
+# (and the look both programs share: mods-src\look)
+$files += @(Get-ChildItem (Join-Path $root 'mods-src\look\src') -Recurse -Filter *.java | ForEach-Object FullName)
 & (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 17 -d (Join-Path $out 'classes') @files
 if ($LASTEXITCODE) { throw 'javac failed' }
 $jar = Join-Path $root 'host\oj-host.jar'

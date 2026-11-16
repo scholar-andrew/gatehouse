@@ -205,7 +205,7 @@ final class Connection {
 		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
 		for (JButton b : new JButton[] {again, openTs, getTs, copy}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
 		JLabel note = new JLabel(" ");
-		note.setForeground(new Color(0x6B7280));
+		note.setForeground(new Color(0x8F98A0));
 		JPanel south = new JPanel(new BorderLayout(0, 2));
 		south.add(buttons, BorderLayout.NORTH); south.add(note, BorderLayout.SOUTH);
 		p.add(south, BorderLayout.SOUTH);
@@ -217,7 +217,7 @@ final class Connection {
 			Check first = null;
 			for (Check k : checks) {
 				if (first == null && !k.fix().isEmpty() && (k.state().equals("failed") || k.state().equals("warn"))) first = k;
-				JLabel row = new JLabel("<html><b>" + esc(k.label()) + "</b>&nbsp;&nbsp;<font color='#4b5563'>" + esc(k.detail()) + "</font></html>", LaunchPopup.mark(k.state()), JLabel.LEFT);
+				JLabel row = new JLabel("<html><b>" + esc(k.label()) + "</b>&nbsp;&nbsp;<font color='#8f98a0'>" + esc(k.detail()) + "</font></html>", LaunchPopup.mark(k.state()), JLabel.LEFT);
 				row.setFont(row.getFont().deriveFont(Font.PLAIN, 13f));
 				row.setIconTextGap(10);
 				row.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
@@ -225,7 +225,7 @@ final class Connection {
 				list.add(row);
 				if (!k.fix().isEmpty()) {
 					JLabel fix = new JLabel("<html><div style='width:470px'>" + esc(k.fix()) + "</div></html>");
-					fix.setForeground(new Color(0x6B7280));
+					fix.setForeground(new Color(0x8F98A0));
 					fix.setBorder(BorderFactory.createEmptyBorder(0, 28, 4, 0));
 					fix.setAlignmentX(Component.LEFT_ALIGNMENT);
 					list.add(fix);

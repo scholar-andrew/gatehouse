@@ -1116,7 +1116,7 @@ public final class HostHelper {
 	static void panel() throws Exception {
 		if (GraphicsEnvironment.isHeadless()) { System.out.println(call("GET", "/admin/devices", null)); return; }
 		SwingUtilities.invokeAndWait(() -> {
-			try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+			dev.gatehouse.look.SteamLook.apply();
 			JFrame f = new JFrame("Gatehouse control panel");
 			f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
@@ -1211,7 +1211,7 @@ public final class HostHelper {
 			JPanel pbuttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			for (JButton b : pB) pbuttons.add(b);
 			JLabel pnote = new JLabel("<html><div style='width:900px'>A player appears once they've joined the server from a device with the launcher (matched by its Tailscale address), or when a launcher says who last played on it (\"not confirmed\" until they join). Click a permission to set it: white is not allowed, green allowed, red denied. What you set for a player is set on all their confirmed launchers (and on launchers they join from later), except a launcher that is itself Denied that thing. The Whitelisted box puts a player on the server's whitelist or takes them off (a name that is \"not confirmed\" is only what a launcher said, so check it before ticking). The Launchers tab still changes one launcher at a time.</div></html>");
-			pnote.setForeground(new Color(0x6B7280));
+			pnote.setForeground(new Color(0x8F98A0));
 			JPanel psouth = new JPanel(new BorderLayout(0, 6)); psouth.add(pbuttons, BorderLayout.NORTH); psouth.add(pnote, BorderLayout.SOUTH);
 			JPanel playersTab = new JPanel(new BorderLayout(0, 8));
 			playersTab.add(new JScrollPane(ptable), BorderLayout.CENTER); playersTab.add(psouth, BorderLayout.SOUTH);
@@ -1250,7 +1250,7 @@ public final class HostHelper {
 			setupB.setToolTipText("Which MCSS and which Minecraft servers on this machine the Keeper looks after, and this machine's Tailscale address.");
 			pairB.setToolTipText("The address a launcher is given to pair with this Keeper (in its Server config tab).");
 			JLabel pairNote = new JLabel(" ");
-			pairNote.setForeground(new Color(0x6B7280));
+			pairNote.setForeground(new Color(0x8F98A0));
 			JPanel setupRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); setupRow.add(setupB); setupRow.add(pairB); setupRow.add(pairNote);
 			pairB.addActionListener(e -> {
 				try {
@@ -1269,7 +1269,7 @@ public final class HostHelper {
 				JPanel list = new JPanel();
 				list.setLayout(new javax.swing.BoxLayout(list, javax.swing.BoxLayout.Y_AXIS));
 				JLabel problem = new JLabel(" ");
-				problem.setForeground(new Color(0xB3261E));
+				problem.setForeground(new Color(0xFF7B72));
 				List<Object[]> rows = new ArrayList<>();   // {its tick-box, the server as found}
 				Runnable scan = () -> {
 					try {
@@ -1389,7 +1389,7 @@ public final class HostHelper {
 						filling[0] = false;
 						boolean hasKey = Boolean.TRUE.equals(r.get("has_key"));
 						String works = Json.str(r.get("key_works"));
-						keyState.setForeground(!hasKey ? new Color(0xB45309) : !works.equals("yes") ? new Color(0xD23C3C) : new Color(0x2E9D48));
+						keyState.setForeground(!hasKey ? new Color(0xE9B949) : !works.equals("yes") ? new Color(0xFF7B72) : new Color(0x8BD46E));
 						String as = Json.str(r.get("mcss_user"));
 						keyState.setText(works.equals("forbidden") ? "MCSS knows the Keeper's key, but it has no permission for this server: give it the server (view, start, stop) under API Keys in MCSS's panel."
 								: works.equals("unknown") ? "MCSS doesn't know the Keeper's key: set it again, or sign in."
@@ -1434,7 +1434,7 @@ public final class HostHelper {
 										if (why != null) answer.accept(false, why.toString());
 									});
 									JPanel line = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 3));
-									line.setBackground(new Color(0xFFF1C2));
+									line.setBackground(new Color(0x3A3218));
 									line.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(0xE0A91B)));
 									line.add(text); line.add(yes); line.add(no);
 									line.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
@@ -1455,12 +1455,12 @@ public final class HostHelper {
 						mcssRun.setText(!mcssUp[0] ? "Start MCSS" : mcssClose[0].equals("force") ? "Force close MCSS" : "Close MCSS");
 						mcssRun.setEnabled(!mcssUp[0] || !Boolean.TRUE.equals(r.get("minecraft")));
 						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Stop the Minecraft server first" : null);
-						state.setForeground(new Color(0x2E9D48));
+						state.setForeground(new Color(0x8BD46E));
 						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over Tailscale).");
-						mcssState.setForeground(Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x2E9D48) : new Color(0x6B7280));
+						mcssState.setForeground(Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0x8F98A0));
 						mcssState.setText(Boolean.TRUE.equals(r.get("mcss")) ? "MCSS is running" : "MCSS isn't running");
 						serverUpNow[0] = Boolean.TRUE.equals(r.get("minecraft"));
-						serverState.setForeground(serverUpNow[0] ? new Color(0x2E9D48) : new Color(0x6B7280));
+						serverState.setForeground(serverUpNow[0] ? new Color(0x8BD46E) : new Color(0x8F98A0));
 						serverState.setText(serverUpNow[0] ? "The Minecraft server is running" : "The Minecraft server is off");
 						serverRun.setText(serverUpNow[0] ? "Stop server" : "Start server");
 						StringBuilder sb = new StringBuilder();
@@ -1468,7 +1468,7 @@ public final class HostHelper {
 						if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
 					});
 				} catch (IOException e) {
-					SwingUtilities.invokeLater(() -> { state.setForeground(new Color(0xD23C3C)); state.setText("The Keeper isn't running (it starts when you sign in to Windows)."); });
+					SwingUtilities.invokeLater(() -> { state.setForeground(new Color(0xFF7B72)); state.setText("The Keeper isn't running (it starts when you sign in to Windows)."); });
 				}
 			}, "refresh").start();
 			java.util.function.BiConsumer<String, String> act = (what, body) -> new Thread(() -> {

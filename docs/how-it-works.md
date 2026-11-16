@@ -228,6 +228,10 @@ The installers download everything else at run time, so they only need a new rel
 | `tools/server_snapshot.py` | Records what the server runs from its files (`server/state.json`) with a note for players (`server/changelog.json`); `--check` reports drift. |
 | `tools/serve.ps1` | Serves `dist/` on the Tailscale address. Run at logon by the scheduled task "Minecraft pack server"; waits for Tailscale and restarts the server if it stops. |
 | `tools/make_art.ps1` | Draws the October Journey shortcut's Steam library art into `installer/art/`. |
+| `tools/make_launcher_art.ps1` | Draws the Gatehouse launcher shortcut's art (an original gatehouse mark) into `installer/art-launcher/`. |
+| `clients/gatehouse-launcher.ps1`, `.sh` | What the Steam shortcuts run (shipped in `extras/`): they find Java and the newest `launch-popup.jar` among the installed packs and run it with `--home <instances> --prism <Prism> [--play <instance>]`. The launcher lists the packs, or with `--play` leaves a `direct-launch` note in the game folder and starts the instance through Prism; the pack's window is then skipped when there's nothing to show and the server is online. |
+| `mods-src/look/.../SteamLook.java` | The look both the launcher and the control panel use (compiled into both): Java's Metal look with dark colours, and flat buttons, tabs and scroll bars. |
+| `installer/keeper/install-keeper.ps1` | Installs Gatehouse Keeper from `gatehouse-keeper.zip` on any Windows machine (a readable script, not a program). |
 | `tools/make_prism_art.ps1` | Draws the Prism Launcher shortcut's art into `installer/art-prism/` from Prism's logo. |
 | `tools/steam_shortcut.py` | Adds or renames a non-Steam shortcut in `shortcuts.vdf` by hand (Steam closed). The installers do this themselves. |
 | `tools/move-prism-out-of-sandbox.ps1` | One-off repair from 2026-11-14 (Prism data written into the Claude app's sandboxed AppData). Kept for reference. |

@@ -120,6 +120,8 @@ public final class LaunchPopup {
 	static final String[] STEPS = {"Connection", "Mods and settings", "Mod switches", "Steam art and controller layouts", "Server list", "Update script"};
 
 	public static void main(String[] args) throws Exception {
+		// The look, before anything is built (rows are made before their window is).
+		if (!GraphicsEnvironment.isHeadless() && !(args.length >= 1 && args[0].equals("--server"))) dev.gatehouse.look.SteamLook.apply();
 		// Testing and troubleshooting: java -jar launch-popup.jar --server <game folder> status|wake|start
 		if (args.length >= 3 && args[0].equals("--server")) {
 			ServerControl c = new ServerControl(Path.of(args[1]));
@@ -183,9 +185,7 @@ public final class LaunchPopup {
 		boolean ui = !GraphicsEnvironment.isHeadless() && (option(options, "popup_updates") || option(options, "popup_no_updates"));
 		JLabel[] rows = new JLabel[STEPS.length];
 		if (ui) SwingUtilities.invokeAndWait(() -> {
-			if (System.getProperty("os.name", "").startsWith("Windows")) {
-				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
-			}
+			dev.gatehouse.look.SteamLook.apply();
 			JFrame f = new JFrame(TOOL + " \u2013 " + NAME);
 			f.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 12));
@@ -199,7 +199,7 @@ public final class LaunchPopup {
 			p.add(top, BorderLayout.NORTH);
 			JPanel list = new JPanel();
 			list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-			list.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)), BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+			list.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(8, 10, 8, 10)));
 			for (int i = 0; i < STEPS.length; i++) {
 				rows[i] = new JLabel(STEPS[i], mark("pending"), JLabel.LEFT);
 				rows[i].setFont(rows[i].getFont().deriveFont(Font.PLAIN, 14f));
@@ -213,7 +213,7 @@ public final class LaunchPopup {
 			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
 			JPanel bottom = new JPanel(new BorderLayout());
 			JLabel hint = new JLabel("Quit cancels this launch.");
-			hint.setForeground(new Color(0x6B7280));
+			hint.setForeground(new Color(0x8F98A0));
 			bottom.add(hint, BorderLayout.WEST);
 			progressPlay = new PlayButton("Play");
 			progressPlay.setEnabled(false);
@@ -441,7 +441,7 @@ public final class LaunchPopup {
 		java.util.concurrent.CountDownLatch closed = new java.util.concurrent.CountDownLatch(1);
 		String shot = System.getenv("OJ_POPUP_PNG");
 		SwingUtilities.invokeAndWait(() -> {
-			if (System.getProperty("os.name", "").startsWith("Windows")) try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+			dev.gatehouse.look.SteamLook.apply();
 			JFrame f = new JFrame(TOOL);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 12));
@@ -458,7 +458,7 @@ public final class LaunchPopup {
 			List<Runnable> polls = new ArrayList<>();
 			for (String[] e : servers) {
 				JPanel row = new JPanel(new BorderLayout(14, 0));
-				row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)), BorderFactory.createEmptyBorder(12, 14, 12, 14)));
+				row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(12, 14, 12, 14)));
 				JLabel name = new JLabel(e[1]);
 				name.setFont(name.getFont().deriveFont(Font.BOLD, 17f));
 				JLabel state = new JLabel("Checking the server\u2026", dot(GRAY), JLabel.LEFT);
@@ -619,13 +619,13 @@ public final class LaunchPopup {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 			boolean on = isEnabled();
-			Color fill = flashOn ? QUIT_RED : !on ? new Color(0xC9CDD3) : getModel().isPressed() ? base.darker() : getModel().isRollover() ? shade(base, 1.12f) : base;
+			Color fill = flashOn ? QUIT_RED : !on ? new Color(0x2B3A4B) : getModel().isPressed() ? base.darker() : getModel().isRollover() ? shade(base, 1.12f) : base;
 			g2.setColor(fill);
 			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
 			if (on && isFocusOwner()) { g2.setColor(new Color(255, 255, 255, 170)); g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 6, 6); }
 			g2.setFont(getFont());
 			java.awt.FontMetrics fm = g2.getFontMetrics();
-			g2.setColor(flashOn ? Color.WHITE : on ? ink : new Color(0x7B818A));
+			g2.setColor(flashOn ? Color.WHITE : on ? ink : new Color(0x71808F));
 			g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2, (getHeight() - fm.getHeight()) / 2 + fm.getAscent());
 			g2.dispose();
 		}
@@ -678,7 +678,7 @@ public final class LaunchPopup {
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			for (int i = 0; i < 10; i++) {
-				g2.setColor(i < lit ? Color.getHSBColor(i / 9f * 0.33f, 0.78f, 0.86f) : new Color(0xD5D8DD));
+				g2.setColor(i < lit ? Color.getHSBColor(i / 9f * 0.33f, 0.78f, 0.86f) : new Color(0x2F4860));
 				g2.fillRoundRect(1 + i * 11, 2, 8, 12, 3, 3);
 			}
 			g2.dispose();
@@ -691,7 +691,7 @@ public final class LaunchPopup {
 	private static String html(String label, String detail) {
 		if (detail == null || detail.isEmpty()) return label;
 		String d = detail.length() > 70 ? detail.substring(0, 67) + "..." : detail;
-		return "<html>" + esc(label) + "<font color='#6b7280'>&nbsp;&nbsp;" + esc(Character.toUpperCase(d.charAt(0)) + d.substring(1)) + "</font></html>";
+		return "<html>" + esc(label) + "<font color='#8f98a0'>&nbsp;&nbsp;" + esc(Character.toUpperCase(d.charAt(0)) + d.substring(1)) + "</font></html>";
 	}
 
 	/** The last line packwiz-installer wrote (its progress, such as "(12/28) Downloaded ..."). */
@@ -714,7 +714,7 @@ public final class LaunchPopup {
 				if (state.equals("pending")) { g2.setColor(GRAY); g2.drawOval(x + 2, y + 2, 14, 14); g2.dispose(); return; }
 				if (state.startsWith("running")) {
 					int k = state.length() > 7 ? state.charAt(7) - '0' : 0;
-					g2.setColor(new Color(0xE5E7EB)); g2.drawOval(x + 2, y + 2, 14, 14);
+					g2.setColor(new Color(0x3D4F63)); g2.drawOval(x + 2, y + 2, 14, 14);
 					g2.setColor(AMBER); g2.drawArc(x + 2, y + 2, 14, 14, 90 - k * 90, -120);
 					g2.dispose(); return;
 				}
@@ -938,10 +938,10 @@ public final class LaunchPopup {
 		for (JLabel l : new JLabel[] {pcStatus, status}) { l.setFont(l.getFont().deriveFont(Font.PLAIN, 13f)); l.setIconTextGap(8); }
 		JLabel pcNote = new JLabel(" ");
 		pcNote.setFont(pcNote.getFont().deriveFont(Font.PLAIN, 12f));
-		pcNote.setForeground(new Color(0x6B7280));
+		pcNote.setForeground(new Color(0x8F98A0));
 		JLabel note = new JLabel(" ");
 		note.setFont(note.getFont().deriveFont(Font.PLAIN, 12f));
-		note.setForeground(new Color(0x6B7280));
+		note.setForeground(new Color(0x8F98A0));
 		// How the last stop went: watched after Stop until the server is off, then the log is read for the save.
 		JLabel stopped = new JLabel(" ");
 		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, 13f));
@@ -1068,7 +1068,7 @@ public final class LaunchPopup {
 		mStart.setEnabled(false); mClose.setEnabled(false); pcSleep.setEnabled(false);
 		JLabel mNote = new JLabel(" ");
 		mNote.setFont(mNote.getFont().deriveFont(Font.PLAIN, 12f));
-		mNote.setForeground(new Color(0x6B7280));
+		mNote.setForeground(new Color(0x8F98A0));
 		Runnable mcssRefresh = () -> new Thread(() -> {
 			String state, text, mode = "close"; boolean granted = false, running = false, sleepOk = false, game = false;
 			try {
@@ -1141,7 +1141,7 @@ public final class LaunchPopup {
 			h.setFont(h.getFont().deriveFont(Font.BOLD, 14f));
 			h.setBorder(BorderFactory.createCompoundBorder(
 					BorderFactory.createEmptyBorder(box.getComponentCount() == 0 ? 0 : 10, 0, 0, 0),
-					BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(box.getComponentCount() == 0 ? 0 : 1, 0, 0, 0, new Color(0xD5D8DD)), BorderFactory.createEmptyBorder(6, 0, 2, 0))));
+					BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(box.getComponentCount() == 0 ? 0 : 1, 0, 0, 0, new Color(0x2F4860)), BorderFactory.createEmptyBorder(6, 0, 2, 0))));
 			h.setMaximumSize(new Dimension(Integer.MAX_VALUE, h.getPreferredSize().height));   // (so its dividing line spans the tab)
 			for (JComponent x : java.util.stream.Stream.concat(java.util.stream.Stream.of((JComponent) h), java.util.Arrays.stream(parts)).toList()) {
 				x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(2));
@@ -1203,7 +1203,7 @@ public final class LaunchPopup {
 		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose, reqB[1]}), mNote});
 		JLabel via = new JLabel(wrap("Control: " + c.accessText()));
 		via.setFont(via.getFont().deriveFont(Font.PLAIN, 12f));
-		via.setForeground(new Color(0x6B7280));
+		via.setForeground(new Color(0x8F98A0));
 		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop, reqB[2]}), via, note, stopped});
 
 		// Server config: how this device controls the server, and signing in to the server panel with a panel account
@@ -1212,7 +1212,7 @@ public final class LaunchPopup {
 		cfg.setLayout(new BoxLayout(cfg, BoxLayout.Y_AXIS));
 		cfg.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
 		JLabel cfgNote = new JLabel(" ");
-		cfgNote.setForeground(new Color(0x6B7280));
+		cfgNote.setForeground(new Color(0x8F98A0));
 		JLabel who = new JLabel();
 		who.setFont(who.getFont().deriveFont(Font.PLAIN, 13f));
 		who.setIconTextGap(8);
@@ -1266,7 +1266,7 @@ public final class LaunchPopup {
 		JPanel fieldsWrap = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
 		fieldsWrap.add(fields);
 		JLabel signHelp = new JLabel(wrap("Sign in with your own account on the server panel. Only the key the panel hands back is saved, on this device; your password isn't. If the owner allowed this device through Gatehouse Keeper, you don't need to sign in."));
-		signHelp.setForeground(new Color(0x6B7280));
+		signHelp.setForeground(new Color(0x8F98A0));
 		showWho.run();
 		// Which Gatehouse Keeper this launcher talks to: the pack's, or one this device was paired with by address.
 		JLabel keeperHead = new JLabel("Gatehouse Keeper");
@@ -1287,7 +1287,7 @@ public final class LaunchPopup {
 				String[] r = c.pair(address);
 				SwingUtilities.invokeLater(() -> {
 					pairB.setEnabled(true); unpairB.setEnabled(true);
-					keeperNote.setForeground(r[0].equals("ok") ? new Color(0x2E7D32) : RED);
+					keeperNote.setForeground(r[0].equals("ok") ? new Color(0x8BD46E) : new Color(0xFF7B72));
 					keeperNote.setText(wrap(r[1]));
 					if (r[0].equals("ok")) { keeperField.setText(c.keeperUrl.replaceFirst("(?i)^https?://", "")); showKeeper.run(); showWho.run(); onPerms.run(); }
 				});
@@ -1299,7 +1299,7 @@ public final class LaunchPopup {
 		keeperRow.add(new JLabel("Keeper address")); keeperRow.add(keeperField);
 		for (JButton bt : new JButton[] {pairB, unpairB}) { bt.setFont(bt.getFont().deriveFont(13f)); keeperRow.add(bt); }
 		JLabel keeperHelp = new JLabel(wrap("To pair with another Keeper, ask its owner for the pairing address (control panel on the server machine: Status, Copy pairing address) and type it here. This device has to be in that owner's Tailscale network."));
-		keeperHelp.setForeground(new Color(0x6B7280));
+		keeperHelp.setForeground(new Color(0x8F98A0));
 		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote, keeperHead, keeperNow, keeperHelp, keeperRow, keeperNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
 
 		if (live) {
@@ -1322,7 +1322,7 @@ public final class LaunchPopup {
 	 *  control itself and the Keeper's MCSS sign-in stay with the panel on the server machine. Returns the one panel
 	 *  that holds both (the launcher's Remote control panel tab). */
 	private static JPanel[] managePanel(ServerControl c, JFrame f) {
-		Color grey = new Color(0x6B7280);
+		Color grey = new Color(0x8F98A0);
 		// ---- Access Manager: each permission is Allowed (green), Not allowed (white) or Denied (red); click one to change
 		// it. A player's setting goes to all their devices, except a device that is itself Denied. Whitelist, kick,
 		// suspend and blacklist are here too.
@@ -1341,8 +1341,9 @@ public final class LaunchPopup {
 			@Override public Component getTableCellRendererComponent(javax.swing.JTable tb, Object v, boolean sel, boolean focus, int r, int col) {
 				Component x = super.getTableCellRendererComponent(tb, v, sel, focus, r, col);
 				String tx = s(v);
-				Color bg = tx.startsWith("Allowed") ? new Color(0xCDEFD3) : tx.startsWith("Denied") || tx.startsWith("Blacklisted") || tx.startsWith("Suspended") ? new Color(0xF6CACA) : Color.WHITE;
-				if (!sel || bg != Color.WHITE) { x.setBackground(bg); x.setForeground(Color.BLACK); }
+				Color bg = tx.startsWith("Allowed") ? new Color(0xCDEFD3) : tx.startsWith("Denied") || tx.startsWith("Blacklisted") || tx.startsWith("Suspended") ? new Color(0xF6CACA) : tx.startsWith("Not allowed") ? Color.WHITE : null;
+				x.setBackground(bg != null ? bg : sel ? tb.getSelectionBackground() : tb.getBackground());
+				x.setForeground(bg != null ? Color.BLACK : sel ? tb.getSelectionForeground() : tb.getForeground());
 				return x;
 			}
 		};
@@ -1561,7 +1562,7 @@ public final class LaunchPopup {
 		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 		box.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
 		JLabel top = new JLabel(wrap("Optional mods on this device. Switching one off never stops you joining the server. A change is applied when the update runs again: press Restart."));
-		top.setForeground(new Color(0x6B7280));
+		top.setForeground(new Color(0x8F98A0));
 		top.setAlignmentX(Component.LEFT_ALIGNMENT);
 		box.add(top); box.add(Box.createVerticalStrut(8));
 		JLabel note = new JLabel(" ");
@@ -1588,7 +1589,7 @@ public final class LaunchPopup {
 			cb.setFont(cb.getFont().deriveFont(Font.BOLD, 13f));
 			cb.setAlignmentX(Component.LEFT_ALIGNMENT);
 			JLabel d = new JLabel(wrap(s(m.get("description")) + ("false".equals(s(m.get("default"))) ? " (Off unless you switch it on.)" : "")));
-			d.setForeground(new Color(0x6B7280));
+			d.setForeground(new Color(0x8F98A0));
 			d.setBorder(BorderFactory.createEmptyBorder(0, 24, 6, 0));
 			d.setAlignmentX(Component.LEFT_ALIGNMENT);
 			boxes.put(key, cb); names.put(key, s(m.get("name")));
@@ -1602,7 +1603,7 @@ public final class LaunchPopup {
 				try {
 					if (next == null) throw new IOException("pack-options.json isn't in a form this can change");
 					Files.writeString(options, next, StandardCharsets.UTF_8);
-					note.setForeground(new Color(0x9A6B00));
+					note.setForeground(new Color(0xE9B949));
 					note.setText("Saved. Press Restart to apply it before you play.");
 				} catch (IOException ex) { note.setForeground(RED); note.setText("Couldn't save: " + ex.getMessage()); }
 			});
@@ -1618,7 +1619,7 @@ public final class LaunchPopup {
 		sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		sc.getVerticalScrollBar().setUnitIncrement(16);
 		JPanel tab = new JPanel(new BorderLayout());
-		tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+		tab.setBorder(BorderFactory.createLineBorder(new Color(0x2F4860)));
 		tab.add(sc, BorderLayout.CENTER);
 		return tab;
 	}
@@ -1738,7 +1739,7 @@ public final class LaunchPopup {
 
 	private static JComponent row(Color c, String label, String detail) {
 		if (detail != null && !detail.isEmpty()) detail = Character.toUpperCase(detail.charAt(0)) + detail.substring(1);
-		JLabel l = new JLabel("<html>" + esc(label) + (detail == null || detail.isEmpty() ? "" : "<font color='#6b7280'>&nbsp;&nbsp;" + esc(detail) + "</font>") + "</html>", dot(c), JLabel.LEFT);
+		JLabel l = new JLabel("<html>" + esc(label) + (detail == null || detail.isEmpty() ? "" : "<font color='#8f98a0'>&nbsp;&nbsp;" + esc(detail) + "</font>") + "</html>", dot(c), JLabel.LEFT);
 		l.setIconTextGap(8);
 		l.setFont(l.getFont().deriveFont(Font.PLAIN, 14f));
 		l.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 0));
@@ -1762,7 +1763,7 @@ public final class LaunchPopup {
 		JScrollPane sp = new JScrollPane(list);
 		sp.getVerticalScrollBar().setUnitIncrement(16);
 		sp.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-		sp.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+		sp.setBorder(BorderFactory.createLineBorder(new Color(0x2F4860)));
 		Dimension want = list.getPreferredSize();
 		sp.setPreferredSize(new Dimension(Math.max(560, Math.min(640, want.width + 30)), Math.min(big ? 420 : 240, want.height + 6)));
 		return sp;
@@ -1778,9 +1779,7 @@ public final class LaunchPopup {
 		Object lock = new Object();
 		boolean[] done = {false};
 		SwingUtilities.invokeAndWait(() -> {
-			if (System.getProperty("os.name", "").startsWith("Windows")) {
-				try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
-			}
+			dev.gatehouse.look.SteamLook.apply();
 			JFrame f = reuse != null ? reuse : new JFrame(TOOL + " \u2013 " + NAME);
 			for (java.awt.event.WindowListener l : f.getWindowListeners()) f.removeWindowListener(l);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -1816,7 +1815,7 @@ public final class LaunchPopup {
 			// reach the server machine, and what to do when it can't).
 			javax.swing.JTabbedPane connTabs = new javax.swing.JTabbedPane();
 			JPanel diagnosis = new JPanel(new BorderLayout());
-			diagnosis.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+			diagnosis.setBorder(BorderFactory.createLineBorder(new Color(0x2F4860)));
 			diagnosis.add(Connection.panel(dir, control, f, System.getenv("OJ_POPUP_PNG") == null), BorderLayout.CENTER);
 			JPanel connectionTab = new JPanel(new BorderLayout());
 			connectionTab.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));
@@ -1850,7 +1849,7 @@ public final class LaunchPopup {
 				JPanel[] serverTabs = new JPanel[3];
 				for (int i = 0; i < 3; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
-					tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+					tab.setBorder(BorderFactory.createLineBorder(new Color(0x2F4860)));
 					JPanel inner = new JPanel(new BorderLayout());
 					inner.add(parts[i], BorderLayout.NORTH);
 					JScrollPane sc = new JScrollPane(inner);
@@ -1882,14 +1881,14 @@ public final class LaunchPopup {
 			PlayButton play = new PlayButton("Play");
 			JLabel playWhy = new JLabel(" ");
 			playWhy.setFont(playWhy.getFont().deriveFont(Font.PLAIN, 12f));
-			playWhy.setForeground(new Color(0x6B7280));
+			playWhy.setForeground(new Color(0x8F98A0));
 			JPanel bottom = new JPanel(new BorderLayout());
 			// What the colours mean.
 			JPanel legend = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			for (Object[] k : new Object[][] {{GREEN, "OK / added"}, {BLUE, "updated"}, {GRAY, "off / removed"}, {AMBER, "not checked"}, {RED, "failed"}}) {
 				JLabel l = new JLabel((String) k[1], dot((Color) k[0]), JLabel.LEFT);
 				l.setFont(l.getFont().deriveFont(Font.PLAIN, 11f));
-				l.setForeground(new Color(0x6B7280));
+				l.setForeground(new Color(0x8F98A0));
 				legend.add(l);
 			}
 			bottom.add(legend, BorderLayout.WEST);
