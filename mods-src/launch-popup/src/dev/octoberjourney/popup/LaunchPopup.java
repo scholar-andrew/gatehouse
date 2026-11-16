@@ -328,6 +328,10 @@ public final class LaunchPopup {
 				}
 			} catch (Exception ignored) {}   // (couldn't: carry on with this launcher; the update replaces it as before)
 			long[] n = pending(dir, sizes);
+			Path pull = dir.resolve("pull-pending.json");
+			Files.deleteIfExists(pull);
+			if (n != null && n[0] > 0 && !base.contains("githubusercontent"))
+				Files.writeString(pull, "{\"bytes\": " + n[0] + ", \"local_bytes\": " + (n[0] - n[5]) + ", \"files\": " + n[1] + ", \"mods\": " + n[2] + "}\n", StandardCharsets.UTF_8);
 			JFrame f = reuse;
 			if (n != null && n[0] > 0 && ui && f != null) {
 				asking = true;
@@ -368,7 +372,7 @@ public final class LaunchPopup {
 						if (png != null && choice[0] == null) choice[0] = System.getenv("OJ_ASK_ANSWER") == null ? "go" : System.getenv("OJ_ASK_ANSWER");
 					}
 				}
-				if (choice[0] == null) { asking = false; return; }   // quit
+				if (choice[0] == null) { asking = false; Files.deleteIfExists(pull); return; }   // quit
 				if (choice[0].equals("skip")) { skipped = size; reply = "skip|" + size; }
 				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); progressPlay.setText("Play"); progressPlay.setEnabled(false); f.pack(); });
 			}
@@ -386,16 +390,18 @@ public final class LaunchPopup {
 		if (files.isEmpty()) return null;
 		String record = read(dir.resolve("packwiz.json"));
 		Map<String, Object> have = record.isBlank() ? new LinkedHashMap<>() : asMap(asMap(parse(record)).get("cachedFiles"));
-		long bytes = 0, n = 0, mods = 0, modrinth = 0;
+		long bytes = 0, n = 0, mods = 0, modrinth = 0, modrinthBytes = 0;
 		for (Map.Entry<String, Object> e : files.entrySet()) {
 			Map<String, Object> f = asMap(e.getValue()), h = asMap(have.get(e.getKey()));
 			if (!h.isEmpty() && ("true".equals(s(f.get("preserve"))) || s(asMap(h.get("hash")).get("value")).equals(s(f.get("hash"))))) continue;
-			try { bytes += (long) Double.parseDouble(s(f.get("size"))); } catch (NumberFormatException ignored) {}
+			long size = 0;
+			try { size = (long) Double.parseDouble(s(f.get("size"))); } catch (NumberFormatException ignored) {}
+			bytes += size;
 			n++;
 			if (e.getKey().startsWith("mods/")) mods++;
-			if (e.getKey().endsWith(".pw.toml")) modrinth++;   // (a mod listed by the pack and fetched from Modrinth)
+			if (e.getKey().endsWith(".pw.toml")) { modrinth++; modrinthBytes += size; }   // (a mod listed by the pack and fetched from Modrinth)
 		}
-		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0, modrinth};
+		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0, modrinth, modrinthBytes};
 	}
 
 	/** Was this launch asked for from the Gatehouse launcher (it leaves a "direct-launch" note in the game folder, good
@@ -751,6 +757,27 @@ public final class LaunchPopup {
 		loadProfile(dir);
 		List<Version> log = changelog(dir.resolve("extras/changelog.txt"));
 		String current = log.isEmpty() ? null : log.get(0).version();
+		// An update that was just fetched from the owner's machine (noted before the download): told to Gatekeeper, which
+		// lists it under Updates Pulled. Only what went through; never from GitHub.
+		try {
+			Path pull = dir.resolve("pull-pending.json");
+			if (Files.isRegularFile(pull)) {
+				Map<String, Object> pp = asMap(parse(read(pull)));
+				Files.deleteIfExists(pull);
+				ServerControl sc = new ServerControl(dir);
+				if (!status.equals("failed") && !status.equals("offline") && sc.hasHelper() && !sc.ban.equals("blacklist")) {
+					String was = seenBefore[2] == null ? "" : seenBefore[2].trim();
+					String body = "{\"from\": \"" + ServerControl.jsonEsc(was.equals(s(current)) ? "" : was) + "\", \"to\": \"" + ServerControl.jsonEsc(s(current)) + "\", \"pack\": \"" + ServerControl.jsonEsc(NAME)
+							+ "\", \"bytes\": " + s(pp.get("bytes")) + ", \"local_bytes\": " + s(pp.get("local_bytes")) + ", \"files\": " + s(pp.get("files")) + ", \"mods\": " + s(pp.get("mods")) + "}";
+					Thread tell = new Thread(() -> {
+						try { Map<String, Object> r = sc.helper("POST", "/v1/pulled", body); if ("401".equals(s(r.get("_code")))) { sc.hello(); sc.helper("POST", "/v1/pulled", body); } } catch (IOException | RuntimeException ignored) {}
+					}, "pulled");
+					tell.setDaemon(true);
+					tell.start();
+					tell.join(2500);
+				}
+			}
+		} catch (IOException | RuntimeException ignored) {}
 		String seen = read(dir.resolve("pack-version-seen.txt")).trim();
 		String options = read(dir.resolve("pack-options.json"));
 

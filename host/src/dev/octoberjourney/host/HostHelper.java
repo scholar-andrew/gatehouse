@@ -339,6 +339,7 @@ public final class HostHelper {
 				String ts = tailscaleName(ip);
 				if (!ts.isEmpty()) d.put("tailscale", ts);
 				d.put("last_seen", LocalDateTime.now().format(TIME));
+				contact.put(id, System.currentTimeMillis());
 				devs.put(id, d);
 				saveDevices(devs);
 				if (fresh) log("new launcher asked for MCSS control: " + who(d) + " (" + ip + ")");
@@ -351,6 +352,7 @@ public final class HostHelper {
 			String id = x.getRequestHeaders().getFirst("X-Device"), token = x.getRequestHeaders().getFirst("X-Token");
 			Map<String, Object> d = Json.map(devs.get(id == null ? "" : id));
 			if (d.isEmpty() || token == null || !sha256(token).equals(d.get("token_sha256"))) { reply(x, 401, m("state", "unknown", "error", "say hello first")); return; }
+			contact.put(id, System.currentTimeMillis());
 			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
@@ -366,6 +368,23 @@ public final class HostHelper {
 			if (ban[0].equals("blacklist") && !path.equals("/v1/request")) {
 				if (path.equals("/v1/mcss")) reply(x, 200, m("state", "pending", "ban", ban[0], "ban_scope", ban[1], "ban_reason", ban[2], "requests", requestStates(id, false), "request_reasons", requestStates(id, true)));
 				else reply(x, 403, m("error", "this launcher is blacklisted"));
+				return;
+			}
+			if (path.equals("/v1/pulled") && x.getRequestMethod().equals("POST")) {
+				// A launcher says it has just fetched an update from this machine (not from GitHub): what and how big.
+				Map<String, Object> b = body(x);
+				java.util.function.Function<String, Long> num = k -> { try { return (long) Double.parseDouble(Json.str(b.get(k))); } catch (NumberFormatException e) { return 0L; } };
+				Map<String, Object> rec = m("time", LocalDateTime.now().format(TIME), "id", id, "name", Json.str(d.get("name")), "player", Json.str(d.get("player")), "os", Json.str(d.get("os")),
+						"from", clean(Json.str(b.get("from")), 24), "to", clean(Json.str(b.get("to")), 24), "pack", clean(Json.str(b.get("pack")), 60),
+						"bytes", num.apply("bytes"), "local_bytes", num.apply("local_bytes"), "files", num.apply("files"), "mods", num.apply("mods"));
+				synchronized (HostHelper.class) {
+					List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
+					all.add(rec);
+					while (all.size() > 1000) all.remove(0);
+					Files.writeString(dir.resolve("pulls.json"), Json.write(all), StandardCharsets.UTF_8);
+				}
+				log(who(d) + " pulled an update from this machine: " + Json.str(rec.get("pack")) + " " + (Json.str(rec.get("from")).isEmpty() ? "" : Json.str(rec.get("from")) + " to ") + Json.str(rec.get("to")) + ", " + (num.apply("bytes") / 100_000 / 10.0) + " MB");
+				reply(x, 200, m("ok", true));
 				return;
 			}
 			if (path.equals("/v1/request") && x.getRequestMethod().equals("POST")) {
@@ -562,6 +581,33 @@ public final class HostHelper {
 		} finally { SERVER.set(keep); }
 	}
 	static final Map<String, Long> logSeenBy = new java.util.HashMap<>();
+	/** When each launcher last spoke to Gatekeeper (its window asks every few seconds while it's open); not kept on disk. */
+	static final Map<String, Long> contact = new java.util.concurrent.ConcurrentHashMap<>();
+	/** Who is on each server by its own log, and the address they joined from: a "logged in" line puts a player in, a
+	 *  "left the game" or "lost connection" line takes them out, and the server stopping empties it. */
+	static final Map<String, Map<String, String>> onlineBy = new java.util.concurrent.ConcurrentHashMap<>();
+
+	/** The players in a game right now, with the address each joined from: across the servers that are running. */
+	static Map<String, String> onlineNow() {
+		Map<String, String> out = new LinkedHashMap<>();
+		String keep = SERVER.get();
+		try {
+			List<Object> l = servers();
+			for (int i = 0; i < Math.max(1, l.size()); i++) {
+				if (!l.isEmpty()) SERVER.set(Json.str(Json.map(l.get(i)).get("id")));
+				if (minecraftRunning()) out.putAll(onlineBy.getOrDefault(serverKey(), Map.of()));
+			}
+		} finally { SERVER.set(keep); }
+		return out;
+	}
+	/** Where a launcher's device is right now: "In game" (its player is on a server, having joined from this device),
+	 *  "In the launcher" (its window spoke to Gatekeeper within the last 20 seconds), or "Offline". */
+	static String presence(String id, Map<String, Object> d, Map<String, String> online) {
+		String player = Json.str(d.get("player"));
+		if (!player.isEmpty() && Json.str(d.get("ip")).equals(online.get(player))) return "In game";
+		Long c = contact.get(id);
+		return c != null && System.currentTimeMillis() - c < 20_000 ? "In the launcher" : "Offline";
+	}
 	private static void scanPlayersHere() {
 		try {
 			Path lg = serverDir().resolve("logs").resolve("latest.log");
@@ -589,6 +635,15 @@ public final class HostHelper {
 				}
 			}
 			if (changed) saveDevices(devs);
+			Map<String, String> on = new LinkedHashMap<>();
+			java.util.regex.Pattern in = java.util.regex.Pattern.compile(": (\\w{1,16})\\[/([0-9a-fA-F.:]+):\\d+\\] logged in"), gone = java.util.regex.Pattern.compile(": (\\w{1,16}) (left the game|lost connection)");
+			for (String line : read(lg).split("\\R")) {
+				java.util.regex.Matcher a = in.matcher(line), b = gone.matcher(line);
+				if (a.find()) on.put(a.group(1), a.group(2));
+				else if (b.find()) on.remove(b.group(1));
+				else if (line.contains("Stopping server") || line.contains("Stopping the server")) on.clear();
+			}
+			onlineBy.put(serverKey(), on);
 		} catch (Exception e) {
 			log("couldn't read the server log for players: " + e);
 		}
@@ -612,6 +667,7 @@ public final class HostHelper {
 			if (ok && Json.str(d.get("player_seen")).compareTo(Json.str(p.get("last_seen"))) > 0) p.put("last_seen", Json.str(d.get("player_seen")));
 			if (ok) for (String[] pm : PERMS) if (Boolean.TRUE.equals(d.get(dkey(pm)))) p.put("has_" + pm[0], (p.get("has_" + pm[0]) instanceof Number n ? n.intValue() : 0) + 1);
 		}
+		Map<String, String> onlineHere = onlineNow();
 		// Everyone on the server's whitelist is listed too, with or without a launcher, so they can be ticked off again.
 		List<Object> wl = whitelist();
 		for (Object o : wl) { String n = Json.str(Json.map(o).get("name")); if (!n.isEmpty() && !out.containsKey(n)) out.put(n, m("devices", new ArrayList<Object>(), "confirmed", 0, "unconfirmed", 0, "last_seen", "")); }
@@ -622,6 +678,11 @@ public final class HostHelper {
 			Map<String, Object> pdx = Json.map(defaults.get(e.getKey()));
 			for (String pn : new String[] {"machine", "mcss", "server", "admin"}) Json.map(e.getValue()).put("state_" + pn, permState(pdx, pn));
 			Json.map(e.getValue()).put("ban", Json.str(pdx.get("ban"))); Json.map(e.getValue()).put("ban_reason", Json.str(pdx.get("ban_reason")));
+			// Right now: in a game, or with a launcher open on one of their devices, or neither.
+			String now = onlineHere.containsKey(e.getKey()) ? "In game" : "Offline";
+			if (now.equals("Offline")) for (Map.Entry<String, Object> dv : devices().entrySet())
+				if (e.getKey().equals(Json.str(Json.map(dv.getValue()).get("player"))) && presence(dv.getKey(), Json.map(dv.getValue()), onlineHere).equals("In the launcher")) now = "In the launcher";
+			Json.map(e.getValue()).put("now", now);
 			Map<String, Object> pd = Json.map(defaults.get(e.getKey()));
 			for (String[] pm : PERMS) Json.map(e.getValue()).put("allow_" + pm[0], Boolean.TRUE.equals(pd.get(pkey(pm))));
 		}
@@ -945,6 +1006,11 @@ public final class HostHelper {
 			for (String pn : new String[] {"machine", "mcss", "server", "admin"}) d.put("state_" + pn, permState(d, pn));
 			d.put("ban_text", banText(banOf(d), Json.str(d.get("player"))));
 			d.put("ban_kind", banOf(d)[0]); d.put("ban_scope", banOf(d)[1]);
+		}
+		Map<String, String> online = onlineNow();
+		for (Map.Entry<String, Object> en : all.entrySet()) {
+			Map<String, Object> d = Json.map(en.getValue());
+			d.put("now", presence(en.getKey(), d, online));
 			d.remove("token_sha256"); d.remove("issued_pending");
 		}
 		return all;
@@ -1116,6 +1182,10 @@ public final class HostHelper {
 				else { boolean g = Boolean.TRUE.equals(b.get("granted")) || "true".equals(Json.str(b.get("granted"))); d.put("granted", g); log((g ? "allowed MCSS control for " : "revoked MCSS control from ") + who(d)); }
 				saveDevices(devs);
 				reply(x, 200, m("ok", true));
+			} else if (path.equals("/admin/pulls")) {
+				List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
+				java.util.Collections.reverse(all);
+				reply(x, 200, m("pulls", all));
 			} else if (path.equals("/admin/log")) {
 				String[] lines = read(dir.resolve("host.log")).split("\\R");
 				List<Object> last = new ArrayList<>();
@@ -1176,7 +1246,7 @@ public final class HostHelper {
 			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(headLine, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH);
 			p.add(top, BorderLayout.NORTH);
-			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Controls the server", "Status"};
+			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Controls the server", "Status", "Now"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable table = new JTable(model);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -1227,7 +1297,7 @@ public final class HostHelper {
 			mid.add(south, BorderLayout.SOUTH);
 			// Players: the same permissions, per player. A player is tied to a launcher when the server's log shows them
 			// joining from it; allowing a player something sets it on all their launchers, and on ones they join from later.
-			String[] pcols = {"Player", "Whitelisted", "Launchers", "Last joined", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Status"};
+			String[] pcols = {"Player", "Whitelisted", "Launchers", "Last joined", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Status", "Now"};
 			// The Whitelisted column is a tick-box: ticking or unticking a player changes the server's whitelist.
 			boolean[] filling = {false};
 			DefaultTableModel pmodel = new DefaultTableModel(pcols, 0) {
@@ -1374,7 +1444,55 @@ public final class HostHelper {
 			JPanel statusTab = new JPanel(new BorderLayout(0, 10));
 			statusTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
 			statusTab.add(statusTop, BorderLayout.NORTH); statusTab.add(activity, BorderLayout.CENTER);
-			tabs.addTab("Access Manager", accessTab); tabs.addTab("Status", statusTab);
+			// Updates Pulled: each update a launcher fetched from this machine: who, when, what, and how big.
+			DefaultTableModel pullModel = new DefaultTableModel(new String[] {"When", "Launcher", "Player", "System", "Update", "Files", "Mods", "Size", "From this machine"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+			JTable pullTable = new JTable(pullModel);
+			pullTable.setRowHeight(26);
+			pullTable.getColumnModel().getColumn(0).setPreferredWidth(150); pullTable.getColumnModel().getColumn(4).setPreferredWidth(220);
+			javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
+			right.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
+			for (int ci = 5; ci <= 8; ci++) pullTable.getColumnModel().getColumn(ci).setCellRenderer(right);
+			JLabel[] pullTiles = {new JLabel("0"), new JLabel("0 MB"), new JLabel("0 MB"), new JLabel("\u2013")};
+			String[] pullTitles = {"Downloads recorded", "Total size", "Last 7 days", "Latest"};
+			JPanel tiles = new JPanel(new java.awt.GridLayout(1, 4, 10, 0));
+			for (int ti = 0; ti < 4; ti++) {
+				JPanel tile = new JPanel(new BorderLayout(0, 2));
+				tile.setBackground(new Color(0x141D29)); tile.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(10, 14, 10, 14)));
+				JLabel cap = new JLabel(pullTitles[ti]); cap.setForeground(new Color(0x8F98A0));
+				pullTiles[ti].setFont(pullTiles[ti].getFont().deriveFont(Font.BOLD, ti == 3 ? 15f : 22f));
+				tile.add(cap, BorderLayout.NORTH); tile.add(pullTiles[ti], BorderLayout.CENTER);
+				tiles.add(tile);
+			}
+			JLabel pullNote = new JLabel("<html><div style='width:900px'>Each time a launcher fetches an update from this machine (not from GitHub), it says so here. Size is the whole download for that update; the part that came from this machine is in the last column (mods the pack only lists come from Modrinth).</div></html>");
+			pullNote.setForeground(new Color(0x8F98A0));
+			JPanel pullsTab = new JPanel(new BorderLayout(0, 10));
+			pullsTab.setBorder(BorderFactory.createEmptyBorder(10, 6, 6, 6));
+			pullsTab.add(tiles, BorderLayout.NORTH); pullsTab.add(new JScrollPane(pullTable), BorderLayout.CENTER); pullsTab.add(pullNote, BorderLayout.SOUTH);
+			java.util.function.Function<Long, String> mb = bytes -> bytes < 1_000_000 ? Math.max(bytes == 0 ? 0 : 1, Math.round(bytes / 1000.0)) + " KB" : String.format(java.util.Locale.ROOT, "%.1f MB", bytes / 1e6);
+			java.util.function.Consumer<List<Object>> fillPulls = all -> {
+						pullModel.setRowCount(0);
+						long total = 0, week = 0;
+						String cutoff = LocalDateTime.now().minusDays(7).format(TIME);
+						for (Object o : all) {
+							Map<String, Object> r = Json.map(o);
+							long bytes = 0, local = 0;
+							try { bytes = (long) Double.parseDouble(Json.str(r.get("bytes"))); local = (long) Double.parseDouble(Json.str(r.get("local_bytes"))); } catch (NumberFormatException ignored) {}
+							total += bytes; if (Json.str(r.get("time")).compareTo(cutoff) >= 0) week += bytes;
+							String upd = (Json.str(r.get("pack")).isEmpty() ? "" : Json.str(r.get("pack")) + " ") + (Json.str(r.get("from")).isEmpty() ? "first install, " : Json.str(r.get("from")) + " \u2192 ") + Json.str(r.get("to"));
+							pullModel.addRow(new Object[] {r.get("time"), r.get("name"), r.get("player"), r.get("os"), upd, Json.str(r.get("files")).replaceAll("\\.0$", ""), Json.str(r.get("mods")).replaceAll("\\.0$", ""), mb.apply(bytes), mb.apply(local)});
+						}
+						pullTiles[0].setText(String.valueOf(all.size())); pullTiles[1].setText(mb.apply(total)); pullTiles[2].setText(mb.apply(week));
+						pullTiles[3].setText(all.isEmpty() ? "\u2013" : Json.str(Json.map(all.get(0)).get("name")) + ", " + Json.str(Json.map(all.get(0)).get("time")));
+			};
+			Runnable loadPulls = () -> new Thread(() -> {
+				try {
+					List<Object> all = Json.list(Json.map(Json.parse(call("GET", "/admin/pulls", null))).get("pulls"));
+					SwingUtilities.invokeLater(() -> fillPulls.accept(all));
+				} catch (Exception ignored) {}
+			}, "pulls").start();
+			new Timer(5000, e -> { if (pullsTab.isShowing()) loadPulls.run(); }).start();
+			pullsTab.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && pullsTab.isShowing()) loadPulls.run(); });
+			tabs.addTab("Access Manager", accessTab); tabs.addTab("Status", statusTab); tabs.addTab("Updates Pulled", pullsTab);
 			p.add(tabs, BorderLayout.CENTER);
 			Runnable refresh = () -> new Thread(() -> {
 				try {
@@ -1393,7 +1511,7 @@ public final class HostHelper {
 							perms.put(e.getKey(), new boolean[] {pm, ps, pv, pa});
 							model.addRow(new Object[] {d.get("name"), Json.str(d.get("player")).isEmpty() ? "" : Json.str(d.get("player")) + (Boolean.TRUE.equals(d.get("player_confirmed")) ? "" : " (not confirmed)"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
 									word.apply(Json.str(d.get("state_server"))).equals("Not allowed") && pm ? "Allowed (with MCSS control)" : word.apply(Json.str(d.get("state_server"))),
-									word.apply(Json.str(d.get("state_mcss"))), word.apply(Json.str(d.get("state_machine"))), word.apply(Json.str(d.get("state_admin"))), Json.str(d.get("access_text")), Json.str(d.get("ban_text"))});
+									word.apply(Json.str(d.get("state_mcss"))), word.apply(Json.str(d.get("state_machine"))), word.apply(Json.str(d.get("state_admin"))), Json.str(d.get("access_text")), Json.str(d.get("ban_text")), Json.str(d.get("now"))});
 							if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 						}
 						int psel = ptable.getSelectedRow();
@@ -1416,7 +1534,7 @@ public final class HostHelper {
 							StringBuilder ds = new StringBuilder();
 							for (Object o : dv) ds.append(ds.length() == 0 ? "" : ", ").append(o);
 							pmodel.addRow(new Object[] {e.getKey(), Boolean.TRUE.equals(q.get("whitelisted")), ds.length() == 0 ? "(none yet)" : ds.toString(), Json.str(q.get("last_seen")), cell[0], cell[1], cell[2], cell[3],
-									Json.str(q.get("ban")).isEmpty() ? "" : (Json.str(q.get("ban")).equals("blacklist") ? "Blacklisted" : "Suspended") + (Json.str(q.get("ban_reason")).isEmpty() ? "" : ": " + Json.str(q.get("ban_reason")))});
+									Json.str(q.get("ban")).isEmpty() ? "" : (Json.str(q.get("ban")).equals("blacklist") ? "Blacklisted" : "Suspended") + (Json.str(q.get("ban_reason")).isEmpty() ? "" : ": " + Json.str(q.get("ban_reason"))), Json.str(q.get("now"))});
 							if (e.getKey().equals(pkeep)) ptable.setRowSelectionInterval(pnames.size() - 1, pnames.size() - 1);
 						}
 						filling[0] = false;
@@ -1594,6 +1712,8 @@ public final class HostHelper {
 					c.setBackground(s.startsWith("Allowed") ? new Color(0xC8EFD0) : s.startsWith("Denied") ? new Color(0xF6C4C4) : perm ? Color.WHITE
 							: s.startsWith("Blacklisted") || s.startsWith("Suspended") ? new Color(0xF6C4C4) : sel ? tb.getSelectionBackground() : tb.getBackground());
 					c.setForeground(perm || s.startsWith("Blacklisted") || s.startsWith("Suspended") ? Color.BLACK : sel ? tb.getSelectionForeground() : tb.getForeground());
+					// (Where they are right now: green in a game, blue with the launcher open, grey otherwise.)
+					if (s.equals("In game")) c.setForeground(new Color(0x8BD46E)); else if (s.equals("In the launcher")) c.setForeground(new Color(0x66C0F4)); else if (s.equals("Offline")) c.setForeground(new Color(0x8F98A0));
 					return c;
 				}
 			};
@@ -1742,6 +1862,13 @@ public final class HostHelper {
 				Timer once = new Timer(3500, e -> {
 					setup.run();
 					try {
+						// (the Updates Pulled tab, filled in directly: <file>-pulls.png)
+						tabs.setSelectedIndex(2);
+						try { fillPulls.accept(Json.list(Json.map(Json.parse(call("GET", "/admin/pulls", null))).get("pulls"))); } catch (Exception ignored) {}
+						p.validate();
+						java.awt.image.BufferedImage pi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D pg = pi.createGraphics(); p.paint(pg); pg.dispose();
+						javax.imageio.ImageIO.write(pi, "png", new java.io.File(shot + "-pulls.png"));
 						for (int i = 0; i < 3; i++) {
 							tabs.setSelectedIndex(i == 2 ? 1 : 0);
 							if (i == 1) byPlayer.doClick(); else if (i == 0) byDevice.doClick();
