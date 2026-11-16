@@ -532,9 +532,7 @@ public final class LaunchPopup {
 		try { if (direct) Files.writeString(note, String.valueOf(System.currentTimeMillis()), StandardCharsets.UTF_8); else Files.deleteIfExists(note); } catch (IOException ignored) {}
 		List<String> cmd = new ArrayList<>(List.of(prism, "--launch", e[0]));
 		if (!e[2].isEmpty()) { cmd.add("--server"); cmd.add(e[2]); }
-		// (on a Steam Deck: the pack's controller layout for the game, whichever shortcut this was opened from)
-		SteamInput.force(SteamInput.appid(Path.of(e[3]), "pack"));
-		try { run(cmd); } finally { SteamInput.reset(); }
+		run(cmd);
 	}
 	static void run(List<String> cmd) {
 		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would run: " + String.join(" ", cmd)); return; }   // (testing)

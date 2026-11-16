@@ -1,7 +1,7 @@
 "controller_mappings"
 {
 	"version"		"3"
-	"revision"		"5"
+	"revision"		"6"
 	"title"		"Minecraft - R4 jump, L4 crouch, trackpad mouse"
 	"description"		"#Description"
 	"creator"		"0"
@@ -1109,7 +1109,7 @@
 					{
 						"bindings"
 						{
-							"binding"		"mouse_button RIGHT, , "
+							"binding"		"mouse_button LEFT, , "
 						}
 					}
 				}
