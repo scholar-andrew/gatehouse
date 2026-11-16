@@ -412,7 +412,7 @@ public final class HostHelper {
 	static Path serverDir() { return Path.of(serverSetting("dir", "server_dir", "")); }
 	// ------------------------------------------------------------------ players
 
-	static final String[][] PERMS = {{"server", "server", "server control"}, {"mcss", "granted", "MCSS control"}, {"sleep", "sleep", "PC sleep"}, {"admin", "admin", "Keeper control"}};
+	static final String[][] PERMS = {{"server", "server", "server control"}, {"mcss", "granted", "MCSS control"}, {"sleep", "sleep", "Machine wake/sleep"}, {"admin", "admin", "Keeper control"}};
 	static long logSeen = -1;
 
 	static Map<String, Object> players() { return Json.map(Json.parse(read(dir.resolve("players.json")))); }
@@ -1021,14 +1021,13 @@ public final class HostHelper {
 			JPanel stateRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
 			stateRow.add(mcssRun); stateRow.add(state);
 			// A launcher asked for the server: a banner here, and the taskbar button flashes until it's looked at.
-			JLabel reqText = new JLabel(" ");
-			reqText.setFont(reqText.getFont().deriveFont(Font.BOLD, 14f));
-			JButton reqStart = new JButton("Start server"), reqClear = new JButton("Dismiss");
-			JPanel reqRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
-			reqRow.setBackground(new Color(0xFFF1C2));
-			reqRow.setBorder(BorderFactory.createLineBorder(new Color(0xE0A91B)));
-			reqRow.add(reqText); reqRow.add(reqStart); reqRow.add(reqClear);
+			// One line for each thing a launcher is asking for, each with its own answer: grant it, or dismiss it (with a
+			// reason for the launcher to show, if you like).
+			JPanel reqRow = new JPanel();
+			reqRow.setLayout(new javax.swing.BoxLayout(reqRow, javax.swing.BoxLayout.Y_AXIS));
 			reqRow.setVisible(false);
+			String[] reqShown = {""};
+			Runnable[] refreshLater = {() -> {}};
 			int[] seqSeen = {-1};
 			// With more than one server on this machine: which one the panel is looking at (server control, the
 			// Minecraft server's status and its Start/Stop are per server; the rest is about the machine).
@@ -1041,7 +1040,7 @@ public final class HostHelper {
 			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(headLine, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH);
 			p.add(top, BorderLayout.NORTH);
-			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "PC sleep", "Keeper control", "Controls the server"};
+			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "Machine wake/sleep", "Keeper control", "Controls the server", "Status"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable table = new JTable(model);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -1054,7 +1053,7 @@ public final class HostHelper {
 			JScrollPane ts = new JScrollPane(table); ts.setPreferredSize(new Dimension(1180, 200));
 			mid.add(ts, BorderLayout.CENTER);
 			JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
-			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), adminB = new JButton("Allow Keeper control"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
+			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow machine wake/sleep"), adminB = new JButton("Allow Keeper control"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
 			adminB.setToolTipText("Keeper control lets that launcher manage the others' permissions from its Server config tab, as this panel does (not the MCSS key, and not Keeper control itself).");
 			for (JButton b : new JButton[] {serverB, mcssB, sleepB, adminB, forget, refreshB}) buttons.add(b);
 			Map<String, boolean[]> perms = new java.util.HashMap<>();   // id -> {mcss, sleep, server}, from the last refresh
@@ -1087,7 +1086,7 @@ public final class HostHelper {
 			mid.add(south, BorderLayout.SOUTH);
 			// Players: the same permissions, per player. A player is tied to a launcher when the server's log shows them
 			// joining from it; allowing a player something sets it on all their launchers, and on ones they join from later.
-			String[] pcols = {"Player", "Whitelisted", "Launchers", "Last joined", "Server control", "MCSS control", "PC sleep", "Keeper control"};
+			String[] pcols = {"Player", "Whitelisted", "Launchers", "Last joined", "Server control", "MCSS control", "Machine wake/sleep", "Keeper control", "Status"};
 			// The Whitelisted column is a tick-box: ticking or unticking a player changes the server's whitelist.
 			boolean[] filling = {false};
 			DefaultTableModel pmodel = new DefaultTableModel(pcols, 0) {
@@ -1099,10 +1098,10 @@ public final class HostHelper {
 			ptable.setRowHeight(24);
 			List<String> pnames = new ArrayList<>();
 			Map<String, boolean[]> pallow = new java.util.HashMap<>();   // player -> allowed {server, mcss, sleep, admin}
-			JButton[] pB = {new JButton("Allow server control"), new JButton("Allow MCSS control"), new JButton("Allow PC sleep"), new JButton("Allow Keeper control")};
+			JButton[] pB = {new JButton("Allow server control"), new JButton("Allow MCSS control"), new JButton("Allow machine wake/sleep"), new JButton("Allow Keeper control")};
 			JPanel pbuttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			for (JButton b : pB) pbuttons.add(b);
-			JLabel pnote = new JLabel("<html><div style='width:900px'>A player appears once they've joined the server from a device with the launcher (matched by its Tailscale address), or when a launcher says who last played on it (\"not confirmed\" until they join). What you allow a player is set on all their confirmed launchers, and on launchers they join from later. The Whitelisted box puts a player on the server's whitelist or takes them off (a name that is \"not confirmed\" is only what a launcher said, so check it before ticking). The Launchers tab still changes one launcher at a time.</div></html>");
+			JLabel pnote = new JLabel("<html><div style='width:900px'>A player appears once they've joined the server from a device with the launcher (matched by its Tailscale address), or when a launcher says who last played on it (\"not confirmed\" until they join). Click a permission to set it: white is not allowed, green allowed, red denied. What you set for a player is set on all their confirmed launchers (and on launchers they join from later), except a launcher that is itself Denied that thing. The Whitelisted box puts a player on the server's whitelist or takes them off (a name that is \"not confirmed\" is only what a launcher said, so check it before ticking). The Launchers tab still changes one launcher at a time.</div></html>");
 			pnote.setForeground(new Color(0x6B7280));
 			JPanel psouth = new JPanel(new BorderLayout(0, 6)); psouth.add(pbuttons, BorderLayout.NORTH); psouth.add(pnote, BorderLayout.SOUTH);
 			JPanel playersTab = new JPanel(new BorderLayout(0, 8));
@@ -1149,7 +1148,7 @@ public final class HostHelper {
 			JPanel statusTab = new JPanel(new BorderLayout(0, 10));
 			statusTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
 			statusTab.add(statusTop, BorderLayout.NORTH); statusTab.add(activity, BorderLayout.CENTER);
-			tabs.addTab("Access", accessTab); tabs.addTab("Status", statusTab);
+			tabs.addTab("Access Manager", accessTab); tabs.addTab("Status", statusTab);
 			p.add(tabs, BorderLayout.CENTER);
 			Runnable refresh = () -> new Thread(() -> {
 				try {
@@ -1160,13 +1159,15 @@ public final class HostHelper {
 						int sel = table.getSelectedRow();
 						String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null;
 						model.setRowCount(0); ids.clear(); perms.clear();
+						java.util.function.Function<String, String> word = st -> st.equals("allowed") ? "Allowed" : st.equals("denied") ? "Denied" : "Not allowed";
 						for (Map.Entry<String, Object> e : Json.map(r.get("devices")).entrySet()) {
 							Map<String, Object> d = Json.map(e.getValue());
 							ids.add(e.getKey());
 							boolean pm = Boolean.TRUE.equals(d.get("granted")), ps = Boolean.TRUE.equals(d.get("sleep")), pv = Boolean.TRUE.equals(d.get("server")), pa = Boolean.TRUE.equals(d.get("admin"));
 							perms.put(e.getKey(), new boolean[] {pm, ps, pv, pa});
 							model.addRow(new Object[] {d.get("name"), Json.str(d.get("player")).isEmpty() ? "" : Json.str(d.get("player")) + (Boolean.TRUE.equals(d.get("player_confirmed")) ? "" : " (not confirmed)"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
-									pv ? "Allowed" : pm ? "Allowed (with MCSS control)" : "Not allowed", pm ? "Allowed" : "Not allowed", ps ? "Allowed" : "Not allowed", pa ? "Allowed" : "Not allowed", Json.str(d.get("access_text"))});
+									word.apply(Json.str(d.get("state_server"))).equals("Not allowed") && pm ? "Allowed (with MCSS control)" : word.apply(Json.str(d.get("state_server"))),
+									word.apply(Json.str(d.get("state_mcss"))), word.apply(Json.str(d.get("state_machine"))), word.apply(Json.str(d.get("state_admin"))), Json.str(d.get("access_text")), Json.str(d.get("ban_text"))});
 							if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 						}
 						int psel = ptable.getSelectedRow();
@@ -1181,13 +1182,15 @@ public final class HostHelper {
 							for (int i = 0; i < 4; i++) {
 								al[i] = Boolean.TRUE.equals(q.get("allow_" + keys[i]));
 								int has = q.get("has_" + keys[i]) instanceof Number n ? n.intValue() : 0;
-								cell[i] = (al[i] ? "Allowed" : "Not allowed") + (conf == 0 ? "" : has == conf ? (al[i] ? "" : " (on all " + conf + " anyway)") : has == 0 ? (al[i] ? " (on none yet)" : "") : " (on " + has + " of " + conf + ")");
+								String pst = Json.str(q.get("state_" + (keys[i].equals("sleep") ? "machine" : keys[i])));
+								cell[i] = (pst.equals("denied") ? "Denied" : al[i] ? "Allowed" : "Not allowed") + (pst.equals("denied") || conf == 0 ? "" : has == conf ? (al[i] ? "" : " (on all " + conf + " anyway)") : has == 0 ? (al[i] ? " (on none yet)" : "") : " (on " + has + " of " + conf + ")");
 							}
 							pnames.add(e.getKey()); pallow.put(e.getKey(), al);
 							List<Object> dv = Json.list(q.get("devices"));
 							StringBuilder ds = new StringBuilder();
 							for (Object o : dv) ds.append(ds.length() == 0 ? "" : ", ").append(o);
-							pmodel.addRow(new Object[] {e.getKey(), Boolean.TRUE.equals(q.get("whitelisted")), ds.length() == 0 ? "(none yet)" : ds.toString(), Json.str(q.get("last_seen")), cell[0], cell[1], cell[2], cell[3]});
+							pmodel.addRow(new Object[] {e.getKey(), Boolean.TRUE.equals(q.get("whitelisted")), ds.length() == 0 ? "(none yet)" : ds.toString(), Json.str(q.get("last_seen")), cell[0], cell[1], cell[2], cell[3],
+									Json.str(q.get("ban")).isEmpty() ? "" : (Json.str(q.get("ban")).equals("blacklist") ? "Blacklisted" : "Suspended") + (Json.str(q.get("ban_reason")).isEmpty() ? "" : ": " + Json.str(q.get("ban_reason")))});
 							if (e.getKey().equals(pkeep)) ptable.setRowSelectionInterval(pnames.size() - 1, pnames.size() - 1);
 						}
 						filling[0] = false;
@@ -1210,15 +1213,45 @@ public final class HostHelper {
 						}
 						List<Object> asked = Json.list(r.get("requests"));
 						int seq = r.get("request_seq") instanceof Number n ? n.intValue() : 0;
-						boolean serverUp = Boolean.TRUE.equals(r.get("minecraft"));
-						if (asked.isEmpty() || serverUp) {
-							if (reqRow.isVisible()) { reqRow.setVisible(false); f.setTitle("Gatehouse control panel"); }
+						if (asked.isEmpty()) {
+							if (reqRow.isVisible()) { reqRow.setVisible(false); reqRow.removeAll(); reqShown[0] = ""; f.setTitle("Gatehouse control panel"); }
 						} else {
+							String sig = Json.write(asked);
+							if (!sig.equals(reqShown[0])) {   // (rebuilt only when the requests change, so a button isn't replaced under the mouse)
+								reqShown[0] = sig;
+								reqRow.removeAll();
+								for (Object o : asked) {
+									Map<String, Object> q = Json.map(o);
+									String type = Json.str(q.get("type")), rid = Json.str(q.get("id")), msg = Json.str(q.get("message"));
+									String by = Json.str(q.get("who")) + (Json.str(q.get("player")).isEmpty() ? "" : " (" + Json.str(q.get("player")) + ")");
+									JLabel text = new JLabel("<html><b>" + (by + " asks for " + requestWords(type) + (Json.str(q.get("server")).isEmpty() ? "" : " (" + Json.str(q.get("server")) + ")")).replace("&", "&amp;").replace("<", "&lt;")
+											+ "</b>, " + Json.str(q.get("time")) + (msg.isEmpty() ? "" : " &nbsp;&ldquo;" + msg.replace("&", "&amp;").replace("<", "&lt;") + "&rdquo;") + "</html>");
+									JButton yes = new JButton(type.equals("server") ? "Start server" : type.startsWith("perm:") ? "Allow" : type.equals("whitelist") ? "Add to whitelist" : type.equals("unblacklist") ? "Lift blacklist" : "Lift suspension");
+									JButton no = new JButton("Dismiss\u2026");
+									java.util.function.BiConsumer<Boolean, String> answer = (grant, reason) -> new Thread(() -> {
+										String res = "failed", m2;
+										try { Map<String, Object> rr = Json.map(Json.parse(call("POST", "/admin/request/answer", Json.write(m("id", rid, "type", type, "grant", grant, "reason", reason))))); res = Json.str(rr.get("result")); m2 = Json.str(rr.get("message")); }
+										catch (IOException ex) { m2 = "The Keeper isn't running."; }
+										String shown = m2; boolean tell = !res.equals("ok");
+										SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + shown + "</div></html>", "Gatehouse control panel", JOptionPane.PLAIN_MESSAGE); refreshLater[0].run(); });
+									}, "answer").start();
+									yes.addActionListener(ev -> answer.accept(true, ""));
+									no.addActionListener(ev -> {
+										Object why = JOptionPane.showInputDialog(f, "<html><div style='width:380px'>Dismiss this request? You can give a reason for the launcher to show (or leave it empty).</div></html>", "Dismiss", JOptionPane.PLAIN_MESSAGE, null, null, "");
+										if (why != null) answer.accept(false, why.toString());
+									});
+									JPanel line = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 3));
+									line.setBackground(new Color(0xFFF1C2));
+									line.setBorder(BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(0xE0A91B)));
+									line.add(text); line.add(yes); line.add(no);
+									line.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+									reqRow.add(line);
+								}
+								reqRow.setVisible(true);
+								reqRow.revalidate(); reqRow.repaint();
+							}
 							Map<String, Object> lastAsk = Json.map(asked.get(asked.size() - 1));
-							String by = Json.str(lastAsk.get("who")) + (Json.str(lastAsk.get("player")).isEmpty() ? "" : " (" + Json.str(lastAsk.get("player")) + ")");
-							reqText.setText(by + " asked for " + (Json.str(lastAsk.get("server")).isEmpty() ? "the server" : Json.str(lastAsk.get("server"))) + " to be turned on at " + Json.str(lastAsk.get("time")) + (asked.size() > 1 ? "  (" + asked.size() + " requests)" : ""));
-							reqRow.setVisible(true);
-							f.setTitle("Server requested by " + by + " \u2013 Gatehouse control panel");
+							f.setTitle(asked.size() + (asked.size() == 1 ? " request" : " requests") + " (" + Json.str(lastAsk.get("who")) + ") \u2013 Gatehouse control panel");
 							if (seq != seqSeen[0]) {   // a new one: flash the taskbar button
 								try { if (java.awt.Taskbar.isTaskbarSupported() && java.awt.Taskbar.getTaskbar().isSupported(java.awt.Taskbar.Feature.USER_ATTENTION_WINDOW)) java.awt.Taskbar.getTaskbar().requestWindowUserAttention(f); }
 								catch (RuntimeException ignored) {}
@@ -1261,14 +1294,14 @@ public final class HostHelper {
 				adminB.setText(pp[3] ? "Remove Keeper control" : "Allow Keeper control");
 				serverB.setText(pp[2] ? "Remove server control" : "Allow server control");
 				mcssB.setText(pp[0] ? "Remove MCSS control" : "Allow MCSS control");
-				sleepB.setText(pp[1] ? "Remove PC sleep" : "Allow PC sleep");
+				sleepB.setText(pp[1] ? "Remove PC sleep" : "Allow machine wake/sleep");
 			};
 			table.getSelectionModel().addListSelectionListener(e -> labels.run());
 			model.addTableModelListener(e -> SwingUtilities.invokeLater(labels));
 			mcssB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"mcss\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[0] + "}"); });
 			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[1] + "}"); });
 			serverB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"server\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[2] + "}"); });
-			String[] pkeys = {"server", "mcss", "sleep", "admin"}, pwords = {"server control", "MCSS control", "PC sleep", "Keeper control"};
+			String[] pkeys = {"server", "mcss", "sleep", "admin"}, pwords = {"server control", "MCSS control", "Machine wake/sleep", "Keeper control"};
 			pmodel.addTableModelListener(e -> {
 				if (filling[0] || e.getType() != javax.swing.event.TableModelEvent.UPDATE || e.getColumn() != 1) return;
 				int row = e.getFirstRow();
@@ -1307,7 +1340,7 @@ public final class HostHelper {
 					}, "player-perm").start();
 				});
 			}
-			reqClear.addActionListener(e -> act.accept("/admin/requests/clear", "{}"));
+			refreshLater[0] = refresh;
 			serverPick.addActionListener(e -> {
 				int i = serverPick.getSelectedIndex();
 				String id = i >= 0 && i < serverIds.size() ? serverIds.get(i) : "";
@@ -1325,14 +1358,75 @@ public final class HostHelper {
 					refresh.run();
 				}, "server-run").start();
 			});
-			reqStart.addActionListener(e -> new Thread(() -> {
-				String msg;
-				try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/server/start", "{}"))).get("message")); } catch (IOException ex) { msg = "The Keeper isn't running."; }
-				String m2 = msg;
-				SwingUtilities.invokeLater(() -> { serverState.setText(m2); tabs.setSelectedIndex(1); });
-				try { Thread.sleep(2500); } catch (InterruptedException ignored) {}
-				refresh.run();
-			}, "req-start").start());
+			// ---- the Access Manager's tables: colours, a menu on each permission, and shutting someone out
+			// A permission is white (not allowed), green (allowed) or red (denied); a click on it offers the three.
+			javax.swing.table.DefaultTableCellRenderer paint = new javax.swing.table.DefaultTableCellRenderer() {
+				@Override public java.awt.Component getTableCellRendererComponent(JTable tb, Object v, boolean sel, boolean focus, int row, int col) {
+					java.awt.Component c = super.getTableCellRendererComponent(tb, v, sel, focus, row, col);
+					String s = String.valueOf(v);
+					boolean perm = s.startsWith("Allowed") || s.startsWith("Denied") || s.startsWith("Not allowed");
+					c.setBackground(s.startsWith("Allowed") ? new Color(0xC8EFD0) : s.startsWith("Denied") ? new Color(0xF6C4C4) : perm ? Color.WHITE
+							: s.startsWith("Blacklisted") || s.startsWith("Suspended") ? new Color(0xF6C4C4) : sel ? tb.getSelectionBackground() : tb.getBackground());
+					c.setForeground(perm || s.startsWith("Blacklisted") || s.startsWith("Suspended") ? Color.BLACK : sel ? tb.getSelectionForeground() : tb.getForeground());
+					return c;
+				}
+			};
+			table.setDefaultRenderer(Object.class, paint);
+			ptable.setDefaultRenderer(Object.class, paint);
+			java.util.function.BiConsumer<String, String> post = (path, body) -> new Thread(() -> {
+				String res = "ok", msg = "";
+				try { Map<String, Object> rr = Json.map(Json.parse(call("POST", path, body))); res = Json.str(rr.get("result")); msg = Json.str(rr.get("message")); if (!Json.str(rr.get("error")).isEmpty()) { res = "failed"; msg = Json.str(rr.get("error")); } }
+				catch (IOException ex) { res = "failed"; msg = "The Keeper isn't running."; }
+				String m2 = msg; boolean tell = !msg.isEmpty() && (!res.equals("ok") || path.contains("ban") || path.contains("kick"));
+				SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f, "<html><div style='width:440px'>" + m2 + "</div></html>", "Gatehouse control panel", JOptionPane.PLAIN_MESSAGE); refresh.run(); });
+			}, "post").start();
+			String[] devPerm = {"server", "mcss", "machine", "admin"};   // the launchers table's columns 6 to 9, the players table's 4 to 7
+			java.awt.event.MouseAdapter menus = new java.awt.event.MouseAdapter() {
+				@Override public void mouseClicked(java.awt.event.MouseEvent ev) {
+					JTable tb = (JTable) ev.getSource();
+					boolean players = tb == ptable;
+					int row = tb.rowAtPoint(ev.getPoint()), col = tb.columnAtPoint(ev.getPoint()), first = players ? 4 : 6;
+					if (row < 0 || col < first || col > first + 3) return;
+					String who = players ? (row < pnames.size() ? pnames.get(row) : null) : (row < ids.size() ? ids.get(row) : null);
+					if (who == null) return;
+					String perm = devPerm[col - first];
+					javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+					for (String[] st : new String[][] {{"allowed", "Allowed"}, {"none", "Not allowed"}, {"denied", "Denied (stays denied whatever the player is given)"}}) {
+						javax.swing.JMenuItem it = new javax.swing.JMenuItem(st[1]);
+						it.addActionListener(a2 -> post.accept(players ? "/admin/player/perm" : "/admin/perm", Json.write(players ? m("player", who, "perm", perm, "state", st[0]) : m("id", who, "perm", perm, "state", st[0]))));
+						menu.add(it);
+					}
+					menu.show(tb, ev.getX(), ev.getY());
+				}
+			};
+			table.addMouseListener(menus);
+			ptable.addMouseListener(menus);
+			// Shutting out a launcher (this device only) or a player (every device), and letting them back.
+			java.util.function.BiConsumer<Boolean, String> shutOut = (players, kind) -> {
+				int row = (players ? ptable : table).getSelectedRow();
+				if (row < 0 || row >= (players ? pnames.size() : ids.size())) { JOptionPane.showMessageDialog(f, players ? "Pick a player in the list first." : "Pick a launcher in the list first."); return; }
+				String who = players ? pnames.get(row) : ids.get(row);
+				String reason = "";
+				if (!kind.isEmpty()) {
+					String what = kind.equals("blacklist") ? "Blacklist" : kind.equals("suspend") ? "Suspend" : "Kick";
+					String explain = kind.equals("blacklist") ? "Blacklisted: the launcher still updates the game, but is told nothing about the machine, MCSS or the server, and can only ask to be let back."
+							: kind.equals("suspend") ? "Suspended: the launcher can't start the game or use any control until it's lifted, and can only ask for that."
+							: "Kicks them from the server now; they can come straight back.";
+					Object why = JOptionPane.showInputDialog(f, "<html><div style='width:400px'>" + what + (players ? " this player (on every device)? " : " this launcher (this device only)? ") + explain + "<br><br>Reason (optional; they see it):</div></html>", what, JOptionPane.PLAIN_MESSAGE, null, null, "");
+					if (why == null) return;
+					reason = why.toString();
+				}
+				if (kind.equals("kick")) post.accept("/admin/kick", Json.write(m("player", who, "reason", reason)));
+				else post.accept("/admin/ban", Json.write(players ? m("player", who, "kind", kind, "reason", reason) : m("id", who, "kind", kind, "reason", reason)));
+			};
+			JButton dSuspend = new JButton("Suspend\u2026"), dBlack = new JButton("Blacklist\u2026"), dLift = new JButton("Lift");
+			dSuspend.addActionListener(e -> shutOut.accept(false, "suspend")); dBlack.addActionListener(e -> shutOut.accept(false, "blacklist")); dLift.addActionListener(e -> shutOut.accept(false, ""));
+			dLift.setToolTipText("Lifts a suspension or blacklisting of the selected launcher");
+			for (JButton b : new JButton[] {dSuspend, dBlack, dLift}) buttons.add(b);
+			JButton pKick = new JButton("Kick\u2026"), pSuspend = new JButton("Suspend\u2026"), pBlack = new JButton("Blacklist\u2026"), pLift = new JButton("Lift");
+			pKick.addActionListener(e -> shutOut.accept(true, "kick")); pSuspend.addActionListener(e -> shutOut.accept(true, "suspend")); pBlack.addActionListener(e -> shutOut.accept(true, "blacklist")); pLift.addActionListener(e -> shutOut.accept(true, ""));
+			pLift.setToolTipText("Lifts a suspension or blacklisting of the selected player");
+			for (JButton b : new JButton[] {pKick, pSuspend, pBlack, pLift}) pbuttons.add(b);
 			mcssRun.addActionListener(e -> {
 				boolean up = mcssUp[0], force = mcssClose[0].equals("force");
 				if (up && JOptionPane.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead." : "Close MCSS?", "MCSS", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
