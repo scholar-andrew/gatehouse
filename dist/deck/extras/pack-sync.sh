@@ -261,6 +261,22 @@ if [ "$code" != 0 ]; then
 fi
 switches apply
 defaults_once
+# Where the pack is fetched from follows its profile (extras/profile.json "pack_sources"): pack-sources.txt is rewritten
+# to match, for the next launch. Only after an update that worked, and only when the new list still has the source that
+# just worked in it, so a wrong list can never leave a device with no source that answers.
+if [ "$code" = 0 ] && [ "$skip" != 1 ] && command -v python3 >/dev/null 2>&1; then
+  python3 - "$here" "${url%/$variant/pack.toml}" <<'PY' || true
+import json, os, sys, time
+here, worked = sys.argv[1], sys.argv[2].rstrip("/")
+try: want = [s.strip().rstrip("/") for s in json.load(open(os.path.join(here, "extras/profile.json"))).get("pack_sources", []) if s and s.strip()]
+except Exception: want = []
+p = os.path.join(here, "pack-sources.txt")
+have = [l.strip().rstrip("/") for l in open(p).read().splitlines() if l.strip() and not l.strip().startswith("#")]
+if want and worked in want and want != have:
+    open(p, "w").write("# Tried in order; the first that answers is used. (Kept up to date from the pack's profile.)\n" + "".join(s + "\n" for s in want))
+    open(os.path.join(here, "pack-sync.log"), "a").write("%s  pack sources updated from the profile: %s\n" % (time.strftime("%Y-%m-%d %H:%M:%S"), ", ".join(want)))
+PY
+fi
 # The launch wrapper, kept beside this script (Prism runs it from there; see cancel_launch above).
 if [ -f "$here/extras/launch-wrapper.sh" ] && ! cmp -s "$here/extras/launch-wrapper.sh" "$here/launch-wrapper.sh"; then
   cp -f "$here/extras/launch-wrapper.sh" "$here/launch-wrapper.sh" && chmod +x "$here/launch-wrapper.sh"

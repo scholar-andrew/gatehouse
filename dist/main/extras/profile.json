@@ -1,4 +1,9 @@
 {
  "name": "October Journey",
- "instance_id": "october-journey"
+ "instance_id": "october-journey",
+ "pack_sources": [
+  "http://100.91.134.102:8467",
+  "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/dist",
+  "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/dist"
+ ]
 }

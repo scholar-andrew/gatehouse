@@ -8,8 +8,10 @@
   "game_shortcut_name": "October Journey",
   "_shortcuts": "Each followed by \" - <device name>\". shortcut_name opens Prism Launcher; game_shortcut_name starts the instance and joins the first server (Prism's --launch and --server).",
   "repo_raw": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main",
+  "_pack_sources": "Tried in order; each device keeps its own list the same as this one. The repository is being renamed to gatehouse: both of its addresses are listed, so a device has one that answers before, during and after the rename.",
   "pack_sources": [
     "http://100.91.134.102:8467",
+    "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/dist",
     "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/dist"
   ],
   "servers": [

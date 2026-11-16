@@ -94,6 +94,16 @@ the game's mod menu. The installers and uninstallers are renamed too (`Gatehouse
 profile). What setup saves on a device keeps its old names so existing installs keep working: the tools folder
 (`OctoberJourney`, `~/.local/share/october-journey`), the saved copies (`OctoberJourneySetup.exe`,
 `OctoberJourneyUninstall.exe`), the Settings > Apps key and the app-menu files. The uninstallers still know only
-October Journey. Still under the old name: the repository (first a pack update that points devices at the new address, then
+October Journey. Still under the old name: the repository, in progress (2026-11-15):
+1. done, pack 1.9.12: devices keep `pack-sources.txt` the same as the profile's `pack_sources`, which now lists the
+   PC, the new address (`scholar-andrew/gatehouse`) and the old one. A device has it after two launches on 1.9.12 or
+   later (the first brings the new script, the second runs it).
+2. to do, once all three devices have launched twice: rename the repository on GitHub to `gatehouse`.
+3. to do after that: the repository address in the profile (`repo_raw`, the uninstaller addresses), in the installers
+   (their built-in profile address) and in the docs; a new installer release; then drop the old address from
+   `pack_sources`.
+(Whether GitHub keeps serving a renamed repository's old raw-file addresses wasn't tested: the sign-in here can't delete
+a test repository. Listing both addresses makes the answer not matter.)
+The repository (first a pack update that points devices at the new address, then
 the rename once every device has launched). Names nobody sees (the Java package `dev.octoberjourney`, the mod's id
 `octoberjourney`, `oj-host.jar`) stay as they are.

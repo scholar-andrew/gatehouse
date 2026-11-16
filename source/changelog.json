@@ -1,4 +1,7 @@
 [
+ {"version": "1.9.12", "date": "2026-11-15", "notes": [
+  "Nothing you'll notice: each device now keeps its list of places to fetch updates from in step with the pack, so the pack's address on GitHub can change without setting devices up again."
+ ]},
  {"version": "1.9.11", "date": "2026-11-15", "notes": [
   "The launcher and its tools are now called Gatehouse. The window's title bar reads Gatehouse, and the pack's settings in the game's mod menu are now Gatehouse Settings (same switches, same place). The pack, the server and your shortcuts are still October Journey."
  ]},

@@ -293,6 +293,19 @@ if ($skip) {
 if ("$code" -ne '0' -and -not (HasMods)) { StopIfNoMods "the mod download failed (exit $code)" }
 ApplySwitches
 ApplyDefaultsOnce
+# Where the pack is fetched from follows its profile (extras/profile.json "pack_sources"): pack-sources.txt is rewritten
+# to match, for the next launch. Only after an update that worked, and only when the new list still has the source that
+# just worked in it, so a wrong list can never leave a device with no source that answers.
+try {
+    if ("$code" -eq '0' -and -not $skip) {
+        $want = @((Get-Content (Join-Path $here 'extras/profile.json') -Raw -ErrorAction Stop | ConvertFrom-Json).pack_sources | Where-Object { $_ } | ForEach-Object { "$_".Trim().TrimEnd('/') })
+        $worked = $url -replace "/$variant/pack\.toml$", ''
+        if ($want.Count -gt 0 -and ($want -contains $worked) -and (($want -join '|') -ne (@($sources) -join '|'))) {
+            Set-Content -Path (Join-Path $here 'pack-sources.txt') -Value (@("# Tried in order; the first that answers is used. (Kept up to date from the pack's profile.)") + $want) -Encoding ascii
+            Note ("pack sources updated from the profile: " + ($want -join ', '))
+        }
+    }
+} catch { }
 # The launch wrapper, kept beside this script (Prism runs it from there; see CancelLaunch above).
 try {
     $ws = Join-Path $here 'extras/launch-wrapper.exe'; $wd = Join-Path $here 'launch-wrapper.exe'

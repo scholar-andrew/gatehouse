@@ -1,5 +1,5 @@
 {
- "version": "1.9.11",
+ "version": "1.9.12",
  "files": {
   "config/fabric_loader_dependencies.json": {
    "hash": "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280",
@@ -11,8 +11,8 @@
    "preserve": true
   },
   "extras/changelog.txt": {
-   "hash": "4f2bfec94de9c4feb29342be02d7ce403f8f0b4dd5aaf38e73ec862bc4ebdeb3",
-   "size": 12572
+   "hash": "57c3eaa1b1daa37ae29e5bcc62df540145ab5a1b324f6711323b548ddd293e7e",
+   "size": 12783
   },
   "extras/launch-popup.jar": {
    "hash": "cd73a9ac6992a3870061de71efa07bcbde0171c3f72b3fd12e2165fcc408fb7b",
@@ -35,16 +35,16 @@
    "size": 4184
   },
   "extras/pack-sync.ps1": {
-   "hash": "aa7a3cb815ff305fc20abcb07100a3a9125eb108aaa47459058ccb49008ed54a",
-   "size": 35327
+   "hash": "16b9b7625030aa8c9717fedd8f918c9310927b98bb9ce49c4d31932540be2448",
+   "size": 36402
   },
   "extras/pack-sync.sh": {
-   "hash": "67ca8cdf60b7dbe39589ae5f8f6b2c30bb88b74df02e31c75f07eeb18f535d94",
-   "size": 27125
+   "hash": "45b366a4d085e9cfb9778712f6f10c62991efcaa624c0a171b37296c0ae3c7ad",
+   "size": 28386
   },
   "extras/profile.json": {
-   "hash": "b8179cdea2c8e20dbccc8f0d5c986afe335c0dfb49a76d48e4e8def08fe99864",
-   "size": 66
+   "hash": "9f2e2843c0a1da2082910eaaa1a28b803bfa2f02af566b0caa88991f849d583c",
+   "size": 279
   },
   "extras/server-changelog.txt": {
    "hash": "9a30d689ef8e787a43ae97b7d40f2198fe7c4885beefe00631d672f6f818c140",
