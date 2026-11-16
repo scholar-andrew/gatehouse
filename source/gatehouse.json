@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.4.0",
+ "version": "2.4.1",
  "changes": [
+  {"version": "2.4.1", "date": "2026-11-16", "notes": [
+   "Any Gatekeeper can now be removed from the list. Until now Remove was only there for one with no packs installed. It asks first. Gatehouse forgets the Gatekeeper and this device's link to it; packs installed from it stay, move to Other packs, and update and start as before.",
+   "A removed Gatekeeper stays off the list (an installed pack that names it no longer brings it back) until you add it again with its address, link or file.",
+   "On the owner's side nothing changes: this device stays in their Access Manager until they remove it there."
+  ]},
   {"version": "2.4.0", "date": "2026-11-16", "notes": [
    "New: Connect to this Gatekeeper. When a Gatekeeper you add doesn't answer, Gatehouse no longer just says so: it remembers it and shows the steps to get connected, each with how it stands and what to do. Tailscale running on this device, the owner's invite accepted, this device reaching the Gatekeeper, and the Gatekeeper knowing this device. It looks again every few seconds, so each step ticks by itself, and it chimes when you're connected.",
    "A pairing link or file can now carry the owner's Tailscale invite (from Gatekeeper 2.1.0, Host setup). The steps then have an Open invite button, which gives this device access to that one machine. Only a link from login.tailscale.com is ever opened.",

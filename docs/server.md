@@ -243,6 +243,10 @@ machine needs before players can use it, each marked done, to do, or worth chang
   `https://login.tailscale.com/` link is taken), it is kept in `host.json` as `tailscale_share_link` and goes out in
   Share pairing: `&ts=` in the pairing link, `tailscale_share` in the pairing file.
 
+Below the list, **Name shown in launchers** sets what connected launchers call this Gatekeeper (`host.json` `name`;
+`POST /admin/checklist` with `name`, at most 40 characters; empty: this machine's own name). Launchers read it from
+`/v1/catalog` and rename their entry by themselves.
+
 The tab asks again every 5 seconds while it is open, and redraws only when something changed. The line above the
 invite field says how many steps are left and when it last looked; a step that has just turned to done says so for a
 minute. Ports come from each server's `server.properties` as it is now (not from what Server setup recorded), so a

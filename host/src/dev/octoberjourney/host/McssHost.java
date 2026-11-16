@@ -44,7 +44,7 @@ final class McssHost implements ServerHost {
 			List<String> cmd = new ArrayList<>(List.of(exe.toString()));
 			String extra = setting("mcss_args", "");   // (testing: arguments for a stand-in program)
 			if (!extra.isEmpty()) cmd.addAll(List.of(extra.split(" ")));
-			new ProcessBuilder(cmd).directory(exe.getParent().toFile()).start();
+			new ProcessBuilder(cmd).directory(exe.toAbsolutePath().getParent().toFile()).start();
 			for (int i = 0; i < 20 && processes().isEmpty(); i++) Thread.sleep(500);
 			return processes().isEmpty() ? new String[] {"failed", "MCSS didn't start"} : new String[] {"ok", "MCSS started"};
 		} catch (Exception e) { return new String[] {"failed", "Couldn't start MCSS: " + e.getMessage()}; }
@@ -53,7 +53,7 @@ final class McssHost implements ServerHost {
 	/** MCSS's own "when MCSS is closed" setting (mcssClosePreference in resources/mcss_config.json): HideToTaskbar,
 	 *  MinimizeToTaskbar, or an exit choice. Only an exit choice makes a close request quit MCSS properly. */
 	private String closePreference() {
-		Path c = mcssExe().getParent().resolve("resources").resolve("mcss_config.json");
+		Path c = mcssExe().toAbsolutePath().getParent().resolve("resources").resolve("mcss_config.json");   // (absolute: with no MCSS chosen yet there is no folder to ask for, and nothing is found)
 		return Json.str(Json.map(Json.parse(read(c))).get("mcssClosePreference"));
 	}
 

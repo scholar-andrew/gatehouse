@@ -1,7 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.1.1",
+ "version": "2.1.2",
  "changes": [
+  {"version": "2.1.2", "date": "2026-11-16", "notes": [
+   "You can set the name launchers list this Gatekeeper under: Host setup, Name shown in launchers. Left empty it is this machine's own name, as before. Launchers that are open pick a change up within a few seconds; pairings made after it carry the new name.",
+   "Fixed: a Gatekeeper with no MCSS chosen yet answered launchers with an error instead of its list of servers."
+  ]},
   {"version": "2.1.1", "date": "2026-11-16", "notes": [
    "Host setup looks again by itself every 5 seconds while its tab is open, so a change you make somewhere else (in MCSS, in Tailscale, in a server's files) shows without pressing anything. The line above the invite field says how many steps are left and when it last looked. A step that has just been done says \"Done just now\" for a minute.",
    "When two servers share a port, Host setup now names ports to use: the next ones up from 25565 that no server in MCSS is set to and that nothing on the machine is listening on.",

@@ -149,6 +149,10 @@ Gatehouse keeps it in the list and shows the steps, each ticking by itself when 
 Gatehouse doesn't install Tailscale, sign in or accept anything for you. A Gatekeeper in the list that isn't
 answering has a **Connect** button that shows the same steps.
 
+**Remove** beside a Gatekeeper takes it off this device's list, after asking. Gatehouse forgets it and this device's
+link to it; packs installed from it stay, are listed under **Other packs**, and update and start as before. It stays
+off the list until you add it again. The owner still sees this device in their Access Manager until they remove it.
+
 ### Notes about Gatehouse and Gatekeeper themselves
 
 Gatehouse and Gatekeeper each have a version and notes of their own, apart from any pack's or server's:

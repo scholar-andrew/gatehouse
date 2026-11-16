@@ -297,7 +297,9 @@ public final class HostHelper {
 		if (!share.isEmpty()) add.accept(new String[] {"Players have a way into Tailscale", "ok", "Your invite link goes out with the pairing link and file."});
 		else add.accept(new String[] {"Players have a way into Tailscale", "todo", "No invite link yet: a player's device has to be able to reach this machine over Tailscale.",
 				"In Tailscale's admin page (login.tailscale.com): Machines, this machine's \u2026 menu, Share, and make a reusable invite link. That shares only this machine, not the rest of your network. Paste the link below."});
-		return m("steps", steps, "share_link", share, "java", System.getProperty("java.version", ""), "checked", java.time.LocalTime.now().withNano(0).toString());
+		String machine = "";
+		try { machine = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
+		return m("steps", steps, "share_link", share, "name", setting("name", ""), "machine", machine, "java", System.getProperty("java.version", ""), "checked", java.time.LocalTime.now().withNano(0).toString());
 	}
 
 	/** The Tailscale device a request came from, as Tailscale names it (empty if unknown). */
@@ -1507,11 +1509,24 @@ public final class HostHelper {
 			} else if (path.equals("/admin/setup/scan")) {
 				Map<String, Object> scan = new LinkedHashMap<>(setupScan(Json.str(body(x).get("mcss_exe")).trim()));
 				scan.put("share_link", setting("tailscale_share_link", ""));   // (for the pairing)
+				scan.put("name", setting("name", ""));
 				reply(x, 200, scan);
 			} else if (path.equals("/admin/checklist")) {
 				if (x.getRequestMethod().equals("POST")) {
+					Map<String, Object> asked = body(x);
+					if (asked.containsKey("name")) {
+						// The name launchers list this Gatekeeper under (empty: this machine's own name again).
+						String nm = Json.str(asked.get("name")).replaceAll("[\\p{Cntrl}]", " ").trim();
+						if (nm.length() > 40) { reply(x, 200, m("result", "refused", "message", "Keep the name to 40 characters or fewer.")); return; }
+						if (nm.isEmpty()) cfg.remove("name"); else cfg.put("name", nm);
+						try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
+						catch (IOException e) { reply(x, 200, m("result", "refused", "message", "Couldn't save host.json: " + e.getMessage())); return; }
+						log(nm.isEmpty() ? "name in launchers: this machine's own name again" : "name in launchers: " + nm);
+						reply(x, 200, m("result", "ok", "message", nm.isEmpty() ? "Launchers list this Gatekeeper under this machine's name again." : "Launchers now list this Gatekeeper as \"" + nm + "\" (they pick it up within a few seconds when open)."));
+						return;
+					}
 					// The invite link players use to reach this machine over Tailscale: one of Tailscale's own, or none.
-					String link = Json.str(body(x).get("share_link")).trim();
+					String link = Json.str(asked.get("share_link")).trim();
 					if (!link.isEmpty() && !link.matches("https://login\\.tailscale\\.com/[A-Za-z0-9/_?=&.%-]+")) { reply(x, 200, m("result", "refused", "message", "That isn't a Tailscale invite link (it starts with https://login.tailscale.com/).")); return; }
 					if (link.isEmpty()) cfg.remove("tailscale_share_link"); else cfg.put("tailscale_share_link", link);
 					try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
@@ -1728,7 +1743,7 @@ public final class HostHelper {
 			// Share pairing: what to give someone so their launcher can find this Gatekeeper. The address by itself, a
 			// link that carries its name too (pasted into the launcher's Add Gatekeeper), or the same as a small file to
 			// send. None of them lets a launcher do anything: it still introduces itself and waits to be allowed.
-			String[] shareLink = {""};
+			String[] shareLink = {"", ""};   // (the invite link, and this Gatekeeper's name, as the running Gatekeeper has them)
 			pairB.addActionListener(e -> {
 				String addr, name;
 				try {
@@ -1736,8 +1751,9 @@ public final class HostHelper {
 					if (Json.str(r.get("bind")).isEmpty()) { pairNote.setText("No Tailscale address yet: use Server setup first."); return; }
 					addr = Json.str(r.get("bind")) + ":" + Json.str(r.get("port"));
 					shareLink[0] = Json.str(r.get("share_link"));
+					shareLink[1] = Json.str(r.get("name"));
 				} catch (Exception ex) { pairNote.setText("Couldn't ask Gatekeeper: is it running?"); return; }
-				name = setting("name", "");
+				name = shareLink[1];
 				if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ex) { name = "Gatekeeper"; }
 				// (with the Tailscale invite link from Host setup, when there is one: "ts" in the link, "tailscale_share" in the file)
 				String share = shareLink[0];
@@ -1939,7 +1955,19 @@ public final class HostHelper {
 			JPanel shareRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			JLabel shareLab = new JLabel("Tailscale invite link for players:"); shareLab.setFont(shareLab.getFont().deriveFont(Font.BOLD));
 			shareRow.add(shareLab); shareRow.add(shareF); shareRow.add(shareSave); shareRow.add(recheck);
-			JPanel shareBox = new JPanel(new BorderLayout(0, 2)); shareBox.add(checkedLab, BorderLayout.NORTH); shareBox.add(shareRow, BorderLayout.CENTER); shareBox.add(shareSaid, BorderLayout.SOUTH);
+			// This Gatekeeper's name: what launchers list it under (otherwise this machine's own name).
+			javax.swing.JTextField nameF = new javax.swing.JTextField(24);
+			JButton nameSave = new JButton("Save name");
+			nameF.setToolTipText("What connected launchers call this Gatekeeper in their list. Empty: this machine's own name. Launchers that are open pick a change up within a few seconds.");
+			JLabel nameLab = new JLabel("Name shown in launchers:"); nameLab.setFont(nameLab.getFont().deriveFont(Font.BOLD));
+			JLabel nameHint = new JLabel(" "); nameHint.setForeground(new Color(0x8F98A0));
+			JPanel nameRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+			nameRow.add(nameLab); nameRow.add(nameF); nameRow.add(nameSave); nameRow.add(nameHint);
+			JPanel fieldRows = new JPanel();
+			fieldRows.setLayout(new javax.swing.BoxLayout(fieldRows, javax.swing.BoxLayout.Y_AXIS));
+			nameRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); shareRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			fieldRows.add(nameRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4)); fieldRows.add(shareRow);
+			JPanel shareBox = new JPanel(new BorderLayout(0, 2)); shareBox.add(checkedLab, BorderLayout.NORTH); shareBox.add(fieldRows, BorderLayout.CENTER); shareBox.add(shareSaid, BorderLayout.SOUTH);
 			hostSetup.add(stepScroll, BorderLayout.CENTER); hostSetup.add(shareBox, BorderLayout.SOUTH);
 			// The list looks again by itself every few seconds while this tab is open, so a change made elsewhere (in
 			// MCSS, in Tailscale, in a file) shows here without pressing anything. The line at the bottom says when it
@@ -1979,6 +2007,8 @@ public final class HostHelper {
 					stepList.add(row);
 				}
 				if (!shareF.isFocusOwner()) shareF.setText(Json.str(r.get("share_link")));
+				if (!nameF.isFocusOwner()) nameF.setText(Json.str(r.get("name")));
+				nameHint.setText(Json.str(r.get("name")).isEmpty() && !Json.str(r.get("machine")).isEmpty() ? "(empty: listed as \"" + Json.str(r.get("machine")) + "\")" : " ");
 				firstTabs.setTitleAt(3, todo > 0 ? "Host setup (" + todo + " to do)" : "Host setup");
 				checkedLab.setText((todo + warn == 0 ? "Everything is done. " : (todo > 0 ? todo + " to do" : "") + (todo > 0 && warn > 0 ? ", " : "") + (warn > 0 ? warn + " worth changing" : "") + ". ")
 						+ (checked.isEmpty() ? "" : "Last looked at " + checked + "; ") + "it looks again every 5 seconds while this tab is open.");
@@ -1995,6 +2025,12 @@ public final class HostHelper {
 				String msg = said;
 				SwingUtilities.invokeLater(() -> { shareSaid.setText(msg); f.getRootPane().requestFocusInWindow(); loadSteps.run(); });
 			}, "share-link").start());
+			nameSave.addActionListener(ev -> new Thread(() -> {
+				String said;
+				try { said = Json.str(Json.map(Json.parse(call("POST", "/admin/checklist", Json.write(m("name", nameF.getText().trim()))))).get("message")); } catch (Exception ex) { said = "Couldn't ask Gatekeeper: is it running?"; }
+				String msg = said;
+				SwingUtilities.invokeLater(() -> { shareSaid.setText(msg); f.getRootPane().requestFocusInWindow(); loadSteps.run(); });
+			}, "name").start());
 			firstTabs.addTab("Host setup", hostSetup);
 			firstTabs.addChangeListener(ev -> { if (firstTabs.getSelectedIndex() == 3) loadSteps.run(); });
 			new javax.swing.Timer(5000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else if (firstTabs.getSelectedIndex() == 3 && hostSetup.isShowing()) loadSteps.run(); }).start();

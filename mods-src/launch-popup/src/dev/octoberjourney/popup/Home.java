@@ -257,7 +257,7 @@ final class Home {
 	}
 
 	// ---- what's remembered
-	private static List<String[]> savedKeepers(Path home) {
+	static List<String[]> savedKeepers(Path home) {
 		List<String[]> out = new ArrayList<>();
 		if (LaunchPopup.parseJson(LaunchPopup.readFile(home.resolve("gatekeepers.json"))) instanceof List<?> l)
 			for (Object o : l) { String u = norm(str(ServerControl.asMap(o).get("url"))); if (!u.isEmpty()) out.add(new String[] {u, str(ServerControl.asMap(o).get("name")), Connect.invite(str(ServerControl.asMap(o).get("tailscale_share")))}); }
@@ -269,10 +269,37 @@ final class Home {
 		try { Files.createDirectories(home); Files.writeString(home.resolve("gatekeepers.json"), sb.append("\n]\n").toString(), StandardCharsets.UTF_8); } catch (IOException ignored) {}
 	}
 
+	/** Gatekeepers taken off this device's list with Remove (gatekeepers-removed.json): an installed pack that names
+	 *  one doesn't bring it back; its packs are listed under Other packs. Adding it again clears this. */
+	static java.util.Set<String> removedKeepers(Path home) {
+		java.util.Set<String> out = new java.util.LinkedHashSet<>();
+		if (LaunchPopup.parseJson(LaunchPopup.readFile(home.resolve("gatekeepers-removed.json"))) instanceof List<?> l) for (Object o : l) { String u = norm(str(o)); if (!u.isEmpty()) out.add(u); }
+		return out;
+	}
+	private static void saveRemoved(Path home, java.util.Set<String> urls) {
+		StringBuilder sb = new StringBuilder("[");
+		for (String u : urls) sb.append(sb.length() > 1 ? ", " : "").append('"').append(ServerControl.jsonEsc(u)).append('"');
+		try { Files.createDirectories(home); Files.writeString(home.resolve("gatekeepers-removed.json"), sb.append("]\n").toString(), StandardCharsets.UTF_8); } catch (IOException ignored) {}
+	}
+	/** Forgets a Gatekeeper on this device: off the list (and kept off), and this device's own line to it (the small
+	 *  folder with the id and secret it introduced itself with) deleted. Installed packs aren't touched. */
+	static void forgetKeeper(Path home, List<String[]> keepers, String[] k) {
+		keepers.remove(k);
+		saveKeepers(home, keepers);
+		java.util.Set<String> gone = removedKeepers(home);
+		gone.add(k[0]);
+		saveRemoved(home, gone);
+		Path dir = home.resolve("keepers").resolve(shown(k[0]).replaceAll("[^A-Za-z0-9.-]", "_"));
+		try (java.util.stream.Stream<Path> s = Files.walk(dir)) { s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} }); } catch (IOException ignored) {}
+	}
+
 	// ---- the window
 	private static void window(Path instances, Path home, List<String[]> packs, String openAt, String[][] chosen, boolean[] openPrism, String[] again) throws Exception {
 		// The Gatekeepers: the ones remembered, and any an installed pack names that isn't remembered yet.
 		List<String[]> keepers = savedKeepers(home);
+		// (packs of a Gatekeeper that was removed here count as packs no Gatekeeper looks after)
+		java.util.Set<String> removed = removedKeepers(home);
+		for (String[] p : packs) if (removed.contains(p[4])) p[4] = "";
 		boolean added = false;
 		for (String[] p : packs) if (!p[4].isEmpty()) { boolean have = false; for (String[] k : keepers) if (k[0].equals(p[4])) have = true; if (!have) { keepers.add(new String[] {p[4], "", ""}); added = true; } }
 		if (added) saveKeepers(home, keepers);
@@ -685,10 +712,19 @@ final class Home {
 					});
 					boolean used = false;
 					for (String[] pk : packs) if (pk[4].equals(k[0])) used = true;
-					remove.setVisible(!used);
+					boolean usedHere = used;
 					Object[] r = row.apply(k[1].isEmpty() ? "Gatekeeper at " + shown(k[0]) : k[1], new Component[] {remove, connect, open});
 					open.addActionListener(ev -> showServers.accept(k[0]));
-					remove.addActionListener(ev -> { keepers.remove(k); saveKeepers(home, keepers); showKeepers[0].run(); });
+					remove.addActionListener(ev -> {
+						String who = k[1].isEmpty() ? "the Gatekeeper at " + shown(k[0]) : k[1];
+						String ask = "<html><div style='width:420px'>Remove " + LaunchPopup.esc(who) + " from this device's list?<br><br>"
+								+ "Gatehouse forgets it and this device's link to it. " + (usedHere ? "Its packs stay installed and move to <b>Other packs</b>; each still updates and starts as before. " : "")
+								+ "On the owner's side nothing changes: this device stays in their Access Manager until they remove it there. You can add it again later with the same address, link or file.</div></html>";
+						if (JOptionPane.showConfirmDialog(f, ask, "Remove Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+						forgetKeeper(home, keepers, k);
+						if (usedHere) { cameBack = f.getBounds(); again[0] = "\u0000restart"; f.dispose(); }   // (the list of packs has changed: the window again, in the same place)
+						else showKeepers[0].run();
+					});
 					keeperList.add((JPanel) r[0]); keeperList.add(Box.createVerticalStrut(8));
 					ServerControl c = client(home, k[0], packs);
 					Runnable poll = () -> {
@@ -765,6 +801,9 @@ final class Home {
 					String st = state;
 					SwingUtilities.invokeLater(() -> {
 						keepers.add(new String[] {got[0], got[1], got[2]});
+						java.util.Set<String> gone = removedKeepers(home);
+						boolean wasRemoved = gone.remove(got[0]);
+						if (wasRemoved) saveRemoved(home, gone);
 						if (st == null || st.isEmpty()) {
 							// It doesn't answer (yet): remembered all the same, and the steps to get connected are shown.
 							saveKeepers(home, keepers);
@@ -774,6 +813,7 @@ final class Home {
 							return;
 						}
 						saveKeepers(home, keepers);
+						if (wasRemoved) { cameBack = f.getBounds(); again[0] = got[0]; f.dispose(); return; }   // (its packs belong to it again: the window afresh, on its servers)
 						showServers.accept(got[0]);
 					});
 				}, "add-gatekeeper").start();

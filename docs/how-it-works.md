@@ -225,6 +225,10 @@ their next launch; nobody has to touch a device.
   right mouse button, for the game. `Nav.rightClickIsLeftClick` (on Deck hardware; `OJ_RIGHT_AS_LEFT=1` for tests)
   puts an event queue in front of the launcher's windows that hands every right-button mouse event on as a
   left-button one. Steam and the layout aren't involved.
+- **Removing a Gatekeeper in the launcher.** `Home.forgetKeeper` takes it out of `gatekeepers.json`, adds it to
+  `gatekeepers-removed.json` and deletes this device's folder for it under `keepers/`. While it is on the removed
+  list, packs that name it are treated as packs with no Gatekeeper (Other packs) and don't bring it back. Add
+  Gatekeeper with the same address takes it off the removed list.
 - **Connect to this Gatekeeper.** `Connect.java`: the steps between having a pairing and the Gatekeeper answering,
   looked at every 2.5 seconds: a Tailscale address on this device (an interface address in 100.64.0.0/10, which also
   works inside Prism's Flatpak), the Gatekeeper's port reachable, and its answer to this device's introduction.
