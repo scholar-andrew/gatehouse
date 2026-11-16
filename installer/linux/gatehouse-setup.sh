@@ -31,7 +31,7 @@
 #        --prism-root=DIR --steam-root=DIR (testing: use these folders instead of the real ones)
 #        --config=URL (testing: read config.json from there, e.g. file:///home/.../installer/config.json)
 set -euo pipefail
-CONFIG_URL="https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/config.json"
+CONFIG_URL="https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/config.json"
 YES=0; PRISM_ROOT=""; STEAM_ROOT=""; TESTING=0; SKIP=","; PAUSE=0; TOOLS_DIR=""; QUICK=0; ADD_FLAG=0; ADD_ONLY=0
 for a in "$@"; do
   case "$a" in

@@ -46,7 +46,7 @@ using Microsoft.Win32;
 
 static class Setup
 {
-    const string ConfigUrl = "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/config.json";
+    const string ConfigUrl = "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/config.json";
     const string Title = "Gatehouse setup";
     // The pack being installed and its Prism instance, as its profile names them (set once the profile is read).
     static string Pack = "the pack", InstanceName = "the pack's instance";
@@ -243,7 +243,7 @@ static class Setup
                 Directory.CreateDirectory(dir);
                 File.WriteAllText(Path.Combine(dir, "OctoberJourney.txt"), "Saved by Gatehouse setup for " + Pack + ": its installer and uninstaller.\r\n" +
                     "Run OctoberJourneyUninstall.exe (or Settings > Apps > " + Pack + ") to remove " + Pack + ", or\r\n" +
-                    "OctoberJourneySetup.exe to add items. https://github.com/scholar-andrew/october-journey-pack\r\n");
+                    "OctoberJourneySetup.exe to add items. https://github.com/scholar-andrew/gatehouse\r\n");
             }
             catch { }
         if (installer)
@@ -281,7 +281,7 @@ static class Setup
             k.SetValue("InstallLocation", dir);
             k.SetValue("UninstallString", "\"" + un + "\"");
             k.SetValue("QuietUninstallString", "\"" + un + "\" --yes");
-            k.SetValue("URLInfoAbout", "https://github.com/scholar-andrew/october-journey-pack");
+            k.SetValue("URLInfoAbout", "https://github.com/scholar-andrew/gatehouse");
             k.SetValue("NoRepair", 1, RegistryValueKind.DWord);
             if (installer) { k.SetValue("ModifyPath", "\"" + setup + "\""); k.SetValue("NoModify", 0, RegistryValueKind.DWord); }
             else { k.DeleteValue("ModifyPath", false); k.SetValue("NoModify", 1, RegistryValueKind.DWord); }

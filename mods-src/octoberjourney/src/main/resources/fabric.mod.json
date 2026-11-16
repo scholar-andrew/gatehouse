@@ -5,7 +5,7 @@
 	"name": "Gatehouse Settings",
 	"description": "Gatehouse's settings for this pack: switch the pack's mods and the launcher's windows on and off (applies the next time you start the game). Open it from Mod Menu.",
 	"authors": ["Gatehouse"],
-	"contact": { "sources": "https://github.com/scholar-andrew/october-journey-pack" },
+	"contact": { "sources": "https://github.com/scholar-andrew/gatehouse" },
 	"license": "CC0-1.0",
 	"environment": "client",
 	"entrypoints": {

@@ -17,7 +17,7 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
 - **Steam** (optional). Without it, setup still makes the Prism instance; you just play from Prism.
 
 ## Windows
-1. Download [**GatehouseSetup.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseSetup.exe).
+1. Download [**GatehouseSetup.exe**](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseSetup.exe).
 2. Run it. Windows may say "Windows protected your PC" because the file isn't code-signed: click **More info**, then
    **Run anyway**. It doesn't need administrator rights. Its full source is
    [`installer/windows/GatehouseSetup.cs`](installer/windows/GatehouseSetup.cs).
@@ -33,7 +33,7 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
 
 ## Linux, including Steam Deck
 1. Download (on a Steam Deck, switch to **Desktop Mode** first)
-   [**gatehouse-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-setup.sh).
+   [**gatehouse-setup.sh**](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-setup.sh).
    It's a plain script: you can open it in a text editor and read it before running it.
 2. Open a terminal in your Downloads folder (on a Steam Deck: **Konsole**) and run:
    ```bash
@@ -349,7 +349,7 @@ Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecra
 ## What it connects to
 | Address | When | What for |
 | --- | --- | --- |
-| `raw.githubusercontent.com/scholar-andrew/october-journey-pack` | setup; launches when the owner's PC can't be reached | `config.json`, the update script, packwiz bootstrap, art, controller layout; the pack itself |
+| `raw.githubusercontent.com/scholar-andrew/gatehouse` | setup; launches when the owner's PC can't be reached | `config.json`, the update script, packwiz bootstrap, art, controller layout; the pack itself |
 | `github.com/PrismLauncher/PrismLauncher/releases` | Windows setup, only if Prism isn't installed | Prism Launcher installer |
 | `dl.flathub.org` | Linux setup, only if Prism isn't installed | Prism Launcher |
 | `github.com/packwiz/packwiz-installer` | launches | packwiz-installer-bootstrap fetches and updates packwiz-installer itself |
@@ -368,8 +368,8 @@ removed. Steam has to be closed if you remove anything of Steam's; they ask. Not
 
 | Operating system | Already installed by setup | Or download it | Source |
 | --- | --- | --- | --- |
-| **Windows** | **Settings**, **Apps**, **October Journey (Minecraft modpack)**, **Uninstall** | [GatehouseUninstall.exe](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseUninstall.exe) | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
-| **Linux**, including **Steam Deck** | **Uninstall October Journey** in the app menu (Steam Deck: Desktop Mode) | [gatehouse-uninstall.sh](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-uninstall.sh), then `bash gatehouse-uninstall.sh` | [`gatehouse-uninstall.sh`](installer/linux/gatehouse-uninstall.sh) |
+| **Windows** | **Settings**, **Apps**, **October Journey (Minecraft modpack)**, **Uninstall** | [GatehouseUninstall.exe](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseUninstall.exe) | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
+| **Linux**, including **Steam Deck** | **Uninstall October Journey** in the app menu (Steam Deck: Desktop Mode) | [gatehouse-uninstall.sh](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-uninstall.sh), then `bash gatehouse-uninstall.sh` | [`gatehouse-uninstall.sh`](installer/linux/gatehouse-uninstall.sh) |
 
 The downloaded copy works too on a setup made before setup saved the uninstaller.
 

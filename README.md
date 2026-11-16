@@ -8,8 +8,8 @@ this client pack to play on it. **About the server** (settings, mods, Jarvis, an
 
 | Operating system | Install | Uninstall |
 | --- | --- | --- |
-| **Windows** 10 (64-bit) | [**GatehouseSetup.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseSetup.exe) | [**GatehouseUninstall.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseUninstall.exe) |
-| **Linux**, including **Steam Deck** (SteamOS 3.9) | [**gatehouse-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-setup.sh) | [**gatehouse-uninstall.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-uninstall.sh) |
+| **Windows** 10 (64-bit) | [**GatehouseSetup.exe**](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseSetup.exe) | [**GatehouseUninstall.exe**](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseUninstall.exe) |
+| **Linux**, including **Steam Deck** (SteamOS 3.9) | [**gatehouse-setup.sh**](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-setup.sh) | [**gatehouse-uninstall.sh**](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-uninstall.sh) |
 
 One download sets up everything: Prism Launcher, the modpack (it updates itself each time you play), the server in your
 server list, and two Steam shortcuts: **October Journey** (updates, starts the game and joins the server) and **Prism
@@ -23,7 +23,7 @@ existed? Run setup again and pick **Add the October Journey shortcut**.
 
 Step-by-step instructions and requirements (Minecraft account, Tailscale access, whitelist): [INSTALL.md](INSTALL.md).
 What it was tested on, with hardware: [INSTALL.md: Tested on](INSTALL.md#tested-on).
-All versions: [Releases](https://github.com/scholar-andrew/october-journey-pack/releases).
+All versions: [Releases](https://github.com/scholar-andrew/gatehouse/releases).
 
 ### What it installs and runs
 The modpack (a Prism Launcher instance) is always installed. **Quick install** adds everything below in the usual

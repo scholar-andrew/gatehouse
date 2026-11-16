@@ -7,8 +7,8 @@
   "shortcut_name": "Minecraft (Prism Launcher)",
   "game_shortcut_name": "October Journey",
   "_shortcuts": "Each followed by \" - <device name>\". shortcut_name opens Prism Launcher; game_shortcut_name starts the instance and joins the first server (Prism's --launch and --server).",
-  "repo_raw": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main",
-  "_pack_sources": "Tried in order; each device keeps its own list the same as this one. The repository is being renamed to gatehouse: both of its addresses are listed, so a device has one that answers before, during and after the rename.",
+  "repo_raw": "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main",
+  "_pack_sources": "Tried in order; each device keeps its own list the same as this one. The repository was renamed from october-journey-pack to gatehouse on 2026-11-15: its old address stays listed for now, in case a device still only knows that one.",
   "pack_sources": [
     "http://100.91.134.102:8467",
     "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/dist",
@@ -70,11 +70,11 @@
     "wide": "installer/art-prism/wide.png"
   },
   "uninstall_windows": {
-    "url": "https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseUninstall.exe",
+    "url": "https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseUninstall.exe",
     "sha256": "D93EE8B8B1FF3C63FBD9078C1A8EBCEF1F34DCB877FBE25E6AE2CCFAEB367EC7"
   },
   "uninstall_linux": {
-    "url": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/linux/gatehouse-uninstall.sh",
+    "url": "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/linux/gatehouse-uninstall.sh",
     "sha256": "3489F7D0EDBB7C6651046C512A70FD77E4D05EA351FA12921020E522F210240B"
   },
   "_uninstall": "Setup saves these uninstallers on the device. After changing either one, put its new SHA-256 here (and upload the exe to the release), or setup skips it."

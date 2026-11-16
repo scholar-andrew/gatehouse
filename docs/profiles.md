@@ -98,10 +98,11 @@ October Journey. Still under the old name: the repository, in progress (2026-11-
 1. done, pack 1.9.12: devices keep `pack-sources.txt` the same as the profile's `pack_sources`, which now lists the
    PC, the new address (`scholar-andrew/gatehouse`) and the old one. A device has it after two launches on 1.9.12 or
    later (the first brings the new script, the second runs it).
-2. to do, once all three devices have launched twice: rename the repository on GitHub to `gatehouse`.
-3. to do after that: the repository address in the profile (`repo_raw`, the uninstaller addresses), in the installers
-   (their built-in profile address) and in the docs; a new installer release; then drop the old address from
-   `pack_sources`.
+2. done 2026-11-15, after all three devices had the new list: the repository is `scholar-andrew/gatehouse`. (GitHub
+   still served the old raw-file address straight after the rename.)
+3. done with it: the repository address in the profile (`repo_raw`, the uninstaller addresses), in the installers
+   (their built-in profile address) and in the docs; and a new installer release (setup v4). Still to do, later: drop the old address
+   from `pack_sources`.
 (Whether GitHub keeps serving a renamed repository's old raw-file addresses wasn't tested: the sign-in here can't delete
 a test repository. Listing both addresses makes the answer not matter.)
 The repository (first a pack update that points devices at the new address, then
