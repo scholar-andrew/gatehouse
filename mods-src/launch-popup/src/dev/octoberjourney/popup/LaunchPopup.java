@@ -140,6 +140,7 @@ public final class LaunchPopup {
 					catch (SteamUpdate.NeedsPermission ex) { System.out.println("needs permission: " + ex.getMessage()); }
 				}
 				case "install-pack" -> System.out.println("installed: " + PackInstall.install(Path.of(args[1]), args[3], null, m -> System.out.println("   " + m)));   // (testing: args[1] is the instances folder)
+				case "install-plain" -> System.out.println("set up: " + PackInstall.vanilla(Path.of(args[1]), args[3], args[4], args[5], args[6], null));   // (testing: instances folder, server id, name, address, version)
 				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
 				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));

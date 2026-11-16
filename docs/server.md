@@ -126,7 +126,9 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   the computer's name) and its servers: id, name, the address to join, whether it's on, and `profile`, the address
   of that server's pack profile (a `config.json`, docs/profiles.md; `profile` on the server in `host.json`, filled in
   from this repository by `tools/install_host.ps1`). A launcher can install a pack from that. A blacklisted launcher
-  gets nothing.
+  gets nothing. It also says what kind each server is (`kind`: `modded` when its folder has mods or a mod loader's files, else
+  `vanilla`) and its Minecraft version (`minecraft_version`, from the server's own log, else its `versions` folder), so a
+  launcher can set up a plain instance for a plain server that has no pack.
 - **Share pairing** (Status tab): the address, a pairing link (`gatehouse://pair/<address>?name=<name>`, to paste
   into a launcher's Add Gatekeeper) and a pairing file (`<name>.gatekeeper`, the same two things as JSON, to send).
   None of them grants anything: the launcher still introduces itself and waits in Access Manager.

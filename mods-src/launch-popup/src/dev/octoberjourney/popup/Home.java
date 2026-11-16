@@ -287,7 +287,7 @@ final class Home {
 					serverList.add((JPanel) r[0]); serverList.add(Box.createVerticalStrut(8));
 					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install});
 				};
-				for (String[] pk : packs) if (pk[4].equals(url)) add.accept(pk[0], pk);
+				for (String[] pk : packs) if (pk[4].equals(url)) add.accept(pk[0].startsWith("gatehouse-") ? pk[0].substring("gatehouse-".length()) : pk[0], pk);
 				ServerControl c = url.isEmpty() ? null : client(home, url, packs);
 				Runnable poll = () -> {
 					Map<String, Object> cat = c == null ? null : catalog(c);
@@ -303,8 +303,25 @@ final class Home {
 								if (r[1] == null) ((JLabel) r[3]).setText(str(s.get("name")).isEmpty() ? id : str(s.get("name")));
 								boolean on = "true".equals(str(s.get("online")));
 								String profile = str(s.get("profile"));
-								set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + (r[1] != null ? "" : profile.isEmpty() ? ". Its pack isn't published for launchers to install: ask the owner." : ". Install sets its pack up on this device.")});
+								String kind = str(s.get("kind")), version = str(s.get("minecraft_version"));
+								boolean plain = profile.isEmpty() && kind.equals("vanilla");
+								set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + (version.isEmpty() ? "" : ", Minecraft " + version) + (r[1] != null ? ""
+										: plain ? (version.isEmpty() ? ". A plain server, but its version isn't known yet (it has to have been started once)." : ". A plain server: Install sets up a connection to it on this device.")
+										: profile.isEmpty() ? ". It has mods, and its pack isn't published for launchers to install: ask the owner." : ". Install sets its pack up on this device.")});
 								JButton ib = (JButton) r[5];
+								if (r[1] == null && plain && !version.isEmpty() && !ib.isVisible() && ib.getActionListeners().length == 0) {
+									ib.setVisible(true); ((JLabel) r[4]).setVisible(false);
+									ib.setToolTipText("Makes a plain Minecraft " + version + " instance in Prism Launcher that joins this server");
+									String plainName = str(s.get("name")).isEmpty() ? id : str(s.get("name")), addr = str(s.get("address"));
+									ib.addActionListener(ev -> {
+										int ok = JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Set up <b>" + LaunchPopup.esc(plainName) + "</b> on this device?<br><br>It makes a plain Minecraft " + LaunchPopup.esc(version)
+												+ " instance in Prism Launcher with this server (" + LaunchPopup.esc(addr) + ") in its server list. No mods. Prism downloads the game the first time you press Play. "
+												+ "No Steam shortcut is added; Prism Launcher has to be installed already.</div></html>", "Install", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+										if (ok != JOptionPane.OK_OPTION) return;
+										try { PackInstall.vanilla(instances, id, plainName, addr, version, c); again[0] = url; f.dispose(); }
+										catch (IOException | RuntimeException ex) { sub.setText("Not set up: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage())); }
+									});
+								}
 								if (r[1] == null && !profile.isEmpty() && !ib.isVisible() && ib.getActionListeners().length == 0) {
 									ib.setVisible(true); ((JLabel) r[4]).setVisible(false);
 									ib.addActionListener(ev -> {

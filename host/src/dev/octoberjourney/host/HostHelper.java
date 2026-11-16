@@ -302,6 +302,24 @@ public final class HostHelper {
 		return new String[] {"ok", "MCSS wasn't running: it's starting now, and the server starts as soon as MCSS is ready (a minute or two in all)"};
 	}
 
+	/** What a server's folder says about it: {"vanilla" or "modded", its Minecraft version or ""}. Modded: it has mods
+	 *  (a mods folder with jars in it) or a mod loader's files (Fabric, Forge, NeoForge, Quilt). The version is the one
+	 *  the server last said it started as (its own log), else the one its versions folder is named for. */
+	static String[] serverFacts(Path dir) {
+		boolean modded = false;
+		String version = "";
+		try {
+			Path mods = dir.resolve("mods");
+			if (Files.isDirectory(mods)) try (java.util.stream.Stream<Path> s = Files.list(mods)) { modded = s.anyMatch(p -> p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".jar")); }
+			if (!modded && Files.isDirectory(dir)) try (java.util.stream.Stream<Path> s = Files.list(dir)) { modded = s.anyMatch(p -> p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).matches("(fabric|forge|neoforge|quilt).*\\.(jar|properties)")); }
+			if (!modded) modded = Files.isDirectory(dir.resolve("libraries/net/fabricmc")) || Files.isDirectory(dir.resolve("libraries/net/minecraftforge")) || Files.isDirectory(dir.resolve("libraries/net/neoforged"));
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("Starting minecraft server version ([\\w.\\-]+)").matcher(read(dir.resolve("logs").resolve("latest.log")));
+			while (m.find()) version = m.group(1);
+			if (version.isEmpty() && Files.isDirectory(dir.resolve("versions"))) try (java.util.stream.Stream<Path> s = Files.list(dir.resolve("versions"))) { version = s.filter(Files::isDirectory).map(p -> p.getFileName().toString()).sorted().reduce((a, b) -> b).orElse(""); }
+		} catch (IOException | RuntimeException ignored) {}
+		return new String[] {modded ? "modded" : "vanilla", version};
+	}
+
 	static void reply(HttpExchange x, int code, Map<String, Object> body) throws IOException {
 		byte[] b = Json.write(body).getBytes(StandardCharsets.UTF_8);
 		x.getResponseHeaders().set("Content-Type", "application/json");
@@ -380,8 +398,10 @@ public final class HostHelper {
 						Map<String, Object> s = Json.map(o);
 						SERVER.set(Json.str(s.get("id")));
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
+						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", setting("bind", "") + ":" + (port.isEmpty() ? "25565" : port),
-								"online", minecraftRunning(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted));
+								"online", minecraftRunning(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
+								"kind", facts[0], "minecraft_version", facts[1]));
 					}
 				} finally { SERVER.set(keep); }
 				String name = setting("name", "");

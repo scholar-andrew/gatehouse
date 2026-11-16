@@ -1,4 +1,8 @@
 [
+ {"version": "1.14.0", "date": "2026-11-16", "notes": [
+  "The Gatehouse launcher can now set up a connection to a plain (unmodded) server. In a Gatekeeper's list of servers, a plain one that isn't on this device has Install: it makes a plain Minecraft instance in Prism Launcher, in the server's version, with the server already in its server list. Play then starts it and joins. Prism downloads the game itself the first time.",
+  "Each server in the list now shows its Minecraft version, and says whether it's a plain server or one with mods."
+ ]},
  {"version": "1.13.1", "date": "2026-11-16", "notes": [
   "Fixed: in the Gatehouse launcher's main window, a long status line (or a long name) pushed the Play button out past the right edge. A line that doesn't fit is now cut short with its full text shown on hover, and the buttons stay in view."
  ]},

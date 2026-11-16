@@ -24,6 +24,41 @@ final class PackInstall {
 
 	private static String str(Object o) { return o == null ? "" : o.toString(); }
 
+	/** Sets up a connection to a plain (unmodded) server its Gatekeeper lists: a Prism Launcher instance of plain
+	 *  Minecraft in the server's version, with the server in its server list, and enough beside it for the launcher's
+	 *  menu to list it with Play (which starts it and joins). No mods, no update step, nothing downloaded here: Prism
+	 *  fetches the game itself the first time it starts. Returns the instance id. */
+	static String vanilla(Path instances, String serverId, String name, String address, String version, ServerControl keeper) throws IOException {
+		if (!version.matches("[\\w.\\-]{1,32}")) throw new IOException("the Gatekeeper doesn't know this server's Minecraft version yet (start the server once, then try again)");
+		String id = "gatehouse-" + serverId.replaceAll("[^A-Za-z0-9._-]", "-");
+		Path inst = instances.resolve(id), mc = inst.resolve("minecraft");
+		if (Files.isRegularFile(inst.resolve("instance.cfg"))) throw new IOException("that server is already set up here (" + id + ")");
+		Files.createDirectories(mc.resolve("extras"));
+		Files.writeString(inst.resolve("mmc-pack.json"), "{\n    \"components\": [\n        { \"uid\": \"net.minecraft\", \"version\": \"" + version + "\", \"important\": true }\n    ],\n    \"formatVersion\": 1\n}\n", StandardCharsets.UTF_8);
+		String nl = System.getProperty("os.name", "").startsWith("Windows") ? "\r\n" : "\n";
+		Files.writeString(inst.resolve("instance.cfg"), String.join(nl, "[General]", "name=" + name + " (Minecraft " + version + ")", "ConfigVersion=1.3", "InstanceType=OneSix", "iconKey=default") + nl, StandardCharsets.UTF_8);
+		// The server list (servers.dat: uncompressed NBT, one entry).
+		java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+		java.io.DataOutputStream o = new java.io.DataOutputStream(b);
+		o.writeByte(10); o.writeUTF("");
+		o.writeByte(9); o.writeUTF("servers"); o.writeByte(10); o.writeInt(1);
+		o.writeByte(8); o.writeUTF("name"); o.writeUTF(name);
+		o.writeByte(8); o.writeUTF("ip"); o.writeUTF(address);
+		o.writeByte(0);
+		o.writeByte(0);
+		Files.write(mc.resolve("servers.dat"), b.toByteArray());
+		// What the launcher's menu reads: its name, the address to join, and which Gatekeeper looks after it.
+		Files.writeString(mc.resolve("extras/profile.json"), "{\"name\": \"" + ServerControl.jsonEsc(name) + "\", \"instance_id\": \"" + ServerControl.jsonEsc(id) + "\", \"plain\": true}\n", StandardCharsets.UTF_8);
+		Files.writeString(mc.resolve("extras/servers.json"), "[\n {\"name\": \"" + ServerControl.jsonEsc(name) + "\", \"address\": \"" + ServerControl.jsonEsc(address) + "\"}\n]\n", StandardCharsets.UTF_8);
+		if (keeper != null) {
+			Files.writeString(mc.resolve("extras/server-control.json"), "{\"helper_url\": \"" + ServerControl.jsonEsc(keeper.helperUrl) + "\", \"minecraft\": \"" + ServerControl.jsonEsc(address) + "\", \"server\": \"" + ServerControl.jsonEsc(serverId) + "\"}\n", StandardCharsets.UTF_8);
+			if (keeper.deviceId != null && !keeper.deviceId.isEmpty() && keeper.deviceToken != null && keeper.deviceToken.length() >= 32)
+				Files.writeString(mc.resolve("server-access.json"), "{\"device_id\": \"" + ServerControl.jsonEsc(keeper.deviceId) + "\", \"device_token\": \"" + ServerControl.jsonEsc(keeper.deviceToken)
+						+ "\", \"identities\": {\"" + ServerControl.jsonEsc(keeper.helperUrl) + "\": {\"id\": \"" + ServerControl.jsonEsc(keeper.deviceId) + "\", \"token\": \"" + ServerControl.jsonEsc(keeper.deviceToken) + "\"}}}\n", StandardCharsets.UTF_8);
+		}
+		return id;
+	}
+
 	/** What a profile would install, for the question before it: {instance id, pack name, repository address}. */
 	static String[] look(String profileUrl) throws IOException {
 		Map<String, Object> cfg = ServerControl.asMap(LaunchPopup.parseJson(new String(LaunchPopup.fetchBytes(profileUrl), StandardCharsets.UTF_8)));

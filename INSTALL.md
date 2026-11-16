@@ -104,8 +104,11 @@ safe; it updates your setup without duplicating anything.
 2. **Servers.** **Open** shows the servers that Gatekeeper looks after, each with whether it's on. One whose pack is
    on this device has **Play**. One that isn't has **Install**, which sets its pack up in Prism Launcher from the
    address the Gatekeeper gives (it asks first, naming where the files come from; the mods download on the first
-   Play; no Steam shortcut is added, and Prism Launcher has to be installed already). **Gatekeepers** at the top right
-   goes back.
+   Play; no Steam shortcut is added, and Prism Launcher has to be installed already). A plain server (no mods) has
+   **Install** too: it makes a plain Minecraft instance in the server's version (`gatehouse-<server>` in Prism) with
+   the server in its server list; nothing is downloaded until Prism fetches the game on the first Play, and Play
+   starts it and joins directly, with no update window. A server with mods whose pack isn't published says so.
+   **Gatekeepers** at the top right goes back.
 3. **The server's own launcher.** Play starts that pack: its update runs first and the window described below
    appears. Its **Menu** button comes back here without starting the game.
 
