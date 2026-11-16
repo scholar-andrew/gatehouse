@@ -5,6 +5,15 @@
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $cancel = Join-Path $here 'launch-cancelled'
 Remove-Item $cancel -Force -ErrorAction SilentlyContinue
+# GATEHOUSE_PLAY: this server's launcher was already shown inside the Gatehouse window, and Play was pressed there
+# (it left "pack-sync-fresh.txt": when, and "play"). Less than three minutes old: nothing to show here, the game starts.
+$freshFile = Join-Path $here 'pack-sync-fresh.txt'
+if (Test-Path $freshFile) {
+    $go = $false
+    try { $ff = "$(Get-Content $freshFile -Raw)".Trim() -split '\|'; $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$ff[0]; $go = ($age -ge 0 -and $age -lt 180 -and $ff[1] -eq 'play') } catch { }
+    Remove-Item $freshFile -Force -ErrorAction SilentlyContinue
+    if ($go) { exit 0 }
+}
 $jar = Join-Path $here 'extras\launch-popup.jar'
 if (-not (Test-Path $jar)) { exit 0 }
 # A Java 17 or newer for the launcher: the one Prism hands over if it's new enough, else one Prism downloaded.
