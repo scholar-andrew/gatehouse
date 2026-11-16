@@ -404,16 +404,6 @@ if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
                 }
                 $new = Get-PackHash $bytes
                 $have = if (Test-Path $dst) { Get-PackHash ([IO.File]::ReadAllBytes($dst)) } else { $null }
-                if ($i[0] -like '*.vdf' -and $tg.art -eq 'launcher') {
-                    # Gatehouse's own shortcut gets no layout from the pack (its windows are driven with Steam's plain
-                    # one). One this put there earlier is taken off again, while it is still as this left it.
-                    if ($have -and ($have -eq $new -or $have -eq $state[$dst])) {
-                        Remove-Item -LiteralPath $dst -Force
-                        if (Test-Path "$dst.before-pack") { Move-Item -LiteralPath "$dst.before-pack" $dst -Force }
-                        $state.Remove($dst); $changed += "Gatehouse's shortcut: the pack's controller layout taken off"
-                    }
-                    continue
-                }
                 # What was last installed there (recorded by destination; by pack file before there were two shortcuts).
                 $last = $state[$dst]; if (-not $last -and $legacy) { $last = $state[$i[0]] }
                 if ($have -eq $new) { $state[$dst] = $new; continue }
@@ -427,7 +417,7 @@ if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
             $set = Join-Path (Split-Path $tg.controller) 'configset_controller_neptune.vdf'
             $key = Split-Path $tg.controller -Leaf
             $txt = if (Test-Path $set) { [IO.File]::ReadAllText($set) } else { "`"controller_config`"`n{`n}`n" }
-            if ($opt.steam_controller -and $tg.art -ne 'launcher' -and $txt.IndexOf("`"$key`"", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
+            if ($opt.steam_controller -and $txt.IndexOf("`"$key`"", [StringComparison]::OrdinalIgnoreCase) -lt 0) {
                 $end = $txt.LastIndexOf('}')
                 $txt = $txt.Substring(0, $end) + "`t`"$key`"`n`t{`n`t`t`"autosave`"`t`t`"1`"`n`t}`n" + $txt.Substring($end)
                 [IO.File]::WriteAllText($set, $txt); $changed += 'controller list'
