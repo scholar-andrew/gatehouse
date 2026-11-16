@@ -1,4 +1,7 @@
 [
+ {"version": "1.10.2", "date": "2026-11-15", "notes": [
+  "Update Steam shortcuts (under Client updates) now also renames what follows the dash in both shortcuts' names to the kind of device (PC, Laptop, Steam Deck, ROG), as setup names new ones, in place of the computer's name. The controller layout moves with the new name. If you already pressed the button, press it again (with Steam closed) to get the new names."
+ ]},
  {"version": "1.10.1", "date": "2026-11-15", "notes": [
   "New button under Client updates, on devices where setup added Steam shortcuts: Update Steam shortcuts. It brings this device's Steam shortcuts up to date with the pack without running setup again: the pack's shortcut starts through the Gatehouse launcher, the Prism Launcher shortcut becomes Gatehouse Minecraft Launcher with its own art, and the art and controller layout of both are put in place again. Steam has to be closed for it (on Windows the launcher checks; on a Steam Deck use Desktop Mode with Steam quit, starting the pack from Prism Launcher). Steam's shortcut list is backed up first."
  ]},

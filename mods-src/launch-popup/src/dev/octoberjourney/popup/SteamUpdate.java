@@ -47,6 +47,35 @@ final class SteamUpdate {
 		} catch (IOException | InterruptedException e) { return "unknown"; }
 	}
 
+	/** A plain word for the kind of device, as setup works it out (it follows the shortcuts' names): Steam Deck, ROG,
+	 *  Legion Go, Laptop (it has a battery) or PC. Null when it can't be told (the name then keeps what it had). */
+	static String deviceKind() {
+		try {
+			String all; boolean battery;
+			if (System.getProperty("os.name", "").startsWith("Windows")) {
+				Process p = new ProcessBuilder("powershell", "-NoProfile", "-NonInteractive", "-Command",
+						"$b = Get-ItemProperty 'HKLM:/HARDWARE/DESCRIPTION/System/BIOS'; Add-Type -AssemblyName System.Windows.Forms; "
+						+ "$b.SystemManufacturer + ' ' + $b.SystemProductName + ' ' + $b.SystemFamily; 'battery=' + [System.Windows.Forms.SystemInformation]::PowerStatus.BatteryChargeStatus").redirectErrorStream(true).start();
+				String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+				if (!p.waitFor(20, java.util.concurrent.TimeUnit.SECONDS) || p.exitValue() != 0 || !out.contains("battery=")) return null;
+				all = out.substring(0, out.indexOf("battery=")).toLowerCase(java.util.Locale.ROOT);
+				battery = !out.substring(out.indexOf("battery=")).contains("NoSystemBattery");
+			} else {
+				Path dmi = Path.of("/sys/class/dmi/id");
+				if (!Files.isReadable(dmi.resolve("product_name"))) return null;
+				StringBuilder sb = new StringBuilder();
+				for (String f : new String[] {"sys_vendor", "product_name", "product_family"}) try { sb.append(Files.readString(dmi.resolve(f)).trim()).append(' '); } catch (IOException ignored) {}
+				all = sb.toString().toLowerCase(java.util.Locale.ROOT);
+				battery = false;
+				try (java.util.stream.Stream<Path> s = Files.list(Path.of("/sys/class/power_supply"))) { battery = s.anyMatch(x -> x.getFileName().toString().startsWith("BAT")); } catch (IOException ignored) {}
+			}
+			if (all.contains("valve") || all.contains("jupiter") || all.contains("galileo")) return "Steam Deck";
+			if (all.contains("rog ally") || all.contains("rog xbox ally")) return "ROG";
+			if (all.contains("legion go")) return "Legion Go";
+			return battery ? "Laptop" : "PC";
+		} catch (IOException | InterruptedException | RuntimeException e) { return null; }
+	}
+
 	/** Does it; returns what was done, a line each. */
 	static List<String> run(Path mc) throws IOException {
 		List<String> did = new ArrayList<>();
@@ -67,6 +96,7 @@ final class SteamUpdate {
 		Path script = mc.toAbsolutePath().resolve("extras").resolve(windows ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh");
 		if (!Files.isRegularFile(script)) throw new IOException("this pack's launcher script isn't here yet (" + script.getFileName() + "): press Restart to update the pack, then try again");
 		int changed = 0;
+		String kind = deviceKind();
 		for (Map<String, Object> t : targets) {
 			long want;
 			try { want = (long) Double.parseDouble(str(t.get("appid"))); } catch (NumberFormatException e) { continue; }
@@ -90,22 +120,20 @@ final class SteamUpdate {
 				newExe = exe; startDir = str(get(entry, "StartDir"));
 				newOpts = "run --command=bash " + app + " \"" + script + "\"" + (game ? " --play " + instance : "");
 			}
-			String newName = name;
-			if (!game && !name.startsWith(LAUNCHER_NAME)) {
-				int dash = name.lastIndexOf(" - ");
-				newName = LAUNCHER_NAME + (dash >= 0 ? name.substring(dash) : "");
-			}
+			// Its name: the pack's keeps its own, the launcher's becomes the Gatehouse launcher's; and what follows the dash
+			// becomes the kind of device (PC, Laptop, Steam Deck, ROG), as setup names them now, where that can be told.
+			int dash = name.lastIndexOf(" - ");
+			String first = game ? (dash >= 0 ? name.substring(0, dash) : name) : LAUNCHER_NAME;
+			String newName = first + (kind != null ? " - " + kind : dash >= 0 ? name.substring(dash) : "");
 			if (!newExe.equals(exe) || !newOpts.equals(opts) || !newName.equals(name)) {
 				set(entry, "AppName", newName); set(entry, "Exe", newExe); set(entry, "StartDir", startDir); set(entry, "LaunchOptions", newOpts);
 				changed++;
-				did.add(newName.equals(name) ? "\"" + name + "\" now starts through the Gatehouse launcher." : "\"" + name + "\" is now \"" + newName + "\": it opens the Gatehouse launcher.");
+				did.add(newName.equals(name) ? "\"" + name + "\" now starts through the Gatehouse launcher." : "\"" + name + "\" is now \"" + newName + "\"" + (game ? ", and starts through the Gatehouse launcher." : ": it opens the Gatehouse launcher."));
 			}
 			// Its controller layout is filed under the shortcut's name: for a renamed one, a folder under the new name.
-			if (!game) {
-				t.put("art", "launcher");
-				Path layouts = Path.of(str(t.get("controller"))).getParent();
-				if (layouts != null && !newName.equals(name)) t.put("controller", layouts.resolve(newName.toLowerCase(java.util.Locale.ROOT)).toString());
-			}
+			if (!game) t.put("art", "launcher");
+			Path layouts = Path.of(str(t.get("controller"))).getParent();
+			if (layouts != null && !newName.equals(name)) t.put("controller", layouts.resolve(newName.toLowerCase(java.util.Locale.ROOT)).toString());
 			// The art and the layout, from the pack as it is on this device now.
 			String art = game ? "steam/art" : "steam/art-launcher";
 			Path grid = Path.of(str(t.get("grid")));

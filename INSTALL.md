@@ -133,7 +133,7 @@ The window is laid out for a Steam Deck's display (1280 x 800): it never opens b
 scroll, and you can resize it.
 
 Under the list, on a device where setup added Steam shortcuts, is **Update Steam shortcuts**. It brings them up to date
-with the pack without running setup again: the pack's shortcut starts through the Gatehouse launcher (its name stays),
+with the pack without running setup again: the pack's shortcut starts through the Gatehouse launcher, both names end in the kind of device (PC, Laptop, Steam Deck, ROG) as setup names new ones,
 the shortcut that opened Prism Launcher becomes **Gatehouse Minecraft Launcher - ...** with Gatehouse's art and the
 controller layout under its new name, and the art and layout of both are put in place again. It changes Steam's
 `shortcuts.vdf` (backed up beside itself as `shortcuts.vdf.bak-launcher`), so Steam has to be closed: on Windows the
