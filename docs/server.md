@@ -243,6 +243,13 @@ machine needs before players can use it, each marked done, to do, or worth chang
   `https://login.tailscale.com/` link is taken), it is kept in `host.json` as `tailscale_share_link` and goes out in
   Share pairing: `&ts=` in the pairing link, `tailscale_share` in the pairing file.
 
+The tab asks again every 5 seconds while it is open, and redraws only when something changed. The line above the
+invite field says how many steps are left and when it last looked; a step that has just turned to done says so for a
+minute. Ports come from each server's `server.properties` as it is now (not from what Server setup recorded), so a
+port change shows at once; when two servers share one, the advice names free ports (`freePorts`: from 25566 up, not
+set on any MCSS server, not Gatekeeper's own, nothing listening). If the recorded port is then out of date, a step
+says to run Server setup again.
+
 Nothing is changed by looking, and nothing here installs or configures Tailscale, MCSS or the firewall for you.
 
 ### Gatekeeper's and Gatehouse's own notes

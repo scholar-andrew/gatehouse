@@ -177,6 +177,33 @@ public final class HostHelper {
 		} catch (Exception e) { return ""; }
 	}
 
+	/** The port in a server folder's server.properties as it is right now ("" when it can't be read). */
+	static String portNow(String serverDir) {
+		String port = "";
+		try { for (String l : read(Path.of(serverDir).resolve("server.properties")).split("\\R")) if (l.startsWith("server-port=") && l.substring(12).trim().matches("\\d+")) port = l.substring(12).trim(); }
+		catch (RuntimeException ignored) {}
+		return port;
+	}
+
+	/** Ports a Minecraft server could be given on this machine: the next ones up from Minecraft's usual 25565 that no
+	 *  server MCSS has is set to (chosen in Gatekeeper or not), that Gatekeeper doesn't use itself, and that nothing
+	 *  on this machine is listening on right now. */
+	static List<String> freePorts(int howMany) {
+		java.util.Set<String> taken = new java.util.HashSet<>();
+		taken.add(String.valueOf(port()));
+		for (Object o : servers()) { taken.add(portNow(Json.str(Json.map(o).get("dir")))); taken.add(Json.str(Json.map(o).get("minecraft")).replaceAll(".*:", "")); }
+		try {
+			String exe = setting("mcss_exe", "");
+			if (!exe.isEmpty()) try (java.util.stream.Stream<Path> s = Files.list(Path.of(exe).toAbsolutePath().getParent().resolve("servers"))) { s.filter(Files::isDirectory).forEach(d -> taken.add(portNow(d.toString()))); }
+		} catch (IOException | RuntimeException ignored) {}
+		List<String> out = new ArrayList<>();
+		for (int p = 25566; p < 25666 && out.size() < howMany; p++) {
+			if (taken.contains(String.valueOf(p))) continue;
+			try (java.net.ServerSocket probe = new java.net.ServerSocket(p)) { out.add(String.valueOf(p)); } catch (IOException inUse) { /* something is listening there */ }
+		}
+		return out;
+	}
+
 	/** Host setup: everything a machine needs to serve players through Gatekeeper, each step with how it stands now
 	 *  ("ok", "todo": not done, "warn": works but worth changing) and, when it isn't ok, what to do. Nothing is changed
 	 *  by looking. The invite link players need (host.json "tailscale_share_link") is the owner's to make, in
@@ -224,13 +251,18 @@ public final class HostHelper {
 		List<Object> servers = servers();
 		if (servers.isEmpty()) add.accept(new String[] {"Servers are chosen", "todo", "None yet.", "Servers tab: Server setup, and tick the servers players should see."});
 		else {
-			List<String> names = new ArrayList<>(), open = new ArrayList<>(), offline = new ArrayList<>();
+			List<String> names = new ArrayList<>(), open = new ArrayList<>(), offline = new ArrayList<>(), moved = new ArrayList<>();
 			Map<String, List<String>> byPort = new LinkedHashMap<>();
 			for (Object o : servers) {
 				Map<String, Object> s = Json.map(o);
 				String name = Json.str(s.get("name"));
 				names.add(name);
-				byPort.computeIfAbsent(Json.str(s.get("minecraft")).replaceAll(".*:", ""), k -> new ArrayList<>()).add(name);
+				// (the port as the server's own file has it now, so a change shows here at once; Gatekeeper's record of it is
+				// from the last Server setup)
+				String recorded = Json.str(s.get("minecraft")).replaceAll(".*:", ""), now = portNow(Json.str(s.get("dir")));
+				if (now.isEmpty()) now = recorded;
+				if (!now.equals(recorded)) moved.add(name + " (now " + now + ", Gatekeeper still has " + recorded + ")");
+				byPort.computeIfAbsent(now, k -> new ArrayList<>()).add(name);
 				String props = read(Path.of(Json.str(s.get("dir"))).resolve("server.properties"));
 				if (!props.isEmpty()) {
 					if (!props.replace(" ", "").contains("white-list=true")) open.add(name);
@@ -240,8 +272,16 @@ public final class HostHelper {
 			add.accept(new String[] {"Servers are chosen", "ok", String.join(", ", names)});
 			List<String> clash = new ArrayList<>();
 			for (Map.Entry<String, List<String>> e : byPort.entrySet()) if (e.getValue().size() > 1) clash.add(String.join(" and ", e.getValue()) + " (port " + e.getKey() + ")");
-			if (!clash.isEmpty()) add.accept(new String[] {"Each server has its own port", "warn", "These share a port, so only one of them can run at a time: " + String.join("; ", clash) + ".", "In MCSS, give one of them another port (its server.properties, server-port), then Server setup again."});
+			if (!clash.isEmpty()) {
+				List<String> free = freePorts(3);
+				String pick = free.isEmpty() ? "any port from 25566 up that nothing else uses" : free.size() == 1 ? free.get(0) : String.join(", ", free.subList(0, free.size() - 1)) + " or " + free.get(free.size() - 1);
+				add.accept(new String[] {"Each server has its own port", "warn", "These share a port, so only one of them can run at a time: " + String.join("; ", clash) + ".",
+						"Leave the one players already use where it is, and give the other " + pick + (free.isEmpty() ? "" : " (free on this machine: no MCSS server is set to " + (free.size() == 1 ? "it" : "them") + " and nothing is listening there)")
+						+ ". In MCSS: that server's server.properties, server-port, then restart that server. This line turns green by itself when the ports differ."});
+			}
 			else if (servers.size() > 1) add.accept(new String[] {"Each server has its own port", "ok", ""});
+			if (!moved.isEmpty()) add.accept(new String[] {"Gatekeeper has each server's current port", "warn", "A port was changed since Server setup: " + String.join("; ", moved) + ". Launchers are still told the old one.",
+					"Servers tab: Server setup, then Save. It reads the ports again."});
 			if (!open.isEmpty()) add.accept(new String[] {"Only whitelisted players can join", "warn", "The whitelist is off for " + String.join(", ", open) + ": anyone who can reach this machine can join.", "Turn it on in that server's server.properties (white-list=true), or with /whitelist on in its console. Gatekeeper adds players to it when you allow them."});
 			else add.accept(new String[] {"Only whitelisted players can join", "ok", ""});
 			if (!offline.isEmpty()) add.accept(new String[] {"Players are checked against their Minecraft accounts", "warn", "online-mode is off for " + String.join(", ", offline) + ": anyone can join under any name.", "Set online-mode=true in that server's server.properties unless you mean it to be off."});
@@ -257,7 +297,7 @@ public final class HostHelper {
 		if (!share.isEmpty()) add.accept(new String[] {"Players have a way into Tailscale", "ok", "Your invite link goes out with the pairing link and file."});
 		else add.accept(new String[] {"Players have a way into Tailscale", "todo", "No invite link yet: a player's device has to be able to reach this machine over Tailscale.",
 				"In Tailscale's admin page (login.tailscale.com): Machines, this machine's \u2026 menu, Share, and make a reusable invite link. That shares only this machine, not the rest of your network. Paste the link below."});
-		return m("steps", steps, "share_link", share, "java", System.getProperty("java.version", ""));
+		return m("steps", steps, "share_link", share, "java", System.getProperty("java.version", ""), "checked", java.time.LocalTime.now().withNano(0).toString());
 	}
 
 	/** The Tailscale device a request came from, as Tailscale names it (empty if unknown). */
@@ -1893,20 +1933,44 @@ public final class HostHelper {
 			JButton shareSave = new JButton("Save"), recheck = new JButton("Check again");
 			JLabel shareSaid = new JLabel(" ");
 			shareSaid.setForeground(new Color(0x8F98A0));
+			JLabel checkedLab = new JLabel(" ");
+			checkedLab.setForeground(new Color(0x8F98A0));
 			shareF.setToolTipText("The reusable invite link you made in Tailscale's admin page for sharing this machine. Kept on this PC; it goes out only in pairings you hand over.");
 			JPanel shareRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			JLabel shareLab = new JLabel("Tailscale invite link for players:"); shareLab.setFont(shareLab.getFont().deriveFont(Font.BOLD));
 			shareRow.add(shareLab); shareRow.add(shareF); shareRow.add(shareSave); shareRow.add(recheck);
-			JPanel shareBox = new JPanel(new BorderLayout(0, 2)); shareBox.add(shareRow, BorderLayout.NORTH); shareBox.add(shareSaid, BorderLayout.SOUTH);
+			JPanel shareBox = new JPanel(new BorderLayout(0, 2)); shareBox.add(checkedLab, BorderLayout.NORTH); shareBox.add(shareRow, BorderLayout.CENTER); shareBox.add(shareSaid, BorderLayout.SOUTH);
 			hostSetup.add(stepScroll, BorderLayout.CENTER); hostSetup.add(shareBox, BorderLayout.SOUTH);
+			// The list looks again by itself every few seconds while this tab is open, so a change made elsewhere (in
+			// MCSS, in Tailscale, in a file) shows here without pressing anything. The line at the bottom says when it
+			// last looked; a step that has just turned to Done says so for a minute, and the list is only redrawn when
+			// something changed.
+			Map<String, String> stepWas = new LinkedHashMap<>();
+			Map<String, Long> stepDoneAt = new LinkedHashMap<>();
+			String[] drawn = {""};
 			java.util.function.Consumer<Map<String, Object>> fillSteps = r -> {
-				stepList.removeAll();
 				int todo = 0, warn = 0;
+				long nowMs = System.currentTimeMillis();
+				StringBuilder sig = new StringBuilder();
+				for (Object o : Json.list(r.get("steps"))) {
+					Map<String, Object> s = Json.map(o);
+					String title = Json.str(s.get("title")), st = Json.str(s.get("state")), was = stepWas.get(title);
+					if (was != null && !was.equals("ok") && st.equals("ok")) stepDoneAt.put(title, nowMs);
+					if (!st.equals("ok")) stepDoneAt.remove(title);
+					stepWas.put(title, st);
+					sig.append(title).append('|').append(st).append('|').append(Json.str(s.get("detail"))).append('|').append(Json.str(s.get("how"))).append('|').append(stepDoneAt.containsKey(title) && nowMs - stepDoneAt.get(title) < 60_000).append('\n');
+				}
+				String checked = Json.str(r.get("checked"));
+				boolean same = sig.toString().equals(drawn[0]);
+				drawn[0] = sig.toString();
+				if (!same) stepList.removeAll();
 				for (Object o : Json.list(r.get("steps"))) {
 					Map<String, Object> s = Json.map(o);
 					String st = Json.str(s.get("state"));
 					if (st.equals("todo")) todo++; else if (st.equals("warn")) warn++;
-					String colour = st.equals("ok") ? "#3FB950" : st.equals("warn") ? "#E3B341" : "#F85149", word = st.equals("ok") ? "Done" : st.equals("warn") ? "Worth changing" : "To do";
+					if (same) continue;
+					boolean justDone = stepDoneAt.containsKey(Json.str(s.get("title"))) && nowMs - stepDoneAt.get(Json.str(s.get("title"))) < 60_000;
+					String colour = st.equals("ok") ? "#3FB950" : st.equals("warn") ? "#E3B341" : "#F85149", word = st.equals("ok") ? (justDone ? "<b>Done just now</b>" : "Done") : st.equals("warn") ? "Worth changing" : "To do";
 					java.util.function.Function<String, String> esc = t -> t.replace("&", "&amp;").replace("<", "&lt;");
 					JLabel row = new JLabel("<html><div style='width:860px'><span style='color:" + colour + "'>\u25CF</span>&nbsp; <b>" + esc.apply(Json.str(s.get("title"))) + "</b> &nbsp;<span style='color:" + colour + "'>" + word + "</span>"
 							+ (Json.str(s.get("detail")).isEmpty() ? "" : "<br>&nbsp;&nbsp;&nbsp;&nbsp;" + esc.apply(Json.str(s.get("detail"))))
@@ -1916,7 +1980,9 @@ public final class HostHelper {
 				}
 				if (!shareF.isFocusOwner()) shareF.setText(Json.str(r.get("share_link")));
 				firstTabs.setTitleAt(3, todo > 0 ? "Host setup (" + todo + " to do)" : "Host setup");
-				stepList.revalidate(); stepList.repaint();
+				checkedLab.setText((todo + warn == 0 ? "Everything is done. " : (todo > 0 ? todo + " to do" : "") + (todo > 0 && warn > 0 ? ", " : "") + (warn > 0 ? warn + " worth changing" : "") + ". ")
+						+ (checked.isEmpty() ? "" : "Last looked at " + checked + "; ") + "it looks again every 5 seconds while this tab is open.");
+				if (!same) { stepList.revalidate(); stepList.repaint(); }
 			};
 			Runnable loadSteps = () -> new Thread(() -> {
 				try { Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/checklist", null))); SwingUtilities.invokeLater(() -> fillSteps.accept(r)); }
@@ -1931,6 +1997,7 @@ public final class HostHelper {
 			}, "share-link").start());
 			firstTabs.addTab("Host setup", hostSetup);
 			firstTabs.addChangeListener(ev -> { if (firstTabs.getSelectedIndex() == 3) loadSteps.run(); });
+			new javax.swing.Timer(5000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else if (firstTabs.getSelectedIndex() == 3 && hostSetup.isShowing()) loadSteps.run(); }).start();
 			if (System.getenv("OJ_PANEL_PNG") == null) loadSteps.run();   // (so the tab's title says what's left to do)
 			else try { fillSteps.accept(Json.map(Json.parse(call("GET", "/admin/checklist", null)))); } catch (Exception ignored) {}
 			// A program's notes as a scrolling list, newest on top.
