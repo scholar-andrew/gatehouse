@@ -102,6 +102,42 @@ public final class LaunchPopup {
 	}
 
 	static volatile JFrame reuse;
+
+	// ---- one window to the eye. The main Gatehouse window and a server's launcher are two programs (Prism Launcher
+	// starts the second, before the game). So that it looks like one window changing what it shows, the one that
+	// is leaving writes where it is (x,y,width,height,when) and stays up; the one arriving opens in exactly that
+	// place, at least that big, and removes the note, which is the first one's cue to go.
+	static final String HANDOFF = "gatehouse-window.txt";
+	/** Where the window this one took over from was (null: none; it opens in the middle of the screen as before). */
+	static volatile java.awt.Rectangle handed;
+	static void leaveBounds(Path file, java.awt.Window f) {
+		java.awt.Rectangle b = f.getBounds();
+		try { Files.writeString(file, b.x + "," + b.y + "," + b.width + "," + b.height + "," + System.currentTimeMillis(), StandardCharsets.UTF_8); } catch (IOException ignored) {}
+	}
+	/** The place written in that note, if it was written in the last two minutes; null otherwise. */
+	static java.awt.Rectangle readBounds(Path file) {
+		try {
+			String[] v = read(file).trim().split(",");
+			if (v.length != 5 || System.currentTimeMillis() - Long.parseLong(v[4]) > 120_000) return null;
+			return new java.awt.Rectangle(Integer.parseInt(v[0]), Integer.parseInt(v[1]), Integer.parseInt(v[2]), Integer.parseInt(v[3]));
+		} catch (RuntimeException e) { return null; }
+	}
+	/** Puts a window where another was: the same corner, at least as big as both that one and what this one needs,
+	 *  and kept on the screen. */
+	static void place(java.awt.Window f, java.awt.Rectangle from) {
+		int w = Math.max(from.width, f.getWidth()), h = Math.max(from.height, f.getHeight()), x = from.x, y = from.y;
+		boolean on = false;
+		for (java.awt.GraphicsDevice d : GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices()) {
+			java.awt.Rectangle s = d.getDefaultConfiguration().getBounds();
+			if (!s.contains(from.x + from.width / 2, from.y + from.height / 2)) continue;
+			on = true;
+			java.awt.Insets in = java.awt.Toolkit.getDefaultToolkit().getScreenInsets(d.getDefaultConfiguration());
+			int left = s.x + in.left, top = s.y + in.top, right = s.x + s.width - in.right, bottom = s.y + s.height - in.bottom;
+			w = Math.min(w, right - left); h = Math.min(h, bottom - top);
+			x = Math.max(left, Math.min(x, right - w)); y = Math.max(top, Math.min(y, bottom - h));
+		}
+		if (on) f.setBounds(x, y, w, h); else { f.setSize(w, h); f.setLocationRelativeTo(null); }   // (that place is on no screen now: the middle)
+	}
 	/** The question before a download (how big the update is; Download or Skip this time): being asked now, and the
 	 *  size that was skipped, if it was. */
 	static volatile boolean asking;
@@ -257,8 +293,10 @@ public final class LaunchPopup {
 			f.setContentPane(p);
 			f.pack();
 			fit(f, false);
-			f.setLocationRelativeTo(null);
+			handed = readBounds(dir.resolve(HANDOFF));
+			if (handed != null) place(f, handed); else f.setLocationRelativeTo(null);
 			if (System.getenv("OJ_POPUP_PNG") == null) { f.setVisible(true); bringForwardOnce(f); }   // (testing: pictures only)
+			try { Files.deleteIfExists(dir.resolve(HANDOFF)); } catch (IOException ignored) {}   // (the main window's cue to go)
 			reuse = f;
 		});
 		String png = System.getenv("OJ_POPUP_PNG");
@@ -371,6 +409,7 @@ public final class LaunchPopup {
 					askPanel.setVisible(true);
 					f.pack();
 					fit(f, false);
+					if (handed != null) place(f, handed);
 					if (png != null) try {   // testing: a picture of the question
 						JComponent cp = (JComponent) f.getContentPane();
 						cp.validate();
@@ -388,7 +427,7 @@ public final class LaunchPopup {
 				}
 				if (choice[0] == null) { asking = false; Files.deleteIfExists(pull); return; }   // quit
 				if (choice[0].equals("skip")) { skipped = size; reply = "skip|" + size; }
-				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); progressPlay.setText("Play"); progressPlay.setEnabled(false); f.pack(); });
+				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); progressPlay.setText("Play"); progressPlay.setEnabled(false); f.pack(); if (handed != null) place(f, handed); });
 			}
 		} catch (Exception ignored) {}   // (size unknown: the update just runs, as it always did)
 		asking = false;
@@ -2030,7 +2069,7 @@ public final class LaunchPopup {
 			JButton menu = new PlayButton("Gatehouse", SLATE, Color.WHITE, 14f);
 			menu.setToolTipText("Back to the Gatehouse launcher's menu (your Gatekeepers and their servers), without starting the game");
 			menu.addActionListener(e -> {
-				try { Files.writeString(dir.resolve("back-to-menu"), "1", StandardCharsets.UTF_8); } catch (IOException ignored) {}
+				leaveBounds(dir.resolve("back-to-menu"), f);   // (the note the menu looks for; it says where this window is, so the menu opens right there)
 				if (System.getenv("GATEHOUSE_HOME") == null) try {
 					boolean win = System.getProperty("os.name", "").startsWith("Windows");
 					Path script = dir.toAbsolutePath().resolve("extras").resolve(win ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh");
@@ -2209,9 +2248,11 @@ public final class LaunchPopup {
 				f.dispose();
 				return;
 			}
-			f.setLocationRelativeTo(null);
+			if (handed == null) handed = readBounds(dir.resolve(HANDOFF));   // (no checklist was shown: this is the first window)
+			if (handed != null) place(f, handed); else f.setLocationRelativeTo(null);
 			f.setVisible(true);
 			bringForwardOnce(f);
+			try { Files.deleteIfExists(dir.resolve(HANDOFF)); } catch (IOException ignored) {}
 			play.requestFocusInWindow();
 			timer.start();
 		});

@@ -193,6 +193,12 @@ their next launch; nobody has to touch a device.
   Gatekeeper). A change to Gatekeeper goes in `source/gatekeeper.json`, with its `version` raised (Gatekeeper's first
   screen, and the Gatekeeper updates tab beside its servers in a launcher). The launcher still travels inside each pack,
   so a launcher change also needs a pack version, whose note can simply point at the Gatehouse updates tab.
+- **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
+  Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
+  `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)
+  opens in that place, at least that big, and removes the note, which is the main window's cue to go (it also goes
+  when Prism finishes or after 30 seconds). The Gatehouse button writes the same into `back-to-menu`, and the main
+  window opens there.
 - **Gatehouse updating itself.** Opened directly (the Gatehouse shortcut, no server chosen), the launcher looks where
   the installed packs get their updates (`pack-sources.txt`), compares the hash of `extras/launch-popup.jar` in
   `update-sizes.json` with its own, and if they differ says so under the heading (the version from `gatehouse` in

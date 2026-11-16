@@ -147,11 +147,19 @@ final class Home {
 		} catch (IOException | RuntimeException e) { return null; }
 	}
 
+	/** Launch pressed: Prism Launcher being started for that pack while the window is still up (it goes when the
+	 *  pack's own window has taken its place). */
+	private static volatile Thread launching;
+	private static volatile String prismFor = "prismlauncher";
+	/** Where a server's window was when its Gatehouse button was pressed: this window opens there. */
+	private static volatile java.awt.Rectangle cameBack;
+
 	static void run(String[] args) throws Exception {
 		Path instances = Path.of(args[1]), home = instances.toAbsolutePath().getParent().resolve("gatehouse");
 		String prism = "prismlauncher", play = null;
 		for (int i = 2; i + 1 < args.length; i += 2) { if (args[i].equals("--prism")) prism = args[i + 1]; else if (args[i].equals("--play")) play = args[i + 1]; }
 		String prismCmd = prism;
+		prismFor = prism;
 		String openAt = null;   // (a Gatekeeper to open on: the one whose server's Menu button brought us back)
 		while (true) {
 			PackInstall.refreshPlain(instances);
@@ -169,7 +177,12 @@ final class Home {
 			if ("\u0000restart".equals(again[0])) { openAt = null; continue; }   // (Restart: the main window again, from the top)
 			if ("\u0000relaunch".equals(again[0])) System.exit(LaunchPopup.RELAUNCH);   // (a newer Gatehouse is in place: the shortcut's script opens it)
 			if (again[0] != null) { openAt = again[0]; continue; }
-			if (chosen[0] != null) LaunchPopup.startGame(prismCmd, chosen[0], false);
+			if (chosen[0] != null) {
+				Thread t = launching; launching = null;
+				if (t == null) LaunchPopup.startGame(prismCmd, chosen[0], false);
+				// (already started, with the window up: wait for Prism to finish, or for the pack's Gatehouse button)
+				else while (t.isAlive() && !Files.exists(Path.of(chosen[0][3]).resolve("back-to-menu"))) Thread.sleep(120);
+			}
 			else if (openPrism[0]) LaunchPopup.run(List.of(prismCmd));
 			else return;
 			if (System.getenv("OJ_HOME_DRY") != null) return;
@@ -184,7 +197,7 @@ final class Home {
 		String at = null;
 		for (String[] e : packs) {
 			Path note = Path.of(e[3]).resolve("back-to-menu");
-			if (Files.exists(note)) { try { Files.deleteIfExists(note); } catch (IOException ignored) {} at = e[4]; }
+			if (Files.exists(note)) { cameBack = LaunchPopup.readBounds(note); try { Files.deleteIfExists(note); } catch (IOException ignored) {} at = e[4]; }
 		}
 		return at;
 	}
@@ -323,7 +336,27 @@ final class Home {
 					install.setVisible(false);
 					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {missing, install, go});
 					go.setVisible(pack != null); missing.setVisible(pack == null);
-					if (pack != null) go.addActionListener(ev -> { chosen[0] = pack; f.dispose(); });
+					if (pack != null) go.addActionListener(ev -> {
+						if (chosen[0] != null) return;
+						chosen[0] = pack;
+						if (System.getenv("OJ_HOME_DRY") != null || shot != null) { f.dispose(); return; }   // (testing)
+						Path note = Path.of(pack[3]).resolve(LaunchPopup.HANDOFF);
+						LaunchPopup.leaveBounds(note, f);
+						sub.setText("Opening " + pack[1] + "\u2026");
+						f.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.WAIT_CURSOR));
+						go.setEnabled(false);
+						Thread t = new Thread(() -> LaunchPopup.startGame(prismFor, pack, false), "launch");
+						launching = t;
+						t.start();
+						long since = System.currentTimeMillis();
+						// (its window is up: the note is gone. Or nothing came of it: Prism finished, or 30 seconds passed.)
+						new Timer(100, tick -> {
+							if (Files.exists(note) && t.isAlive() && System.currentTimeMillis() - since < 30_000) return;
+							((Timer) tick.getSource()).stop();
+							try { Files.deleteIfExists(note); } catch (IOException ignored) {}
+							f.dispose();
+						}).start();
+					});
 					serverList.add((JPanel) r[0]); serverList.add(Box.createVerticalStrut(8));
 					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install});
 				};
@@ -643,6 +676,7 @@ final class Home {
 				if (shot != null) look.run(); else new Thread(look, "self-update").start();
 			}
 			f.pack();
+			if (shot == null) f.setSize(Math.max(f.getWidth(), 900), Math.max(f.getHeight(), 600));   // (as wide as a server's window, so little changes on the way in)
 			LaunchPopup.fit(f, false);
 			if (shot != null && !shot.isEmpty()) {   // (testing: pictures instead of the window: <file>, and <file>-servers.png for the first Gatekeeper)
 				try {
@@ -667,7 +701,8 @@ final class Home {
 			}
 			Timer timer = new Timer(6000, ev -> { if (f.isDisplayable()) for (Runnable r : new ArrayList<>(polls)) new Thread(r, "catalog").start(); else ((Timer) ev.getSource()).stop(); });
 			timer.start();
-			f.setLocationRelativeTo(null);
+			java.awt.Rectangle from = cameBack; cameBack = null;
+			if (from != null) LaunchPopup.place(f, from); else f.setLocationRelativeTo(null);
 			f.setVisible(true);
 			LaunchPopup.bringForwardOnce(f);
 			SwingUtilities.invokeLater(() -> Nav.home(f));

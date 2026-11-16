@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.0.2",
+ "version": "2.0.3",
  "changes": [
+  {"version": "2.0.3", "date": "2026-11-16", "notes": [
+   "Going from the main window into a server's launcher no longer looks like one window closing and another opening somewhere else. The main window stays up, saying which server it's opening, until that server's window (its update checklist, then its launcher) has appeared in exactly the same place, at least as big. The Gatehouse button comes back the same way.",
+   "The main window now opens as wide as a server's launcher, so little changes on the way in."
+  ]},
   {"version": "2.0.2", "date": "2026-11-16", "notes": [
    "Gatehouse asks before updating itself. When a newer one is there, the main window says so under its heading: which version, which you have, and how big the download is, with Update Gatehouse and Later. Until now it fetched the newer one without a word. This is apart from a pack's update, which that server's launcher asks about.",
    "Starting a server straight from its Steam shortcut still updates both: Gatehouse first, then that pack.",
