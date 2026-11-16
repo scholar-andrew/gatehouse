@@ -154,19 +154,123 @@ public final class HostHelper {
 		HttpServer local = HttpServer.create(new InetSocketAddress("127.0.0.1", port()), 0);
 		local.createContext("/admin/", HostHelper::admin);
 		local.start();
-		// The launchers' side, on the Tailscale address only. Tailscale may still be starting at sign-in: retried.
-		String bind = setting("bind", "");
-		if (bind.isEmpty()) { log("host.json has no \"bind\" (this machine's Tailscale address): run tools/install_host.ps1"); return; }
-		while (true) {
-			try {
-				HttpServer remote = HttpServer.create(new InetSocketAddress(bind, port()), 0);
-				remote.createContext("/v1/", HostHelper::launcher);
-				remote.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(4));
-				remote.start();
-				log("listening on " + bind + ":" + port());
-				break;
-			} catch (IOException e) { Thread.sleep(10_000); }
+		bindRemote();
+	}
+
+	static volatile HttpServer remote;
+	static volatile int bindTurn = 0;
+	/** The launchers' side, on this machine's Tailscale address only (host.json "bind"). Tailscale may still be starting
+	 *  at sign-in, and a new install has no address until Server setup in the control panel gives one: retried every
+	 *  10 seconds. Called again when the address changes: the old listener stops and the new one starts. */
+	static synchronized void bindRemote() {
+		int turn = ++bindTurn;
+		HttpServer old = remote;
+		remote = null;
+		if (old != null) old.stop(0);
+		new Thread(() -> {
+			boolean said = false;
+			while (turn == bindTurn) {
+				String bind = setting("bind", "");
+				if (bind.isEmpty()) { if (!said) log("no Tailscale address yet (host.json \"bind\"): open the control panel, Status, Server setup"); said = true; }
+				else try {
+					HttpServer r = HttpServer.create(new InetSocketAddress(bind, port()), 0);
+					r.createContext("/v1/", HostHelper::launcher);
+					r.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(4));
+					r.start();
+					if (turn != bindTurn) { r.stop(0); return; }
+					remote = r;
+					log("listening on " + bind + ":" + port());
+					return;
+				} catch (IOException ignored) {}
+				try { Thread.sleep(10_000); } catch (InterruptedException e) { return; }
+			}
+		}, "bind").start();
+	}
+
+	// ------------------------------------------------------------------ server setup: tying the Keeper to what's on this machine
+
+	/** What Server setup shows: MCSS's program (as asked, else as set, else looked for in the usual places), the
+	 *  Minecraft servers found in its servers folder (each has MCSS's own mcss_server_config.json, with its name and id;
+	 *  the port is from server.properties) and whether the Keeper looks after each already, and this machine's
+	 *  Tailscale addresses. */
+	static Map<String, Object> setupScan(String exe) {
+		String home = System.getProperty("user.home", "");
+		if (exe.isEmpty()) exe = setting("mcss_exe", "");
+		if (exe.isEmpty()) for (String g : new String[] {"C:\\Minecraft\\MCSS\\mcss.exe", "C:\\MCSS\\mcss.exe", home + "\\MCSS\\mcss.exe", home + "\\Documents\\MCSS\\mcss.exe", home + "\\Desktop\\MCSS\\mcss.exe", home + "\\Downloads\\MCSS\\mcss.exe"})
+			if (Files.isRegularFile(Path.of(g))) { exe = g; break; }
+		List<Object> found = new ArrayList<>();
+		String problem = "";
+		if (exe.isEmpty()) problem = "MCSS wasn't found in the usual places: use Browse to pick mcss.exe.";
+		else if (!Files.isRegularFile(Path.of(exe))) problem = "There's no file at that path.";
+		else {
+			List<Path> dirs = new ArrayList<>();
+			try (java.util.stream.Stream<Path> s = Files.list(Path.of(exe).toAbsolutePath().getParent().resolve("servers"))) { s.filter(Files::isDirectory).sorted().forEach(dirs::add); }
+			catch (IOException e) { problem = "There's no servers folder beside that mcss.exe."; }
+			for (Path d : dirs) {
+				Map<String, Object> c = Json.map(Json.parse(read(d.resolve("mcss_server_config.json"))));
+				if (c.isEmpty()) continue;
+				String port = "25565";
+				for (String l : read(d.resolve("server.properties")).split("\\R")) if (l.startsWith("server-port=") && l.substring(12).trim().matches("\\d+")) port = l.substring(12).trim();
+				String name = Json.str(c.get("name")).isEmpty() ? d.getFileName().toString() : Json.str(c.get("name")), id = "";
+				boolean tracked = false;
+				for (Object o : servers()) if (samePath(Json.str(Json.map(o).get("dir")), d)) { tracked = true; id = Json.str(Json.map(o).get("id")); if (!Json.str(Json.map(o).get("name")).isEmpty()) name = Json.str(Json.map(o).get("name")); }
+				found.add(m("name", name, "id", id, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", Json.str(c.get("guid")), "tracked", tracked));
+			}
+			if (found.isEmpty() && problem.isEmpty()) problem = "MCSS has no servers yet: make one in MCSS first, then look again.";
 		}
+		List<Object> addrs = new ArrayList<>();
+		try {
+			for (java.net.NetworkInterface ni : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces()))
+				for (java.net.InetAddress a : java.util.Collections.list(ni.getInetAddresses())) {
+					byte[] b = a.getAddress();
+					if (b.length == 4 && (b[0] & 0xFF) == 100 && (b[1] & 0xC0) == 64) addrs.add(a.getHostAddress());   // (100.64.0.0/10: Tailscale)
+				}
+		} catch (IOException | RuntimeException ignored) {}
+		return m("mcss_exe", exe, "servers", found, "problem", problem, "addresses", addrs, "bind", setting("bind", ""), "port", String.valueOf(port()));
+	}
+	static boolean samePath(String a, Path b) {
+		try { return !a.isEmpty() && Path.of(a).toAbsolutePath().normalize().toString().equalsIgnoreCase(b.toAbsolutePath().normalize().toString()); } catch (RuntimeException e) { return false; }
+	}
+
+	/** Saves Server setup: MCSS's program, this machine's Tailscale address, and the servers the Keeper looks after.
+	 *  Servers it already had keep their place and their id (permissions are filed under them); new ones go after. */
+	static synchronized String[] setupSave(Map<String, Object> b) {
+		String exe = Json.str(b.get("mcss_exe")).trim(), bind = Json.str(b.get("bind")).trim();
+		if (!exe.isEmpty() && !Files.isRegularFile(Path.of(exe))) return new String[] {"refused", "There's no file at " + exe};
+		if (!bind.isEmpty() && !bind.matches("\\d{1,3}(\\.\\d{1,3}){3}")) return new String[] {"refused", "The Tailscale address should look like 100.x.y.z"};
+		List<Object> picked = new ArrayList<>(), keep = new ArrayList<>();
+		for (Object o : Json.list(b.get("servers"))) if (Files.isDirectory(Path.of(Json.str(Json.map(o).get("dir"))))) picked.add(o);
+		if (picked.isEmpty()) return new String[] {"refused", "Tick at least one server."};
+		java.util.Set<String> used = new java.util.HashSet<>();
+		for (Object o : servers()) {
+			Map<String, Object> have = Json.map(o);
+			for (Object q : picked) if (samePath(Json.str(have.get("dir")), Path.of(Json.str(Json.map(q).get("dir"))))) {
+				if (Json.str(have.get("mcss_server")).isEmpty()) have.put("mcss_server", Json.str(Json.map(q).get("mcss_server")));
+				have.put("minecraft", Json.str(Json.map(q).get("minecraft")));
+				keep.add(have); used.add(Json.str(have.get("id")));
+			}
+		}
+		int added = 0;
+		for (Object q : picked) {
+			Map<String, Object> s = Json.map(q);
+			boolean had = false;
+			for (Object k : keep) if (samePath(Json.str(Json.map(k).get("dir")), Path.of(Json.str(s.get("dir"))))) had = true;
+			if (had) continue;
+			String base = Json.str(s.get("name")).toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", ""), id = base.isEmpty() ? "server" : base;
+			for (int n = 2; used.contains(id); n++) id = base + "-" + n;
+			used.add(id);
+			keep.add(m("id", id, "name", Json.str(s.get("name")), "dir", Json.str(s.get("dir")), "minecraft", Json.str(s.get("minecraft")), "mcss_server", Json.str(s.get("mcss_server"))));
+			added++;
+		}
+		boolean moved = !bind.isEmpty() && !bind.equals(setting("bind", ""));
+		if (!exe.isEmpty()) cfg.put("mcss_exe", exe);
+		if (!bind.isEmpty()) cfg.put("bind", bind);
+		cfg.put("servers", keep);
+		try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
+		catch (IOException e) { return new String[] {"refused", "Couldn't save host.json: " + e.getMessage()}; }
+		log("server setup: " + keep.size() + " server" + (keep.size() == 1 ? "" : "s") + (added > 0 ? " (" + added + " new)" : "") + (moved ? ", address " + bind : ""));
+		if (moved) bindRemote();
+		return new String[] {"ok", "Saved: the Keeper looks after " + keep.size() + " server" + (keep.size() == 1 ? "" : "s") + (setting("bind", "").isEmpty() ? ". It still needs this machine's Tailscale address before launchers can reach it." : ". Launchers pair with " + setting("bind", "") + ":" + port() + ".")};
 	}
 
 	static void reply(HttpExchange x, int code, Map<String, Object> body) throws IOException {
@@ -962,6 +1066,11 @@ public final class HostHelper {
 				Map<String, Object> b = body(x);
 				String[] r = host.signIn(Json.str(b.get("username")).trim(), Json.str(b.get("password")));
 				reply(x, 200, m("result", r[0], "message", r[1]));
+			} else if (path.equals("/admin/setup/scan")) {
+				reply(x, 200, setupScan(Json.str(body(x).get("mcss_exe")).trim()));
+			} else if (path.equals("/admin/setup")) {
+				String[] r = setupSave(body(x));
+				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/settings")) {
 				// The Keeper's own key for the host program, kept on this PC only.
 				host.setKey(Json.str(body(x).get("mcss_api_key")).trim());
@@ -1111,7 +1220,7 @@ public final class HostHelper {
 			javax.swing.JRadioButton byDevice = new javax.swing.JRadioButton("By launcher (one device)", true), byPlayer = new javax.swing.JRadioButton("By player (all their devices)");
 			javax.swing.ButtonGroup how = new javax.swing.ButtonGroup(); how.add(byDevice); how.add(byPlayer);
 			JPanel pick = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
-			JLabel pickHead = new JLabel("Manage access:"); pickHead.setFont(pickHead.getFont().deriveFont(Font.BOLD));
+			JLabel pickHead = new JLabel("Access Manager:"); pickHead.setFont(pickHead.getFont().deriveFont(Font.BOLD));
 			pick.add(pickHead); pick.add(byDevice); pick.add(byPlayer);
 			java.awt.CardLayout cards = new java.awt.CardLayout();
 			JPanel deck = new JPanel(cards);
@@ -1137,7 +1246,91 @@ public final class HostHelper {
 			JPanel mcssRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); mcssRow.add(mcssRun); mcssRow.add(mcssState);
 			JPanel serverRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); serverRow.add(serverRun); serverRow.add(serverState);
 			JPanel helperRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); helperRow.add(state);
-			section.accept("Gatehouse Keeper", new javax.swing.JComponent[] {helperRow});
+			JButton setupB = new JButton("Server setup\u2026"), pairB = new JButton("Copy pairing address");
+			setupB.setToolTipText("Which MCSS and which Minecraft servers on this machine the Keeper looks after, and this machine's Tailscale address.");
+			pairB.setToolTipText("The address a launcher is given to pair with this Keeper (in its Server config tab).");
+			JLabel pairNote = new JLabel(" ");
+			pairNote.setForeground(new Color(0x6B7280));
+			JPanel setupRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); setupRow.add(setupB); setupRow.add(pairB); setupRow.add(pairNote);
+			pairB.addActionListener(e -> {
+				try {
+					Map<String, Object> r = Json.map(Json.parse(call("POST", "/admin/setup/scan", "{}")));
+					if (Json.str(r.get("bind")).isEmpty()) { pairNote.setText("No Tailscale address yet: use Server setup first."); return; }
+					String addr = Json.str(r.get("bind")) + ":" + Json.str(r.get("port"));
+					java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(addr), null);
+					pairNote.setText("Copied " + addr + ". In the launcher: Server config, Gatehouse Keeper, Pair.");
+				} catch (Exception ex) { pairNote.setText("Couldn't ask the Keeper: is it running?"); }
+			});
+			// Server setup: MCSS's program, this machine's Tailscale address, and a tick for each Minecraft server MCSS has.
+			Runnable setup = () -> {
+				javax.swing.JTextField exeF = new javax.swing.JTextField(36);
+				javax.swing.JComboBox<String> addrF = new javax.swing.JComboBox<>();
+				addrF.setEditable(true);
+				JPanel list = new JPanel();
+				list.setLayout(new javax.swing.BoxLayout(list, javax.swing.BoxLayout.Y_AXIS));
+				JLabel problem = new JLabel(" ");
+				problem.setForeground(new Color(0xB3261E));
+				List<Object[]> rows = new ArrayList<>();   // {its tick-box, the server as found}
+				Runnable scan = () -> {
+					try {
+						Map<String, Object> r = Json.map(Json.parse(call("POST", "/admin/setup/scan", Json.write(m("mcss_exe", exeF.getText().trim())))));
+						exeF.setText(Json.str(r.get("mcss_exe")));
+						list.removeAll(); rows.clear();
+						boolean any = false;
+						for (Object o : Json.list(r.get("servers"))) if (Boolean.TRUE.equals(Json.map(o).get("tracked"))) any = true;
+						for (Object o : Json.list(r.get("servers"))) {
+							Map<String, Object> s = Json.map(o);
+							javax.swing.JCheckBox cb = new javax.swing.JCheckBox(Json.str(s.get("name")) + "   (port " + Json.str(s.get("minecraft")).replaceAll(".*:", "") + ", " + Json.str(s.get("dir")) + ")", Boolean.TRUE.equals(s.get("tracked")) || !any);
+							rows.add(new Object[] {cb, s}); list.add(cb);
+						}
+						problem.setText(Json.str(r.get("problem")).isEmpty() ? " " : Json.str(r.get("problem")));
+						if (addrF.getItemCount() == 0) {
+							if (!Json.str(r.get("bind")).isEmpty()) addrF.addItem(Json.str(r.get("bind")));
+							for (Object a : Json.list(r.get("addresses"))) if (!Json.str(a).equals(Json.str(r.get("bind")))) addrF.addItem(Json.str(a));
+							if (addrF.getItemCount() == 0) problem.setText((problem.getText().isBlank() ? "" : problem.getText() + " ") + "Tailscale isn't running on this machine: start it, then look again (or type its 100.x.y.z address).");
+						}
+						list.revalidate(); list.repaint();
+						java.awt.Window w = SwingUtilities.getWindowAncestor(list);
+						if (w != null) w.pack();
+					} catch (Exception ex) { problem.setText("Couldn't ask the Keeper: is it running? (Task Scheduler, Gatehouse Keeper)"); }
+				};
+				JButton browse = new JButton("Browse\u2026"), again = new JButton("Look again");
+				browse.addActionListener(ev -> {
+					javax.swing.JFileChooser fc = new javax.swing.JFileChooser(exeF.getText().isBlank() ? "C:\\" : exeF.getText());
+					fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("MCSS (mcss.exe)", "exe"));
+					if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { exeF.setText(fc.getSelectedFile().getAbsolutePath()); scan.run(); }
+				});
+				again.addActionListener(ev -> scan.run());
+				JPanel form = new JPanel();
+				form.setLayout(new javax.swing.BoxLayout(form, javax.swing.BoxLayout.Y_AXIS));
+				JPanel exeRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); exeRow.add(exeF); exeRow.add(browse); exeRow.add(again);
+				JPanel addrRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); addrRow.add(addrF);
+				java.util.function.Function<String, JLabel> subHead = hs -> { JLabel l = new JLabel(hs); l.setFont(l.getFont().deriveFont(Font.BOLD)); l.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0)); return l; };
+				for (javax.swing.JComponent c : new javax.swing.JComponent[] {subHead.apply("MCSS on this machine (mcss.exe)"), exeRow,
+						subHead.apply("This machine's Tailscale address (launchers reach the Keeper on it)"), addrRow,
+						subHead.apply("Minecraft servers in MCSS (tick the ones the Keeper looks after)"), list, problem}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); }
+				scan.run();
+				String shot = System.getenv("OJ_PANEL_PNG");
+				if (shot != null && !shot.isEmpty()) {   // (testing: a picture of the form instead of the dialog)
+					JFrame t = new JFrame(); form.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); t.setContentPane(form); t.pack();
+					java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(form.getWidth(), form.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+					java.awt.Graphics2D g = img.createGraphics(); form.paint(g); g.dispose();
+					try { javax.imageio.ImageIO.write(img, "png", new java.io.File(shot + "-setup.png")); } catch (IOException ex) { ex.printStackTrace(); }
+					t.dispose();
+					return;
+				}
+				if (JOptionPane.showConfirmDialog(f, form, "Server setup", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+				List<Object> picked = new ArrayList<>();
+				for (Object[] row : rows) if (((javax.swing.JCheckBox) row[0]).isSelected()) picked.add(row[1]);
+				String msg;
+				try {
+					Map<String, Object> r = Json.map(Json.parse(call("POST", "/admin/setup", Json.write(m("mcss_exe", exeF.getText().trim(), "bind", Json.str(addrF.getEditor().getItem()).trim(), "servers", picked)))));
+					msg = Json.str(r.get("message"));
+				} catch (Exception ex) { msg = "Couldn't ask the Keeper: is it running?"; }
+				JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + msg + "</div></html>", "Server setup", JOptionPane.PLAIN_MESSAGE);
+			};
+			setupB.addActionListener(e -> setup.run());
+			section.accept("Gatehouse Keeper", new javax.swing.JComponent[] {helperRow, setupRow});
 			section.accept("MCSS (the server software)", new javax.swing.JComponent[] {mcssRow, keyRow});
 			section.accept("Minecraft server", new javax.swing.JComponent[] {serverRow});
 			JPanel activity = new JPanel(new BorderLayout(0, 4));
@@ -1483,6 +1676,7 @@ public final class HostHelper {
 			String shot = System.getenv("OJ_PANEL_PNG");
 			if (shot != null && !shot.isEmpty()) {
 				Timer once = new Timer(3500, e -> {
+					setup.run();
 					try {
 						for (int i = 0; i < 3; i++) {
 							tabs.setSelectedIndex(i == 2 ? 1 : 0);
@@ -1502,6 +1696,8 @@ public final class HostHelper {
 			f.setLocationRelativeTo(null);
 			if (startMinimized) f.setExtendedState(JFrame.ICONIFIED);   // (opened by the Keeper for a request: on the taskbar, flashing)
 			f.setVisible(true);
+			// A new install knows no server yet (or no address): Server setup opens by itself.
+			if (!startMinimized && (servers().isEmpty() || setting("bind", "").isEmpty())) SwingUtilities.invokeLater(setup);
 		});
 	}
 
