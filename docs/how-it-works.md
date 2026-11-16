@@ -256,8 +256,10 @@ their next launch; nobody has to touch a device.
   don't all have the character) shows the Options page. `Home.uninstallPlan` decides what Uninstall does: `script`
   (installed by itself: `gatehouse/app/gatehouse-install.ps1` / `.sh` with uninstall and yes, run and its output
   shown, then the launcher closes; on Windows the copy it ran from is deleted a moment later), `program` (it came
-  with a pack on Windows: the `UninstallString` under `HKCU\...\Uninstall\Gatehouse*` or `OctoberJourney`), or `tell`
-  (inside Prism's Flatpak, or nothing on record: the command or the place is shown). The word `confirm` has to be
+  with a pack on Windows: the `UninstallString` under `HKCU\...\Uninstall\Gatehouse*` or `OctoberJourney`), or, with no
+  uninstaller on record, `script` again with the install script the launcher carries inside itself (put there by
+  `tools/build_popup.ps1`, written to the temporary folder and run with `-WithPack` / `--with-pack`: it takes out
+  what is Gatehouse's own and leaves the instances), or `tell` (inside Prism's Flatpak: the command is shown). The word `confirm` has to be
   typed first. `OJ_UNINSTALL_DRY` shows the command instead of running it; `OJ_UNINSTALL_EXTRA` adds options to it.
 - **The setup guides.** `mods-src/look/.../Wizard.java` is the page both programs show: steps down the left with a
   mark each (`ok`, `todo`, `warn`, `info`, `wait`), one step on the right with its text, buttons and Back / Next; the

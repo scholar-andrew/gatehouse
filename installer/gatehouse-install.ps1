@@ -31,6 +31,9 @@
 # Run it:   powershell -ExecutionPolicy Bypass -File gatehouse-install.ps1      (or double-click "Install Gatehouse.cmd")
 # Options:  -Gatehouse / -Gatekeeper   choose without being asked (both may be given)
 #           -Uninstall [-Purge]        remove instead of install
+#           -WithPack                  (with -Uninstall -Gatehouse) this Gatehouse came with a pack rather than being
+#                                      installed by itself: take out what is Gatehouse's own anyway (Gatehouse's
+#                                      Options page uses this when no pack uninstaller is on record)
 #           -Steam / -NoSteam          add to Steam without being asked / don't
 #           -Yes                       answer yes to the questions (downloads included); Steam is then only touched
 #                                      if it is already closed
@@ -39,7 +42,7 @@
 #           -PrismRoot DIR             Prism Launcher's data folder (default: %APPDATA%\PrismLauncher)
 #           -SteamConfig DIR           Steam's userdata\<account>\config folder (default: found from the registry)
 #           -DryRun                    say what would be done, and do none of it (nothing is downloaded or written)
-param([switch]$Gatehouse, [switch]$Gatekeeper, [switch]$Uninstall, [switch]$Purge, [switch]$Steam, [switch]$NoSteam, [switch]$Yes,
+param([switch]$Gatehouse, [switch]$Gatekeeper, [switch]$Uninstall, [switch]$Purge, [switch]$WithPack, [switch]$Steam, [switch]$NoSteam, [switch]$Yes,
       [switch]$NoPrism, [switch]$NoJava, [switch]$NoShortcut, [string]$Source, [string]$PrismRoot, [string]$SteamConfig, [switch]$DryRun)
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -232,7 +235,7 @@ function Uninstall-Gatehouse {
     $keepers = Join-Path $PrismRoot 'gatehouse'
     $runs = @(Get-ChildItem $PrismRoot -Filter 'gatehouse-launcher-run*.jar' -ErrorAction SilentlyContinue)
     $links = @((Join-Path $programs 'Gatehouse.lnk'), (Join-Path $programs 'Uninstall Gatehouse.lnk')) | Where-Object { Test-Path $_ }
-    if (-not (Test-Path $app) -and -not $links) { Say "Gatehouse isn't installed by itself here (nothing in $app). A Gatehouse that came with a pack goes with that pack's uninstaller."; return }
+    if (-not (Test-Path $app) -and -not $links -and -not $WithPack) { Say "Gatehouse isn't installed by itself here (nothing in $app). A Gatehouse that came with a pack goes with that pack's uninstaller."; return }
     if (-not $DryRun -and -not (Ask "Remove Gatehouse from this computer?$(if ($Purge) { ' (And what it remembered: its Gatekeepers and this device''s identity with them.)' })")) { Say 'Nothing was changed.'; return }
     Steam-Remove (Find-Java) 'Gatehouse'
     if ($DryRun) {
@@ -253,6 +256,10 @@ function Uninstall-Gatehouse {
         Say "Gatehouse is removed.$(if (Test-Path $keepers) { " What it remembered (its Gatekeepers, this device's identity with them) is still in $keepers; -Purge removes that too." })"
     }
     Say 'Left alone: Prism Launcher and everything installed in it.'
+    if ($WithPack) {
+        Say 'The servers installed through Gatehouse are still in Prism Launcher, each with its own launcher page: to remove one, open Prism Launcher, right-click it and choose Delete.'
+        Say 'If "Gatehouse Minecraft Launcher" is in your Steam library, remove it there (right-click, Manage, Remove non-Steam game).'
+    }
 }
 
 # Where Gatekeeper is installed, as its own Start menu shortcut says: {javaw.exe, its arguments, its folder}.

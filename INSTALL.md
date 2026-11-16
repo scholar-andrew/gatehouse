@@ -47,7 +47,8 @@ installed in it are left alone. A Gatehouse that came with a pack is removed by 
 **From inside the programs.** The settings wheel at the top right of Gatehouse's main window, and of Gatekeeper's
 window, opens **Options**, which has **Uninstall**. It asks you to type `confirm`, then does the same as above: for a
 Gatehouse installed by itself, its script (and Gatehouse closes); for one that came with a pack, that pack's own
-uninstaller; for Gatekeeper, its install script with `-Uninstall`, in a window you can read. Inside Prism Launcher's
+uninstaller, or, when Windows has none on record, the uninstall script Gatehouse carries (it takes out Gatehouse's
+own files and shortcuts and leaves the servers in Prism Launcher); for Gatekeeper, its install script with `-Uninstall`, in a window you can read. Inside Prism Launcher's
 Flatpak on Linux, Gatehouse can't reach the applications menu or Steam, so Options shows the command to run instead.
 
 Tested so far only on stand-ins on Windows 10: the files and their checks, the launcher starting from its own home

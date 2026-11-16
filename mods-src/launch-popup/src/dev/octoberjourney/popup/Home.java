@@ -358,8 +358,28 @@ final class Home {
 					return new String[] {"program", "Gatehouse came with a pack on this device (" + key + "), and is removed with it. This opens that pack's own uninstaller, which lets you choose what goes.", m.group(1)};
 			}
 		} catch (IOException | InterruptedException | RuntimeException ignored) {}
-		return new String[] {"tell", win ? "Gatehouse came with a pack on this device, and is removed with it: Windows Settings, Apps, then the pack's entry (for example \"October Journey (Minecraft modpack)\")."
-				: "Gatehouse came with a pack on this device, and is removed with it: run that pack's uninstaller (\"Uninstall ...\" in the applications menu, or gatehouse-uninstall.sh)."};
+		// It came with a pack, and no uninstaller for that is on record: the script Gatehouse carries does it.
+		Path carried = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-uninstall", script.getFileName().toString());
+		if (!win && flatpak) {
+			Path seen = root.resolve("gatehouse").resolve(script.getFileName().toString());
+			try { carried(seen); } catch (IOException e) { return new String[] {"tell", "Gatehouse came with a pack on this device, and is removed with it: run that pack's uninstaller (\"Uninstall ...\" in the applications menu, or gatehouse-uninstall.sh)."}; }
+			return new String[] {"tell", "Gatehouse runs inside Prism Launcher's Flatpak here, which can't reach your applications menu or Steam. To remove it, run this in a terminal (on a Steam Deck: Desktop Mode, Konsole):\nbash \"" + seen + "\" --uninstall --with-pack" + (purge ? " --purge" : "")};
+		}
+		List<String> cmd = new ArrayList<>(win ? List.of("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", carried.toString(), "-Uninstall", "-Gatehouse", "-WithPack", "-Yes", "-PrismRoot", root.toString())
+				: List.of("bash", carried.toString(), "--uninstall", "--with-pack", "--yes", "--prism-root=" + root));
+		if (purge) cmd.add(win ? "-Purge" : "--purge");
+		cmd.addAll(extra);
+		cmd.add(0, "Gatehouse came with a pack on this device. Uninstall takes out what is Gatehouse's own: its program files in Prism Launcher's folder, its menu entry, and its \"Gatehouse\" Steam shortcut if Steam is closed. Prism Launcher and the servers installed in it stay; a server is removed in Prism Launcher (right-click, Delete), and until then starting one there still opens its launcher page.");
+		cmd.add(0, "script");
+		return cmd.toArray(new String[0]);
+	}
+	/** Writes the install script Gatehouse carries inside itself to that place (for uninstalling with it). */
+	static void carried(Path to) throws IOException {
+		try (java.io.InputStream in = Home.class.getResourceAsStream("/" + to.getFileName())) {
+			if (in == null) throw new IOException("this Gatehouse doesn't carry its uninstall script");
+			Files.createDirectories(to.getParent());
+			Files.copy(in, to, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		}
 	}
 
 	// ---- the window
@@ -446,7 +466,7 @@ final class Home {
 			options.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
 			boolean byItself = Files.isRegularFile(Notes.app(instances).resolve("extras/launch-popup.jar"));
 			java.util.function.BiConsumer<String, Boolean> optLine = (text, bold) -> {
-				JLabel l = new JLabel("<html><div style='width:520px'>" + LaunchPopup.esc(text).replace("\n", "<br>") + "</div></html>");
+				JLabel l = new JLabel("<html><div style='width:470px'>" + LaunchPopup.esc(text).replace("\n", "<br>") + "</div></html>");
 				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, 15f)); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); }
 				else l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 				l.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -494,6 +514,8 @@ final class Home {
 					String said; boolean gone = false;
 					try {
 						List<String> cmd = new ArrayList<>(java.util.Arrays.asList(plan).subList(2, plan.length));
+						// (a Gatehouse that came with a pack has no script of its own on disk: the one it carries is put out)
+						for (String part : cmd) if (part.contains("gatehouse-uninstall") && part.contains("gatehouse-install.") && !part.startsWith("--")) carried(Path.of(part));
 						if (System.getenv("OJ_UNINSTALL_DRY") != null) said = "would run: " + String.join(" ", cmd);
 						else if (plan[0].equals("program")) { new ProcessBuilder(cmd).start(); said = "The pack's uninstaller is open. " + LaunchPopup.TOOL + " closes now."; gone = true; }
 						else {

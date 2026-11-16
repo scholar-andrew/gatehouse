@@ -25,6 +25,7 @@
 # Run it:   bash gatehouse-install.sh
 # Options:  --uninstall [--purge]   remove instead of install
 #           --steam / --no-steam    add to Steam without being asked / don't
+#           --with-pack             (with --uninstall) this Gatehouse came with a pack: take out what is its own anyway
 #           --yes                   answer yes to the questions; Steam is then only touched if it is already closed
 #           --no-prism              don't offer Prism Launcher
 #           --no-menu               no menu entry
@@ -35,11 +36,11 @@
 set -u
 REPO="https://raw.githubusercontent.com/scholar-andrew/gatehouse/main"
 APP_ID="org.prismlauncher.PrismLauncher"
-YES=0; NO_PRISM=0; NO_MENU=0; DRY=0; SOURCE=""; PRISM_ROOT=""; UNINSTALL=0; PURGE=0; STEAM=0; NO_STEAM=0; STEAM_CONFIG=""; ROOT_GIVEN=0
+YES=0; NO_PRISM=0; NO_MENU=0; DRY=0; SOURCE=""; PRISM_ROOT=""; UNINSTALL=0; PURGE=0; WITH_PACK=0; STEAM=0; NO_STEAM=0; STEAM_CONFIG=""; ROOT_GIVEN=0
 for a in "$@"; do
   case "$a" in
     --yes) YES=1 ;; --no-prism) NO_PRISM=1 ;; --no-menu) NO_MENU=1 ;; --dry-run) DRY=1 ;;
-    --uninstall) UNINSTALL=1 ;; --purge) PURGE=1 ;; --steam) STEAM=1 ;; --no-steam) NO_STEAM=1 ;;
+    --uninstall) UNINSTALL=1 ;; --purge) PURGE=1 ;; --with-pack) WITH_PACK=1 ;; --steam) STEAM=1 ;; --no-steam) NO_STEAM=1 ;;
     --source=*) SOURCE="${a#*=}" ;; --prism-root=*) PRISM_ROOT="${a#*=}"; ROOT_GIVEN=1 ;; --steam-config=*) STEAM_CONFIG="${a#*=}" ;;
     *) echo "Unknown option: $a"; exit 2 ;;
   esac
@@ -162,7 +163,7 @@ app="$PRISM_ROOT/gatehouse/app"
 if [ "$UNINSTALL" = 1 ]; then
   say "Gatehouse uninstaller"
   say ""
-  if [ ! -d "$app" ] && [ ! -f "$desktop" ]; then say "Gatehouse isn't installed by itself here (nothing in $app). A Gatehouse that came with a pack goes with that pack's uninstaller."; exit 0; fi
+  if [ ! -d "$app" ] && [ ! -f "$desktop" ] && [ "$WITH_PACK" != 1 ]; then say "Gatehouse isn't installed by itself here (nothing in $app). A Gatehouse that came with a pack goes with that pack's uninstaller."; exit 0; fi
   if [ "$DRY" != 1 ]; then ask "Remove Gatehouse from this computer?$([ "$PURGE" = 1 ] && echo " (And what it remembered: its Gatekeepers and this device's identity with them.)")" || { say "Nothing was changed."; exit 0; }; fi
   cfg="$(steam_config)"
   if [ "$NO_STEAM" = 1 ] || [ -z "$cfg" ]; then :
@@ -178,6 +179,7 @@ if [ "$UNINSTALL" = 1 ]; then
   fi
   rm -f "$desktop"
   rm -rf "$app"
+  rm -f "$PRISM_ROOT"/gatehouse-launcher-run*.jar
   if [ "$PURGE" = 1 ]; then rm -rf "$PRISM_ROOT/gatehouse"; say "Gatehouse is removed, with what it remembered."
   else
     rmdir "$PRISM_ROOT/gatehouse" 2>/dev/null
@@ -185,6 +187,10 @@ if [ "$UNINSTALL" = 1 ]; then
     else say "Gatehouse is removed."; fi
   fi
   say "Left alone: Prism Launcher and everything installed in it."
+  if [ "$WITH_PACK" = 1 ]; then
+    say "The servers installed through Gatehouse are still in Prism Launcher, each with its own launcher page: to remove one, open Prism Launcher, right-click it and choose Delete."
+    say "If \"Gatehouse Minecraft Launcher\" is in your Steam library, remove it there (Manage, Remove non-Steam game)."
+  fi
   exit 0
 fi
 

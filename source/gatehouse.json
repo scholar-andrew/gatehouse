@@ -5,7 +5,8 @@
   {"version": "2.9.0", "date": "2026-11-16", "notes": [
    "A setup guide: the steps from a device with nothing set up to playing on a server, one at a time. Prism Launcher, your Minecraft account, adding the owner's Gatekeeper, connecting to it, installing a server, and playing. Each step says what to do, has a button for it where there is one, and shows whether it's done; the guide looks again every few seconds, so a step ticks by itself.",
    "The guide opens by itself on a device that has no Gatekeeper and no server yet, and is always in Options (the wheel at the top right).",
-   "The steps can carry pictures; none are included yet."
+   "The steps can carry pictures; none are included yet.",
+   "Fixed: Options had no Uninstall button for a Gatehouse that came with a pack when Windows had no uninstaller for that pack on record (it only offered to open Windows' installed apps, where there was nothing to find). Gatehouse now carries its own uninstall script and runs it there: it takes out Gatehouse's program files, menu entry and Steam shortcut, with a tick box for what it remembers. The servers installed in Prism Launcher stay, and are removed in Prism Launcher."
   ]},
   {"version": "2.8.0", "date": "2026-11-16", "notes": [
    "A settings wheel at the top right of the main window opens Options: which Gatehouse this is and how it got here, and Uninstall.",

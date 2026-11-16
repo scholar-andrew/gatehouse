@@ -21,6 +21,8 @@ $files22 = @(Get-ChildItem (Join-Path $root 'mods-src\launch-popup\src22') -Recu
 if ($LASTEXITCODE) { throw 'javac (Java 22 part) failed' }
 # Gatehouse's own version and notes go inside it (source\gatehouse.json), apart from any pack's.
 Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $out 'classes\gatehouse-notes.json')
+# Its install script goes inside it too, so Options can uninstall a Gatehouse that came with a pack.
+Copy-Item (Join-Path $root 'installer\gatehouse-install.ps1'), (Join-Path $root 'installer\gatehouse-install.sh') (Join-Path $out 'classes')
 # Pictures for the setup guide's steps, when there are any: source\wizard\gatehouse\<step key>.png
 $art = Join-Path $root 'source\wizard\gatehouse'
 if (Test-Path $art) { New-Item -ItemType Directory -Force (Join-Path $out 'classes\wizard') | Out-Null; Copy-Item (Join-Path $art '*.png') (Join-Path $out 'classes\wizard') }
