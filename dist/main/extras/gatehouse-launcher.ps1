@@ -6,7 +6,20 @@
 # It only finds Java and the launcher and runs it; everything else is in the launcher (extras\launch-popup.jar).
 param([string]$Prism, [string]$Instances, [string]$Play)
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Installed by itself, with no pack (gatehouse-install.ps1), this file is in <Prism's folder>\gatehouse\app\extras, and
+# the launcher's own copy is beside it; otherwise it is in a pack's extras folder, three levels below "instances".
+$app = $null
+if ((Split-Path -Leaf (Split-Path -Parent $here)) -eq 'app' -and (Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $here))) -eq 'gatehouse') {
+    $app = Split-Path -Parent $here
+    if (-not $Instances) { $Instances = Join-Path (Split-Path -Parent (Split-Path -Parent $app)) 'instances' }
+}
 if (-not $Instances) { $Instances = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $here)) }
+if (-not $app) { $app = Join-Path (Split-Path -Parent $Instances) 'gatehouse\app' }
+# The newest launcher there is: among the installed packs, and Gatehouse's own copy if it has one.
+function Newest-Launcher {
+    @(Get-ChildItem $Instances -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'minecraft\extras\launch-popup.jar' }) + @(Join-Path $app 'extras\launch-popup.jar') |
+        Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
+}
 if (-not $Prism -or -not (Test-Path $Prism)) { $Prism = Join-Path $env:LOCALAPPDATA 'Programs\PrismLauncher\prismlauncher.exe' }
 function Prism-Instead {
     # Without Java or the launcher (a pack that has never been started yet): Prism Launcher itself does the job.
@@ -15,11 +28,13 @@ function Prism-Instead {
     exit 0
 }
 # The newest launcher among the installed packs.
-$jar = Get-ChildItem $Instances -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'minecraft\extras\launch-popup.jar' } |
-    Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
+$jar = Newest-Launcher
 if (-not $jar) { Prism-Instead }
 # Java 17 or newer: the ones Prism downloaded for itself (in its data folder), then ones installed on the computer.
 $javaHomes = @()
+# (a Java that gatehouse-install.ps1 fetched for Gatehouse itself)
+$own = Join-Path $env:LOCALAPPDATA 'Gatehouse\jre'
+if (Test-Path $own) { $javaHomes += @(Get-ChildItem $own -Recurse -Filter javaw.exe -ErrorAction SilentlyContinue | ForEach-Object { Split-Path -Parent (Split-Path -Parent $_.FullName) }) }
 foreach ($root in @((Split-Path -Parent $Instances), (Join-Path $env:APPDATA 'PrismLauncher')) | Select-Object -Unique) {
     $j = Join-Path $root 'java'
     if (Test-Path $j) { $javaHomes += @(Get-ChildItem $j -Recurse -Filter javaw.exe -ErrorAction SilentlyContinue | ForEach-Object { Split-Path -Parent (Split-Path -Parent $_.FullName) }) }
@@ -42,8 +57,7 @@ $env:GATEHOUSE_RELAUNCH = 'loop'
 $runs = @((Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run.jar'), (Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run-2.jar'))
 for ($round = 0; $round -lt 8; $round++) {
     if ($round -gt 0) {
-        $jar = Get-ChildItem $Instances -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'minecraft\extras\launch-popup.jar' } |
-            Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
+        $jar = Newest-Launcher
         if (-not $jar) { break }
     }
     # (the copy that just ran can stay locked for a moment after it ends: a second name, and a few tries)
