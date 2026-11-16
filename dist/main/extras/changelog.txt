@@ -1,3 +1,5 @@
+== 1.21.0 | 2026-11-16
+- Nothing changed in the pack itself. The launcher did (Gatehouse 2.4.0): adding a Gatekeeper that can't be reached yet now walks you through getting connected, Tailscale included. The rest is on the Gatehouse updates tab on its main window.
 == 1.20.1 | 2026-11-16
 - The Steam Deck layout switching from 1.20.0 is taken out again: the pack's layout is back on every shortcut, Gatehouse's included, and is unchanged (pressing the right trackpad is still a right click in the game).
 - In the launcher's own windows on a Steam Deck, that press now counts as a left click (Gatehouse 2.3.1; see the Gatehouse updates tab on its main window).
