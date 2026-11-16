@@ -82,6 +82,9 @@ function ShowPopup($status) {
 # normally. Without the wrapper the only way to stop the launch is to fail this step (Prism then shows its log).
 $cancelMark = Join-Path $here 'launch-cancelled'
 Remove-Item $cancelMark -Force -ErrorAction SilentlyContinue
+# GATEHOUSE_PLAY: the note says "play" when the update AND the launcher window were both in the Gatehouse window, and
+# Play was pressed there. Nothing is left to do or show here: the game starts.
+if ($fresh -eq 'play') { Note 'updated and Play pressed in the Gatehouse window: starting the game'; exit 0 }
 function CancelLaunch {
     $icfg = Join-Path (Split-Path $here -Parent) 'instance.cfg'
     if ((Test-Path (Join-Path $here 'launch-wrapper.exe')) -and (Test-Path $icfg) -and (Select-String -LiteralPath $icfg -Pattern '^WrapperCommand=.*launch-wrapper' -Quiet)) {

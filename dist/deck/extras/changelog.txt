@@ -1,3 +1,6 @@
+== 1.19.0 | 2026-11-16
+- When the pack is started from the Gatehouse launcher, this window is now a page inside Gatehouse's own window instead of a window of its own (Gatehouse 2.2.0; see the Gatehouse updates tab there). It takes effect one launch after this update.
+- Nothing else changed in the pack.
 == 1.18.0 | 2026-11-16
 - The pack's update can now be run by the Gatehouse launcher itself, in its main window, instead of by Prism Launcher in a second one (Gatehouse 2.1.0; see the Gatehouse updates tab there). It takes effect one launch after this update. Starting the pack from Prism Launcher itself works as before.
 - Nothing else changed in the pack.
