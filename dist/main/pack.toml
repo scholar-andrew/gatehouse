@@ -1,12 +1,12 @@
 name = "October Journey"
 author = "Andrew"
-version = "1.17.1"
+version = "1.17.2"
 pack-format = "packwiz:1.1.0"
 
 [index]
 file = "index.toml"
 hash-format = "sha256"
-hash = "3822b3a226f97f027acb2c79dc6afd37c7f9ff0bfc738b25af027957421a515f"
+hash = "f700d1a14cea0abf1ff5354d4abfd4d77b2b2393cb7c558aa74a157e78928bc9"
 
 [versions]
 minecraft = "26.3"
