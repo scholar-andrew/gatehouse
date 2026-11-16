@@ -458,7 +458,9 @@ final class ServerControl {
 	boolean hasHelper() { return !helperUrl.isEmpty(); }
 
 	/** One call to Gatekeeper on the server machine, as this launcher. */
-	Map<String, Object> helper(String method, String path, String body) throws IOException {
+	Map<String, Object> helper(String method, String path, String body) throws IOException { return helperAs(serverKey, method, path, body); }
+	/** The same, about a named server of that Gatekeeper (the launcher's menu, which isn't tied to one server). */
+	Map<String, Object> helperAs(String serverKey, String method, String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(helperUrl.replaceAll("/+$", "") + path).openConnection();
 		c.setConnectTimeout(3000); c.setReadTimeout(60000);
 		c.setRequestMethod(method);

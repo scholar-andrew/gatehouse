@@ -120,7 +120,7 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   on this machine.
 - **The window's three levels.** It opens on **MCSS on this machine** (its program and whether it's running) and
   **Servers in this MCSS** (each with whether it's on, how many are playing, its port and folder; `GET
-  /admin/overview`). **Open** goes into one server's pages (Access Manager, Status, Updates Pulled); **Servers** at
+  /admin/overview`). **Open** goes into one server's pages (Access Manager, Server Status, Updates Pulled); **Servers** at
   the top right comes back. One MCSS per machine for now.
 - **The catalog.** A launcher's menu asks `GET /v1/catalog` for this Gatekeeper's name (`name` in `host.json`, else
   the computer's name) and its servers: id, name, the address to join, whether it's on, and `profile`, the address
@@ -132,6 +132,19 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
 - **Share pairing** (Status tab): the address, a pairing link (`gatehouse://pair/<address>?name=<name>`, to paste
   into a launcher's Add Gatekeeper) and a pairing file (`<name>.gatekeeper`, the same two things as JSON, to send).
   None of them grants anything: the launcher still introduces itself and waits in Access Manager.
+- **What each server is doing.** Gatekeeper asks MCSS for each server's own state (never the game port: two servers on
+  one machine may share one) and reports a phase: `online`, `starting`, `stopping`, `off`, or `nomcss` (MCSS isn't
+  running). Where MCSS can't be asked (not signed in), the server's world lock (`<world>/session.lock`) says whether
+  it's running. Between Gatekeeper asking for a start or stop and MCSS showing it, the phase reads starting or
+  stopping; MCSS itself reads `starting` or `closing` the same way. Launchers get it from `GET /v1/phase` and in the
+  catalog; the window from `/admin/overview` and `/admin/devices`.
+- **Close MCSS finishes the job.** With a server running, Close MCSS (launcher or window) stops each running server
+  first, waits in the background until they are down (up to 3 minutes), then closes MCSS; if a server won't stop,
+  MCSS is left open and the log says so.
+- **Per server.** The log tags a line about one server with its name (`[Name]`), so a server's Server Status page
+  shows its own lines and the machine-wide ones; Updates Pulled records which server each pull was for. Server
+  control and the whitelist are per server; machine wake/sleep, MCSS control, Gatekeeper control and suspensions are
+  about the machine or the person, so they are the same on every server's page.
 - **Three states.** Each permission (machine wake and sleep, MCSS, Minecraft server) is `allowed`, `none` (not
   allowed: nobody decided) or `denied`, for a launcher (`devices.json`) or a player (`players.json`; `deny` holds the
   denials). A player's setting goes to all their confirmed launchers, except a launcher that is itself denied that

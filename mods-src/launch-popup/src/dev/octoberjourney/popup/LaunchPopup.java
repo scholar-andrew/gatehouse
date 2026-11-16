@@ -1472,6 +1472,15 @@ public final class LaunchPopup {
 		logBox.add(logHead, BorderLayout.NORTH); logBox.add(new JScrollPane(log), BorderLayout.CENTER);
 		activity.add(logBox, BorderLayout.CENTER);
 
+		// ---- Updates Pulled: each update a launcher fetched from the server machine, for this server
+		javax.swing.table.DefaultTableModel pullModel = newModel.apply(new String[] {"When", "Launcher", "Player", "Update", "Files", "Mods", "Size"});
+		javax.swing.JTable pullTable = new javax.swing.JTable(pullModel);
+		pullTable.setRowHeight(24);
+		JPanel pulled = new JPanel(new BorderLayout(0, 6));
+		pulled.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
+		JLabel pullHead = new JLabel(" ");
+		pullHead.setForeground(grey);
+		pulled.add(pullHead, BorderLayout.NORTH); pulled.add(new JScrollPane(pullTable), BorderLayout.CENTER);
 		boolean[] players = {false};
 		java.util.function.Function<String, String> word = st -> st.equals("allowed") ? "Allowed" : st.equals("denied") ? "Denied" : "Not allowed";
 		Runnable labels = () -> {
@@ -1488,11 +1497,22 @@ public final class LaunchPopup {
 		java.util.function.Consumer<Runnable> ui = r -> { if (SwingUtilities.isEventDispatchThread()) r.run(); else SwingUtilities.invokeLater(r); };
 		Runnable fetch = () -> {
 			try {
-				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), pl = c.helper("GET", "/v1/admin/players", null), lg = c.helper("GET", "/v1/admin/log", null);
+				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), pl = c.helper("GET", "/v1/admin/players", null), lg = c.helper("GET", "/v1/admin/log", null), pu = c.helper("GET", "/v1/admin/pulls", null);
 				ui.accept(() -> {
 					if (!"200".equals(s(r.get("_code")))) { mcssLine.setIcon(dot(RED)); mcssLine.setText(s(r.get("error")).isEmpty() ? "Gatekeeper said no (" + s(r.get("_code")) + ")" : s(r.get("error"))); note.setText(wrap(mcssLine.getText())); return; }
 					int sel = table.getSelectedRow();
 					String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null, you = s(r.get("you"));
+					pullModel.setRowCount(0);
+					long pullTotal = 0;
+					if (pu.get("pulls") instanceof List<?> pls) for (Object o : pls) {
+						Map<String, Object> q = asMap(o);
+						long bytes = 0;
+						try { bytes = (long) Double.parseDouble(s(q.get("bytes"))); } catch (NumberFormatException ignored) {}
+						pullTotal += bytes;
+						pullModel.addRow(new Object[] {s(q.get("time")), s(q.get("name")), s(q.get("player")), (s(q.get("from")).isEmpty() ? "first install, " : s(q.get("from")) + " \u2192 ") + s(q.get("to")),
+								s(q.get("files")).replaceAll("\\.0$", ""), s(q.get("mods")).replaceAll("\\.0$", ""), sizeText(bytes)});
+					}
+					pullHead.setText(pullModel.getRowCount() == 0 ? "No updates pulled from the server machine yet." : pullModel.getRowCount() + " download" + (pullModel.getRowCount() == 1 ? "" : "s") + " recorded, " + sizeText(pullTotal) + " in all. Newest first.");
 					model.setRowCount(0); ids.clear(); dban.clear();
 					for (Map.Entry<String, Object> e : asMap(r.get("devices")).entrySet()) {
 						Map<String, Object> v = asMap(e.getValue());
@@ -1616,14 +1636,15 @@ public final class LaunchPopup {
 		table.getSelectionModel().addListSelectionListener(e -> labels.run());
 		ptable.getSelectionModel().addListSelectionListener(e -> labels.run());
 		// Asked for while either tab is on screen: every few seconds, and at once when one is opened.
-		Timer t = new Timer(4000, e -> { if (!f.isDisplayable()) ((Timer) e.getSource()).stop(); else if (access.isShowing() || activity.isShowing()) load.run(); });
+		Timer t = new Timer(4000, e -> { if (!f.isDisplayable()) ((Timer) e.getSource()).stop(); else if (access.isShowing() || activity.isShowing() || pulled.isShowing()) load.run(); });
 		t.start();
-		for (JPanel q : new JPanel[] {access, activity})
+		for (JPanel q : new JPanel[] {access, activity, pulled})
 			q.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && q.isShowing()) load.run(); });
 		// Both live under one tab of the launcher, Remote Gatekeeper, as two tabs of their own.
 		javax.swing.JTabbedPane inner = new javax.swing.JTabbedPane();
 		inner.addTab("Access Manager", access);
 		inner.addTab("Gatekeeper activity", activity);
+		inner.addTab("Updates Pulled", pulled);
 		JPanel remote = new JPanel(new BorderLayout());
 		remote.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));
 		remote.add(inner, BorderLayout.CENTER);

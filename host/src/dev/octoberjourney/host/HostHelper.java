@@ -95,8 +95,34 @@ public final class HostHelper {
 	}
 
 	static synchronized void log(String s) {
-		try { Files.writeString(dir.resolve("host.log"), LocalDateTime.now().format(TIME) + "  " + s + "\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
+		String tag = "";
+		try { if (cfg != null && servers().size() > 1 && !SERVER.get().isEmpty()) tag = "[" + serverName() + "] "; } catch (RuntimeException ignored) {}
+		try { Files.writeString(dir.resolve("host.log"), LocalDateTime.now().format(TIME) + "  " + tag + s + "\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
 		catch (IOException ignored) {}
+	}
+
+	/** The end of the log for the server being looked at: its own lines (they carry its name) and the lines about the
+	 *  machine as a whole (no name); another server's lines are left out. */
+	static List<Object> logFor(int max) {
+		String[] lines = read(dir.resolve("host.log")).split("\\R");
+		String mine = "[" + serverName() + "] ";
+		java.util.regex.Pattern tagged = java.util.regex.Pattern.compile("^\\S+ \\S+  (\\[[^\\]]+\\] )");
+		List<Object> out = new ArrayList<>();
+		for (int i = lines.length - 1; i >= 0 && out.size() < max; i--) {
+			if (lines[i].isBlank()) continue;
+			java.util.regex.Matcher m = tagged.matcher(lines[i]);
+			if (m.find() && !m.group(1).equals(mine)) continue;
+			out.add(0, lines[i]);
+		}
+		return out;
+	}
+	/** The updates launchers pulled, newest first: for the server being looked at when a server was asked for. */
+	static List<Object> pullsFor() {
+		List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json")))), out = new ArrayList<>();
+		String want = SERVER.get().isEmpty() ? "" : Json.str(server().get("id"));
+		boolean first = firstServer();
+		for (Object o : all) { String sv = Json.str(Json.map(o).get("server")); if (want.isEmpty() || sv.equals(want) || (sv.isEmpty() && first)) out.add(0, o); }
+		return out;
 	}
 
 	/** A launcher as the log names it: its own name, and the Tailscale device it came from when known. */
@@ -518,7 +544,7 @@ public final class HostHelper {
 				} finally { SERVER.set(keep); }
 				String name = setting("name", "");
 				if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
-				reply(x, 200, m("name", name, "servers", list, "suspended", ban[0].equals("suspend")));
+				reply(x, 200, m("name", name, "servers", list, "suspended", ban[0].equals("suspend"), "perm_machine", canSleep, "perm_mcss", granted, "mcss_phase", mcssPhase(), "close", host.closeMode()));
 				return;
 			}
 			if (path.equals("/v1/pulled") && x.getRequestMethod().equals("POST")) {
@@ -526,7 +552,7 @@ public final class HostHelper {
 				Map<String, Object> b = body(x);
 				java.util.function.Function<String, Long> num = k -> { try { return (long) Double.parseDouble(Json.str(b.get(k))); } catch (NumberFormatException e) { return 0L; } };
 				Map<String, Object> rec = m("time", LocalDateTime.now().format(TIME), "id", id, "name", Json.str(d.get("name")), "player", Json.str(d.get("player")), "os", Json.str(d.get("os")),
-						"from", clean(Json.str(b.get("from")), 24), "to", clean(Json.str(b.get("to")), 24), "pack", clean(Json.str(b.get("pack")), 60),
+						"from", clean(Json.str(b.get("from")), 24), "to", clean(Json.str(b.get("to")), 24), "pack", clean(Json.str(b.get("pack")), 60), "server", Json.str(server().get("id")),
 						"bytes", num.apply("bytes"), "local_bytes", num.apply("local_bytes"), "files", num.apply("files"), "mods", num.apply("mods"));
 				synchronized (HostHelper.class) {
 					List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
@@ -579,11 +605,10 @@ public final class HostHelper {
 				if (path.equals("/v1/admin/devices") && !post) {
 					Map<String, Object> all = listed();
 					reply(x, 200, m("devices", all, "you", id, "mcss", host.running(), "minecraft", minecraftRunning(), "has_key", host.hasAccess()));
+				} else if (path.equals("/v1/admin/pulls") && !post) {
+					reply(x, 200, m("pulls", pullsFor()));
 				} else if (path.equals("/v1/admin/log") && !post) {
-					String[] lines = read(dir.resolve("host.log")).split("\\R");
-					List<Object> last = new ArrayList<>();
-					for (int i = Math.max(0, lines.length - 100); i < lines.length; i++) if (!lines[i].isBlank()) last.add(lines[i]);
-					reply(x, 200, m("log", last));
+					reply(x, 200, m("log", logFor(100)));
 				} else if ((path.equals("/v1/admin/whitelist") || path.equals("/v1/admin/kick") || path.equals("/v1/admin/ban")) && post) {
 					Map<String, Object> b = body(x);
 					String player = Json.str(b.get("player")), kind = Json.str(b.get("kind")), reason = clean(Json.str(b.get("reason")), 200);
@@ -1352,14 +1377,9 @@ public final class HostHelper {
 				} finally { SERVER.set(keep); }
 				reply(x, 200, m("mcss_exe", setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list));
 			} else if (path.equals("/admin/pulls")) {
-				List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
-				java.util.Collections.reverse(all);
-				reply(x, 200, m("pulls", all));
+				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
-				String[] lines = read(dir.resolve("host.log")).split("\\R");
-				List<Object> last = new ArrayList<>();
-				for (int i = Math.max(0, lines.length - 200); i < lines.length; i++) if (!lines[i].isBlank()) last.add(lines[i]);
-				reply(x, 200, m("log", last));
+				reply(x, 200, m("log", logFor(200)));
 			} else reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
@@ -1701,7 +1721,7 @@ public final class HostHelper {
 			}, "pulls").start();
 			new Timer(5000, e -> { if (pullsTab.isShowing()) loadPulls.run(); }).start();
 			pullsTab.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && pullsTab.isShowing()) loadPulls.run(); });
-			tabs.addTab("Access Manager", accessTab); tabs.addTab("Status", statusTab); tabs.addTab("Updates Pulled", pullsTab);
+			tabs.addTab("Access Manager", accessTab); tabs.addTab("Server Status", statusTab); tabs.addTab("Updates Pulled", pullsTab);
 			// The window's three levels: MCSS on this machine, the servers it runs (both on the first screen), and one
 			// server's own pages (the tabs). Open goes in; "Servers" at the top right comes back.
 			java.awt.CardLayout levels = new java.awt.CardLayout();

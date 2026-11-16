@@ -65,6 +65,16 @@ final class Home {
 
 	private static String str(Object o) { return o == null ? "" : o.toString(); }
 
+	/** Runs one of the Connections buttons' calls through the shared "press" handling, once. */
+	private static final class ActionListenerOnce {
+		static void run(JButton b, java.util.function.BiConsumer<JButton, java.util.concurrent.Callable<Map<String, Object>>> press, java.util.concurrent.Callable<Map<String, Object>> call) {
+			JButton proxy = new JButton();
+			press.accept(proxy, call);
+			b.setEnabled(false);
+			proxy.doClick(0);
+		}
+	}
+
 	/** A list's panel that is always exactly as wide as the scrolling area it sits in, so a row's long status line is
 	 *  shortened (with its full text on hover) and the buttons on its right stay in view. */
 	private static final class Fitted extends JPanel implements javax.swing.Scrollable {
@@ -222,17 +232,19 @@ final class Home {
 			p.add(top, BorderLayout.NORTH);
 			CardLayout cards = new CardLayout();
 			JPanel deck = new JPanel(cards);
-			JPanel keeperList = new JPanel(), serverList = new JPanel();
-			for (JPanel l : new JPanel[] {keeperList, serverList}) l.setLayout(new BoxLayout(l, BoxLayout.Y_AXIS));
-			for (Object[] c : new Object[][] {{keeperList, "keepers"}, {serverList, "servers"}}) {
+			JPanel keeperList = new JPanel(), serverList = new JPanel(), connList = new JPanel();
+			javax.swing.JTabbedPane level2 = new javax.swing.JTabbedPane();
+			for (JPanel l : new JPanel[] {keeperList, serverList, connList}) l.setLayout(new BoxLayout(l, BoxLayout.Y_AXIS));
+			for (Object[] c : new Object[][] {{keeperList, "keepers"}, {serverList, "Servers"}, {connList, "Connections"}}) {
 				JPanel inner = new Fitted();   // (as wide as the window, never wider: a long line is cut short, not the buttons pushed out)
 				inner.add((JPanel) c[0], BorderLayout.NORTH);
 				JScrollPane sc = new JScrollPane(inner);
 				sc.setBorder(null);
 				sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 				sc.getVerticalScrollBar().setUnitIncrement(16);
-				deck.add(sc, (String) c[1]);
+				if (c[1].equals("keepers")) deck.add(sc, "keepers"); else level2.addTab((String) c[1], sc);
 			}
+			deck.add(level2, "servers");
 			deck.setPreferredSize(new Dimension(680, 330));
 			p.add(deck, BorderLayout.CENTER);
 			List<Runnable> polls = new ArrayList<>();   // (what the open level asks again every few seconds)
@@ -358,6 +370,68 @@ final class Home {
 							String[] pk = (String[]) r[1];
 							new Thread(() -> { ServerControl sc = new ServerControl(Path.of(pk[3])); String[] st = sc.ban.equals("blacklist") ? new String[] {"off", "Not shown: this launcher is blacklisted"} : !sc.configured() ? new String[] {"off", "No server set up for this pack"} : sc.status(); set.accept((JLabel) r[0], st); }, "server-status").start();
 						}
+						// ---- Connections: the machine, MCSS and each server, each with the buttons this device is allowed.
+						connList.removeAll();
+						if (c != null) {
+							boolean answering = cat != null && !cat.containsKey("_refused");
+							Runnable[] again2 = {null};
+							// (a press: ask Gatekeeper, say what it said, then look again)
+							java.util.function.BiConsumer<JButton, java.util.concurrent.Callable<Map<String, Object>>> press = (b, call) -> b.addActionListener(ev -> {
+								b.setEnabled(false);
+								new Thread(() -> {
+									String m;
+									try { Map<String, Object> r = call.call(); m = !str(r.get("message")).isEmpty() ? str(r.get("message")) : !str(r.get("error")).isEmpty() ? str(r.get("error")) : "Done."; }
+									catch (Exception ex) { m = "Couldn't reach the Gatekeeper."; }
+									String msg = m;
+									SwingUtilities.invokeLater(() -> sub.setText(msg));
+									if (again2[0] != null) again2[0].run();
+								}, "connection-act").start();
+							});
+							java.util.function.BiPredicate<String, String> sure = (title, text) -> JOptionPane.showConfirmDialog(f, "<html><div style='width:380px'>" + text + "</div></html>", title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
+							// the machine
+							JButton wakeB = new JButton("Wake"), sleepB = new JButton("Sleep");
+							wakeB.setToolTipText("Wakes the server machine (Wake on LAN: works from the owner's home network)");
+							sleepB.setToolTipText("Puts the server machine to sleep. Only while no Minecraft server is running.");
+							Object[] mr = row.apply("Server machine", new Component[] {wakeB, sleepB});
+							set.accept((JLabel) mr[2], answering ? new String[] {"ok", "Awake"} : new String[] {"off", "Not answering: asleep or off"});
+							String[] wakePack = null;
+							for (String[] pk : packs) if (pk[4].equals(url) && new ServerControl(Path.of(pk[3])).canWake()) wakePack = pk;
+							String[] wp = wakePack;
+							wakeB.setVisible(!answering && wp != null);
+							sleepB.setVisible(answering && "true".equals(str(cat.get("perm_machine"))));
+							if (wp != null) wakeB.addActionListener(ev -> { try { new ServerControl(Path.of(wp[3])).wake(); sub.setText("Wake signal sent: it can take a minute."); } catch (IOException ex) { sub.setText("Couldn't send the wake signal: " + ex.getMessage()); } });
+							sleepB.addActionListener(ev -> { if (sure.test("Sleep", "Put the server machine to sleep?")) { ActionListenerOnce.run(sleepB, press, () -> c.helper("POST", "/v1/pc/sleep", "{}")); } });
+							connList.add((JPanel) mr[0]); connList.add(Box.createVerticalStrut(8));
+							if (answering && !cat.containsKey("_old")) {
+								// MCSS
+								String mph = str(cat.get("mcss_phase"));
+								boolean mUp = mph.equals("running") || mph.equals("closing"), mBusy = mph.equals("starting") || mph.equals("closing"), force = "force".equals(str(cat.get("close")));
+								JButton mb = new JButton(mUp ? (force ? "Force close MCSS" : "Close MCSS") : "Start MCSS");
+								mb.setToolTipText(mUp ? "Closes MCSS. A running Minecraft server is stopped first (the world is saved)." : "Starts MCSS (the program that runs the Minecraft servers) on the server machine");
+								Object[] cr = row.apply("MCSS (the server software)", new Component[] {mb});
+								set.accept((JLabel) cr[2], new String[] {mBusy ? "warn" : mUp ? "ok" : "off", mph.equals("starting") ? "Starting\u2026" : mph.equals("closing") ? "Closing\u2026" : mUp ? "Running" : "Not running"});
+								mb.setVisible("true".equals(str(cat.get("perm_mcss"))));
+								mb.setEnabled(!mBusy);
+								mb.addActionListener(ev -> { if (!mUp || sure.test("Close MCSS", "Close MCSS? Any Minecraft server that is running is stopped first (the world is saved), and anyone playing is disconnected.")) ActionListenerOnce.run(mb, press, () -> mUp ? c.mcssClose(force) : c.mcssStart()); });
+								connList.add((JPanel) cr[0]); connList.add(Box.createVerticalStrut(8));
+								// each server
+								if (cat.get("servers") instanceof List<?> sl) for (Object o : sl) {
+									Map<String, Object> s = ServerControl.asMap(o);
+									String sid = str(s.get("id")), ph = str(s.get("phase")), snm = str(s.get("name")).isEmpty() ? sid : str(s.get("name"));
+									boolean sUp = ph.equals("online") || ph.equals("stopping"), sBusy = ph.equals("starting") || ph.equals("stopping");
+									JButton sb = new JButton(sUp ? "Stop server" : "Start server");
+									sb.setToolTipText(sUp ? "Stops this Minecraft server: the world is saved first, and anyone playing is disconnected" : "Starts this Minecraft server. Gatekeeper starts MCSS first if it isn't running.");
+									Object[] sr = row.apply(snm, new Component[] {sb});
+									set.accept((JLabel) sr[2], new String[] {sBusy ? "warn" : ph.equals("online") ? "ok" : "off", ph.equals("online") ? "Online" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : ph.equals("nomcss") ? "Off (MCSS isn't running)" : "Off"});
+									sb.setVisible("true".equals(str(s.get("allowed"))));
+									sb.setEnabled(!sBusy);
+									sb.addActionListener(ev -> { if (!sUp || sure.test("Stop server", "Stop " + LaunchPopup.esc(snm) + "? The world is saved first, and anyone playing is disconnected.")) ActionListenerOnce.run(sb, press, () -> c.helperAs(sid, "POST", sUp ? "/v1/server/stop" : "/v1/server/start", "{}")); });
+									connList.add((JPanel) sr[0]); connList.add(Box.createVerticalStrut(8));
+								}
+							}
+							again2[0] = () -> { for (Runnable r : new ArrayList<>(polls)) r.run(); };
+						}
+						connList.revalidate(); connList.repaint();
 						if (c != null && cat == null) sub.setText("This Gatekeeper isn't answering (its machine may be asleep or off). Installed packs can still be started.");
 						else if (cat != null && cat.containsKey("_refused")) sub.setText("This Gatekeeper answered, but " + str(cat.get("_refused")) + ".");
 						else if (cat != null && rows.isEmpty()) sub.setText("This Gatekeeper looks after no servers yet.");
@@ -478,12 +552,13 @@ final class Home {
 			LaunchPopup.fit(f, false);
 			if (shot != null && !shot.isEmpty()) {   // (testing: pictures instead of the window: <file>, and <file>-servers.png for the first Gatekeeper)
 				try {
-					for (int n = 0; n < 2; n++) {
+					for (int n = 0; n < 3; n++) {
 						if (n == 1) { if (keepers.isEmpty()) break; showServers.accept(keepers.get(0)[0]); }
+						if (n == 2) level2.setSelectedIndex(1);
 						f.validate();
 						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-						javax.imageio.ImageIO.write(img, "png", new java.io.File(n == 0 ? shot : shot.replaceAll("\\.png$", "") + "-servers.png"));
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(n == 0 ? shot : shot.replaceAll("\\.png$", "") + (n == 1 ? "-servers.png" : "-connections.png")));
 					}
 				} catch (IOException ex) { ex.printStackTrace(); }
 				f.dispose();

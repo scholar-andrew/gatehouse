@@ -111,6 +111,9 @@ safe; it updates your setup without duplicating anything.
    launcher itself are copied from a pack installed on this device and kept current by the menu). A server with mods
    whose pack isn't published says so.
    **Gatekeepers** at the top right goes back.
+   Beside **Servers** is **Connections**: the server machine, MCSS and each server, each with what it's doing right
+   now (including Starting and Shutting down) and the buttons your device is allowed: **Wake** or **Sleep**, **Start
+   MCSS** or **Close MCSS**, **Start server** or **Stop server**. Stopping and closing ask first.
 3. **The server's own launcher.** Play starts that pack: its update runs first and the window described below
    appears. Its **Menu** button comes back here without starting the game.
 
