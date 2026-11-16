@@ -246,6 +246,14 @@ Gatekeeper looks every five minutes at the pack server on its own machine if the
   is told `blocked` for itself.
 - Nothing reachable to compare with: nothing is blocked. `host.json` `require_current: false` turns the blocking off.
 
+### Options and uninstalling
+
+The settings wheel at the top right opens Options: the version, where Gatekeeper runs from and where its settings
+are, and **Uninstall**. After `confirm` is typed, Gatekeeper writes out the install script it carries
+(`install-keeper.ps1`, put inside it by `tools/build_host.ps1`) beside its settings and runs it with `-Uninstall -Yes`
+(`-Purge` when the tick box for its settings is on) in a PowerShell window that stays open until Enter is pressed;
+the script stops Gatekeeper, this window included. `--uninstall-command` prints what would be run, for tests.
+
 ### Host setup
 
 The fourth tab on Gatekeeper's first screen. It asks the running Gatekeeper (`GET /admin/checklist`) for the steps a

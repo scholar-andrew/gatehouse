@@ -321,6 +321,47 @@ final class Home {
 		try (java.util.stream.Stream<Path> s = Files.walk(dir)) { s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> { try { Files.deleteIfExists(p); } catch (IOException ignored) {} }); } catch (IOException ignored) {}
 	}
 
+	// ---- Options: removing Gatehouse
+	/** How Gatehouse can be removed from this device, worked out from how it got here:
+	 *    {"script", what it is, the command...}   installed by itself (gatehouse-install): its own script, kept in its
+	 *                                             home, is run with "uninstall" and its answer shown
+	 *    {"program", what it is, the command...}  it came with a pack on Windows: that pack's own uninstaller is opened
+	 *    {"tell", what to do}                     neither can be done from here (inside Prism's Flatpak nothing outside
+	 *                                             it can be reached; or no uninstaller is known): said instead
+	 *  "purge": also what Gatehouse remembered. */
+	static String[] uninstallPlan(Path instances, boolean purge) {
+		boolean win = System.getProperty("os.name", "").startsWith("Windows"), flatpak = Files.exists(Path.of("/.flatpak-info"));
+		Path root = instances.toAbsolutePath().getParent(), own = Notes.app(instances), script = own.resolve(win ? "gatehouse-install.ps1" : "gatehouse-install.sh");
+		List<String> extra = new ArrayList<>();
+		String more = System.getenv("OJ_UNINSTALL_EXTRA");   // (testing: more options for the script)
+		if (more != null && !more.isBlank()) extra.addAll(List.of(more.trim().split("\\s+")));
+		if (Files.isRegularFile(script)) {
+			if (!win && flatpak) return new String[] {"tell", "Gatehouse runs inside Prism Launcher's Flatpak here, which can't reach your applications menu or Steam. To remove it completely, run this in a terminal (on a Steam Deck: Desktop Mode, Konsole):\nbash \"" + script + "\" --uninstall" + (purge ? " --purge" : "")};
+			List<String> cmd = new ArrayList<>(win ? List.of("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script.toString(), "-Uninstall", "-Gatehouse", "-Yes", "-PrismRoot", root.toString())
+					: List.of("bash", script.toString(), "--uninstall", "--yes", "--prism-root=" + root));
+			if (purge) cmd.add(win ? "-Purge" : "--purge");
+			cmd.addAll(extra);
+			cmd.add(0, "Gatehouse was installed by itself on this device. Its own uninstall script takes out its files, its menu entry and its Steam shortcut. Prism Launcher and anything installed in it are left alone.");
+			cmd.add(0, "script");
+			return cmd.toArray(new String[0]);
+		}
+		if (win) try {
+			// (a pack's setup lists itself with Windows' installed apps, with the uninstaller it saved)
+			Process q = new ProcessBuilder("reg", "query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall", "/s", "/v", "UninstallString").redirectErrorStream(true).start();
+			String out = new String(q.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+			q.waitFor();
+			String key = "";
+			for (String line : out.split("\\R")) {
+				if (line.startsWith("HKEY_")) key = line.substring(line.lastIndexOf('\\') + 1).trim();
+				java.util.regex.Matcher m = java.util.regex.Pattern.compile("UninstallString\\s+REG_SZ\\s+\"?([^\"]+?)\"?\\s*$").matcher(line);
+				if (m.find() && (key.startsWith("Gatehouse") || key.equals("OctoberJourney")) && Files.isRegularFile(Path.of(m.group(1))))
+					return new String[] {"program", "Gatehouse came with a pack on this device (" + key + "), and is removed with it. This opens that pack's own uninstaller, which lets you choose what goes.", m.group(1)};
+			}
+		} catch (IOException | InterruptedException | RuntimeException ignored) {}
+		return new String[] {"tell", win ? "Gatehouse came with a pack on this device, and is removed with it: Windows Settings, Apps, then the pack's entry (for example \"October Journey (Minecraft modpack)\")."
+				: "Gatehouse came with a pack on this device, and is removed with it: run that pack's uninstaller (\"Uninstall ...\" in the applications menu, or gatehouse-uninstall.sh)."};
+	}
+
 	// ---- the window
 	private static void window(Path instances, Path home, List<String[]> packs, String openAt, String[][] chosen, boolean[] openPrism, String[] again) throws Exception {
 		// The Gatekeepers: the ones remembered, and any an installed pack names that isn't remembered yet.
@@ -349,8 +390,13 @@ final class Home {
 			JButton backB = new JButton("‹ Gatekeepers");
 			backB.setToolTipText("Back to the list of Gatekeepers");
 			backB.setVisible(false);
+			// (the wheel: Options)
+			JButton gear = new JButton(dev.gatehouse.look.SteamLook.gear(18));
+			gear.setToolTipText("Options");
+			JPanel headButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			headButtons.add(backB); headButtons.add(gear);
 			JPanel headRow = new JPanel(new BorderLayout(10, 0));
-			headRow.add(head, BorderLayout.CENTER); headRow.add(backB, BorderLayout.EAST);
+			headRow.add(head, BorderLayout.CENTER); headRow.add(headButtons, BorderLayout.EAST);
 			JPanel top = new JPanel(new BorderLayout(0, 4));
 			// Gatehouse's own update, asked about here (apart from any pack's, which its server's launcher asks about).
 			JPanel ownUpdate = new JPanel(new BorderLayout(10, 0));
@@ -394,6 +440,83 @@ final class Home {
 			level2.addTab("Gatekeeper updates", keeperNotes);
 			deck.add(level1, "keepers");
 			deck.add(level2, "servers");
+			// ---- Options (the wheel at the top right): which Gatehouse this is, where it lives, and removing it.
+			JPanel options = new JPanel();
+			options.setLayout(new javax.swing.BoxLayout(options, javax.swing.BoxLayout.Y_AXIS));
+			options.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
+			boolean byItself = Files.isRegularFile(Notes.app(instances).resolve("extras/launch-popup.jar"));
+			java.util.function.BiConsumer<String, Boolean> optLine = (text, bold) -> {
+				JLabel l = new JLabel("<html><div style='width:520px'>" + LaunchPopup.esc(text).replace("\n", "<br>") + "</div></html>");
+				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, 15f)); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); }
+				else l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
+				l.setAlignmentX(Component.LEFT_ALIGNMENT);
+				options.add(l);
+			};
+			optLine.accept("About", true);
+			optLine.accept(LaunchPopup.TOOL + " " + Notes.version(Notes.own()) + ". " + (byItself ? "Installed by itself, in " + Notes.app(instances) + "." : "It came with a pack installed in Prism Launcher on this device.")
+					+ " " + packs.size() + (packs.size() == 1 ? " server is" : " servers are") + " installed here.", false);
+			optLine.accept("Uninstall", true);
+			String[] planNow = uninstallPlan(instances, false);
+			optLine.accept(planNow[1], false);
+			javax.swing.JCheckBox forget = new javax.swing.JCheckBox("Also remove what Gatehouse remembers: its Gatekeepers, and this device's identity with them");
+			forget.setAlignmentX(Component.LEFT_ALIGNMENT);
+			forget.setVisible(planNow[0].equals("script"));
+			JButton uninstall = new LaunchPopup.PlayButton("Uninstall " + LaunchPopup.TOOL + "\u2026", LaunchPopup.QUIT_RED, Color.WHITE, 14f);
+			uninstall.setToolTipText("Asks you to type confirm first");
+			uninstall.setVisible(!planNow[0].equals("tell"));
+			JPanel uninstallRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8));
+			uninstallRow.add(uninstall); uninstallRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+			JButton appsList = new JButton("Open Windows' installed apps");
+			appsList.setToolTipText("Windows Settings, Apps: where a pack that was installed with its setup program is listed");
+			appsList.setVisible(planNow[0].equals("tell") && System.getProperty("os.name", "").startsWith("Windows"));
+			appsList.addActionListener(ev -> { try { new ProcessBuilder("cmd.exe", "/c", "start", "", "ms-settings:appsfeatures").start(); } catch (IOException ignored) {} });
+			uninstallRow.add(appsList);
+			options.add(forget); options.add(uninstallRow);
+			uninstall.addActionListener(ev -> {
+				String[] plan = uninstallPlan(instances, forget.isSelected());
+				javax.swing.JTextField typed = new javax.swing.JTextField(16);
+				JPanel ask = new JPanel(new BorderLayout(0, 8));
+				ask.add(new JLabel("<html><div style='width:400px'>" + (plan[0].equals("script") ? "This removes " + LaunchPopup.TOOL + " from this device" + (forget.isSelected() ? ", with what it remembers" : "") + ". " : "This opens the uninstaller of the pack " + LaunchPopup.TOOL + " came with. ")
+						+ "Type <b>confirm</b> to go ahead.</div></html>"), BorderLayout.NORTH);
+				ask.add(typed, BorderLayout.CENTER);
+				if (JOptionPane.showConfirmDialog(f, ask, "Uninstall " + LaunchPopup.TOOL, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+				if (!typed.getText().trim().equalsIgnoreCase("confirm")) { JOptionPane.showMessageDialog(f, "Nothing was removed: the word typed wasn't \"confirm\".", "Uninstall " + LaunchPopup.TOOL, JOptionPane.PLAIN_MESSAGE); return; }
+				uninstall.setEnabled(false);
+				new Thread(() -> {
+					String said; boolean gone = false;
+					try {
+						List<String> cmd = new ArrayList<>(java.util.Arrays.asList(plan).subList(2, plan.length));
+						if (System.getenv("OJ_UNINSTALL_DRY") != null) said = "would run: " + String.join(" ", cmd);
+						else if (plan[0].equals("program")) { new ProcessBuilder(cmd).start(); said = "The pack's uninstaller is open. " + LaunchPopup.TOOL + " closes now."; gone = true; }
+						else {
+							Process pr = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+							pr.getOutputStream().close();
+							said = new String(pr.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+							gone = pr.waitFor() == 0 && !Files.exists(Notes.app(instances).resolve("extras/launch-popup.jar"));
+						}
+					} catch (IOException | InterruptedException | RuntimeException e) { said = "Couldn't run the uninstaller: " + e.getMessage(); }
+					String msg = said; boolean done = gone;
+					SwingUtilities.invokeLater(() -> {
+						JOptionPane.showMessageDialog(f, "<html><div style='width:460px'>" + LaunchPopup.esc(msg).replace("\n", "<br>") + (done ? "<br><br>" + LaunchPopup.TOOL + " closes now." : "") + "</div></html>", "Uninstall " + LaunchPopup.TOOL, JOptionPane.PLAIN_MESSAGE);
+						if (!done) { uninstall.setEnabled(true); return; }
+						// (on Windows this ran from a copy that is still in use: taken away a moment after closing)
+						if (System.getProperty("os.name", "").startsWith("Windows")) try {
+							new ProcessBuilder("cmd.exe", "/c", "ping -n 3 127.0.0.1 >nul & del /q \"" + instances.toAbsolutePath().getParent().resolve("gatehouse-launcher-run*.jar") + "\"").start();
+						} catch (IOException ignored) {}
+						f.dispose();
+					});
+				}, "uninstall").start();
+			});
+			JPanel optionsTop = new JPanel(new BorderLayout()); optionsTop.add(options, BorderLayout.NORTH);
+			JScrollPane optionsScroll = new JScrollPane(optionsTop); optionsScroll.setBorder(null);
+			optionsScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			deck.add(optionsScroll, "options");
+			gear.addActionListener(ev -> {
+				head.setText("Options");
+				sub.setText("About this " + LaunchPopup.TOOL + ", and removing it.");
+				backB.setVisible(true);
+				cards.show(deck, "options");
+			});
 			deck.setPreferredSize(new Dimension(680, 330));
 			p.add(deck, BorderLayout.CENTER);
 			List<Runnable> polls = new ArrayList<>();   // (what the open level asks again every few seconds)
@@ -927,6 +1050,12 @@ final class Home {
 			LaunchPopup.fit(f, false);
 			if (shot != null && !shot.isEmpty()) {   // (testing: pictures instead of the window: <file>, and <file>-servers.png for the first Gatekeeper)
 				try {
+					gear.doClick(0);
+					f.validate();
+					java.awt.image.BufferedImage oi2 = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+					java.awt.Graphics2D og2 = oi2.createGraphics(); p.paint(og2); og2.dispose();
+					javax.imageio.ImageIO.write(oi2, "png", new java.io.File(shot.replaceAll("\\.png$", "") + "-options.png"));
+					showKeepers[0].run();
 					level1.setSelectedIndex(1);
 					f.validate();
 					java.awt.image.BufferedImage gi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);

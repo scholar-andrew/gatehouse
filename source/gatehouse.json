@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.7.0",
+ "version": "2.8.0",
  "changes": [
+  {"version": "2.8.0", "date": "2026-11-16", "notes": [
+   "A settings wheel at the top right of the main window opens Options: which Gatehouse this is and how it got here, and Uninstall.",
+   "Uninstall asks you to type confirm first. A Gatehouse installed by itself is removed there and then by its own uninstall script (its files, its menu entry, its Steam shortcut if Steam is closed), with a tick box for also removing what it remembers; you're shown what the script did, and Gatehouse closes. One that came with a pack is removed with that pack: Options opens the pack's own uninstaller where Windows has it on record, and otherwise says where to find it.",
+   "On Linux inside Prism Launcher's Flatpak, Gatehouse can't reach the applications menu or Steam, so Options gives the one command to run in a terminal instead."
+  ]},
   {"version": "2.7.0", "date": "2026-11-16", "notes": [
    "Gatehouse can be installed by itself, with no game and no server pack: a new installer (gatehouse-install.ps1 on Windows, gatehouse-install.sh on Linux and Steam Deck) sets up just the launcher. You then add a Gatekeeper and install its servers from Gatehouse.",
    "Installed that way, Gatehouse has a home of its own (a gatehouse\\app folder inside Prism Launcher's) and keeps itself and the scripts beside it up to date from there, whether or not any pack is installed.",

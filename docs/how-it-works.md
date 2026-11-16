@@ -252,6 +252,13 @@ their next launch; nobody has to touch a device.
   `grid`. `-Uninstall` / `--uninstall` (with `-Purge` / `--purge`) undo what was installed; the script copies itself
   into `gatehouse/app` for that. Released as `gatehouse-install.zip` (the two scripts, `Install Gatehouse.cmd` and
   `Uninstall Gatehouse.cmd`).
+- **Options and Uninstall in the launcher.** The wheel on the main window (drawn by `SteamLook.gear`; the fonts
+  don't all have the character) shows the Options page. `Home.uninstallPlan` decides what Uninstall does: `script`
+  (installed by itself: `gatehouse/app/gatehouse-install.ps1` / `.sh` with uninstall and yes, run and its output
+  shown, then the launcher closes; on Windows the copy it ran from is deleted a moment later), `program` (it came
+  with a pack on Windows: the `UninstallString` under `HKCU\...\Uninstall\Gatehouse*` or `OctoberJourney`), or `tell`
+  (inside Prism's Flatpak, or nothing on record: the command or the place is shown). The word `confirm` has to be
+  typed first. `OJ_UNINSTALL_DRY` shows the command instead of running it; `OJ_UNINSTALL_EXTRA` adds options to it.
 - **Connect to this Gatekeeper.** `Connect.java`: the steps between having a pairing and the Gatekeeper answering,
   looked at every 2.5 seconds: a Tailscale address on this device (an interface address in 100.64.0.0/10, which also
   works inside Prism's Flatpak), the Gatekeeper's port reachable, and its answer to this device's introduction.

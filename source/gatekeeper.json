@@ -1,7 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.2.2",
+ "version": "2.3.0",
  "changes": [
+  {"version": "2.3.0", "date": "2026-11-16", "notes": [
+   "A settings wheel at the top right of the window opens Options: which Gatekeeper this is, where it runs from, where its settings are, and Uninstall.",
+   "Uninstall asks you to type confirm first, then runs Gatekeeper's own install script with -Uninstall in a window you can read: Gatekeeper is stopped, and its start-up task, Start menu shortcut and program are removed. A tick box also removes its settings (who is allowed to do what, its key for MCSS, its log). MC Server Soft, the servers and their worlds are not touched.",
+   "Gatekeeper now carries that script inside itself, so this works however it was installed."
+  ]},
   {"version": "2.2.2", "date": "2026-11-16", "notes": [
    "Nothing changed in what Gatekeeper does. This release exists so that Gatekeeper's own updating can be tried for real: the Update Gatekeeper line, the swap, and the restart."
   ]},

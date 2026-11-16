@@ -1,4 +1,7 @@
 [
+ {"version": "1.25.0", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack itself. The Gatehouse launcher has a settings wheel on its main window, with Options and Uninstall (Gatehouse 2.8.0; see the Gatehouse updates tab there)."
+ ]},
  {"version": "1.24.0", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself. The Gatehouse launcher can now be installed by itself, without this or any pack (Gatehouse 2.7.0; see the Gatehouse updates tab on its main window)."
  ]},

@@ -76,6 +76,10 @@ public final class HostHelper {
 		cfg = Json.map(Json.parse(read(dir.resolve("host.json"))));
 		String mode = args.length > 0 ? args[0] : "--panel";
 		startMinimized = java.util.Arrays.asList(args).contains("--minimized");
+		if (mode.equals("--uninstall-command")) {   // (testing: what Options > Uninstall would run; nothing is run)
+			System.out.println(String.join(" ", uninstallCommand(Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent(), java.util.Arrays.asList(args).contains("--purge"))));
+			return;
+		}
 		if (mode.equals("--serve")) serve();
 		else panel();
 	}
@@ -1772,6 +1776,19 @@ public final class HostHelper {
 		}
 	}
 
+	/** What Options > Uninstall runs: Gatekeeper's own install script (carried inside this program, written out beside
+	 *  its settings as install-keeper.ps1), with -Uninstall, in a PowerShell window of its own that stays open until
+	 *  Enter is pressed. Null when the script isn't in this program. */
+	static List<String> uninstallCommand(Path keeperDir, boolean purge) throws IOException {
+		Path script = dir.resolve("install-keeper.ps1");
+		try (InputStream in = HostHelper.class.getResourceAsStream("/install-keeper.ps1")) { if (in != null) Files.write(script, in.readAllBytes()); }
+		if (!Files.isRegularFile(script)) return null;
+		String q = "'";
+		String ps = "& " + q + script.toString().replace("'", "''") + q + " -Uninstall -Yes" + (purge ? " -Purge" : "") + " -Dir " + q + keeperDir.toString().replace("'", "''") + q + " -TaskName " + q + setting("task", "Gatehouse Keeper").replace("'", "''") + q
+				+ "; Write-Host ''; Read-Host 'Press Enter to close'";
+		return List.of("cmd.exe", "/c", "start", "Removing Gatekeeper", "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps);
+	}
+
 	// ------------------------------------------------------------------ the panel
 
 	/** The server Gatekeeper is looking at (its pick, when the machine has more than one). */
@@ -1817,7 +1834,12 @@ public final class HostHelper {
 			JPanel pickRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
 			pickRow.add(new JLabel("Server:")); pickRow.add(serverPick);
 			pickRow.setVisible(false);
-			JPanel headLine = new JPanel(new BorderLayout()); headLine.add(head, BorderLayout.WEST); headLine.add(pickRow, BorderLayout.EAST);
+			// (the wheel: Options)
+			JButton gear = new JButton(dev.gatehouse.look.SteamLook.gear(18));
+			gear.setToolTipText("Options");
+			JPanel headRight = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			headRight.add(pickRow); headRight.add(gear);
+			JPanel headLine = new JPanel(new BorderLayout()); headLine.add(head, BorderLayout.WEST); headLine.add(headRight, BorderLayout.EAST);
 			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(headLine, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH);
 			p.add(top, BorderLayout.NORTH);
@@ -2325,6 +2347,58 @@ public final class HostHelper {
 			JButton backB = new JButton("\u2039 Servers");
 			backB.setToolTipText("Back to MCSS and the list of servers on this machine");
 			backB.setVisible(false);
+			// ---- Options (the wheel at the top right): which Gatekeeper this is, where it lives, and removing it.
+			JPanel options = new JPanel();
+			options.setLayout(new javax.swing.BoxLayout(options, javax.swing.BoxLayout.Y_AXIS));
+			options.setBorder(BorderFactory.createEmptyBorder(8, 14, 10, 14));
+			java.util.function.BiConsumer<String, Boolean> optLine = (text, bold) -> {
+				JLabel l = new JLabel("<html><div style='width:760px'>" + text.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>");
+				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, 15f)); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); } else l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
+				l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				options.add(l);
+			};
+			Path programDir;
+			try { programDir = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent(); } catch (Exception ex) { programDir = dir; }
+			Path keeperDir = programDir;
+			JButton optBack = new JButton("\u2039 Back");
+			optBack.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(optBack);
+			optLine.accept("About", true);
+			optLine.accept("Gatekeeper " + Json.str(notesInside("gatekeeper").get("version")) + ", running from " + keeperDir + ". Its settings, its list of launchers and its log are in " + dir + ".", false);
+			optLine.accept("Uninstall", true);
+			optLine.accept("Removes Gatekeeper from this machine: it is stopped, and its start-up task, its Start menu shortcut and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
+			javax.swing.JCheckBox forgetSettings = new javax.swing.JCheckBox("Also remove its settings: who is allowed to do what, its key for MCSS, and its log");
+			forgetSettings.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			JButton uninstall = new JButton("Uninstall Gatekeeper\u2026");
+			uninstall.setToolTipText("Asks you to type confirm first");
+			uninstall.setForeground(new Color(0xFF7B72));
+			JPanel uninstallRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8));
+			uninstallRow.add(uninstall); uninstallRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			JLabel uninstallSaid = new JLabel(" "); uninstallSaid.setForeground(new Color(0x8F98A0)); uninstallSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(forgetSettings); options.add(uninstallRow); options.add(uninstallSaid);
+			uninstall.addActionListener(ev -> {
+				javax.swing.JTextField typed = new javax.swing.JTextField(16);
+				JPanel askConfirm = new JPanel(new BorderLayout(0, 8));
+				askConfirm.add(new JLabel("<html><div style='width:400px'>This removes Gatekeeper from this machine" + (forgetSettings.isSelected() ? ", with its settings" : "") + ". Type <b>confirm</b> to go ahead.</div></html>"), BorderLayout.NORTH);
+				askConfirm.add(typed, BorderLayout.CENTER);
+				if (JOptionPane.showConfirmDialog(f, askConfirm, "Uninstall Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+				if (!typed.getText().trim().equalsIgnoreCase("confirm")) { uninstallSaid.setText("Nothing was removed: the word typed wasn't \"confirm\"."); return; }
+				try {
+					// Its own install script (carried inside this program, written out beside its settings), with -Uninstall,
+					// in a window of its own so what it did can be read. It stops Gatekeeper, this window included.
+					List<String> cmd = uninstallCommand(keeperDir, forgetSettings.isSelected());
+					if (cmd == null) { uninstallSaid.setText("The uninstall script isn't here. Use gatehouse-install.ps1 -Uninstall -Gatekeeper instead."); return; }
+					if (System.getenv("OJ_UNINSTALL_DRY") != null) { uninstallSaid.setText("<html><div style='width:760px'>would run: " + String.join(" ", cmd).replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); System.out.println("would run: " + String.join(" ", cmd)); return; }
+					new ProcessBuilder(cmd).start();
+					uninstallSaid.setText("Removing Gatekeeper in its own window. This one closes now.");
+					new javax.swing.Timer(1500, e2 -> System.exit(0)).start();
+				} catch (IOException | RuntimeException ex) { uninstallSaid.setText("Couldn't start the uninstall: " + ex.getMessage()); }
+			});
+			JPanel optionsTop = new JPanel(new BorderLayout()); optionsTop.add(options, BorderLayout.NORTH);
+			stack.add(new JScrollPane(optionsTop), "options");
+			String[] optionsFrom = {"overview", "Gatekeeper"};
+			gear.addActionListener(ev -> { optionsFrom[0] = backB.isVisible() ? "server" : "overview"; optionsFrom[1] = head.getText(); head.setText("Gatekeeper \u2013 Options"); pickRow.setVisible(false); levels.show(stack, "options"); });
+			optBack.addActionListener(ev -> { head.setText(optionsFrom[1]); pickRow.setVisible(true); levels.show(stack, optionsFrom[0]); });
 			Runnable refresh = () -> new Thread(() -> {
 				try {
 					Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/devices", null)));
@@ -2769,6 +2843,11 @@ public final class HostHelper {
 						java.awt.image.BufferedImage hi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D hg = hi.createGraphics(); p.paint(hg); hg.dispose();
 						javax.imageio.ImageIO.write(hi, "png", new java.io.File(shot + "-hostsetup.png"));
+						gear.doClick(0); p.validate();
+						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D gg2 = gi2.createGraphics(); p.paint(gg2); gg2.dispose();
+						javax.imageio.ImageIO.write(gi2, "png", new java.io.File(shot + "-options.png"));
+						optBack.doClick(0);
 						firstTabs.setSelectedIndex(0);
 					} catch (IOException ex) { ex.printStackTrace(); }
 					inServer[0] = true; backB.setVisible(true); levels.show(stack, "server");

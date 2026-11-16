@@ -16,6 +16,8 @@ if ($LASTEXITCODE) { throw 'javac failed' }
 # for when the newest can't be fetched.
 Copy-Item (Join-Path $root 'source\gatekeeper.json') (Join-Path $out 'classes\gatekeeper-notes.json')
 Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $out 'classes\gatehouse-notes.json')
+# Gatekeeper carries its own install script, for Options > Uninstall (which runs it with -Uninstall).
+Copy-Item (Join-Path $root 'installer\keeper\install-keeper.ps1') (Join-Path $out 'classes\install-keeper.ps1')
 $jar = Join-Path $root 'host\oj-host.jar'
 Remove-Item $jar -ErrorAction SilentlyContinue
 & (Join-Path $jdk 'jar.exe') --create --file $jar --main-class dev.octoberjourney.host.HostHelper -C (Join-Path $out 'classes') .

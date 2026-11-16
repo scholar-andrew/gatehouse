@@ -189,6 +189,29 @@ public final class SteamLook {
 	}
 
 	/** For a component that should sit in the window as a card: the deep background and a thin line round it. */
+	/** A settings wheel, drawn (the fonts at hand don't all have one): eight teeth around a ring. */
+	public static javax.swing.Icon gear(int size) {
+		return new javax.swing.Icon() {
+			@Override public int getIconWidth() { return size; }
+			@Override public int getIconHeight() { return size; }
+			@Override public void paintIcon(Component c, java.awt.Graphics g0, int x, int y) {
+				java.awt.Graphics2D g = (java.awt.Graphics2D) g0.create();
+				g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+				g.translate(x + size / 2.0, y + size / 2.0);
+				g.setColor(c != null && c.isEnabled() ? TEXT : DIM);
+				double outer = size / 2.0, body = outer * 0.72, hole = outer * 0.32, tooth = outer * 0.34;
+				java.awt.geom.Area a = new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Double(-body, -body, body * 2, body * 2));
+				for (int i = 0; i < 8; i++) {
+					java.awt.geom.AffineTransform t = java.awt.geom.AffineTransform.getRotateInstance(Math.PI / 4 * i);
+					a.add(new java.awt.geom.Area(t.createTransformedShape(new java.awt.geom.Rectangle2D.Double(-tooth / 2, -outer, tooth, outer))));
+				}
+				a.subtract(new java.awt.geom.Area(new java.awt.geom.Ellipse2D.Double(-hole, -hole, hole * 2, hole * 2)));
+				g.fill(a);
+				g.dispose();
+			}
+		};
+	}
+
 	public static void card(JComponent c) {
 		c.setBackground(DEEP);
 		c.setOpaque(true);
