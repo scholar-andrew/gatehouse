@@ -1201,6 +1201,20 @@ public final class HostHelper {
 				else { boolean g = Boolean.TRUE.equals(b.get("granted")) || "true".equals(Json.str(b.get("granted"))); d.put("granted", g); log((g ? "allowed MCSS control for " : "revoked MCSS control from ") + who(d)); }
 				saveDevices(devs);
 				reply(x, 200, m("ok", true));
+			} else if (path.equals("/admin/overview")) {
+				// The window's first screen: MCSS on this machine, and each server it runs.
+				List<Object> list = new ArrayList<>();
+				String keep = SERVER.get();
+				try {
+					for (Object o : servers()) {
+						Map<String, Object> s = Json.map(o);
+						SERVER.set(Json.str(s.get("id")));
+						boolean on = minecraftRunning();
+						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "running", on, "players", on ? onlineBy.getOrDefault(serverKey(), Map.of()).size() : 0,
+								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir"))));
+					}
+				} finally { SERVER.set(keep); }
+				reply(x, 200, m("mcss_exe", setting("mcss_exe", ""), "mcss", host.running(), "has_key", host.hasAccess(), "servers", list));
 			} else if (path.equals("/admin/pulls")) {
 				List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
 				java.util.Collections.reverse(all);
@@ -1552,7 +1566,22 @@ public final class HostHelper {
 			new Timer(5000, e -> { if (pullsTab.isShowing()) loadPulls.run(); }).start();
 			pullsTab.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && pullsTab.isShowing()) loadPulls.run(); });
 			tabs.addTab("Access Manager", accessTab); tabs.addTab("Status", statusTab); tabs.addTab("Updates Pulled", pullsTab);
-			p.add(tabs, BorderLayout.CENTER);
+			// The window's three levels: MCSS on this machine, the servers it runs (both on the first screen), and one
+			// server's own pages (the tabs). Open goes in; "Servers" at the top right comes back.
+			java.awt.CardLayout levels = new java.awt.CardLayout();
+			JPanel stack = new JPanel(levels);
+			JPanel overview = new JPanel(new BorderLayout(0, 10));
+			overview.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+			JPanel overList = new JPanel();
+			overList.setLayout(new javax.swing.BoxLayout(overList, javax.swing.BoxLayout.Y_AXIS));
+			JPanel overTop = new JPanel(new BorderLayout()); overTop.add(overList, BorderLayout.NORTH);
+			JScrollPane overScroll = new JScrollPane(overTop); overScroll.setBorder(null);
+			overview.add(overScroll, BorderLayout.CENTER);
+			stack.add(overview, "overview"); stack.add(tabs, "server");
+			p.add(stack, BorderLayout.CENTER);
+			JButton backB = new JButton("\u2039 Servers");
+			backB.setToolTipText("Back to MCSS and the list of servers on this machine");
+			backB.setVisible(false);
 			Runnable refresh = () -> new Thread(() -> {
 				try {
 					Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/devices", null)));
@@ -1744,6 +1773,63 @@ public final class HostHelper {
 				});
 			}
 			refreshLater[0] = refresh;
+			// ---- the first screen: MCSS, then its servers
+			pickRow.removeAll(); pickRow.add(backB);   // (the list of servers replaces the drop-down that picked one)
+			boolean[] inServer = {false};
+			java.util.function.BiFunction<String, String, Object[]> overRow = (title, button) -> {
+				JPanel r = new JPanel(new BorderLayout(14, 0));
+				r.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(12, 14, 12, 14)));
+				r.setBackground(new Color(0x141D29));
+				JLabel n = new JLabel(title); n.setFont(n.getFont().deriveFont(Font.BOLD, 16f));
+				JLabel st = new JLabel(" ");
+				JPanel text = new JPanel(new BorderLayout(0, 4)); text.setOpaque(false);
+				text.add(n, BorderLayout.NORTH); text.add(st, BorderLayout.SOUTH);
+				JButton b = button == null ? null : new JButton(button);
+				r.add(text, BorderLayout.CENTER);
+				if (b != null) { JPanel east = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 0, 6)); east.setOpaque(false); east.add(b); r.add(east, BorderLayout.EAST); }
+				r.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				r.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 84));
+				return new Object[] {r, st, b};
+			};
+			java.util.function.Consumer<Map<String, Object>> fillOverview = r -> {
+				overList.removeAll();
+				JLabel h1 = new JLabel("MCSS on this machine"); h1.setFont(h1.getFont().deriveFont(Font.BOLD, 14f)); h1.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0)); h1.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				overList.add(h1);
+				boolean up = Boolean.TRUE.equals(r.get("mcss"));
+				String exe = Json.str(r.get("mcss_exe"));
+				Object[] mr = overRow.apply(exe.isEmpty() ? "MCSS (not set up yet: Server setup, on a server's Status tab)" : exe, null);
+				((JLabel) mr[1]).setText((up ? "Running" : "Not running") + (Boolean.TRUE.equals(r.get("has_key")) ? "" : ". Gatekeeper isn't signed in to it yet."));
+				((JLabel) mr[1]).setForeground(up ? new Color(0x8BD46E) : new Color(0x8F98A0));
+				overList.add((JPanel) mr[0]);
+				JLabel h2 = new JLabel("Servers in this MCSS"); h2.setFont(h2.getFont().deriveFont(Font.BOLD, 14f)); h2.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0)); h2.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				overList.add(h2);
+				List<Object> sv = Json.list(r.get("servers"));
+				if (sv.isEmpty()) { JLabel none = new JLabel("None yet. Gatekeeper opens Server setup for you; it's also on a server's Status tab."); none.setForeground(new Color(0x8F98A0)); overList.add(none); }
+				for (Object o : sv) {
+					Map<String, Object> s = Json.map(o);
+					boolean on = Boolean.TRUE.equals(s.get("running"));
+					Object[] sr = overRow.apply(Json.str(s.get("name")), "Open");
+					String players = Json.str(s.get("players")).replaceAll("\\.0$", "");
+					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + "   \u00b7   " + Json.str(s.get("dir")));
+					((JLabel) sr[1]).setForeground(on ? new Color(0x8BD46E) : new Color(0x8F98A0));
+					((JButton) sr[2]).setToolTipText("Access Manager, Status and Updates Pulled for this server");
+					String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
+					((JButton) sr[2]).addActionListener(ev -> { panelServer = id; inServer[0] = true; head.setText("Gatekeeper \u2013 " + nm); backB.setVisible(true); levels.show(stack, "server"); refresh.run(); });
+					overList.add((JPanel) sr[0]); overList.add(javax.swing.Box.createVerticalStrut(8));
+				}
+				JButton setupHere = new JButton("Server setup…");
+				setupHere.setToolTipText("Which MCSS and which of its servers Gatekeeper looks after, and this machine's Tailscale address");
+				setupHere.addActionListener(ev -> setup.run());
+				JPanel setupLine = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8)); setupLine.add(setupHere); setupLine.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				overList.add(setupLine);
+				overList.revalidate(); overList.repaint();
+			};
+			Runnable loadOverview = () -> new Thread(() -> {
+				try { Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverview.accept(r); }); } catch (Exception ignored) {}
+			}, "overview").start();
+			backB.addActionListener(e -> { inServer[0] = false; head.setText("Gatekeeper"); backB.setVisible(false); levels.show(stack, "overview"); loadOverview.run(); });
+			new Timer(3000, e -> { if (!inServer[0]) loadOverview.run(); }).start();
+			loadOverview.run();
 			serverPick.addActionListener(e -> {
 				int i = serverPick.getSelectedIndex();
 				String id = i >= 0 && i < serverIds.size() ? serverIds.get(i) : "";
@@ -1921,6 +2007,14 @@ public final class HostHelper {
 				Timer once = new Timer(3500, e -> {
 					setup.run();
 					pairB.doClick();
+					try {   // (the first screen: <file>-overview.png; then into the first server for the rest)
+						fillOverview.accept(Json.map(Json.parse(call("GET", "/admin/overview", null))));
+						p.validate();
+						java.awt.image.BufferedImage oi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D og = oi.createGraphics(); p.paint(og); og.dispose();
+						javax.imageio.ImageIO.write(oi, "png", new java.io.File(shot + "-overview.png"));
+					} catch (IOException ex) { ex.printStackTrace(); }
+					inServer[0] = true; backB.setVisible(true); levels.show(stack, "server");
 					try {
 						// (the Updates Pulled tab, filled in directly: <file>-pulls.png)
 						tabs.setSelectedIndex(2);
