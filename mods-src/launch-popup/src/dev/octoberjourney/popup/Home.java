@@ -185,6 +185,11 @@ final class Home {
 			SwingUtilities.invokeAndWait(() -> { dev.gatehouse.look.SteamLook.apply(); tf[0] = new JFrame(); tf[0].setSize(900, 600); tf[0].addNotify(); });   // (laid out, never shown)
 			String done = LaunchPopup.checklist(dir, tf[0], sync);
 			sync.waitFor(20, java.util.concurrent.TimeUnit.SECONDS);
+			if (done != null && System.getenv("OJ_HOME_LAUNCH_PAGE") != null) {   // (and the launcher's page, in that same window: pictures)
+				LaunchPopup.exitCode = 0;
+				LaunchPopup.summary(dir, done);
+				System.out.println("launcher page in the same window: ended with " + LaunchPopup.exitCode);
+			}
 			System.out.println("embedded update: " + done + "; script ended " + (sync.isAlive() ? "no" : "with " + sync.exitValue()) + "; note left: " + LaunchPopup.readFile(dir.resolve("pack-sync-fresh.txt")).trim().replaceAll("^\\d+", "<when>"));
 			SwingUtilities.invokeAndWait(() -> tf[0].dispose());
 			return;
@@ -263,7 +268,7 @@ final class Home {
 		String shot = System.getenv("OJ_POPUP_PNG");
 		SwingUtilities.invokeAndWait(() -> {
 			dev.gatehouse.look.SteamLook.apply();
-			JFrame f = new JFrame(LaunchPopup.TOOL);
+			JFrame f = new LaunchPopup.HostFrame(LaunchPopup.TOOL);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(18, 20, 16, 20));
@@ -399,24 +404,80 @@ final class Home {
 						// script knows how to be run that way (one from before Gatehouse 2.1.0 opens its own window).
 						Process sync = startSync(Path.of(pack[3]));
 						if (sync == null) { sub.setText("Opening " + pack[1] + "\u2026"); handOver.run(); return; }
+						java.awt.Container homePage = f.getContentPane();
+						String homeTitle = f.getTitle();
+						List<java.awt.event.WindowListener> homeListeners = List.of(f.getWindowListeners());
+						Process[] running = {sync};
 						new Thread(() -> {
-							String done;
-							try { done = LaunchPopup.checklist(Path.of(pack[3]), f, sync); } catch (Exception ex) { done = "stopped"; }
-							boolean quit = LaunchPopup.embedQuit;
-							LaunchPopup.reuse = null; LaunchPopup.embedded = false; LaunchPopup.embedQuit = false;
-							if (done == null) {   // Quit (back to the list of servers, in the same place), or the window was closed
-								sync.destroy();
-								launchBusy = false;
-								if (!quit) return;
-								SwingUtilities.invokeLater(() -> { cameBack = f.getBounds(); again[0] = pack[4]; f.dispose(); });
+							Path dir = Path.of(pack[3]);
+							// (a script from pack 1.18.0 can be run from here but doesn't know about Play pressed here:
+							// its launcher still opens as a window of its own, in this one's place)
+							boolean whole = LaunchPopup.readFile(dir.resolve(System.getProperty("os.name", "").startsWith("Windows") ? "pack-sync.ps1" : "pack-sync.sh")).contains("GATEHOUSE_PLAY");
+							while (true) {
+								String done;
+								try { done = LaunchPopup.checklist(dir, f, running[0]); } catch (Exception ex) { done = "stopped"; }
+								boolean quit = LaunchPopup.embedQuit;
+								LaunchPopup.embedQuit = false;
+								if (done == null) {   // Quit (back to the list of servers, in the same place), or the window was closed
+									running[0].destroy();
+									LaunchPopup.reuse = null; LaunchPopup.embedded = false;
+									launchBusy = false;
+									if (!quit) return;
+									SwingUtilities.invokeLater(() -> { cameBack = f.getBounds(); again[0] = pack[4]; f.dispose(); });
+									return;
+								}
+								if (!whole || done.equals("stopped")) {
+									LaunchPopup.reuse = null; LaunchPopup.embedded = false;
+									SwingUtilities.invokeLater(() -> {
+										f.setCursor(java.awt.Cursor.getDefaultCursor());
+										JLabel line = LaunchPopup.progressSub;
+										if (line != null) line.setText("Up to date. Opening " + pack[1] + "'s launcher\u2026");
+										handOver.run();
+									});
+									return;
+								}
+								// The server's launcher, in this window. (The script has ended; its note isn't needed.)
+								try { running[0].waitFor(15, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
+								try { Files.deleteIfExists(dir.resolve("pack-sync-fresh.txt")); } catch (IOException ignored) {}
+								LaunchPopup.exitCode = 0; LaunchPopup.embedBack = false;
+								// (its buttons "close the window": here that ends the page, as closing would have, and no more)
+								LaunchPopup.embedClose = () -> {
+									for (java.awt.event.WindowListener l : f.getWindowListeners()) if (!homeListeners.contains(l)) {
+										l.windowClosed(new java.awt.event.WindowEvent(f, java.awt.event.WindowEvent.WINDOW_CLOSED));
+										f.removeWindowListener(l);
+									}
+								};
+								SwingUtilities.invokeLater(() -> f.setCursor(java.awt.Cursor.getDefaultCursor()));
+								try { LaunchPopup.summary(dir, done); } catch (Exception ex) { LaunchPopup.exitCode = LaunchPopup.QUIT; LaunchPopup.embedBack = true; }
+								int chose = LaunchPopup.exitCode;
+								boolean back = LaunchPopup.embedBack;
+								LaunchPopup.embedClose = null; LaunchPopup.embedBack = false; LaunchPopup.exitCode = 0;
+								if (chose == LaunchPopup.RESTART && !back) {   // the update again, here
+									Process again2 = startSync(dir);
+									if (again2 != null) { running[0] = again2; SwingUtilities.invokeLater(() -> f.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)); continue; }
+									back = true;
+								}
+								LaunchPopup.reuse = null; LaunchPopup.embedded = false;
+								if (back) {   // the Gatehouse button: this window's own page again, as it was
+									SwingUtilities.invokeLater(() -> {
+										f.setContentPane(homePage);
+										f.setTitle(homeTitle);
+										f.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
+										go.setEnabled(true);
+										launchBusy = false;
+										f.validate();
+										f.repaint();
+										Nav.home(f);
+									});
+									return;
+								}
+								if (chose == 0) {
+									// Play: Prism starts the instance; its run of the script finds this note and starts the game.
+									try { Files.writeString(dir.resolve("pack-sync-fresh.txt"), (System.currentTimeMillis() / 1000) + "|play\n", StandardCharsets.US_ASCII); } catch (IOException ignored) {}
+									SwingUtilities.invokeLater(() -> { chosen[0] = pack; launchBusy = false; f.dispose(); });
+								} else SwingUtilities.invokeLater(() -> { launchBusy = false; f.dispose(); });   // Quit: nothing starts
 								return;
 							}
-							SwingUtilities.invokeLater(() -> {
-								f.setCursor(java.awt.Cursor.getDefaultCursor());
-								JLabel line = LaunchPopup.progressSub;
-								if (line != null) line.setText("Up to date. Opening " + pack[1] + "'s launcher\u2026");
-								handOver.run();
-							});
 						}, "embedded-sync").start();
 					});
 					serverList.add((JPanel) r[0]); serverList.add(Box.createVerticalStrut(8));

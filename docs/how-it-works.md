@@ -204,6 +204,16 @@ their next launch; nobody has to touch a device.
   Without the note (the script ended early, a pack started from Prism itself) everything is as before. A script that
   doesn't mention `GATEHOUSE_EMBED` (from before pack 1.18.0) is not run this way. `OJ_HOME_LAUNCH=<game folder>`
   runs just this part, in a window that isn't shown, for tests.
+- **The server's launcher inside the Gatehouse window (the second step).** When the pack's script also mentions
+  `GATEHOUSE_PLAY` (pack 1.19.0 on), the main window goes on after the checklist to show the launcher itself
+  (`LaunchPopup.summary`, with the main window as the window it "reuses"). That code ends by closing its window; the
+  main window is a `HostFrame`, whose `dispose()` runs `LaunchPopup.embedClose` instead while a page is shown in it,
+  and that tells the page's own listeners it was closed (stopping its timers and letting `summary` return) without
+  closing anything. Then: Gatehouse button (`embedBack`): the main window's own page is put back. Restart: the script
+  is run again, here. Quit, or the window's X: Gatehouse closes. Play: `pack-sync-fresh.txt` is written as
+  `<unix time>|play`, the window closes and Prism starts the instance; Prism's run of the script sees "play" and
+  ends at once, so the game starts. A script with `GATEHOUSE_EMBED` only (pack 1.18.0) still gets the first step.
+  `OJ_HOME_LAUNCH_PAGE=1` with `OJ_HOME_LAUNCH` takes the page's pictures too.
 - **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
   Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
   `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)

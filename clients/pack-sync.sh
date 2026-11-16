@@ -75,6 +75,9 @@ popup() {  # popup ok|offline|failed; returns the player's choice
 # ends well and leaves "launch-cancelled" for the wrapper, which then starts nothing, so Prism sees a launch that ended
 # normally. Without the wrapper the only way to stop the launch is to fail this step (Prism then shows its log).
 rm -f "$here/launch-cancelled"
+# GATEHOUSE_PLAY: the note says "play" when the update AND the launcher window were both in the Gatehouse window, and
+# Play was pressed there. Nothing is left to do or show here: the game starts.
+if [ "$fresh" = play ]; then note "updated and Play pressed in the Gatehouse window: starting the game"; exit 0; fi
 cancel_launch() {
   if [ -f "$here/launch-wrapper.sh" ] && grep -q '^WrapperCommand=.*launch-wrapper' "$here/../instance.cfg" 2>/dev/null; then
     echo quit > "$here/launch-cancelled"

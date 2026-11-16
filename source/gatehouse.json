@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.1.0",
+ "version": "2.2.0",
  "changes": [
+  {"version": "2.2.0", "date": "2026-11-16", "notes": [
+   "Second step of making Gatehouse one program: after the update, that server's launcher (Client updates, Server updates, Connection and the rest, with Play) now shows inside the main Gatehouse window too. Nothing closes and nothing opens between pressing Launch and pressing Play.",
+   "The Gatehouse button goes back to the list of servers at once, in the same window. Restart runs the update again right there. Quit closes Gatehouse without starting the game.",
+   "Play closes the window and has Prism Launcher start the game; Prism no longer shows a window of the launcher's on the way.",
+   "As before, this takes effect one launch after the update arrives (the pack's update script has to be the new one). Starting a pack from Prism Launcher itself, or from its own Steam shortcut, still opens the launcher as a window of its own."
+  ]},
   {"version": "2.1.0", "date": "2026-11-16", "notes": [
    "First step of making Gatehouse one program: pressing Launch beside a server now runs that pack's update inside the main Gatehouse window. The window stays where it is and shows the checklist, and the question about the download when there is one. Until now Prism Launcher ran the update, in a second window.",
    "When the update is done, Prism Launcher starts the instance and that server's launcher opens in the same place, without updating a second time. (That launcher is still a second window underneath; bringing it into this one is the next step.)",

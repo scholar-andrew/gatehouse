@@ -242,6 +242,18 @@ public final class LaunchPopup {
 	/** The checklist inside the main Gatehouse window (checklist() given that window): true while it is. Its Quit
 	 *  button then sets embedQuit and leaves the window to the caller. */
 	static volatile boolean embedded, embedQuit;
+	/** The server's launcher inside the main Gatehouse window: its buttons end it by closing "the window", which
+	 *  there must not close anything. While this is set, closing a HostFrame runs it instead. embedBack: it was the
+	 *  Gatehouse button (back to the main window's own page). */
+	static volatile Runnable embedClose;
+	static volatile boolean embedBack;
+	/** The main Gatehouse window: a window that a page shown inside it can "close" without the window going. */
+	static final class HostFrame extends JFrame {
+		HostFrame(String title) { super(title); }
+		@Override public void dispose() { Runnable r = embedClose; if (r != null) r.run(); else super.dispose(); }
+	}
+	/** Is this page no longer what its window shows (the window is gone, or shows something else now)? */
+	static boolean gone(java.awt.Window f, Component c) { return !f.isDisplayable() || SwingUtilities.getWindowAncestor(c) != f; }
 	/** The line under the checklist's heading, for the caller to say what happens next. */
 	static volatile JLabel progressSub;
 
@@ -1712,7 +1724,7 @@ public final class LaunchPopup {
 		table.getSelectionModel().addListSelectionListener(e -> labels.run());
 		ptable.getSelectionModel().addListSelectionListener(e -> labels.run());
 		// Asked for while either tab is on screen: every few seconds, and at once when one is opened.
-		Timer t = new Timer(4000, e -> { if (!f.isDisplayable()) ((Timer) e.getSource()).stop(); else if (access.isShowing() || activity.isShowing() || pulled.isShowing()) load.run(); });
+		Timer t = new Timer(4000, e -> { if (gone(f, access)) ((Timer) e.getSource()).stop(); else if (access.isShowing() || activity.isShowing() || pulled.isShowing()) load.run(); });
 		t.start();
 		for (JPanel q : new JPanel[] {access, activity, pulled})
 			q.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && q.isShowing()) load.run(); });
@@ -1965,7 +1977,7 @@ public final class LaunchPopup {
 		SwingUtilities.invokeAndWait(() -> {
 			dev.gatehouse.look.SteamLook.apply();
 			JFrame f = reuse != null ? reuse : new JFrame(TOOL + " \u2013 " + NAME);
-			for (java.awt.event.WindowListener l : f.getWindowListeners()) f.removeWindowListener(l);
+			if (!embedded) for (java.awt.event.WindowListener l : f.getWindowListeners()) f.removeWindowListener(l);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
 			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
@@ -2013,7 +2025,7 @@ public final class LaunchPopup {
 			if (packPretend != null) packLook.run();
 			else if (System.getenv("OJ_POPUP_PNG") == null) {
 				new Thread(packLook, "pack-update").start();
-				new Timer(Notes.pollMillis(), tick -> { if (f.isDisplayable()) new Thread(packLook, "pack-update").start(); else ((Timer) tick.getSource()).stop(); }).start();
+				new Timer(Notes.pollMillis(), tick -> { if (!gone(f, packUpdate)) new Thread(packLook, "pack-update").start(); else ((Timer) tick.getSource()).stop(); }).start();
 			}
 			top.add(h, BorderLayout.NORTH);
 			top.add(s, BorderLayout.CENTER);
@@ -2137,6 +2149,7 @@ public final class LaunchPopup {
 			JButton menu = new PlayButton("Gatehouse", SLATE, Color.WHITE, 14f);
 			menu.setToolTipText("Back to the Gatehouse launcher's menu (your Gatekeepers and their servers), without starting the game");
 			menu.addActionListener(e -> {
+				if (embedded) { embedBack = true; exitCode = QUIT; f.dispose(); return; }
 				leaveBounds(dir.resolve("back-to-menu"), f);   // (the note the menu looks for; it says where this window is, so the menu opens right there)
 				if (System.getenv("GATEHOUSE_HOME") == null) try {
 					boolean win = System.getProperty("os.name", "").startsWith("Windows");
@@ -2271,6 +2284,20 @@ public final class LaunchPopup {
 					synchronized (lock) { done[0] = true; lock.notifyAll(); }
 				}
 			});
+			if (embedded && System.getenv("OJ_POPUP_PNG") == null) {
+				// Inside the main window: the same window, where it is, grown only if this page needs more room.
+				java.awt.Rectangle was = f.getBounds();
+				f.setContentPane(p);
+				Dimension want = f.getPreferredSize();
+				f.setSize(Math.max(was.width, want.width), Math.max(was.height, Math.min(want.height, 720)));
+				place(f, f.getBounds());
+				f.validate();
+				f.repaint();
+				play.requestFocusInWindow();
+				timer.start();
+				SwingUtilities.invokeLater(() -> Nav.home(f));
+				return;
+			}
 			f.setContentPane(p);
 			f.pack();
 			fit(f, true);

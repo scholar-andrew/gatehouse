@@ -116,7 +116,7 @@ safe; it updates your setup without duplicating anything.
    MCSS** or **Close MCSS**, **Start server** or **Stop server**. Stopping and closing ask first.
 3. **The server's own launcher.** **Launch** beside a server starts that pack: its update runs first, in this same
    window (a checklist, and a question before anything big is downloaded; **Quit** there goes back to the list), and
-   then the window described below appears in its place, where **Play** starts the game. Its **Gatehouse** button comes back here without starting
+   then the launcher described below takes its place in the same window, where **Play** starts the game. Its **Gatehouse** button comes back here without starting
    the game.
 
 Along the bottom are **Open Prism Launcher** (accounts, other instances, settings), **Restart** (opens the launcher
