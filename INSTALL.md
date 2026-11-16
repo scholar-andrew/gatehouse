@@ -28,7 +28,7 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
 3. Click **Quick install** for everything in the usual folders, or **Choose what to install...** to tick items and pick
    folders ([Choosing what to install](#choosing-what-to-install)).
 4. If you chose a Steam shortcut, it asks you to quit Steam (Steam menu, then Exit): do that and click OK.
-5. Start Steam, find **October Journey - your computer's name** in your library, and play: it updates the pack, then
+5. Start Steam, find **October Journey - PC (or Laptop, Steam Deck, ROG: your kind of device)** in your library, and play: it updates the pack, then
    starts the game and joins the server. The first time, Prism Launcher opens to sign in with your Microsoft account.
 
 ## Linux, including Steam Deck
@@ -109,16 +109,25 @@ amber not checked (offline) and red failed. Below that:
 - **Also on this device:** anything else the update did, such as a new pack default.
 - **What's new:** the patch notes for every version since you last played.
 
+The same button also reads **Request whitelist** when your player isn't on the server's whitelist, and **Request
+unsuspend** or **Request unblacklist** when the owner has suspended or blacklisted this device or your account (the
+line above the button says which, and the owner's reason; you can add a message of your own). The game doesn't start
+until the owner agrees. When a request is granted the launcher chimes; when it's dismissed the button flashes red and
+shows the owner's reason, if they gave one.
+
 A second tab, **Server updates**, starts with a live line saying whether the server answers right now (with ping and
 players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed
 there since you last played, with notes. When something on the server is new, the button reads **Next: server
 updates**: it takes you to that tab, and **Play** is there.
 
-The next two tabs, **Server controls** and **Server config**, appear once the owner has allowed your device something
-in the control panel on the server PC (MCSS control, PC sleep or Server control), or you have your own panel access.
-Until then your device has asked and is waiting, and the tabs stay hidden.
+The third tab, **Connection**, has two tabs inside: **Server controls** and **Network diagnosis**.
 
-A third tab, **Server controls**, is in three sections, each with its own status line: **Server Machine** (wake, sleep),
+**Server controls** is always there, and always shows how the server machine, MCSS and the Minecraft server are,
+whatever your device is allowed to do (only a blacklisted launcher isn't shown). Each permission is one of three
+things: **allowed**, **not allowed** (nobody has decided; you can ask) or **denied** (the owner said no). While you
+aren't allowed a section's buttons it has a **Request permission** button: it asks the owner on the server machine.
+The launcher chimes when it's granted; the button flashes red when it's dismissed. What the owner allows your player
+applies to all your devices, except a device that is itself denied. The tab is in three sections, each with its own status line: **Server Machine** (wake, sleep),
 **MCSS** (the server software: start, close) and **Minecraft server**. It shows whether the server is online (checked every few seconds), your **ping** to
 it as ten pips from red to green (all ten at 25 ms or less, one fewer for each step up to 500 ms), and the **players**
 connected, with these buttons (each only when it applies: Wake while the server PC isn't answering, Start while the
@@ -134,8 +143,7 @@ server is off, Stop while it runs):
   be confirmed or the log has errors, red when it didn't stop within 2 minutes.
 
 Below them, **MCSS (the server software)** shows whether MCSS is running on the server PC, with **Start MCSS** and
-**Close MCSS**. The first time, your device asks for this and waits until the owner allows it in the control panel on the
-server PC. Closing only works once the Minecraft server is stopped, so the world is never cut off mid-save. The
+**Close MCSS**. They need the owner's MCSS control permission (which includes Server control). Closing only works once the Minecraft server is stopped, so the world is never cut off mid-save. The
 button says how it will close MCSS, from MCSS's own close option on the server PC: **Close MCSS** when MCSS's X
 button exits it (a normal close), or **Force close MCSS** when its X button only hides it to the taskbar (MCSS is
 ended instead).
@@ -151,17 +159,26 @@ what it had saved. Below that is the **server panel sign-in**: username, passwor
 launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never
 your password. You don't need it if the owner allowed your device through Gatehouse Keeper.
 
+**Client mods** lists the pack's optional mods, each with a tick-box: untick one and it's switched off on this
+device. Only mods the game can join the server without are listed. A mod that needs another one goes off with it. A
+change is applied when the update runs again, so press **Restart** before you play. (The same switches are in the
+game, under Mod Menu.)
+
 One more tab, **Remote control panel**, appears only on a device the owner has allowed **Keeper control**. It has two
 tabs inside:
-- **Manage access:** who may do what. **By launcher** lists the launchers that have asked the server PC for access,
-  with their permissions (Server control, MCSS control, PC sleep) switched on or off for the one you select, plus
-  **Remove server access** and **Forget**. **By player** lists the players, and what you allow a player is set on all
-  their confirmed devices and on ones they join the server from later.
+- **Access Manager:** who may do what. **By launcher** lists the launchers the Keeper knows, with a coloured cell
+  for each permission (Server Machine, MCSS, Minecraft server): green allowed, white not allowed, red denied. Click a
+  cell to change it. **By player** lists the players the same way, plus whether each is on the server's
+  **whitelist** (click to add or remove); what you set for a player goes to all their confirmed devices, and ones
+  they join from later, except a device that is itself denied. Buttons: **Suspend** (can't start the game or use
+  any control), **Blacklist** (the same, and sees nothing about the server), **Lift**, **Kick** (a player, off the
+  server now), each with an optional reason the player is shown, plus **Remove server access** and **Forget**. None
+  of these work on a launcher or player that has Keeper control.
 - **Keeper activity:** whether MCSS and the Minecraft server are running right now, and the Keeper's activity.
 
 Keeper control itself is only given on the server PC.
 
-The last tab, **Connection**, is for when something doesn't connect. It checks in order: the internet, Tailscale on
+**Network diagnosis** (the other tab inside Connection) is for when something doesn't connect. It checks in order: the internet, Tailscale on
 this device (installed, signed in, switched on), whether the server machine is in the Tailscale network this device is
 signed in to, whether the server machine answers, where updates come from, Gatehouse Keeper, and the Minecraft server.
 The top line names the first thing to fix, and each failed line says what to do. **Open Tailscale** (Windows) and
@@ -277,9 +294,9 @@ happens only if you chose that item, except the game instance, which is always i
    Steam account number from Steam's `config\loginusers.vdf` (the account you used most recently). Steam must be closed
    for this part; setup asks you to quit it and waits.
    - Adds non-Steam game shortcuts to `Steam\userdata\<account>\config\shortcuts.vdf`, or updates existing ones
-     instead of adding them again. Both run `prismlauncher.exe`. **October Journey - your computer's name** adds
+     instead of adding them again. Both run `prismlauncher.exe`. **October Journey - PC (or Laptop, Steam Deck, ROG: your kind of device)** adds
      `--launch october-journey --server <the server's address>` (Prism launches the instance, which runs the update
-     first, and Minecraft joins the server). **Minecraft (Prism Launcher) - your computer's name** has no options, so
+     first, and Minecraft joins the server). **Minecraft (Prism Launcher) - PC (or Laptop, Steam Deck, ROG: your kind of device)** has no options, so
      it opens Prism. The old file is kept as `shortcuts.vdf.bak-setup`.
    - Item *Steam library art*: saves five PNGs per shortcut in `Steam\userdata\<account>\config\grid\`, named after
      the shortcut's app ID. The October Journey shortcut gets the art made for this pack, from

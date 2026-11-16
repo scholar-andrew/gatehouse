@@ -132,10 +132,10 @@ public final class LaunchPopup {
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
-				case "request" -> System.out.println("request: " + c.requestServer());
+				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
 				case "admin-devices" -> System.out.println("admin devices: " + c.helper("GET", "/v1/admin/devices", null));
-				case "admin-perm" -> System.out.println("admin perm: " + c.helper("POST", "/v1/admin/perm", "{\"id\":\"" + args[3] + "\",\"perm\":\"" + args[4] + "\",\"value\":" + args[5] + "}"));
+				case "admin-perm" -> System.out.println("admin perm: " + c.helper("POST", "/v1/admin/perm", "{\"id\":\"" + args[3] + "\",\"perm\":\"" + args[4] + "\",\"state\":\"" + args[5] + "\"}"));
 				case "admin-forget" -> System.out.println("admin forget: " + c.helper("POST", "/v1/admin/forget", "{\"id\":\"" + args[3] + "\"}"));
 				case "mcss-force-close" -> System.out.println("mcss force close: " + c.mcssClose(true));
 				case "stop-watch" -> {   // stop, wait until it's off, and say whether the shutdown was smooth
@@ -412,7 +412,17 @@ public final class LaunchPopup {
 	 *  don't take a colour). In the checklist it's also the button that accepts a download. */
 	static final class PlayButton extends JButton {
 		private final Color base, ink;
+		private boolean flashOn;
+		private Timer flashing;
 		PlayButton(String text) { this(text, BLUE, Color.WHITE, 15f); }
+		/** Flashes red, half a second on and half off, for five seconds: a request was denied. */
+		void flash() {
+			if (flashing != null) flashing.stop();
+			int[] n = {0};
+			flashing = new Timer(500, e -> { flashOn = n[0] % 2 == 0; n[0]++; if (n[0] > 10) { flashOn = false; ((Timer) e.getSource()).stop(); } repaint(); });
+			flashing.setInitialDelay(0);
+			flashing.start();
+		}
 		/** The same button in another colour (Restart is yellow, Quit red), with its text colour and size. */
 		PlayButton(String text, Color base, Color ink, float size) {
 			super(text);
@@ -426,19 +436,44 @@ public final class LaunchPopup {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 			boolean on = isEnabled();
-			Color fill = !on ? new Color(0xC9CDD3) : getModel().isPressed() ? base.darker() : getModel().isRollover() ? shade(base, 1.12f) : base;
+			Color fill = flashOn ? QUIT_RED : !on ? new Color(0xC9CDD3) : getModel().isPressed() ? base.darker() : getModel().isRollover() ? shade(base, 1.12f) : base;
 			g2.setColor(fill);
 			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
 			if (on && isFocusOwner()) { g2.setColor(new Color(255, 255, 255, 170)); g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 6, 6); }
 			g2.setFont(getFont());
 			java.awt.FontMetrics fm = g2.getFontMetrics();
-			g2.setColor(on ? ink : new Color(0x7B818A));
+			g2.setColor(flashOn ? Color.WHITE : on ? ink : new Color(0x7B818A));
 			g2.drawString(getText(), (getWidth() - fm.stringWidth(getText())) / 2, (getHeight() - fm.getHeight()) / 2 + fm.getAscent());
 			g2.dispose();
 		}
 	}
 
-	static final Color YELLOW = new Color(0xF2C230), QUIT_RED = new Color(0xD23C3C), INK = new Color(0x3A2F00);
+	static final Color YELLOW = new Color(0xF2C230), QUIT_RED = new Color(0xD23C3C), INK = new Color(0x3A2F00), SLATE = new Color(0x5B6B82);
+
+	/** A short, soft three-note chime (made here, no sound file): the owner granted something this device asked for. */
+	static void chime() {
+		Thread t = new Thread(() -> {
+			try {
+				float rate = 44100f;
+				double[] notes = {659.25, 830.61, 987.77};
+				int step = (int) (rate * 0.16), tail = (int) (rate * 0.9);
+				double[] mix = new double[step * (notes.length - 1) + tail];
+				for (int n = 0; n < notes.length; n++)
+					for (int i = 0; i < tail; i++) {
+						double time = i / rate, env = Math.min(1, time / 0.008) * Math.exp(-time * 4.2);
+						mix[n * step + i] += env * (Math.sin(2 * Math.PI * notes[n] * time) + 0.25 * Math.sin(4 * Math.PI * notes[n] * time));
+					}
+				byte[] pcm = new byte[mix.length * 2];
+				for (int i = 0; i < mix.length; i++) { int v = (int) (mix[i] * 0.22 * 32767); pcm[2 * i] = (byte) v; pcm[2 * i + 1] = (byte) (v >> 8); }
+				javax.sound.sampled.AudioFormat fmt = new javax.sound.sampled.AudioFormat(rate, 16, 1, true, false);
+				try (javax.sound.sampled.SourceDataLine line = javax.sound.sampled.AudioSystem.getSourceDataLine(fmt)) {
+					line.open(fmt); line.start(); line.write(pcm, 0, pcm.length); line.drain();
+				}
+			} catch (Exception | LinkageError ignored) {}
+		}, "chime");
+		t.setDaemon(true);
+		t.start();
+	}
 	private static Color shade(Color c, float f) {
 		return new Color(Math.min(255, Math.round(c.getRed() * f)), Math.min(255, Math.round(c.getGreen() * f)), Math.min(255, Math.round(c.getBlue() * f)));
 	}
@@ -720,6 +755,7 @@ public final class LaunchPopup {
 		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, 13f));
 		stopped.setIconTextGap(8);
 		JButton wake = new JButton("Wake server machine"), start = new JButton("Start server"), stop = new JButton("Stop server");
+		Runnable[] permsChanged = {() -> {}};   // (set further down: the Request permission buttons follow what the Keeper says)
 		wake.setEnabled(false);   // (until the first reading: only while the PC isn't answering)
 		start.setEnabled(false);
 		stop.setEnabled(false);
@@ -740,9 +776,9 @@ public final class LaunchPopup {
 			{
 				String phase = s.length > 2 ? s[2] : "";
 				// The PC: awake whenever anything on it answers (game server, panel or Gatehouse Keeper).
-				boolean asleep = phase.equals("asleep");
-				pcStatus.setIcon(dot(asleep ? (waking ? AMBER : GRAY) : GREEN));
-				pcStatus.setText(wrap(asleep ? (waking ? "Waking up\u2026 (it can take a minute)" : "Asleep or off") : "Awake"));
+				boolean asleep = phase.equals("asleep"), blocked = phase.equals("blocked");   // (blocked: blacklisted, nothing is shown)
+				pcStatus.setIcon(dot(blocked ? GRAY : asleep ? (waking ? AMBER : GRAY) : GREEN));
+				pcStatus.setText(wrap(blocked ? s[1] : asleep ? (waking ? "Waking up\u2026 (it can take a minute)" : "Asleep or off") : "Awake"));
 				// The Minecraft server.
 				String game;
 				switch (phase) {
@@ -759,7 +795,7 @@ public final class LaunchPopup {
 				start.setEnabled(c.canControlServer() && phase.equals("off"));
 				stop.setEnabled(c.canControlServer() && phase.equals("online"));
 				// Wake only while the PC isn't answering at all (neither the game server nor the panel): asleep or off.
-				wake.setEnabled(c.canWake() && phase.equals("asleep"));
+				wake.setEnabled(c.canWake() && phase.equals("asleep") && (c.permSleep || !c.hasHelper()) && c.ban.isEmpty());
 				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (works from the home network)" : "The server machine is awake");
 				String ping = s.length > 3 ? s[3] : "";
 				int ms = -1;
@@ -769,8 +805,11 @@ public final class LaunchPopup {
 				players.setText("Players: " + (s.length > 4 && !s[4].isEmpty() ? s[4] + " online" : "\u2014"));
 			}
 		};
-		Runnable refresh = () -> new Thread(() -> { String[] s = c.status(); SwingUtilities.invokeLater(() -> apply.accept(s)); }, "server-status").start();
-		if (!live) apply.accept(c.status());   // (test pictures: one reading, so they show real values)
+		// A blacklisted launcher isn't shown how the machine, MCSS or the server are, and doesn't go looking either.
+		java.util.function.Supplier<String[]> reading = () -> c.ban.equals("blacklist") ? new String[] {"off", "Not shown: this launcher is blacklisted", "blocked", "", ""} : c.status();
+		Runnable refresh = () -> new Thread(() -> { String[] s = reading.get(); SwingUtilities.invokeLater(() -> apply.accept(s)); }, "server-status").start();
+		if (!live && c.hasHelper()) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) {}
+		if (!live) apply.accept(reading.get());   // (test pictures: one reading, so they show real values)
 		java.util.function.BiConsumer<String, String> stopResult = (state, text) -> SwingUtilities.invokeLater(() -> {
 			stopped.setIcon(state.equals("running") ? mark("running0") : mark(state));
 			stopped.setText("<html><div style='width:430px'>" + esc(text) + "</div></html>");
@@ -848,9 +887,9 @@ public final class LaunchPopup {
 				if (s(r.get("close")).equals("force")) mode = "force";
 				sleepOk = "true".equals(s(r.get("sleep")));
 				game = "true".equals(s(r.get("minecraft")));
-				if (granted) text = running ? "MCSS is running" : "MCSS isn't running";
-				else text = "Waiting for the owner to allow this device (in the control panel on the server machine)";
-				state = granted ? (running ? "ok" : "off") : "warn";
+				// How MCSS is, whatever this device may do about it (only a blacklisted launcher isn't told).
+				if (c.ban.equals("blacklist")) { text = "Not shown: this launcher is blacklisted"; state = "off"; }
+				else { text = running ? "MCSS is running" : "MCSS isn't running"; state = running ? "ok" : "off"; }
 			} catch (IOException | RuntimeException e) { state = "off"; text = "Gatehouse Keeper isn't answering (the server machine may be asleep or signed out)"; }
 			String st = state, tx = text, md = mode; boolean g = granted, run = running, sl = sleepOk, gm = game;
 			SwingUtilities.invokeLater(() -> {
@@ -864,6 +903,7 @@ public final class LaunchPopup {
 				mStart.setEnabled(g && !run);
 				mClose.setEnabled(g && run);
 				onPerms.run();   // (what the owner allows may have changed: the tabs and the access line follow)
+				permsChanged[0].run();
 				// Sleep: only with the owner's PC sleep permission, and only while the Minecraft server is stopped.
 				pcSleep.setEnabled(sl && !gm);
 				pcSleep.setToolTipText(!sl ? "This device isn't allowed to sleep the PC (the owner allows it in the control panel)"
@@ -920,12 +960,59 @@ public final class LaunchPopup {
 			for (JButton b : bs) { b.setFont(b.getFont().deriveFont(13f)); r.add(b); }
 			return r;
 		};
-		group.accept("Server Machine", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep}), pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
-		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose}), mNote});
+		// "Request permission", one for each thing this device may not do: it asks the owner (a chime and a line in the
+		// control panel there). Granted: a chime here and a note. Denied: the button flashes red, with the owner's reason.
+		PlayButton[] reqB = {new PlayButton("Request permission", SLATE, Color.WHITE, 13f), new PlayButton("Request permission", SLATE, Color.WHITE, 13f), new PlayButton("Request permission", SLATE, Color.WHITE, 13f)};
+		String[] reqType = {"perm:machine", "perm:mcss", "perm:server"};
+		JLabel[] reqNote = {pcNote, mNote, note};
+		boolean[] reqPending = new boolean[3];
+		long[] reqWait = new long[3];
+		for (int i = 0; i < 3; i++) {
+			int k = i;
+			reqB[i].setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
+			reqB[i].setVisible(false);
+			reqB[i].addActionListener(e -> {
+				hold.run();
+				reqWait[k] = System.currentTimeMillis() + 60_000; reqPending[k] = true;
+				reqB[k].setEnabled(false);
+				reqNote[k].setText("Asking the owner\u2026");
+				c.reqStates.put(reqType[k], "asked");
+				new Thread(() -> {
+					String m;
+					try {
+						Map<String, Object> r = c.request(reqType[k], "");
+						m = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty() ? "Gatehouse Keeper didn't take the request" : s(r.get("error"))) : s(r.get("message"));
+						if (!"ok".equals(s(r.get("result")))) { reqPending[k] = false; reqWait[k] = 0; }
+					} catch (IOException | RuntimeException ex) { m = "Couldn't reach Gatehouse Keeper (the server machine may be asleep)"; reqPending[k] = false; reqWait[k] = 0; }
+					String msg = m;
+					SwingUtilities.invokeLater(() -> { reqNote[k].setText(wrap(msg)); permsChanged[0].run(); });
+				}, "request-permission").start();
+			});
+		}
+		permsChanged[0] = () -> {
+			boolean[] has = {c.permSleep, c.permMcss, c.canControlServer()};
+			String[] st = {c.permState("machine"), c.permState("mcss"), c.permState("server")};
+			for (int i = 0; i < 3; i++) {
+				reqB[i].setVisible(c.hasHelper() && !has[i] && c.ban.isEmpty());
+				reqB[i].setText(st[i].equals("denied") ? "Request permission (denied)" : "Request permission");
+				reqB[i].setEnabled(System.currentTimeMillis() >= reqWait[i]);
+				String answer = c.reqStates.getOrDefault(reqType[i], "");
+				if (reqPending[i] && answer.equals("granted")) { reqPending[i] = false; reqWait[i] = 0; chime(); reqNote[i].setText(wrap("Permission granted by the owner.")); }
+				else if (reqPending[i] && answer.equals("denied")) {
+					reqPending[i] = false; reqWait[i] = 0;
+					reqB[i].setEnabled(true); reqB[i].flash();
+					String why = c.reqReasons.getOrDefault(reqType[i], "");
+					reqNote[i].setText(wrap("Permission denied by the owner" + (why.isEmpty() ? "." : ": " + why)));
+				}
+			}
+		};
+		permsChanged[0].run();
+		group.accept("Server Machine", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep, reqB[0]}), pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
+		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose, reqB[1]}), mNote});
 		JLabel via = new JLabel(wrap("Control: " + c.accessText()));
 		via.setFont(via.getFont().deriveFont(Font.PLAIN, 12f));
 		via.setForeground(new Color(0x6B7280));
-		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop}), via, note, stopped});
+		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop, reqB[2]}), via, note, stopped});
 
 		// Server config: how this device controls the server, and signing in to the server panel with a panel account
 		// (the launcher keeps the key the panel hands back, never the password).
@@ -1012,7 +1099,9 @@ public final class LaunchPopup {
 	 *  that holds both (the launcher's Remote control panel tab). */
 	private static JPanel[] managePanel(ServerControl c, JFrame f) {
 		Color grey = new Color(0x6B7280);
-		// ---- Manage access
+		// ---- Access Manager: each permission is Allowed (green), Not allowed (white) or Denied (red); click one to change
+		// it. A player's setting goes to all their devices, except a device that is itself Denied. Whitelist, kick,
+		// suspend and blacklist are here too.
 		JPanel access = new JPanel(new BorderLayout(0, 6));
 		access.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
 		javax.swing.JRadioButton byDevice = new javax.swing.JRadioButton("By launcher (one device)", true), byPlayer = new javax.swing.JRadioButton("By player (all their devices)");
@@ -1021,22 +1110,34 @@ public final class LaunchPopup {
 		pick.add(byDevice); pick.add(byPlayer);
 		access.add(pick, BorderLayout.NORTH);
 		java.util.function.Function<String[], javax.swing.table.DefaultTableModel> newModel = cols -> new javax.swing.table.DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
-		javax.swing.table.DefaultTableModel model = newModel.apply(new String[] {"Launcher", "Player", "Last seen", "Server control", "MCSS control", "PC sleep", "Keeper control", "Controls the server"});
-		javax.swing.table.DefaultTableModel pmodel = newModel.apply(new String[] {"Player", "Launchers", "Last joined", "Server control", "MCSS control", "PC sleep"});
+		javax.swing.table.DefaultTableModel model = newModel.apply(new String[] {"Launcher", "Player", "Last seen", "Status", "Server Machine", "MCSS", "Minecraft server", "Keeper control", "Controls the server"});
+		javax.swing.table.DefaultTableModel pmodel = newModel.apply(new String[] {"Player", "Launchers", "Last joined", "Whitelist", "Status", "Server Machine", "MCSS", "Minecraft server"});
 		javax.swing.JTable table = new javax.swing.JTable(model), ptable = new javax.swing.JTable(pmodel);
-		for (javax.swing.JTable tb : new javax.swing.JTable[] {table, ptable}) { tb.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION); tb.setRowHeight(24); }
+		javax.swing.table.DefaultTableCellRenderer paint = new javax.swing.table.DefaultTableCellRenderer() {
+			@Override public Component getTableCellRendererComponent(javax.swing.JTable tb, Object v, boolean sel, boolean focus, int r, int col) {
+				Component x = super.getTableCellRendererComponent(tb, v, sel, focus, r, col);
+				String tx = s(v);
+				Color bg = tx.startsWith("Allowed") ? new Color(0xCDEFD3) : tx.startsWith("Denied") || tx.startsWith("Blacklisted") || tx.startsWith("Suspended") ? new Color(0xF6CACA) : Color.WHITE;
+				if (!sel || bg != Color.WHITE) { x.setBackground(bg); x.setForeground(Color.BLACK); }
+				return x;
+			}
+		};
+		for (javax.swing.JTable tb : new javax.swing.JTable[] {table, ptable}) { tb.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION); tb.setRowHeight(24); tb.setDefaultRenderer(Object.class, paint); }
 		List<String> ids = new ArrayList<>(), pnames = new ArrayList<>();
-		Map<String, boolean[]> perms = new LinkedHashMap<>(), pallow = new LinkedHashMap<>();   // {server, mcss, sleep, Keeper control}
+		Map<String, String> dban = new LinkedHashMap<>(), pban = new LinkedHashMap<>();   // (who is suspended or blacklisted: a device itself, or a player)
+		Map<String, Boolean> pwl = new LinkedHashMap<>();
 		JScrollPane ts = new JScrollPane(table), pts = new JScrollPane(ptable);
 		ts.setPreferredSize(new Dimension(600, 200)); pts.setPreferredSize(new Dimension(600, 200));
 		java.awt.CardLayout cards = new java.awt.CardLayout();
 		JPanel deck = new JPanel(cards);
 		deck.add(ts, "device"); deck.add(pts, "player");
 		access.add(deck, BorderLayout.CENTER);
-		JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow PC sleep"), forget = new JButton("Forget"), revoke = new JButton("Remove server access");
-		JPanel buttons = new JPanel(new java.awt.GridLayout(0, 3, 6, 4));
-		for (JButton b : new JButton[] {serverB, mcssB, sleepB, revoke, forget}) buttons.add(b);
-		JLabel note = new JLabel(" ");
+		JButton wlB = new JButton("Add to whitelist"), kickB = new JButton("Kick\u2026"), suspendB = new JButton("Suspend\u2026"), blackB = new JButton("Blacklist\u2026"), liftB = new JButton("Lift"),
+				forget = new JButton("Forget"), revoke = new JButton("Remove server access");
+		JPanel buttons = new JPanel(new java.awt.GridLayout(0, 4, 6, 4));
+		for (JButton b : new JButton[] {suspendB, blackB, liftB, wlB, kickB, revoke, forget}) buttons.add(b);
+		String hint = "Click a permission to change it: Allowed, Not allowed or Denied.";
+		JLabel note = new JLabel(wrap(hint));
 		note.setForeground(grey);
 		JPanel under = new JPanel(new BorderLayout(0, 2));
 		under.add(buttons, BorderLayout.NORTH); under.add(note, BorderLayout.SOUTH);
@@ -1060,52 +1161,53 @@ public final class LaunchPopup {
 		activity.add(logBox, BorderLayout.CENTER);
 
 		boolean[] players = {false};
+		java.util.function.Function<String, String> word = st -> st.equals("allowed") ? "Allowed" : st.equals("denied") ? "Denied" : "Not allowed";
 		Runnable labels = () -> {
-			boolean[] pp;
-			if (players[0]) { int r = ptable.getSelectedRow(); pp = r >= 0 && r < pnames.size() ? pallow.getOrDefault(pnames.get(r), new boolean[4]) : new boolean[4]; }
-			else { int r = table.getSelectedRow(); pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[4]) : new boolean[4]; }
-			serverB.setText(pp[0] ? "Remove server control" : "Allow server control");
-			mcssB.setText(pp[1] ? "Remove MCSS control" : "Allow MCSS control");
-			sleepB.setText(pp[2] ? "Remove PC sleep" : "Allow PC sleep");
-			revoke.setVisible(!players[0]); forget.setVisible(!players[0]);
+			String ban = "";
+			if (players[0]) {
+				int r = ptable.getSelectedRow();
+				if (r >= 0 && r < pnames.size()) { ban = pban.getOrDefault(pnames.get(r), ""); wlB.setText(pwl.getOrDefault(pnames.get(r), false) ? "Remove from whitelist" : "Add to whitelist"); }
+			} else { int r = table.getSelectedRow(); if (r >= 0 && r < ids.size()) ban = dban.getOrDefault(ids.get(r), ""); }
+			liftB.setEnabled(!ban.isEmpty());
+			wlB.setVisible(players[0]); kickB.setVisible(players[0]); revoke.setVisible(!players[0]); forget.setVisible(!players[0]);
 		};
-		byDevice.addActionListener(e -> { players[0] = false; cards.show(deck, "device"); note.setText(" "); labels.run(); });
-		byPlayer.addActionListener(e -> { players[0] = true; cards.show(deck, "player"); note.setText(wrap("What you allow a player is set on all their confirmed launchers, and on ones they join the server from later.")); labels.run(); });
-		Runnable load = () -> new Thread(() -> {
+		byDevice.addActionListener(e -> { players[0] = false; cards.show(deck, "device"); note.setText(wrap(hint + " Suspend and Blacklist here are for this one device.")); labels.run(); });
+		byPlayer.addActionListener(e -> { players[0] = true; cards.show(deck, "player"); note.setText(wrap(hint + " A player's setting goes to all their confirmed launchers (and ones they join from later), except a launcher that is itself Denied.")); labels.run(); });
+		java.util.function.Consumer<Runnable> ui = r -> { if (SwingUtilities.isEventDispatchThread()) r.run(); else SwingUtilities.invokeLater(r); };
+		Runnable fetch = () -> {
 			try {
 				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), pl = c.helper("GET", "/v1/admin/players", null), lg = c.helper("GET", "/v1/admin/log", null);
-				SwingUtilities.invokeLater(() -> {
+				ui.accept(() -> {
 					if (!"200".equals(s(r.get("_code")))) { mcssLine.setIcon(dot(RED)); mcssLine.setText(s(r.get("error")).isEmpty() ? "Gatehouse Keeper said no (" + s(r.get("_code")) + ")" : s(r.get("error"))); note.setText(wrap(mcssLine.getText())); return; }
 					int sel = table.getSelectedRow();
 					String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null, you = s(r.get("you"));
-					model.setRowCount(0); ids.clear(); perms.clear();
+					model.setRowCount(0); ids.clear(); dban.clear();
 					for (Map.Entry<String, Object> e : asMap(r.get("devices")).entrySet()) {
 						Map<String, Object> v = asMap(e.getValue());
-						boolean[] pp = {"true".equals(s(v.get("server"))), "true".equals(s(v.get("granted"))), "true".equals(s(v.get("sleep"))), "true".equals(s(v.get("admin")))};
-						ids.add(e.getKey()); perms.put(e.getKey(), pp);
+						ids.add(e.getKey());
+						if ("machine".equals(s(v.get("ban_scope")))) dban.put(e.getKey(), s(v.get("ban_kind")));
 						String who = s(v.get("player")).isEmpty() ? "" : s(v.get("player")) + ("true".equals(s(v.get("player_confirmed"))) ? "" : " (not confirmed)");
-						model.addRow(new Object[] {s(v.get("name")) + (e.getKey().equals(you) ? " (this device)" : ""), who, s(v.get("last_seen")),
-								pp[0] ? "Allowed" : pp[1] ? "Allowed (with MCSS)" : "Not allowed", pp[1] ? "Allowed" : "Not allowed", pp[2] ? "Allowed" : "Not allowed", pp[3] ? "Allowed" : "Not allowed", s(v.get("access_text"))});
+						String sm = s(v.get("state_mcss")), ss = s(v.get("state_server"));
+						model.addRow(new Object[] {s(v.get("name")) + (e.getKey().equals(you) ? " (this device)" : ""), who, s(v.get("last_seen")), s(v.get("ban_text")),
+								word.apply(s(v.get("state_machine"))), word.apply(sm), ss.equals("none") && sm.equals("allowed") ? "Allowed (with MCSS)" : word.apply(ss),
+								"true".equals(s(v.get("admin"))) ? "Allowed" : "Not allowed", s(v.get("access_text"))});
 						if (e.getKey().equals(keep)) table.setRowSelectionInterval(ids.size() - 1, ids.size() - 1);
 					}
 					int psel = ptable.getSelectedRow();
 					String pkeep = psel >= 0 && psel < pnames.size() ? pnames.get(psel) : null;
-					pmodel.setRowCount(0); pnames.clear(); pallow.clear();
+					pmodel.setRowCount(0); pnames.clear(); pban.clear(); pwl.clear();
 					for (Map.Entry<String, Object> e : asMap(pl.get("players")).entrySet()) {
 						Map<String, Object> q = asMap(e.getValue());
-						String[] keys = {"server", "mcss", "sleep"};
-						boolean[] al = new boolean[4];
-						Object[] row = new Object[6];
 						StringBuilder ds = new StringBuilder();
 						if (q.get("devices") instanceof List<?> l) for (Object o : l) ds.append(ds.length() == 0 ? "" : ", ").append(o);
-						row[0] = e.getKey(); row[1] = ds.length() == 0 ? "(none yet)" : ds.toString(); row[2] = s(q.get("last_seen"));
-						for (int i = 0; i < 3; i++) {
-							al[i] = "true".equals(s(q.get("allow_" + keys[i])));
-							String conf = s(q.get("confirmed")), has = s(q.get("has_" + keys[i]));
-							row[3 + i] = (al[i] ? "Allowed" : "Not allowed") + (has.isEmpty() || has.equals("0") || conf.equals(has) ? "" : " (on " + has + " of " + conf + ")");
-						}
-						pnames.add(e.getKey()); pallow.put(e.getKey(), al);
-						pmodel.addRow(row);
+						String ban = s(q.get("ban")), why = s(q.get("ban_reason"));
+						boolean wl = "true".equals(s(q.get("whitelisted")));
+						String sm = s(q.get("state_mcss")), ss = s(q.get("state_server"));
+						pnames.add(e.getKey()); pwl.put(e.getKey(), wl);
+						if (!ban.isEmpty()) pban.put(e.getKey(), ban);
+						pmodel.addRow(new Object[] {e.getKey(), ds.length() == 0 ? "(none yet)" : ds.toString(), s(q.get("last_seen")), wl ? "Yes" : "No",
+								ban.isEmpty() ? "" : (ban.equals("blacklist") ? "Blacklisted" : "Suspended") + (why.isEmpty() ? "" : ": " + why),
+								word.apply(s(q.get("state_machine"))), word.apply(sm), ss.equals("none") && sm.equals("allowed") ? "Allowed (with MCSS)" : word.apply(ss)});
 						if (e.getKey().equals(pkeep)) ptable.setRowSelectionInterval(pnames.size() - 1, pnames.size() - 1);
 					}
 					labels.run();
@@ -1118,9 +1220,10 @@ public final class LaunchPopup {
 					if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
 				});
 			} catch (IOException | RuntimeException ex) {
-				SwingUtilities.invokeLater(() -> { mcssLine.setIcon(dot(RED)); mcssLine.setText("Couldn't reach Gatehouse Keeper (is the server machine awake?)"); serverLine.setText(" "); note.setText(wrap(mcssLine.getText())); });
+				ui.accept(() -> { mcssLine.setIcon(dot(RED)); mcssLine.setText("Couldn't reach Gatehouse Keeper (is the server machine awake?)"); serverLine.setText(" "); note.setText(wrap(mcssLine.getText())); });
 			}
-		}, "manage").start();
+		};
+		Runnable load = () -> new Thread(fetch, "manage").start();
 		java.util.function.BiConsumer<String, String> act = (path, body) -> new Thread(() -> {
 			String m;
 			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code"))) ? (s(r.get("message")).isEmpty() ? " " : s(r.get("message"))) : s(r.get("error")).isEmpty() ? "Gatehouse Keeper said no (" + s(r.get("_code")) + ")" : s(r.get("error")); }
@@ -1129,23 +1232,64 @@ public final class LaunchPopup {
 			SwingUtilities.invokeLater(() -> note.setText(wrap(msg)));
 			load.run();
 		}, "manage-act").start();
-		String[] permKeys = {"server", "mcss", "sleep"};
-		java.util.function.IntConsumer flip = i -> {
+		String[] permNames = {"machine", "mcss", "server"};
+		// The launcher or player picked in the list, as the start of what's sent to the Keeper (or nothing picked).
+		java.util.function.Supplier<String> target = () -> {
 			if (players[0]) {
 				int r = ptable.getSelectedRow();
-				if (r < 0 || r >= pnames.size()) { note.setText("Pick a player in the list first."); return; }
-				String name = pnames.get(r);
-				act.accept("/v1/admin/player/perm", "{\"player\":\"" + name + "\",\"perm\":\"" + permKeys[i] + "\",\"value\":" + !pallow.getOrDefault(name, new boolean[4])[i] + "}");
-			} else {
-				int r = table.getSelectedRow();
-				if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-				String id = ids.get(r);
-				act.accept("/v1/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"" + permKeys[i] + "\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[i] + "}");
+				if (r < 0 || r >= pnames.size()) { note.setText("Pick a player in the list first."); return null; }
+				return "\"player\":\"" + ServerControl.jsonEsc(pnames.get(r)) + "\"";
+			}
+			int r = table.getSelectedRow();
+			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return null; }
+			return "\"id\":\"" + ServerControl.jsonEsc(ids.get(r)) + "\"";
+		};
+		// Click a permission: a small menu with the three states. Click a player's Whitelist: on or off the whitelist.
+		java.awt.event.MouseAdapter click = new java.awt.event.MouseAdapter() {
+			@Override public void mouseClicked(java.awt.event.MouseEvent e) {
+				javax.swing.JTable tb = (javax.swing.JTable) e.getSource();
+				boolean pl = tb == ptable;
+				int r = tb.rowAtPoint(e.getPoint()), col = tb.columnAtPoint(e.getPoint()), first = pl ? 5 : 4;
+				if (r < 0 || r >= (pl ? pnames.size() : ids.size())) return;
+				tb.setRowSelectionInterval(r, r);
+				String who = pl ? "\"player\":\"" + ServerControl.jsonEsc(pnames.get(r)) + "\"" : "\"id\":\"" + ServerControl.jsonEsc(ids.get(r)) + "\"";
+				javax.swing.JPopupMenu menu = new javax.swing.JPopupMenu();
+				if (col >= first && col < first + 3) {
+					for (String[] o : new String[][] {{"Allowed", "allowed"}, {"Not allowed", "none"}, {"Denied", "denied"}}) {
+						javax.swing.JMenuItem it = new javax.swing.JMenuItem(o[0]);
+						it.addActionListener(a -> act.accept(pl ? "/v1/admin/player/perm" : "/v1/admin/perm", "{" + who + ",\"perm\":\"" + permNames[col - first] + "\",\"state\":\"" + o[1] + "\"}"));
+						menu.add(it);
+					}
+				} else if (pl && col == 3) {
+					boolean on = pwl.getOrDefault(pnames.get(r), false);
+					javax.swing.JMenuItem it = new javax.swing.JMenuItem(on ? "Remove from the whitelist" : "Add to the whitelist");
+					it.addActionListener(a -> act.accept("/v1/admin/whitelist", "{" + who + ",\"value\":" + !on + "}"));
+					menu.add(it);
+				} else return;
+				menu.show(tb, e.getX(), e.getY());
 			}
 		};
-		serverB.addActionListener(e -> flip.accept(0));
-		mcssB.addActionListener(e -> flip.accept(1));
-		sleepB.addActionListener(e -> flip.accept(2));
+		table.addMouseListener(click); ptable.addMouseListener(click);
+		// Kick, suspend, blacklist (each with an optional reason the player is shown) and lift.
+		java.util.function.BiConsumer<String, String> banAct = (kind, title) -> {
+			String who = target.get();
+			if (who == null) return;
+			String reason = "";
+			if (!kind.isEmpty()) {
+				String typed = javax.swing.JOptionPane.showInputDialog(f, "A reason the player is shown (optional):", title, javax.swing.JOptionPane.PLAIN_MESSAGE);
+				if (typed == null) return;
+				reason = typed.trim();
+			}
+			act.accept(kind.equals("kick") ? "/v1/admin/kick" : "/v1/admin/ban", "{" + who + ",\"kind\":\"" + kind + "\",\"reason\":\"" + ServerControl.jsonEsc(reason) + "\"}");
+		};
+		kickB.addActionListener(e -> banAct.accept("kick", "Kick from the server"));
+		suspendB.addActionListener(e -> banAct.accept("suspend", "Suspend (can't start the game or use controls)"));
+		blackB.addActionListener(e -> banAct.accept("blacklist", "Blacklist (also sees nothing about the server)"));
+		liftB.addActionListener(e -> banAct.accept("", ""));
+		wlB.addActionListener(e -> {
+			String who = target.get();
+			if (who != null) act.accept("/v1/admin/whitelist", "{" + who + ",\"value\":" + !pwl.getOrDefault(pnames.get(ptable.getSelectedRow()), false) + "}");
+		});
 		forget.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
@@ -1166,12 +1310,138 @@ public final class LaunchPopup {
 			q.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && q.isShowing()) load.run(); });
 		// Both live under one tab of the launcher, Remote control panel, as two tabs of their own.
 		javax.swing.JTabbedPane inner = new javax.swing.JTabbedPane();
-		inner.addTab("Manage access", access);
+		inner.addTab("Access Manager", access);
 		inner.addTab("Keeper activity", activity);
 		JPanel remote = new JPanel(new BorderLayout());
 		remote.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));
 		remote.add(inner, BorderLayout.CENTER);
+		labels.run();
+		if (System.getenv("OJ_POPUP_PNG") != null && c.permAdmin) fetch.run();   // (test pictures: filled in once)
 		return new JPanel[] {remote};
+	}
+
+	/** The Client mods tab: the pack's optional mods (extras/mod-toggles.json: only ones the game still joins the server
+	 *  without), each on or off for this device. The choices go under "mods" in pack-options.json, everything else in
+	 *  that file kept as it is; the update applies them, so a change takes effect after Restart. Null when the pack
+	 *  has no optional mods. */
+	private static JComponent modsPanel(Path dir) {
+		List<?> list;
+		try { list = parse(read(dir.resolve("extras/mod-toggles.json"))) instanceof List<?> l ? l : List.of(); } catch (RuntimeException e) { return null; }
+		if (list.isEmpty()) return null;
+		Path options = dir.resolve("pack-options.json");
+		Map<String, Object> saved;
+		try { saved = asMap(asMap(parse(read(options))).get("mods")); } catch (RuntimeException e) { saved = new LinkedHashMap<>(); }
+		Map<String, Boolean> choice = new LinkedHashMap<>();
+		for (Map.Entry<String, Object> e : saved.entrySet()) choice.put(e.getKey(), !"false".equals(s(e.getValue())));
+		JPanel box = new JPanel();
+		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
+		box.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
+		JLabel top = new JLabel(wrap("Optional mods on this device. Switching one off never stops you joining the server. A change is applied when the update runs again: press Restart."));
+		top.setForeground(new Color(0x6B7280));
+		top.setAlignmentX(Component.LEFT_ALIGNMENT);
+		box.add(top); box.add(Box.createVerticalStrut(8));
+		JLabel note = new JLabel(" ");
+		note.setFont(note.getFont().deriveFont(Font.BOLD));
+		Map<String, javax.swing.JCheckBox> boxes = new LinkedHashMap<>();
+		Map<String, List<?>> needs = new LinkedHashMap<>();
+		Map<String, String> names = new LinkedHashMap<>();
+		// A mod that needs another one is off (and can't be ticked) while that one is off.
+		Runnable follow = () -> {
+			for (int pass = 0; pass < boxes.size(); pass++)
+				for (Map.Entry<String, javax.swing.JCheckBox> e : boxes.entrySet()) {
+					String missing = "";
+					for (Object n : needs.get(e.getKey())) { javax.swing.JCheckBox nb = boxes.get(s(n)); if (nb != null && !(nb.isSelected() && nb.isEnabled())) missing = names.get(s(n)); }
+					e.getValue().setEnabled(missing.isEmpty());
+					e.getValue().setToolTipText(missing.isEmpty() ? null : "Needs " + missing + ", which is off");
+				}
+		};
+		for (Object o : list) {
+			Map<String, Object> m = asMap(o);
+			String key = s(m.get("key"));
+			if (key.isEmpty()) continue;
+			boolean on = choice.containsKey(key) ? choice.get(key) : !"false".equals(s(m.get("default")));
+			javax.swing.JCheckBox cb = new javax.swing.JCheckBox(s(m.get("name")), on);
+			cb.setFont(cb.getFont().deriveFont(Font.BOLD, 13f));
+			cb.setAlignmentX(Component.LEFT_ALIGNMENT);
+			JLabel d = new JLabel(wrap(s(m.get("description")) + ("false".equals(s(m.get("default"))) ? " (Off unless you switch it on.)" : "")));
+			d.setForeground(new Color(0x6B7280));
+			d.setBorder(BorderFactory.createEmptyBorder(0, 24, 6, 0));
+			d.setAlignmentX(Component.LEFT_ALIGNMENT);
+			boxes.put(key, cb); names.put(key, s(m.get("name")));
+			needs.put(key, m.get("needs") instanceof List<?> l ? l : List.of());
+			cb.addActionListener(e -> {
+				choice.put(key, cb.isSelected());
+				follow.run();
+				StringBuilder sb = new StringBuilder("{");
+				for (Map.Entry<String, Boolean> c : choice.entrySet()) sb.append(sb.length() > 1 ? ", " : "").append('"').append(ServerControl.jsonEsc(c.getKey())).append("\": ").append(c.getValue());
+				String now = read(options), next = withMember(now, "mods", sb.append("}").toString());
+				try {
+					if (next == null) throw new IOException("pack-options.json isn't in a form this can change");
+					Files.writeString(options, next, StandardCharsets.UTF_8);
+					note.setForeground(new Color(0x9A6B00));
+					note.setText("Saved. Press Restart to apply it before you play.");
+				} catch (IOException ex) { note.setForeground(RED); note.setText("Couldn't save: " + ex.getMessage()); }
+			});
+			box.add(cb); box.add(d);
+		}
+		follow.run();
+		note.setAlignmentX(Component.LEFT_ALIGNMENT);
+		box.add(Box.createVerticalStrut(4)); box.add(note);
+		JPanel inner = new JPanel(new BorderLayout());
+		inner.add(box, BorderLayout.NORTH);
+		JScrollPane sc = new JScrollPane(inner);
+		sc.setBorder(null);
+		sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		sc.getVerticalScrollBar().setUnitIncrement(16);
+		JPanel tab = new JPanel(new BorderLayout());
+		tab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+		tab.add(sc, BorderLayout.CENTER);
+		return tab;
+	}
+
+	/** JSON text with one top-level member set to the given JSON value, everything else left exactly as written (true
+	 *  and false stay true and false: the sync scripts need that). Empty text gives a new object; null when the text
+	 *  isn't an object. */
+	static String withMember(String json, String key, String value) {
+		String member = "\"" + key + "\": " + value;
+		if (json.isBlank()) return "{\n  " + member + "\n}\n";
+		String tr = json.trim();
+		if (!tr.startsWith("{") || !tr.endsWith("}")) return null;
+		int depth = 0;
+		for (int i = 0; i < json.length(); i++) {
+			char ch = json.charAt(i);
+			if (ch == '"') {
+				int end = stringEnd(json, i);
+				if (end < 0) return null;
+				int after = end + 1;
+				while (after < json.length() && Character.isWhitespace(json.charAt(after))) after++;
+				if (depth == 1 && after < json.length() && json.charAt(after) == ':' && json.substring(i + 1, end).equals(key)) {
+					int vs = after + 1;
+					while (vs < json.length() && Character.isWhitespace(json.charAt(vs))) vs++;
+					int ve = vs, d = 0;
+					for (; ve < json.length(); ve++) {
+						char x = json.charAt(ve);
+						if (x == '"') { ve = stringEnd(json, ve); if (ve < 0) return null; }
+						else if (x == '{' || x == '[') d++;
+						else if (x == '}' || x == ']') { if (d == 0) break; d--; }
+						else if (x == ',' && d == 0) break;
+					}
+					return json.substring(0, vs) + value + json.substring(ve).replaceFirst("^\\s*(?=[,}])", "");
+				}
+				i = end;
+			} else if (ch == '{' || ch == '[') depth++;
+			else if (ch == '}' || ch == ']') depth--;
+		}
+		String head = json.substring(0, json.lastIndexOf('}')).stripTrailing();
+		return head + (head.endsWith("{") ? "" : ",") + "\n  " + member + "\n}\n";
+	}
+	/** Where the string that opens at this quote closes, or -1. */
+	private static int stringEnd(String json, int open) {
+		for (int i = open + 1; i < json.length(); i++) {
+			if (json.charAt(i) == '\\') i++;
+			else if (json.charAt(i) == '"') return i;
+		}
+		return -1;
 	}
 
 	static String[] shutdownVerdict(ServerControl c, long secs) {
@@ -1317,11 +1587,16 @@ public final class LaunchPopup {
 			if (control.configured()) serverTab.add(liveLine, BorderLayout.NORTH);
 			serverTab.add(scroller(serverRows, big || serverNews), BorderLayout.CENTER);
 			tabs.addTab(serverNews ? "Server updates (new)" : "Server updates", serverTab);
-			// Connection: whether this device can reach the server machine, and what to do when it can't. Always the last
-			// tab; the server tabs go in before it.
+			// Connection: one tab holding Server controls (how the server machine, MCSS and the server are, always shown;
+			// what this device may do about them, and asking for more) and Network diagnosis (whether this device can
+			// reach the server machine, and what to do when it can't).
+			javax.swing.JTabbedPane connTabs = new javax.swing.JTabbedPane();
+			JPanel diagnosis = new JPanel(new BorderLayout());
+			diagnosis.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+			diagnosis.add(Connection.panel(dir, control, f, System.getenv("OJ_POPUP_PNG") == null), BorderLayout.CENTER);
 			JPanel connectionTab = new JPanel(new BorderLayout());
-			connectionTab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
-			connectionTab.add(Connection.panel(dir, control, f, System.getenv("OJ_POPUP_PNG") == null), BorderLayout.CENTER);
+			connectionTab.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));
+			connectionTab.add(connTabs, BorderLayout.CENTER);
 			tabs.addTab("Connection", connectionTab);
 			// Play only works while the server is online (checked every few seconds; with no server set up for the pack
 			// there's nothing to wait for).
@@ -1336,9 +1611,9 @@ public final class LaunchPopup {
 					case "online" -> text = "Right now: online" + (ping.isEmpty() ? "" : ", " + ping + " ms") + (pl.isEmpty() ? "" : ", " + pl + " players");
 					case "starting" -> text = "Right now: starting";
 					case "stopping" -> text = "Right now: stopping";
-					case "off" -> text = "Right now: the server machine is awake, but the Minecraft server is off (Server controls)";
-					case "nomcss" -> text = "Right now: the server machine is awake, but MCSS isn't running, so the server is off (Server controls, Start MCSS)";
-					case "asleep" -> text = "Right now: the server machine isn't answering, so it may be asleep or off (Server controls, Wake server machine). Below is the server as last recorded.";
+					case "off" -> text = "Right now: the server machine is awake, but the Minecraft server is off (Connection, Server controls)";
+					case "nomcss" -> text = "Right now: the server machine is awake, but MCSS isn't running, so the server is off (Connection, Server controls, Start MCSS)";
+					case "asleep" -> text = "Right now: the server machine isn't answering, so it may be asleep or off (Connection, Server controls, Wake server machine). Below is the server as last recorded.";
 					default -> text = "Right now: " + r[1];
 				}
 				liveLine.setIcon(dot(colour(r[0])));
@@ -1347,7 +1622,7 @@ public final class LaunchPopup {
 			// Server controls, a tab of their own: status, wake, start, stop, the panel, and this device's access.
 			if (control.configured()) {
 				Runnable[] syncTabs = {() -> {}};
-				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live, () -> syncTabs[0].run());
+				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live, () -> { syncTabs[0].run(); playState[0].run(); });
 				JPanel[] serverTabs = new JPanel[3];
 				for (int i = 0; i < 3; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
@@ -1361,22 +1636,26 @@ public final class LaunchPopup {
 					tab.add(sc, BorderLayout.CENTER);
 					serverTabs[i] = tab;
 				}
-				// The two tabs appear only once the owner has allowed this launcher something in the control panel (or it has
-				// its own panel access). That's remembered from the Keeper's last reply, so they're still there while the
-				// server machine is asleep (to wake it), and they come and go as the owner allows or removes it.
+				connTabs.addTab("Server controls", serverTabs[0]);
+				connTabs.addTab("Network diagnosis", diagnosis);
+				tabs.addTab("Server config", serverTabs[1]);
+				JComponent modsTab = modsPanel(dir);
+				if (modsTab != null) tabs.addTab("Client mods", modsTab);
+				// Remote control panel: only for a device the owner allowed Keeper control (in the control panel on the
+				// server machine); it comes and goes as that's allowed or removed.
 				syncTabs[0] = () -> {
-					boolean want = control.showServerTabs(), have = tabs.indexOfComponent(serverTabs[0]) >= 0;
-					if (want && !have) { int at = tabs.indexOfComponent(connectionTab); tabs.insertTab("Server controls", null, serverTabs[0], null, at); tabs.insertTab("Server config", null, serverTabs[1], null, at + 1); }
-					else if (!want && have) { if (tabs.getSelectedComponent() == serverTabs[0] || tabs.getSelectedComponent() == serverTabs[1]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[0]); tabs.remove(serverTabs[1]); }
-					// Manage launchers: only for a device the owner allowed Keeper control (in the control panel on the server machine).
-					boolean wantM = want && control.permAdmin, haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
-					if (wantM && !haveM) tabs.insertTab("Remote control panel", null, serverTabs[2], null, tabs.indexOfComponent(connectionTab));
+					boolean wantM = control.permAdmin && control.ban.isEmpty(), haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
+					if (wantM && !haveM) tabs.addTab("Remote control panel", serverTabs[2]);
 					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == serverTabs[2]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); }
 				};
 				syncTabs[0].run();
+			} else {
+				connTabs.addTab("Network diagnosis", diagnosis);
+				JComponent modsTab = modsPanel(dir);
+				if (modsTab != null) tabs.addTab("Client mods", modsTab);
 			}
 			p.add(tabs, BorderLayout.CENTER);
-			JButton play = new PlayButton("Play");
+			PlayButton play = new PlayButton("Play");
 			JLabel playWhy = new JLabel(" ");
 			playWhy.setFont(playWhy.getFont().deriveFont(Font.PLAIN, 12f));
 			playWhy.setForeground(new Color(0x6B7280));
@@ -1412,35 +1691,73 @@ public final class LaunchPopup {
 			// While the server isn't online, the same button is "Request server": it asks Gatehouse Keeper on the server
 			// machine to let the owner know (a chime and the control panel there). It goes back to Play by itself when the
 			// server comes up. One request a minute.
+			// The same goes for a player who isn't on the whitelist ("Request whitelist"), and for a launcher the owner
+			// suspended or blacklisted ("Request unsuspend", "Request unblacklist", with an optional message): the game
+			// doesn't start until the owner says so. Granted: a chime. Denied: the button flashes red, with the reason.
 			long[] requestWait = {0};
-			String[] requestNote = {"The server is off. Request server asks the owner to turn it on."};
+			String[] requestNote = {""}, noteFor = {""}, asked = {""};
+			java.util.function.Supplier<String> mode = () -> !serverShown[0] ? "next" : control.ban.equals("blacklist") ? "unblacklist" : control.ban.equals("suspend") ? "unsuspend"
+					: control.hasHelper() && control.whitelisted.equals("no") ? "whitelist" : !serverLive[0] && control.hasHelper() ? "server" : "play";
 			Runnable label = () -> {
-				boolean asking = serverShown[0] && !serverLive[0] && control.hasHelper();
-				play.setText(!serverShown[0] ? "Next: server updates" : asking ? "Request server" : "Play");
-				// "Next" only turns the page, so it always works; Play waits for the server.
-				play.setEnabled(!serverShown[0] || serverLive[0] || (asking && System.currentTimeMillis() >= requestWait[0]));
-				String why = !serverShown[0] || serverLive[0] ? "" : !asking ? "Play lights up when the server is online"
-						: "denied".equals(control.requestStatus) ? "Request denied: the owner dismissed it. You can ask again." : requestNote[0];
+				if (!asked[0].isEmpty()) {
+					String answer = control.reqStates.getOrDefault(asked[0], "");
+					if (answer.equals("granted")) { chime(); requestNote[0] = asked[0].equals("server") ? "The owner is turning the server on." : "Granted by the owner."; asked[0] = ""; requestWait[0] = 0; }
+					else if (answer.equals("denied")) {
+						String why = control.reqReasons.getOrDefault(asked[0], "");
+						requestNote[0] = "Request denied by the owner" + (why.isEmpty() ? ". You can ask again." : ": " + why);
+						asked[0] = ""; requestWait[0] = 0;
+						play.flash();
+					}
+				}
+				String m = mode.get();
+				play.setText(switch (m) { case "next" -> "Next: server updates"; case "unblacklist" -> "Request unblacklist"; case "unsuspend" -> "Request unsuspend";
+					case "whitelist" -> "Request whitelist"; case "server" -> "Request server"; default -> "Play"; });
+				// "Next" only turns the page, so it always works; Play waits for the server; a request, one a minute.
+				play.setEnabled(m.equals("next") || (m.equals("play") ? serverLive[0] : System.currentTimeMillis() >= requestWait[0]));
+				String who = control.banScope.equals("user") ? "Your account" + (control.player().isEmpty() ? "" : " (" + control.player() + ")") : "This device";
+				String reason = control.banReason.isEmpty() ? "." : ": " + control.banReason + (control.banReason.matches(".*[.!?]$") ? "" : ".");
+				String why = switch (m) {
+					case "next" -> "";
+					case "play" -> serverLive[0] ? "" : "Play lights up when the server is online";
+					case "unblacklist" -> who + " is blacklisted on this server" + reason + " Request unblacklist asks the owner to let you back.";
+					case "unsuspend" -> who + " is suspended on this server" + reason + " Request unsuspend asks the owner to let you back.";
+					case "whitelist" -> "You aren't on the server's whitelist yet. Request whitelist asks the owner to add you.";
+					default -> "The server is off. Request server asks the owner to turn it on.";
+				};
+				if (!requestNote[0].isEmpty() && noteFor[0].equals(m)) why = requestNote[0];
 				playWhy.setText(why.isEmpty() ? " " : "<html><div style='width:300px;text-align:right'>" + esc(why) + "</div></html>");
 			};
 			playState[0] = label;
 			Runnable next = () -> {
 				if (!play.isEnabled()) return;
-				if (!serverShown[0]) { serverShown[0] = true; tabs.setSelectedIndex(1); label.run(); }
-				else if (serverLive[0] || !control.hasHelper()) { exitCode = 0; f.dispose(); }
+				String m = mode.get();
+				if (m.equals("next")) { serverShown[0] = true; tabs.setSelectedIndex(1); label.run(); }
+				else if (m.equals("play")) { exitCode = 0; f.dispose(); }
 				else {
+					String message = "";
+					if (m.equals("unblacklist") || m.equals("unsuspend")) {
+						String typed = javax.swing.JOptionPane.showInputDialog(f, "A message for the owner (optional):", play.getText(), javax.swing.JOptionPane.PLAIN_MESSAGE);
+						if (typed == null) return;
+						message = typed.trim();
+					}
+					String text = message;
 					requestWait[0] = System.currentTimeMillis() + 60_000;
-					requestNote[0] = "Asking the server machine\u2026";
+					requestNote[0] = "Asking the owner\u2026"; noteFor[0] = m;
 					label.run();
 					new Thread(() -> {
-						String m;
+						String msg;
+						boolean ok = false;
 						try {
-							Map<String, Object> r = control.requestServer();
-							m = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty() ? "The server machine didn't take the request" : s(r.get("error"))) : s(r.get("message"));
-							if (!"ok".equals(s(r.get("result")))) requestWait[0] = 0;
-						} catch (IOException | RuntimeException ex) { m = "Couldn't reach the server machine (it may be asleep: Server controls can wake it, if you're allowed)"; requestWait[0] = 0; }
-						String msg = m;
-						SwingUtilities.invokeLater(() -> { requestNote[0] = msg; label.run(); });
+							Map<String, Object> r = control.request(m, text);
+							msg = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty() ? "The server machine didn't take the request" : s(r.get("error"))) : s(r.get("message"));
+							ok = "ok".equals(s(r.get("result")));
+						} catch (IOException | RuntimeException ex) { msg = "Couldn't reach the server machine (it may be asleep: Connection, Server controls can wake it, if you're allowed)"; }
+						String shown = msg;
+						boolean took = ok;
+						SwingUtilities.invokeLater(() -> {
+							if (took) { control.reqStates.put(m, "asked"); asked[0] = m; } else requestWait[0] = 0;
+							requestNote[0] = shown; noteFor[0] = m; label.run();
+						});
 					}, "request").start();
 				}
 			};
@@ -1476,12 +1793,22 @@ public final class LaunchPopup {
 				String ch = read(choice).trim();
 				if (!ch.isEmpty()) { try { Files.delete(choice); } catch (IOException ignored) {} exitCode = ch.equals("quit") ? QUIT : ch.equals("restart") ? RESTART : 0; }
 				try {
-					for (int i = 2; i < tabs.getTabCount(); i++) {   // Server controls and Server config too, as <file>-controls.png, -config.png
+					// Every other tab too: <file>-controls.png and -connection.png (inside Connection), -config.png,
+					// -mods.png, -manage.png.
+					String stem = png.replaceAll("\\.png$", "");
+					for (int i = 2; i < tabs.getTabCount(); i++) {
 						tabs.setSelectedIndex(i);
-						p.validate();
-						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (tabs.getTitleAt(i).startsWith("Server controls") ? "-controls.png" : tabs.getTitleAt(i).startsWith("Server config") ? "-config.png" : tabs.getTitleAt(i).startsWith("Remote") ? "-manage.png" : "-connection.png")));
+						String title = tabs.getTitleAt(i);
+						List<String> shots = new ArrayList<>();
+						if (title.equals("Connection")) for (int j = 0; j < connTabs.getTabCount(); j++) shots.add(connTabs.getTitleAt(j).startsWith("Server") ? "-controls.png" : "-connection.png");
+						else shots.add(title.startsWith("Server config") ? "-config.png" : title.startsWith("Client mods") ? "-mods.png" : "-manage.png");
+						for (int j = 0; j < shots.size(); j++) {
+							if (title.equals("Connection")) connTabs.setSelectedIndex(j);
+							p.validate();
+							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
+							javax.imageio.ImageIO.write(img, "png", new java.io.File(stem + shots.get(j)));
+						}
 					}
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);

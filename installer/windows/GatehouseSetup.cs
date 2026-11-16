@@ -454,10 +454,22 @@ static class Setup
         }
     }
 
+    // A plain word for the kind of device (it follows the shortcut's name), not the computer's own name.
     static string DeviceName()
     {
-        string n = System.Net.Dns.GetHostName();
-        return string.IsNullOrEmpty(n) ? Environment.MachineName : n;
+        try
+        {
+            string all = "";
+            foreach (string v in new[] { "SystemManufacturer", "SystemProductName", "SystemFamily" })
+                all += " " + (Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\HARDWARE\DESCRIPTION\System\BIOS", v, "") as string ?? "");
+            all = all.ToLowerInvariant();
+            if (all.Contains("valve") || all.Contains("jupiter") || all.Contains("galileo")) return "Steam Deck";
+            if (all.Contains("rog ally") || all.Contains("rog xbox ally")) return "ROG";
+            if (all.Contains("legion go")) return "Legion Go";
+            if ((SystemInformation.PowerStatus.BatteryChargeStatus & BatteryChargeStatus.NoSystemBattery) == 0) return "Laptop";
+        }
+        catch { }
+        return "PC";
     }
 
     // The library art, original to this pack and kept in the repo: cover, hero, logo, icon and wide capsule.

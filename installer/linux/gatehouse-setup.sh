@@ -92,7 +92,21 @@ PACK="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pack_n
 read -r PACK_HERE HAS_PRISM_SC HAS_GAME_SC < <(python3 - "$work/config.json" "$STEAM_ROOT" "$(instances_dir "${PRISM_ROOT:-$HOME/.var/app/$APP/data/PrismLauncher}")" <<'PY' || echo "0 0 0"
 import json, os, re, socket, struct, sys
 cfg = json.load(open(sys.argv[1])); steam, instances = sys.argv[2], sys.argv[3]
-inst_id, app, host = cfg["instance_id"], cfg["prism_flatpak"], socket.gethostname()
+def device_kind():
+    # A plain word for the kind of device (it follows the shortcut's name), not the computer's own name.
+    def rd(p):
+        try: return open(p).read().strip()
+        except OSError: return ""
+    vendor, product = rd("/sys/class/dmi/id/sys_vendor"), rd("/sys/class/dmi/id/product_name")
+    both = (vendor + " " + product + " " + rd("/sys/class/dmi/id/product_family")).lower()
+    if vendor.lower() == "valve" or product in ("Jupiter", "Galileo"): return "Steam Deck"
+    if "rog ally" in both or "rog xbox ally" in both: return "ROG"
+    if "legion go" in both: return "Legion Go"
+    try:
+        if any(n.startswith("BAT") for n in os.listdir("/sys/class/power_supply")): return "Laptop"
+    except OSError: pass
+    return "PC"
+inst_id, app, host = cfg["instance_id"], cfg["prism_flatpak"], device_kind()
 pack = os.path.isfile(os.path.join(instances, inst_id, "instance.cfg"))
 game_name = cfg.get("game_shortcut_name", cfg["pack_name"]) + " - " + host; prism_name = cfg["shortcut_name"] + " - " + host
 found = [0, 0]
@@ -302,7 +316,21 @@ if want_shortcut or want_game:
     if os.path.exists(svdf): shutil.copy2(svdf, svdf + ".bak-setup"); root, _ = rmap(open(svdf, "rb").read(), 0)
     else: root = [[0, "shortcuts", []]]
     sc = next(x for x in root if x[1].lower() == "shortcuts")[2]
-    host, inst_id = socket.gethostname(), cfg["instance_id"]
+    def device_kind():
+        # A plain word for the kind of device (it follows the shortcut's name), not the computer's own name.
+        def rd(p):
+            try: return open(p).read().strip()
+            except OSError: return ""
+        vendor, product = rd("/sys/class/dmi/id/sys_vendor"), rd("/sys/class/dmi/id/product_name")
+        both = (vendor + " " + product + " " + rd("/sys/class/dmi/id/product_family")).lower()
+        if vendor.lower() == "valve" or product in ("Jupiter", "Galileo"): return "Steam Deck"
+        if "rog ally" in both or "rog xbox ally" in both: return "ROG"
+        if "legion go" in both: return "Legion Go"
+        try:
+            if any(n.startswith("BAT") for n in os.listdir("/sys/class/power_supply")): return "Laptop"
+        except OSError: pass
+        return "PC"
+    host, inst_id = device_kind(), cfg["instance_id"]
     names = {"game": cfg.get("game_shortcut_name", cfg["pack_name"]) + " - " + host, "prism": cfg["shortcut_name"] + " - " + host}
     exe = '"/usr/bin/flatpak"'
     def field(e, k):

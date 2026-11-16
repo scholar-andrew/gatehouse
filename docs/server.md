@@ -86,9 +86,23 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   seen), with **Start MCSS** / **Close MCSS** for MCSS itself at the top (the same start and close the launchers
   ask for), and with their four permissions, **Server control**, **MCSS control**, **PC sleep** and **Keeper control**, each switched on or off
   for the selected launcher, plus **Forget** and **Set MCSS key...**, and shows a log of every request.
-- A launcher shows its Server controls and Server config tabs only once it has at least one permission (or its own
-  panel access). It remembers what the Keeper last said (`perm_*` in its `server-access.json`), so the tabs are still
-  there to wake a sleeping PC.
+- A launcher always shows Server controls (inside its Connection tab) and Server config, and is always told how the
+  machine, MCSS and the server are (`GET /v1/mcss`), whatever it may do; only a blacklisted launcher isn't. It
+  remembers what the Keeper last said (`perm_*`, `ban` in its `server-access.json`), so waking a sleeping PC and a
+  suspension both hold while the Keeper can't be asked.
+- **Three states.** Each permission (machine wake and sleep, MCSS, Minecraft server) is `allowed`, `none` (not
+  allowed: nobody decided) or `denied`, for a launcher (`devices.json`) or a player (`players.json`; `deny` holds the
+  denials). A player's setting goes to all their confirmed launchers, except a launcher that is itself denied that
+  permission. MCSS allowed includes the server. The control panel's **Access Manager** tab shows them as green,
+  white and red cells; click one to change it (`POST /admin/perm`, `/admin/player/perm` with `state`).
+- **Suspend, blacklist, kick** (`POST /admin/ban` with `kind` `suspend`, `blacklist` or empty to lift, for a launcher
+  `id` or a `player`; `POST /admin/kick`). A suspended launcher is told the server's state but may do nothing, and its
+  Play button becomes a request to be let back. A blacklisted one is told nothing about the machine, MCSS or the
+  server either (`/v1/mcss` carries only `ban`, `ban_scope` `machine` or `user`, `ban_reason` and its own requests).
+  Both still get pack updates. Banning a player also kicks them and takes them off the whitelist until it's lifted;
+  banning one launcher can't stop the player joining from another device, and the panel says so.
+- **Whitelist gate.** `/v1/mcss` tells a launcher whether its player is on the whitelist (`whitelisted`: `yes`, `no`,
+  `unknown`); on `no` its Play button asks to be added instead of starting the game.
 - Launchers allowed **Server control** start and stop the Minecraft server through the Keeper (`POST
   /v1/server/start|stop`; status from `GET /v1/server`, the shutdown check from `GET /v1/server/log`, the end of
   `logs/latest.log`), with no panel account or key on the device. The Keeper does it with its own MCSS API key, which
@@ -123,8 +137,12 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   "not confirmed" until the server sees that player join from it. What the owner allows a player (`players.json`)
   is set on all their confirmed launchers and on ones they join from later; a claim alone gets nothing. Player names
   stay in the Keeper's files on the PC.
-- **Requests.** Any launcher the Keeper knows can ask for the server to be turned on (`POST /v1/request`, the
-  launcher's Play button while the server is off; one a minute each, refused while the server runs). The Keeper logs
+- **Requests.** Any launcher the Keeper knows can ask the owner for something (`POST /v1/request` with `type` and an
+  optional `message`; one a minute for each type): `server` (turn the server on: the Play button while it's off,
+  refused while it runs), `perm:machine`, `perm:mcss`, `perm:server` (the Request permission buttons), `whitelist`,
+  `unsuspend` and `unblacklist` (all a banned launcher may ask). The panel lists each with a button that grants it
+  and **Dismiss...**, which takes an optional reason; the launcher reads the answer from `/v1/mcss` (`requests`,
+  `request_reasons`, kept 10 minutes), chimes on granted and flashes its button red on denied. The Keeper logs
   it, plays a short chime and, if the control panel isn't open, opens it minimized (`--panel --minimized`). The panel
   shows who asked in a banner with **Start server** (starts MCSS first if needed) and **Dismiss**, puts it in its
   window title and flashes its taskbar button. `request_alert` = `false` in `host.json` turns the chime and the
@@ -132,7 +150,7 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
 - The control panel has two tabs. **Access**: manage access **by launcher** (one device) or **by player** (all their
   devices), switched with the two choices at the top. **Status**: the Keeper, MCSS (Start/Close, sign-in or key), the
   Minecraft server (Start/Stop) and the activity log. A launcher with Keeper control has the same split in its
-  **Remote control panel** tab, as **Manage access** and **Keeper activity** (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
+  **Remote control panel** tab, as **Access Manager** and **Keeper activity** (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
   control itself). `OJ_PANEL_PNG=<file>` saves pictures of the panel's tabs instead of showing it (testing).
 - In the code, everything about MCSS is one file, `McssHost.java`, behind the `ServerHost` interface (running, start,
   close, the server's state, start/stop, and the Keeper's own access). The rest of the Keeper never reaches MCSS any
@@ -143,8 +161,9 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   the Keeper sends it `whitelist add <name>` or `whitelist remove <name>` through MCSS (`POST
   .../execute/command`; the Keeper's MCSS key needs console permission), so the server finds the account and saves
   the file itself. While it's off, the Keeper edits `whitelist.json` directly; adding then needs the account's id from
-  the server's `usercache.json`, so a player the server has never seen can only be added while it runs. Only from the
-  control panel on the PC, not from a launcher.
+  the server's `usercache.json`, so a player the server has never seen can only be added while it runs. A launcher
+  with Keeper control can do the same from its Access Manager (`POST /v1/admin/whitelist`), and kick, suspend and
+  blacklist (`/v1/admin/kick`, `/v1/admin/ban`), though never a launcher or player that has Keeper control.
 - **A dismissed request** is told to the launcher that asked: `/v1/mcss` carries `request` (`asked`, `denied` or
   empty), and the launcher shows "Request denied" above its button.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,

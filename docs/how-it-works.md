@@ -171,7 +171,7 @@ their next launch; nobody has to touch a device.
   shortcut's `installer/art-prism/*.png` (or `tools/make_prism_art.ps1`), or `installer/steam/controller_neptune.vdf`.
 - **The two Steam shortcuts** are made only by setup (Steam must be closed, because it rewrites `shortcuts.vdf` when it
   exits; the update runs while Steam is open). Their names are `game_shortcut_name` and `shortcut_name` in
-  `installer/config.json`, plus `" - <device name>"`. Setup recognises the October Journey one by `--launch <instance id>`
+  `installer/config.json`, plus `" - <kind of device>"` (PC, Laptop, Steam Deck, ROG; installs made before 1.9.17 used the computer's name). Setup recognises the October Journey one by `--launch <instance id>`
   in its launch options, and the Prism one as a Prism shortcut without `--launch`. When the instance is there but the
   October Journey shortcut isn't, setup's first choice adds only it (`--yes --add-shortcut` for scripts). Testing:
   `--config=file:///.../config.json` with `repo_raw` pointed at a local copy or a local web server, plus

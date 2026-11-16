@@ -6,7 +6,7 @@
   "instance_name": "October Journey 26.3 (Fabric)",
   "shortcut_name": "Minecraft (Prism Launcher)",
   "game_shortcut_name": "October Journey",
-  "_shortcuts": "Each followed by \" - <device name>\". shortcut_name opens Prism Launcher; game_shortcut_name starts the instance and joins the first server (Prism's --launch and --server).",
+  "_shortcuts": "Each followed by \" - <kind of device>\" (PC, Laptop, Steam Deck, ROG; older installs used the computer's name). shortcut_name opens Prism Launcher; game_shortcut_name starts the instance and joins the first server (Prism's --launch and --server).",
   "repo_raw": "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main",
   "_pack_sources": "Tried in order; each device keeps its own list the same as this one.",
   "pack_sources": [

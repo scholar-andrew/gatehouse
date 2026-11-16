@@ -45,6 +45,32 @@ final class ServerControl {
 	/** What became of this launcher's last request for the server to be turned on, as Gatehouse Keeper says: "asked",
 	 *  "denied" (the owner dismissed it), or empty. */
 	volatile String requestStatus = "";
+	/** Whether this launcher is shut out, as the Keeper says (remembered, so it holds while the server machine can't be
+	 *  asked): "blacklist" (told nothing about the machine, MCSS or the server), "suspend" (may not start the game or
+	 *  use any control), or empty. Scope "machine" (this device) or "user" (the player, on every device). */
+	volatile String ban = "", banScope = "", banReason = "";
+	/** Is this device's player on the server's whitelist: "yes", "no", or "unknown" (the Keeper doesn't know the name
+	 *  yet, or couldn't be asked). */
+	volatile String whitelisted = "unknown";
+	/** Each permission's state ("allowed", "denied", "none") for machine, mcss and server; and what became of this
+	 *  launcher's recent requests, by kind ("asked", "granted", "denied"), with the owner's reason for a dismissal. */
+	final Map<String, String> permStates = new java.util.concurrent.ConcurrentHashMap<>(), reqStates = new java.util.concurrent.ConcurrentHashMap<>(),
+			reqReasons = new java.util.concurrent.ConcurrentHashMap<>();
+	String permState(String perm) {
+		String s = permStates.get(perm);
+		if (s != null) return s;
+		return (perm.equals("machine") ? permSleep : perm.equals("mcss") ? permMcss : permServer) ? "allowed" : "none";
+	}
+
+	/** Asks the owner for something through Gatehouse Keeper (a chime and a line in the control panel there): "server"
+	 *  (turn the server on), "perm:machine", "perm:mcss", "perm:server", "whitelist", "unblacklist" or "unsuspend",
+	 *  with an optional message. Any launcher the Keeper knows may ask. */
+	Map<String, Object> request(String type, String message) throws IOException {
+		String body = "{\"type\": \"" + jsonEsc(type) + "\", \"message\": \"" + jsonEsc(message == null ? "" : message) + "\"}";
+		Map<String, Object> r = helper("POST", "/v1/request", body);
+		if (str(r.get("_code")).equals("401")) { hello(); r = helper("POST", "/v1/request", body); }
+		return r;
+	}
 	/** The server panel refused the sign-in or key saved here (signed out there, expired, or no access to this server). */
 	volatile boolean accessRejected;
 
@@ -74,6 +100,7 @@ final class ServerControl {
 		username = str(a.get("username"));
 		deviceId = str(a.get("device_id"));
 		deviceToken = str(a.get("device_token"));
+		ban = str(a.get("ban")); banScope = str(a.get("ban_scope")); banReason = str(a.get("ban_reason"));
 		permMcss = "true".equals(str(a.get("perm_mcss"))); permSleep = "true".equals(str(a.get("perm_sleep"))); permServer = "true".equals(str(a.get("perm_server"))); permAdmin = "true".equals(str(a.get("perm_admin")));
 		if (!helperUrl.isEmpty() && (deviceId.isEmpty() || deviceToken.length() < 32)) {
 			java.security.SecureRandom r = new java.security.SecureRandom();
@@ -135,7 +162,8 @@ final class ServerControl {
 		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
 				+ "\", \"username\": \"" + jsonEsc(username) + "\", \"device_id\": \"" + jsonEsc(str(deviceId))
 				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\", \"perm_mcss\": " + permMcss + ", \"perm_sleep\": " + permSleep
-				+ ", \"perm_server\": " + permServer + ", \"perm_admin\": " + permAdmin + "}\n", StandardCharsets.UTF_8);
+				+ ", \"perm_server\": " + permServer + ", \"perm_admin\": " + permAdmin
+				+ ", \"ban\": \"" + jsonEsc(ban) + "\", \"ban_scope\": \"" + jsonEsc(banScope) + "\", \"ban_reason\": \"" + jsonEsc(banReason) + "\"}\n", StandardCharsets.UTF_8);
 	}
 
 	/** Signs in to the panel with the player's own account, as the panel's web page does (POST /auth), and keeps the
@@ -392,6 +420,17 @@ final class ServerControl {
 				try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
 			}
 			requestStatus = str(r.get("request"));
+			// Shut out or not, the whitelist, each permission's state, and what became of this launcher's requests.
+			String nb = str(r.get("ban")), ns = str(r.get("ban_scope")), nr = str(r.get("ban_reason"));
+			boolean banChanged = !nb.equals(ban) || !ns.equals(banScope) || !nr.equals(banReason);
+			ban = nb; banScope = ns; banReason = nr;
+			if (banChanged) try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
+			whitelisted = r.containsKey("whitelisted") ? str(r.get("whitelisted")) : "unknown";
+			for (Object[] pair : new Object[][] {{permStates, r.get("perm")}, {reqStates, r.get("requests")}, {reqReasons, r.get("request_reasons")}}) {
+				@SuppressWarnings("unchecked") Map<String, String> into = (Map<String, String>) pair[0];
+				into.clear();
+				for (Map.Entry<String, Object> e : asMap(pair[1]).entrySet()) into.put(e.getKey(), str(e.getValue()));
+			}
 			// From the owner, through the Keeper: the order to forget whatever sign-in or key is saved here.
 			if ("true".equals(str(r.get("clear_access"))) && !apiKey.isEmpty()) {
 				try { username = ""; save("", wakeAddress); } catch (IOException ignored) {}
@@ -402,11 +441,7 @@ final class ServerControl {
 
 	/** Asks Gatehouse Keeper to tell the owner this device wants the server turned on (a chime and the control panel on the
 	 *  server machine). Any launcher the Keeper knows may ask; no permission is needed. */
-	Map<String, Object> requestServer() throws IOException {
-		Map<String, Object> r = helper("POST", "/v1/request", "{}");
-		if (str(r.get("_code")).equals("401")) { hello(); r = helper("POST", "/v1/request", "{}"); }
-		return r;
-	}
+	Map<String, Object> requestServer() throws IOException { return request("server", ""); }
 
 	/** Asks Gatehouse Keeper to put the server machine to sleep (needs the owner's separate "PC sleep" permission). */
 	Map<String, Object> sleepPc() throws IOException { return helper("POST", "/v1/pc/sleep", "{}"); }
