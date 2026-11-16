@@ -89,7 +89,11 @@ These change only when the tool gets its own name.
 
 The tool is **Gatehouse** (decided 2026-11-15). Done: the host helper and panel (titles, the Start menu entry, the
 scheduled task, the folder `C:\Minecraft\GatehouseHost`), the launcher's title bar, and the settings mod's name in
-the game's mod menu. Still under the old name, to be done in this order: the installers and uninstallers (file names
-and wording, a new release), then the repository (first a pack update that points devices at the new address, then
+the game's mod menu. The installers and uninstallers are renamed too (`GatehouseSetup.exe`,
+`GatehouseUninstall.exe`, `gatehouse-setup.sh`, `gatehouse-uninstall.sh`; setup's messages take the pack's name from the
+profile). What setup saves on a device keeps its old names so existing installs keep working: the tools folder
+(`OctoberJourney`, `~/.local/share/october-journey`), the saved copies (`OctoberJourneySetup.exe`,
+`OctoberJourneyUninstall.exe`), the Settings > Apps key and the app-menu files. The uninstallers still know only
+October Journey. Still under the old name: the repository (first a pack update that points devices at the new address, then
 the rename once every device has launched). Names nobody sees (the Java package `dev.octoberjourney`, the mod's id
 `octoberjourney`, `oj-host.jar`) stay as they are.

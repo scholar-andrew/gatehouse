@@ -1,5 +1,8 @@
-// October Journey uninstaller for Windows: undoes what OctoberJourneySetup.exe did, item by item. Built like the installer:
-//   csc /target:exe /out:OctoberJourneyUninstall.exe /r:System.Windows.Forms.dll OctoberJourneyUninstall.cs Options.cs Nbt.cs
+// Gatehouse uninstaller for Windows: undoes what GatehouseSetup.exe (once OctoberJourneySetup.exe) did, item by item.
+// It still knows one pack, October Journey (its instance, shortcut names and server below, and the folder, file names
+// and Settings > Apps key setup saves under that name): it works offline, without a profile to read. Removing another
+// profile's pack needs setup to save that profile beside it first (docs/profiles.md, still to do). Built like the installer:
+//   csc /target:exe /out:GatehouseUninstall.exe /r:System.Windows.Forms.dll GatehouseUninstall.cs Options.cs Nbt.cs
 // The first screen offers a quick uninstall (everything it finds except Prism Launcher) or choosing item by item. It
 // finds Prism Launcher, the instance and the saved installer and uninstaller wherever setup put them (Prism's own
 // records and instances setting, the Settings > Apps entry). The items (all ticked except Prism Launcher):
@@ -37,7 +40,7 @@ static class Uninstall
     // starts the game and joins the server.
     static readonly string[] ShortcutName = { "Minecraft (Prism Launcher)", "October Journey" };
     const string InstanceId = "october-journey";
-    const string Title = "October Journey uninstall";
+    const string Title = "Gatehouse uninstall";
     const string AppsKey = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney";
     static bool quiet;
     static StreamWriter log;
@@ -56,11 +59,11 @@ static class Uninstall
         Options.ScreenshotPath = Arg(args, "--screenshot");
         var skip = new HashSet<string>((Arg(args, "--skip") ?? "").Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()));
         if (args.Contains("--keep-instance")) skip.Add("instance");
-        string logPath = Path.Combine(Path.GetTempPath(), "OctoberJourneyUninstall.log");
+        string logPath = Path.Combine(Path.GetTempPath(), "GatehouseUninstall.log");
         log = new StreamWriter(logPath, false, Encoding.UTF8) { AutoFlush = true };
         try
         {
-            Say("October Journey uninstall");
+            Say("Gatehouse uninstall (October Journey)");
 
             // What's here.
             string steam = steamRoot ?? SteamPath();

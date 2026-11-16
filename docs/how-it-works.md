@@ -41,9 +41,9 @@ each device: Prism pre-launch → pack-sync.ps1 / pack-sync.sh → packwiz-insta
 | `clients/mmc-pack.json` | The Prism instance's component list (Minecraft, Fabric Loader). |
 | `clients/pack-sources.txt` | The default list of pack addresses (setup writes its own from `config.json`). |
 | `installer/config.json` | Read by both installers on every run: server list, pack addresses, Prism version and SHA-256, bootstrap SHA-256, art paths. Changing it changes the next install without a rebuild. |
-| `installer/windows/OctoberJourneySetup.cs`, `OctoberJourneyUninstall.cs` | Windows installer and uninstaller source (C# 5, .NET Framework 4). The `.exe` files are gitignored and published only in releases. |
+| `installer/windows/GatehouseSetup.cs`, `GatehouseUninstall.cs` | Windows installer and uninstaller source (C# 5, .NET Framework 4). The `.exe` files are gitignored and published only in releases. |
 | `installer/windows/Options.cs`, `Nbt.cs` | Shared by both: the quick-or-custom first screen, the window of choices (with the dependencies between items and the folder pickers), and reading and writing Minecraft's `servers.dat`. |
-| `installer/linux/october-journey-setup.sh`, `october-journey-uninstall.sh` | Linux installer and uninstaller, including the Steam Deck. |
+| `installer/linux/gatehouse-setup.sh`, `gatehouse-uninstall.sh` | Linux installer and uninstaller, including the Steam Deck. |
 | `installer/art/*.png` | Steam library art for the October Journey shortcut, made for this pack by `tools/make_art.ps1`. |
 | `installer/art-prism/*.png` | Steam library art for the Prism Launcher shortcut: Prism's logo (`source/prism-logo.png`, rendered from the scalable logo that ships with Prism) on a plain background, by `tools/make_prism_art.ps1`. Licence in its `NOTICE.md`. |
 | `installer/steam/controller_neptune.vdf` | Steam Deck controller layout ("Minecraft - R4 jump, L4 crouch, trackpad mouse"). |
@@ -198,8 +198,8 @@ their next launch; nobody has to touch a device.
 The installers download everything else at run time, so they only need a new release when their own code changes.
 1. Windows: build both with the compiler that ships with Windows:
    ```
-   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneySetup.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\OctoberJourneySetup.cs installer\windows\Options.cs installer\windows\Nbt.cs
-   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\OctoberJourneyUninstall.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\OctoberJourneyUninstall.cs installer\windows\Options.cs installer\windows\Nbt.cs
+   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\GatehouseSetup.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\GatehouseSetup.cs installer\windows\Options.cs installer\windows\Nbt.cs
+   C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /optimize /target:exe /out:installer\windows\GatehouseUninstall.exe /r:System.Web.Extensions.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll installer\windows\GatehouseUninstall.cs installer\windows\Options.cs installer\windows\Nbt.cs
    ```
 2. Test without touching your real setup: run setup, then the uninstaller, both with
    `--yes --prism-root=<temp dir> --steam-root=<temp dir>` (the Linux scripts take the same flags; the temp Steam

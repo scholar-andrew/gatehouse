@@ -1,7 +1,11 @@
 #!/bin/bash
-# October Journey setup for Linux, including the Steam Deck (Flatpak Prism Launcher). Run it from a terminal (on a
+# Gatehouse setup for Linux: installs a server profile's pack (docs/profiles.md; by default October Journey's, whose
+# profile is CONFIG_URL below; --config= gives another). The pack's name in every message comes from the profile.
+# Kept from before the tool was called Gatehouse, so existing installs keep working: the folder it saves to
+# (~/.local/share/october-journey) and its app-menu files (october-journey-setup.desktop, -uninstall.desktop).
+# For Linux, including the Steam Deck (Flatpak Prism Launcher). Run it from a terminal (on a
 # Steam Deck: in Desktop Mode, from Konsole):
-#   bash october-journey-setup.sh
+#   bash gatehouse-setup.sh
 # It reads installer/config.json from the GitHub repo and always installs the October Journey modpack: a Prism Launcher
 # instance whose mods update on every launch, in Prism's own instances folder. It first offers a quick install
 # (everything below, in the usual places); otherwise it asks about each of these (Enter = yes) and where to save the
@@ -41,7 +45,7 @@ for a in "$@"; do
     --steam-root=*) STEAM_ROOT="${a#*=}"; TESTING=1 ;;
   esac
 done
-say() { echo "October Journey setup: $*"; }
+say() { echo "Gatehouse setup: $*"; }
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 curl -fsSL "$CONFIG_URL" -o "$work/config.json"
 APP="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["prism_flatpak"])' "$work/config.json")"
@@ -73,13 +77,15 @@ saved_tools="$(sed -n 's|^Exec=bash "\(.*\)/uninstall.sh".*|\1|p' "$menu_dir/oct
 [ -n "$saved_tools" ] && [ -d "$saved_tools" ] && default_tools="$saved_tools"
 [ -n "$TOOLS_DIR" ] || TOOLS_DIR="$default_tools"
 
+# The pack being installed, as its profile names it.
+PACK="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["pack_name"])' "$work/config.json" 2>/dev/null || echo "the pack")"
 # What's here already: the pack, and which of the two Steam shortcuts (prints "<pack> <prism shortcut> <game shortcut>").
 read -r PACK_HERE HAS_PRISM_SC HAS_GAME_SC < <(python3 - "$work/config.json" "$STEAM_ROOT" "$(instances_dir "${PRISM_ROOT:-$HOME/.var/app/$APP/data/PrismLauncher}")" <<'PY' || echo "0 0 0"
 import json, os, re, socket, struct, sys
 cfg = json.load(open(sys.argv[1])); steam, instances = sys.argv[2], sys.argv[3]
 inst_id, app, host = cfg["instance_id"], cfg["prism_flatpak"], socket.gethostname()
 pack = os.path.isfile(os.path.join(instances, inst_id, "instance.cfg"))
-game_name = cfg.get("game_shortcut_name", "October Journey") + " - " + host; prism_name = cfg["shortcut_name"] + " - " + host
+game_name = cfg.get("game_shortcut_name", cfg["pack_name"]) + " - " + host; prism_name = cfg["shortcut_name"] + " - " + host
 found = [0, 0]
 try:
     users = re.findall(r'"(7656\d{13})"\s*\{(.*?)\}', open(os.path.join(steam, "config", "loginusers.vdf")).read(), re.S)
@@ -110,9 +116,9 @@ PY
 OFFER_ADD=0
 [ "$PACK_HERE" = 1 ] && [ "$HAS_GAME_SC" = 0 ] && [ -d "$STEAM_ROOT" ] && [ "$PRISM_INSTALLED" = 1 ] && OFFER_ADD=1
 [ "$ADD_FLAG" = 1 ] && [ "$OFFER_ADD" = 1 ] && ADD_ONLY=1
-echo "October Journey setup installs the modpack: a Prism Launcher instance whose mods update every time you play."
+echo "Gatehouse setup installs the $PACK modpack: a Prism Launcher instance whose mods update every time you play."
 if [ "$YES" = 0 ] && [ "$OFFER_ADD" = 1 ]; then
-  read -r -p "October Journey is already set up here. Add just the new \"October Journey\" Steam shortcut (starts the game and joins the server), with the art and controller layout for both shortcuts? [Y/n] " ans
+  read -r -p "$PACK is already set up here. Add just the new \"$PACK\" Steam shortcut (starts the game and joins the server), with the art and controller layout for both shortcuts? [Y/n] " ans
   case "${ans:-y}" in y|Y|yes) ADD_ONLY=1 ;; esac
 fi
 if [ "$ADD_ONLY" = 1 ]; then
@@ -122,25 +128,25 @@ if [ "$ADD_ONLY" = 1 ]; then
   C_installer=0; [ -f "$TOOLS_DIR/setup.sh" ] && C_installer=1
 else
 if [ "$YES" = 0 ]; then
-  read -r -p "Quick install: Prism Launcher, the server, two Steam shortcuts (October Journey and Prism Launcher) with their art and controller layout, updates, and the uninstaller, in the usual places? [Y/n] " ans
+  read -r -p "Quick install: Prism Launcher, the server, two Steam shortcuts ($PACK and Prism Launcher) with their art and controller layout, updates, and the uninstaller, in the usual places? [Y/n] " ans
   case "${ans:-y}" in y|Y|yes) QUICK=1 ;; *) echo "Choose what to add (Enter = the answer in capitals):" ;; esac
 fi
 if [ "$PRISM_INSTALLED" = 1 ]; then C_prism=1; echo "  Prism Launcher: already installed."
 else choose prism "Install Prism Launcher from Flathub?" y; fi
-choose server "Add the October Journey server to the server list?" y
+choose server "Add the $PACK server to the server list?" y
 if [ -d "$STEAM_ROOT" ] && [ "$C_prism" = 1 ]; then
-  choose game "Add the October Journey Steam shortcut, which starts the game and joins the server? (Steam has to be closed)" y
+  choose game "Add the $PACK Steam shortcut, which starts the game and joins the server? (Steam has to be closed)" y
   choose shortcut "Add a Prism Launcher Steam shortcut, which opens the launcher? (Steam has to be closed)" y
 else C_game=0; C_shortcut=0; [ -d "$STEAM_ROOT" ] || echo "  Steam isn't installed: no Steam shortcuts."; fi
 if [ "$C_game$C_shortcut" != 00 ]; then
-  choose art "Add the Steam library art (October Journey's, and Prism Launcher's logo for its shortcut)?" y
+  choose art "Add the Steam library art ($PACK's, and Prism Launcher's logo for its shortcut)?" y
   choose controller "Add the Steam Deck controller layout to the shortcuts?" y
 else C_art=0; C_controller=0; fi
 if [ "$C_server" = 1 ] || [ "$C_art" = 1 ] || [ "$C_controller" = 1 ]; then
   choose updates "Keep those up to date each time you play? (changes you make yourself are kept)" y
 else C_updates=0; fi
-choose uninstaller "Save the uninstaller (app menu: Uninstall October Journey)?" y
-choose installer "Save this installer (app menu: October Journey setup), to change these choices later?" y
+choose uninstaller "Save the uninstaller (app menu: Uninstall $PACK)?" y
+choose installer "Save this installer (app menu: $PACK setup), to change these choices later?" y
 fi
 if [ "$YES" = 0 ] && [ "$QUICK" = 0 ] && [ "$ADD_ONLY" = 0 ] && [ "$C_uninstaller$C_installer" != 00 ]; then
   while :; do
@@ -180,7 +186,7 @@ repo = cfg["repo_raw"]
 def get(url):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) OctoberJourneySetup/1.0"})
     return urllib.request.urlopen(req, timeout=60).read()
-def say(s): print("October Journey setup:", s)
+def say(s): print("Gatehouse setup:", s)
 
 # 1. The instance, the pack sync and the server list.
 inst = os.path.join(instances, cfg["instance_id"]); mc = os.path.join(inst, "minecraft")
@@ -288,7 +294,7 @@ if want_shortcut or want_game:
     else: root = [[0, "shortcuts", []]]
     sc = next(x for x in root if x[1].lower() == "shortcuts")[2]
     host, inst_id = socket.gethostname(), cfg["instance_id"]
-    names = {"game": cfg.get("game_shortcut_name", "October Journey") + " - " + host, "prism": cfg["shortcut_name"] + " - " + host}
+    names = {"game": cfg.get("game_shortcut_name", cfg["pack_name"]) + " - " + host, "prism": cfg["shortcut_name"] + " - " + host}
     exe = '"/usr/bin/flatpak"'
     def field(e, k):
         return next((x for x in e if x[1].lower() == k.lower()), None)
@@ -399,14 +405,14 @@ then
   cat > "$menu_dir/october-journey-uninstall.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Uninstall October Journey
-Comment=Remove the October Journey Minecraft setup (Steam shortcut, art, controller layout, Prism instance)
+Name=Uninstall $PACK
+Comment=Remove the $PACK Minecraft setup (Steam shortcut, art, controller layout, Prism instance)
 Exec=bash "$app_dir/uninstall.sh" --pause
 Icon=edit-delete
 Terminal=true
 Categories=Game;
 EOF
-  say "uninstaller saved: $app_dir/uninstall.sh (in the app menu as \"Uninstall October Journey\")."
+  say "uninstaller saved: $app_dir/uninstall.sh (in the app menu as \"Uninstall $PACK\")."
 else
   say "uninstaller not added; it can be downloaded from the release page."
 fi
@@ -419,14 +425,14 @@ if [ "$C_installer" = 1 ]; then
     cat > "$menu_dir/october-journey-setup.desktop" <<EOF
 [Desktop Entry]
 Type=Application
-Name=October Journey setup
-Comment=Add October Journey items (Steam shortcut, art, controller layout, server entry) or update the setup
+Name=$PACK setup
+Comment=Add $PACK items (Steam shortcut, art, controller layout, server entry) or update the setup
 Exec=bash "$app_dir/setup.sh" --pause
 Icon=system-software-install
 Terminal=true
 Categories=Game;
 EOF
-    say "installer saved: $app_dir/setup.sh (in the app menu as \"October Journey setup\")."
+    say "installer saved: $app_dir/setup.sh (in the app menu as \"$PACK setup\")."
   else
     say "installer not saved: it wasn't run from a file."
   fi

@@ -17,10 +17,10 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
 - **Steam** (optional). Without it, setup still makes the Prism instance; you just play from Prism.
 
 ## Windows
-1. Download [**OctoberJourneySetup.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneySetup.exe).
+1. Download [**GatehouseSetup.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseSetup.exe).
 2. Run it. Windows may say "Windows protected your PC" because the file isn't code-signed: click **More info**, then
    **Run anyway**. It doesn't need administrator rights. Its full source is
-   [`installer/windows/OctoberJourneySetup.cs`](installer/windows/OctoberJourneySetup.cs).
+   [`installer/windows/GatehouseSetup.cs`](installer/windows/GatehouseSetup.cs).
    - **If the file disappears** and Windows says it "cannot access the specified device, path, or file", your
      antivirus removed it. Panda Dome did this on the tested desktop without listing it in its quarantine; with Panda
      Dome uninstalled, the same file ran normally. Allow the file in your antivirus (or check its quarantine) and
@@ -33,11 +33,11 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
 
 ## Linux, including Steam Deck
 1. Download (on a Steam Deck, switch to **Desktop Mode** first)
-   [**october-journey-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-setup.sh).
+   [**gatehouse-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-setup.sh).
    It's a plain script: you can open it in a text editor and read it before running it.
 2. Open a terminal in your Downloads folder (on a Steam Deck: **Konsole**) and run:
    ```bash
-   bash october-journey-setup.sh
+   bash gatehouse-setup.sh
    ```
    It first offers a quick install (press Enter); answer `n` to be asked about each item and where to save the
    uninstaller and installer ([Choosing what to install](#choosing-what-to-install)). It installs
@@ -85,7 +85,7 @@ For scripts: `--yes` is a quick install without asking, `--skip=item,item` leave
 `game` (the October Journey shortcut), `shortcut` (the Prism Launcher one), `art`, `controller`, `updates`,
 `uninstaller`, `installer`), `--yes --add-shortcut` does only what **Add the October Journey shortcut** does, `--tools-dir=DIR` picks the uninstaller and
 installer's folder, and on Windows `--prism-dir=DIR` picks Prism Launcher's; for example
-`OctoberJourneySetup.exe --yes --skip=art,updates`.
+`GatehouseSetup.exe --yes --skip=art,updates`.
 
 ## Staying up to date
 Nothing to do: every launch checks for mod changes and installs them before the game starts. Running setup again is
@@ -247,7 +247,7 @@ it installs comes from the places listed in [What it connects to](#what-it-conne
 administrator rights, installs no services and adds nothing that starts with your computer. Each numbered step below
 happens only if you chose that item, except the game instance, which is always installed.
 
-### Windows (`OctoberJourneySetup.exe`)
+### Windows (`GatehouseSetup.exe`)
 1. **Prism Launcher** (item *Prism Launcher*). If Prism isn't installed (it looks in
    `%LOCALAPPDATA%\Programs\PrismLauncher` and in Windows' list of installed programs), it downloads the official
    Prism Launcher Windows installer (the version in `config.json`) from Prism's GitHub releases, checks it against the
@@ -283,16 +283,16 @@ happens only if you chose that item, except the game instance, which is always i
      folder above.
    - Writes `steam-target.json` in the instance's `minecraft\` folder: where each shortcut's art and layout live, so
      updates can reach them.
-4. **The uninstaller** (item *Save the uninstaller*). Downloads `OctoberJourneyUninstall.exe` from this repository's
+4. **The uninstaller** (item *Save the uninstaller*). Downloads `GatehouseUninstall.exe` from this repository's
    release, checks it against the SHA-256 in `config.json`, saves it as `OctoberJourneyUninstall.exe` in the folder
    you chose (default `%LOCALAPPDATA%\OctoberJourney`), and lists it in **Settings, Apps** as **October Journey
    (Minecraft modpack)** (a registry entry under `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\OctoberJourney`,
    for your user only). If the download or check fails, setup carries on without it.
 5. **The installer** (item *Save this installer*): copies itself to `OctoberJourneySetup.exe` in the same folder;
    with the uninstaller saved too, the Settings, Apps entry gets a **Modify** button that runs it.
-6. A log of every step is written to `%TEMP%\OctoberJourneySetup.log`.
+6. A log of every step is written to `%TEMP%\GatehouseSetup.log`.
 
-### Linux, including Steam Deck (`october-journey-setup.sh`)
+### Linux, including Steam Deck (`gatehouse-setup.sh`)
 Same steps, with these differences:
 1. **Prism Launcher** comes from Flathub: if `org.prismlauncher.PrismLauncher` isn't installed, it adds the Flathub
    remote for your user (`flatpak remote-add --user --if-not-exists flathub ...`) and runs
@@ -368,8 +368,8 @@ removed. Steam has to be closed if you remove anything of Steam's; they ask. Not
 
 | Operating system | Already installed by setup | Or download it | Source |
 | --- | --- | --- | --- |
-| **Windows** | **Settings**, **Apps**, **October Journey (Minecraft modpack)**, **Uninstall** | [OctoberJourneyUninstall.exe](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe) | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
-| **Linux**, including **Steam Deck** | **Uninstall October Journey** in the app menu (Steam Deck: Desktop Mode) | [october-journey-uninstall.sh](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-uninstall.sh), then `bash october-journey-uninstall.sh` | [`october-journey-uninstall.sh`](installer/linux/october-journey-uninstall.sh) |
+| **Windows** | **Settings**, **Apps**, **October Journey (Minecraft modpack)**, **Uninstall** | [GatehouseUninstall.exe](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseUninstall.exe) | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
+| **Linux**, including **Steam Deck** | **Uninstall October Journey** in the app menu (Steam Deck: Desktop Mode) | [gatehouse-uninstall.sh](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-uninstall.sh), then `bash gatehouse-uninstall.sh` | [`gatehouse-uninstall.sh`](installer/linux/gatehouse-uninstall.sh) |
 
 The downloaded copy works too on a setup made before setup saved the uninstaller.
 
@@ -388,7 +388,7 @@ The downloaded copy works too on a setup made before setup saved the uninstaller
 Only items that are actually there are offered. For scripts: `--yes` is a quick uninstall without asking,
 `--skip=item,item` keeps items (`shortcut`, `art`, `controller`, `permissions` (Linux), `instance`, `server`, `prism`,
 `installer`, `uninstaller`), and `--keep-instance` and `--remove-prism` still work. The Windows one logs to
-`%TEMP%\OctoberJourneyUninstall.log`.
+`%TEMP%\GatehouseUninstall.log`.
 
 Setup's backup of the shortcut list (`shortcuts.vdf.bak-setup`) is left in place; delete it by hand if you like.
 

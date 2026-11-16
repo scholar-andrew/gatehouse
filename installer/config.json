@@ -1,5 +1,5 @@
 {
-  "_about": "Read by the October Journey installers each time they run. Change it here (on GitHub) and the next install uses it; no rebuild needed.",
+  "_about": "Read by the Gatehouse installers each time they run. Change it here (on GitHub) and the next install uses it; no rebuild needed.",
   "_profile": "This file is the server profile (docs/profiles.md): everything about this one server that the launcher, the sync scripts, the installers and the host helper need. pack_name is the name they show. The build ships what devices need as extras/profile.json.",
   "pack_name": "October Journey",
   "instance_id": "october-journey",
@@ -68,12 +68,12 @@
     "wide": "installer/art-prism/wide.png"
   },
   "uninstall_windows": {
-    "url": "https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe",
-    "sha256": "6ED67AEFC74CC6E9D6D9C562340681AE528B8EDF8FB53F4A4383825F498D70C0"
+    "url": "https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseUninstall.exe",
+    "sha256": "D93EE8B8B1FF3C63FBD9078C1A8EBCEF1F34DCB877FBE25E6AE2CCFAEB367EC7"
   },
   "uninstall_linux": {
-    "url": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/linux/october-journey-uninstall.sh",
-    "sha256": "F81FAC6304D64BF4C1AB01E31FD76E2F2CE0908780F2EE918FCF32DC02890455"
+    "url": "https://raw.githubusercontent.com/scholar-andrew/october-journey-pack/main/installer/linux/gatehouse-uninstall.sh",
+    "sha256": "3489F7D0EDBB7C6651046C512A70FD77E4D05EA351FA12921020E522F210240B"
   },
   "_uninstall": "Setup saves these uninstallers on the device. After changing either one, put its new SHA-256 here (and upload the exe to the release), or setup skips it."
 }

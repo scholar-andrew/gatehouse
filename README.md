@@ -8,8 +8,8 @@ this client pack to play on it. **About the server** (settings, mods, Jarvis, an
 
 | Operating system | Install | Uninstall |
 | --- | --- | --- |
-| **Windows** 10 (64-bit) | [**OctoberJourneySetup.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneySetup.exe) | [**OctoberJourneyUninstall.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/OctoberJourneyUninstall.exe) |
-| **Linux**, including **Steam Deck** (SteamOS 3.9) | [**october-journey-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-setup.sh) | [**october-journey-uninstall.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/october-journey-uninstall.sh) |
+| **Windows** 10 (64-bit) | [**GatehouseSetup.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseSetup.exe) | [**GatehouseUninstall.exe**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/GatehouseUninstall.exe) |
+| **Linux**, including **Steam Deck** (SteamOS 3.9) | [**gatehouse-setup.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-setup.sh) | [**gatehouse-uninstall.sh**](https://github.com/scholar-andrew/october-journey-pack/releases/latest/download/gatehouse-uninstall.sh) |
 
 One download sets up everything: Prism Launcher, the modpack (it updates itself each time you play), the server in your
 server list, and two Steam shortcuts: **October Journey** (updates, starts the game and joins the server) and **Prism
@@ -19,7 +19,7 @@ existed? Run setup again and pick **Add the October Journey shortcut**.
 - **Windows:** run the exe. If Windows says "Windows protected your PC", click **More info**, then **Run anyway** (the
   file isn't code-signed).
 - **Linux, including Steam Deck:** in a terminal (on a Steam Deck: Desktop Mode, then Konsole), go to your Downloads
-  folder and run `bash october-journey-setup.sh`.
+  folder and run `bash gatehouse-setup.sh`.
 
 Step-by-step instructions and requirements (Minecraft account, Tailscale access, whitelist): [INSTALL.md](INSTALL.md).
 What it was tested on, with hardware: [INSTALL.md: Tested on](INSTALL.md#tested-on).

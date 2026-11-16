@@ -1,8 +1,10 @@
 #!/bin/bash
-# October Journey uninstaller for Linux, including the Steam Deck: undoes what october-journey-setup.sh did, item by
+# Gatehouse uninstaller for Linux. It still knows one pack, October Journey (its instance, shortcut names and server,
+# and the folder and app-menu files setup saves under that name): it works offline, without a profile to read.
+# For Linux, including the Steam Deck: undoes what gatehouse-setup.sh (once october-journey-setup.sh) did, item by
 # item. Run it from a terminal (on a Steam Deck: in Desktop Mode, from Konsole), or from the app menu ("Uninstall October
 # Journey"):
-#   bash october-journey-uninstall.sh
+#   bash gatehouse-uninstall.sh
 # It first offers a quick uninstall (everything it finds except Prism Launcher); otherwise it asks about each item it
 # finds (Enter = yes, except Prism Launcher). It finds the instance in Prism's own instances folder, and the saved
 # installer and uninstaller wherever setup put them (from their app-menu entries). The items:
@@ -35,7 +37,7 @@ for a in "$@"; do
     --steam-root=*) STEAM_ROOT="${a#*=}"; TESTING=1 ;;
   esac
 done
-say() { echo "October Journey uninstall: $*"; }
+say() { echo "Gatehouse uninstall: $*"; }
 finish() { if [ "$PAUSE" = 1 ]; then read -r -p "Press Enter to close. " _ || true; fi; }
 instances_dir() {  # Prism's instances folder: <data>/instances, unless Prism's own settings name another
   python3 -c 'import os,sys
@@ -239,7 +241,7 @@ import json, os, re, shutil, sys
 sys.path.insert(0, sys.argv[1]); from lib import *
 steam, mc = sys.argv[2], sys.argv[3]
 c_short, c_art, c_ctrl, c_inst, c_srv = (x == "1" for x in sys.argv[4])
-def say(s): print("October Journey uninstall:", s)
+def say(s): print("Gatehouse uninstall:", s)
 found = shortcuts(steam, remove=c_short)
 for acct, name, appid in found:
     if c_short: say('removed Steam shortcut "%s" (account %s).' % (name, acct))
@@ -283,7 +285,7 @@ for l in open(p).read().splitlines():
         continue
     out.append(l)
 open(p, "w").write("\n".join(out) + "\n")
-print("October Journey uninstall: removed %d Flatpak folder permission(s) from Prism." % dropped)
+print("Gatehouse uninstall: removed %d Flatpak folder permission(s) from Prism." % dropped)
 PY
 fi
 
