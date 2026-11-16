@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.6.2",
+ "version": "2.7.0",
  "changes": [
+  {"version": "2.7.0", "date": "2026-11-16", "notes": [
+   "Gatehouse can be installed by itself, with no game and no server pack: a new installer (gatehouse-install.ps1 on Windows, gatehouse-install.sh on Linux and Steam Deck) sets up just the launcher. You then add a Gatekeeper and install its servers from Gatehouse.",
+   "Installed that way, Gatehouse has a home of its own (a gatehouse\\app folder inside Prism Launcher's) and keeps itself and the scripts beside it up to date from there, whether or not any pack is installed.",
+   "A plain server can be set up on a device with no pack installed: it takes its launcher files from Gatehouse's own home.",
+   "On Windows the same installer can install Gatekeeper instead, or both."
+  ]},
   {"version": "2.6.2", "date": "2026-11-16", "notes": [
    "Fixed: removing a Gatekeeper and adding it again made this device look like a new one to its owner (a second entry in their Access Manager, with nothing allowed). When a pack from that Gatekeeper is installed, adding it again now picks up the same identity, so everything the owner had allowed still applies."
   ]},

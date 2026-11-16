@@ -85,6 +85,9 @@ final class PackInstall {
 				if (!m.toAbsolutePath().equals(mc.toAbsolutePath()) && Files.isRegularFile(m.resolve("extras/plain-launch." + ext)) && Files.isRegularFile(m.resolve("extras/launch-popup.jar")) && Files.isRegularFile(m.resolve("packwiz-installer-bootstrap.jar"))) { from = m; break; }
 			}
 		} catch (IOException e) { return false; }
+		// (no pack installed: Gatehouse's own home has the same files, when it was installed by itself)
+		Path own = Notes.app(instances);
+		if (from == null && Files.isRegularFile(own.resolve("extras/plain-launch." + ext)) && Files.isRegularFile(own.resolve("extras/launch-popup.jar"))) from = own;
 		if (from == null) return Files.isRegularFile(mc.resolve("plain-launch." + ext)) && Files.isRegularFile(mc.resolve("extras/launch-popup.jar"));
 		String[][] files = {{"extras/launch-popup.jar", "extras/launch-popup.jar"}, {"extras/plain-launch." + ext, "plain-launch." + ext}, {"extras/gatehouse-launcher." + ext, "extras/gatehouse-launcher." + ext},
 				{win ? "launch-wrapper.exe" : "launch-wrapper.sh", win ? "launch-wrapper.exe" : "launch-wrapper.sh"}, {"steam/controller_neptune.vdf", "steam/controller_neptune.vdf"},
@@ -92,6 +95,7 @@ final class PackInstall {
 				{"steam/art-launcher/icon.png", "steam/art/icon.png"}, {"steam/art-launcher/wide.png", "steam/art/wide.png"}};
 		for (String[] f : files) try {
 			Path src = from.resolve(f[0]), dst = mc.resolve(f[1]);
+			if (!Files.isRegularFile(src)) src = from.resolve("extras").resolve(Path.of(f[0]).getFileName().toString());   // (in Gatehouse's own home everything is under extras)
 			if (!Files.isRegularFile(src)) continue;
 			if (Files.isRegularFile(dst) && Files.size(dst) == Files.size(src) && java.util.Arrays.equals(Files.readAllBytes(src), Files.readAllBytes(dst))) continue;
 			Files.createDirectories(dst.getParent());

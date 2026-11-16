@@ -234,6 +234,17 @@ their next launch; nobody has to touch a device.
   notes aren't the current `source/gatekeeper.json`: run `tools/build_host.ps1` first. Because running Gatekeepers
   hold themselves and their launchers to what is published, building the pack publishes Gatekeeper too: install the
   new Gatekeeper on the server machine before building, or its servers won't start until it's updated.
+- **Gatehouse by itself.** `installer/gatehouse-install.ps1` (Windows; also Gatekeeper, or both) and
+  `installer/gatehouse-install.sh` (Linux, Steam Deck) fetch the launcher and the scripts beside it from
+  `<source>/<main or deck>/extras`, checking each against `update-sizes.json`, into `<Prism's folder>/gatehouse/app`:
+  `extras/` laid out as in a pack, and `pack-sources.txt` saying where a newer launcher is found. `Notes.app` is that
+  folder; the self-update treats it like a pack (and, when it is the copy being updated, refreshes the scripts in it,
+  `Notes.APP_FILES`); `gatehouse-launcher.ps1` / `.sh` know when they are run from there and count its launcher among
+  the candidates; `PackInstall.equip` takes a plain server's files from it when no pack is installed. For Gatekeeper
+  the Windows script fetches `gatekeeper/oj-host.jar` (checked against `gatekeeper.json`) and
+  `installer/keeper/install-keeper.ps1`, and runs that. Java, when none is found: the Temurin 21 runtime from
+  Adoptium's API, with its checksum, into `%LOCALAPPDATA%\Gatehouse\jre`, which the launcher's script also searches.
+  Released as `gatehouse-install.zip` (the two scripts and `Install Gatehouse.cmd`).
 - **Connect to this Gatekeeper.** `Connect.java`: the steps between having a pairing and the Gatekeeper answering,
   looked at every 2.5 seconds: a Tailscale address on this device (an interface address in 100.64.0.0/10, which also
   works inside Prism's Flatpak), the Gatekeeper's port reachable, and its answer to this device's introduction.

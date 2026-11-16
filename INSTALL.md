@@ -10,6 +10,31 @@ This page covers installing, [choosing what to install](#choosing-what-to-instal
 [what runs each time you play](#what-runs-each-time-you-play), [what it connects to](#what-it-connects-to) and
 [how to remove it](#removing-it).
 
+## Just the launcher, or just Gatekeeper
+
+The setup programs below install the October Journey pack together with the launcher. There is also a plain script
+that installs **Gatehouse by itself**: no game and no pack. In Gatehouse you then press Add Gatekeeper, paste what
+a server's owner gave you, and install that Gatekeeper's servers from its list.
+
+- **Windows 10 (64-bit):** unpack `gatehouse-install.zip` and double-click **Install Gatehouse.cmd** (or run
+  `powershell -ExecutionPolicy Bypass -File gatehouse-install.ps1`). It asks what to install: **Gatehouse**,
+  **Gatekeeper** (for the machine that runs the servers), or both. It offers Prism Launcher's own installer if Prism
+  is missing, and the Java 21 runtime from Eclipse Adoptium if no Java 17 or newer is found (kept in
+  `%LOCALAPPDATA%\Gatehouse\jre`, for Gatehouse's use only). It puts the launcher in
+  `%APPDATA%\PrismLauncher\gatehouse\app` and a **Gatehouse** shortcut in the Start menu.
+- **Linux, including Steam Deck:** `bash gatehouse-install.sh`. It offers Prism Launcher from Flathub if it's
+  missing, puts the launcher in Prism's folder under `gatehouse/app`, and adds a **Gatehouse** entry to the
+  applications menu. On a Steam Deck, in Desktop Mode, right-click that entry and choose Add to Steam to have it in
+  Game Mode.
+
+Both are plain text and say at the top what they change. Each download is checked against a published SHA-256
+before it is used; `-DryRun` / `--dry-run` says what would be done and does none of it. To remove a Gatehouse
+installed this way: delete the `gatehouse` folder in Prism Launcher's folder and the shortcut or menu entry (and
+`%LOCALAPPDATA%\Gatehouse` if Java was fetched for it).
+
+Tested so far only on stand-ins on Windows 10: the files, the checks, the launcher starting from its own home and
+updating itself. Not yet run on a computer without Prism Launcher or Java, nor on a Steam Deck.
+
 ## Before you start
 - **Minecraft Java Edition** on your Microsoft account.
 - **Access to the server.** It's reached through Tailscale: install [Tailscale](https://tailscale.com/download), sign

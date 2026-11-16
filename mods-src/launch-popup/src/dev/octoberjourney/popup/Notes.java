@@ -55,15 +55,35 @@ final class Notes {
 		return !served.isEmpty() && !mine.isEmpty() && cmp(served, mine) < 0;
 	}
 
+	/** Gatehouse's own home when it was installed by itself, with no pack (gatehouse-install): <Prism's
+	 *  folder>/gatehouse/app, laid out like the part of a pack the launcher needs (extras/launch-popup.jar, the
+	 *  scripts beside it, and pack-sources.txt: where to look for a newer launcher). Packs may come and go around it. */
+	static Path app(Path instances) { return instances.toAbsolutePath().getParent().resolve("gatehouse").resolve("app"); }
+	/** The files of that home besides the launcher itself, kept the same as what the source serves. */
+	static final String[] APP_FILES = {"gatehouse-launcher.ps1", "gatehouse-launcher.sh", "plain-launch.ps1", "plain-launch.sh", "launch-wrapper.exe", "launch-wrapper.sh"};
+	private static void refreshApp(String base, Path app) {
+		try {
+			Map<String, Object> files = ServerControl.asMap(ServerControl.asMap(LaunchPopup.parseJson(new String(LaunchPopup.fetchBytes(base + "/update-sizes.json"), StandardCharsets.UTF_8))).get("files"));
+			for (String f : APP_FILES) try {
+				String want = str(ServerControl.asMap(files.get("extras/" + f)).get("hash"));
+				Path dst = app.resolve("extras").resolve(f);
+				if (want.isEmpty() || (Files.isRegularFile(dst) && want.equals(LaunchPopup.sha256(Files.readAllBytes(dst))))) continue;
+				byte[] b = LaunchPopup.fetchBytes(base + "/extras/" + f);
+				if (!want.equals(LaunchPopup.sha256(b))) continue;
+				Files.write(dst, b);
+				if (f.endsWith(".sh")) dst.toFile().setExecutable(true, false);
+			} catch (Exception next) { /* that one next time */ }
+		} catch (Exception ignored) {}
+	}
+
 	/** After this launcher updated itself, when nothing started it that would open the new one (a shortcut script
 	 *  from before it reopened more than once): the new one is started from here. True when it was. */
 	static boolean reopen(Path instances, String[] args) {
 		try {
 			Path newest = null;
-			try (java.util.stream.Stream<Path> s = Files.list(instances)) {
-				for (Path j : (Iterable<Path>) s.map(d -> d.resolve("minecraft/extras/launch-popup.jar")).filter(Files::isRegularFile)::iterator)
-					if (newest == null || Files.getLastModifiedTime(j).compareTo(Files.getLastModifiedTime(newest)) > 0) newest = j;
-			}
+			List<Path> jars = new ArrayList<>(List.of(app(instances).resolve("extras/launch-popup.jar")));
+			try (java.util.stream.Stream<Path> s = Files.list(instances)) { s.map(d -> d.resolve("minecraft/extras/launch-popup.jar")).forEach(jars::add); } catch (IOException ignored) {}
+			for (Path j : jars) if (Files.isRegularFile(j) && (newest == null || Files.getLastModifiedTime(j).compareTo(Files.getLastModifiedTime(newest)) > 0)) newest = j;
 			String javaExe = ProcessHandle.current().info().command().orElse("");
 			if (newest == null || javaExe.isEmpty()) return false;
 			Path run = newest;
@@ -153,6 +173,8 @@ final class Notes {
 			Path dst = Path.of(found[2]).resolve("extras/launch-popup.jar"), tmp = Path.of(found[2]).resolve("extras/launch-popup.jar.part");
 			Files.write(tmp, jar);
 			try { Files.move(tmp, dst, java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(tmp); }   // (in use, as when run straight from there on Windows: left as it was)
+			// (Gatehouse's own home: the scripts beside the launcher are brought up to date with it)
+			if (Path.of(found[2]).getFileName().toString().equals("app") && Path.of(found[2]).getParent() != null && Path.of(found[2]).getParent().getFileName().toString().equals("gatehouse")) refreshApp(found[0], Path.of(found[2]));
 			return true;
 		} catch (Exception e) { if (System.getenv("OJ_DEBUG") != null) e.printStackTrace(); return false; }
 	}
@@ -169,6 +191,10 @@ final class Notes {
 			try { String p = Files.readString(Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); deck = p.equals("Jupiter") || p.equals("Galileo"); } catch (IOException | RuntimeException ignored) {}
 			List<Path> packs = new ArrayList<>();
 			try (java.util.stream.Stream<Path> s = Files.list(instances)) { s.filter(Files::isDirectory).map(d -> d.resolve("minecraft")).filter(m -> Files.isRegularFile(m.resolve("pack-sources.txt")) && Files.isRegularFile(m.resolve("extras/launch-popup.jar"))).forEach(packs::add); }
+			catch (IOException noInstances) { /* none yet */ }
+			// (Gatehouse's own home counts like a pack here: it has the launcher and says where a newer one is found)
+			Path own = app(instances);
+			if (Files.isRegularFile(own.resolve("pack-sources.txt")) && Files.isRegularFile(own.resolve("extras/launch-popup.jar"))) packs.add(own);
 			if (packs.isEmpty()) return null;
 			// (the newest copy among them is the one that gets run)
 			Path target = packs.get(0);
