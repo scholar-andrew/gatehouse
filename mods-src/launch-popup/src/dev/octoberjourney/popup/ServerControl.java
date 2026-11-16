@@ -34,19 +34,22 @@ final class ServerControl {
 	final List<String> broadcasts = new ArrayList<>();
 	final int wakePort;
 	String apiKey, wakeAddress, username;
-	/** This launcher's identity for the host helper: an id and a secret it made itself (kept in server-access.json). */
+	/** This launcher's identity for Gatehouse Keeper: an id and a secret it made itself (kept in server-access.json). */
 	String deviceId, deviceToken;
 	/** The profile's name for its server on the host machine (extras/server-control.json "server"), sent to the host
 	 *  helper so a machine with several servers knows which one this pack means. Empty: its first. */
 	String serverKey = "";
-	/** What the owner has allowed this launcher in the host panel, as the helper last said (remembered in
-	 *  server-access.json, so it's known while the server machine is asleep and the helper can't be asked). */
+	/** What the owner has allowed this launcher in the control panel, as the Keeper last said (remembered in
+	 *  server-access.json, so it's known while the server machine is asleep and the Keeper can't be asked). */
 	boolean permMcss, permSleep, permServer, permAdmin;
+	/** What became of this launcher's last request for the server to be turned on, as Gatehouse Keeper says: "asked",
+	 *  "denied" (the owner dismissed it), or empty. */
+	volatile String requestStatus = "";
 	/** The server panel refused the sign-in or key saved here (signed out there, expired, or no access to this server). */
 	volatile boolean accessRejected;
 
 
-	/** A request the helper (or MCSS behind it) turned down, with its reason. */
+	/** A request the Keeper (or MCSS behind it) turned down, with its reason. */
 	static final class Refused extends IOException {
 		Refused(String why) { super(why); }
 	}
@@ -85,18 +88,18 @@ final class ServerControl {
 	boolean configured() { return !panelUrl.isEmpty() || !mac.isEmpty() || !minecraft.isEmpty(); }
 	boolean canWake() { return mac.replaceAll("[^0-9A-Fa-f]", "").length() == 12; }
 	boolean hasKey() { return !apiKey.isEmpty() && !serverId.isEmpty() && !panelUrl.isEmpty(); }
-	/** Server control through the host helper: the owner allowed it, so no panel sign-in or key is needed here. */
+	/** Server control through Gatehouse Keeper: the owner allowed it, so no panel sign-in or key is needed here. */
 	boolean viaHelper() { return hasHelper() && permServer; }
-	/** Start and stop are possible: through the helper, or with this device's own panel access. */
+	/** Start and stop are possible: through the Keeper, or with this device's own panel access. */
 	boolean canControlServer() { return viaHelper() || (hasKey() && !accessRejected); }
 	/** The Server controls and Server config tabs are shown once the owner has allowed this launcher anything (or it
-	 *  has its own panel access); always when there's no host helper to ask. */
+	 *  has its own panel access); always when there's no Gatehouse Keeper to ask. */
 	boolean showServerTabs() { return !hasHelper() || permMcss || permSleep || permServer || permAdmin || hasKey(); }
 	Path access() { return dir.resolve("server-access.json"); }
 
 	private String player;
 	/** The Minecraft account the game last started as on this device, from the game's own log ("Setting user: Name";
-	 *  nothing else is read). Told to the host helper as a hint of whose device this is; the helper only counts it as
+	 *  nothing else is read). Told to Gatehouse Keeper as a hint of whose device this is; the Keeper only counts it as
 	 *  confirmed once the server sees that player join from here. Empty if the game hasn't run yet. */
 	String player() {
 		if (player == null) {
@@ -111,7 +114,7 @@ final class ServerControl {
 	 *  key from signing in with a panel account), "key" (an API key typed in), or "none". */
 	String saved() { return !hasKey() ? "none" : !username.isEmpty() ? "signin" : "key"; }
 	/** How Start and Stop go from this device right now: "helper" when the owner allowed it there (that comes first),
-	 *  otherwise with what's saved. The helper is told both, so the owner can see it in the host panel. */
+	 *  otherwise with what's saved. The Keeper is told both, so the owner can see it in the control panel. */
 	String kind() { return viaHelper() ? "helper" : saved(); }
 	/** The same, in words for the player. */
 	String accessText() {
@@ -120,7 +123,7 @@ final class ServerControl {
 			case "key" -> "an API key saved on this device";
 			default -> "";
 		};
-		if (viaHelper()) return "through the host helper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " (" + has + " is also saved, but not used)");
+		if (viaHelper()) return "through Gatehouse Keeper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " (" + has + " is also saved, but not used)");
 		if (!has.isEmpty() && accessRejected) return "none right now: the server panel no longer accepts " + has + " (sign in again under Server config, or ask the owner)";
 		return has.isEmpty() ? "none (ask the owner, or sign in under Server config)" : "with " + has;
 	}
@@ -250,13 +253,13 @@ final class ServerControl {
 
 	/** Where things stand: {colour key, text, phase, ping ms, players}. Colour keys as in the pop-up (ok, warn, off,
 	 *  failed); phase: online, starting, stopping, off (MCSS is running, the game server isn't), nomcss (the PC is awake
-	 *  (its host helper answers) but MCSS isn't running), asleep (nothing on the PC answers), error.
+	 *  (its Gatehouse Keeper answers) but MCSS isn't running), asleep (nothing on the PC answers), error.
 	 *  Ping and players come from the game server itself (empty when it isn't answering). */
 	String[] status() {
 		String[] slp = minecraft.isEmpty() ? null : serverListPing(minecraft, 2500);
 		boolean game = slp != null;
 		boolean panel = game || (!panelUrl.isEmpty() && answers(panelHostPort(), 2000));
-		// MCSS (and its panel) can be closed while the PC is on: the host helper, which runs whenever the owner is
+		// MCSS (and its panel) can be closed while the PC is on: Gatehouse Keeper, which runs whenever the owner is
 		// signed in, then still answers.
 		boolean pc = panel || (hasHelper() && answers(helperHostPort(), 2000));
 		String ping = game ? slp[0] : "", players = game ? slp[1] + " of " + slp[2] : "";
@@ -300,7 +303,7 @@ final class ServerControl {
 		}
 	}
 
-	/** Start or stop: through the host helper when the owner allowed this launcher server control (the helper uses its
+	/** Start or stop: through Gatehouse Keeper when the owner allowed this launcher server control (the Keeper uses its
 	 *  own MCSS key), otherwise with this device's own panel access. */
 	private void serverAction(boolean start) throws IOException {
 		if (viaHelper()) {
@@ -329,7 +332,7 @@ final class ServerControl {
 		if (viaHelper()) {
 			List<String> out = new ArrayList<>();
 			if (helper("GET", "/v1/server/log", null).get("lines") instanceof List<?> l) for (Object x : l) out.add(str(x));
-			else throw new IOException("the helper sent no log");
+			else throw new IOException("the Keeper sent no log");
 			return out;
 		}
 		Object o = LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId + "/console?amountOfLines=" + lines + "&reversed=false", null));
@@ -339,11 +342,11 @@ final class ServerControl {
 		return out;
 	}
 
-	// ------------------------------------------------------------------ MCSS itself, through the host helper
+	// ------------------------------------------------------------------ MCSS itself, through Gatehouse Keeper
 
 	boolean hasHelper() { return !helperUrl.isEmpty(); }
 
-	/** One call to the host helper on the server machine, as this launcher. */
+	/** One call to Gatehouse Keeper on the server machine, as this launcher. */
 	Map<String, Object> helper(String method, String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(helperUrl.replaceAll("/+$", "") + path).openConnection();
 		c.setConnectTimeout(3000); c.setReadTimeout(60000);
@@ -367,7 +370,7 @@ final class ServerControl {
 		return r;
 	}
 
-	/** Introduces this launcher (it then shows in the owner's host panel, waiting until allowed). Returns its state. */
+	/** Introduces this launcher (it then shows in the owner's control panel, waiting until allowed). Returns its state. */
 	String hello() throws IOException {
 		String name = "", os = System.getProperty("os.name", "");
 		try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
@@ -388,7 +391,8 @@ final class ServerControl {
 				permMcss = m; permSleep = sl; permServer = sv; permAdmin = ad;
 				try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
 			}
-			// From the owner, through the helper: the order to forget whatever sign-in or key is saved here.
+			requestStatus = str(r.get("request"));
+			// From the owner, through the Keeper: the order to forget whatever sign-in or key is saved here.
 			if ("true".equals(str(r.get("clear_access"))) && !apiKey.isEmpty()) {
 				try { username = ""; save("", wakeAddress); } catch (IOException ignored) {}
 			}
@@ -396,15 +400,15 @@ final class ServerControl {
 		return r;
 	}
 
-	/** Asks the host helper to tell the owner this device wants the server turned on (a chime and the host panel on the
-	 *  server machine). Any launcher the helper knows may ask; no permission is needed. */
+	/** Asks Gatehouse Keeper to tell the owner this device wants the server turned on (a chime and the control panel on the
+	 *  server machine). Any launcher the Keeper knows may ask; no permission is needed. */
 	Map<String, Object> requestServer() throws IOException {
 		Map<String, Object> r = helper("POST", "/v1/request", "{}");
 		if (str(r.get("_code")).equals("401")) { hello(); r = helper("POST", "/v1/request", "{}"); }
 		return r;
 	}
 
-	/** Asks the host helper to put the server machine to sleep (needs the owner's separate "PC sleep" permission). */
+	/** Asks Gatehouse Keeper to put the server machine to sleep (needs the owner's separate "PC sleep" permission). */
 	Map<String, Object> sleepPc() throws IOException { return helper("POST", "/v1/pc/sleep", "{}"); }
 
 	Map<String, Object> mcssStart() throws IOException { return helper("POST", "/v1/mcss/start", "{}"); }

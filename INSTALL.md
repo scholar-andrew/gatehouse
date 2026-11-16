@@ -115,7 +115,7 @@ there since you last played, with notes. When something on the server is new, th
 updates**: it takes you to that tab, and **Play** is there.
 
 The next two tabs, **Server controls** and **Server config**, appear once the owner has allowed your device something
-in the host panel on the server PC (MCSS control, PC sleep or Server control), or you have your own panel access.
+in the control panel on the server PC (MCSS control, PC sleep or Server control), or you have your own panel access.
 Until then your device has asked and is waiting, and the tabs stay hidden.
 
 A third tab, **Server controls**, is in three sections, each with its own status line: **Server Machine** (wake, sleep),
@@ -126,7 +126,7 @@ server is off, Stop while it runs):
 - **Wake server machine:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; not from
   elsewhere.
 - **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is
-  off. It needs the owner's **Server control** permission for your device (set in the host panel; nothing to sign
+  off. It needs the owner's **Server control** permission for your device (set in the control panel; nothing to sign
   in to), or your own panel sign-in (Server config).
 - **Stop server:** stops the Minecraft server through the panel (the world is saved first). It asks before stopping,
   since anyone playing is disconnected. Same access as Start. Then it watches the shutdown and says how it went: green
@@ -134,7 +134,7 @@ server is off, Stop while it runs):
   be confirmed or the log has errors, red when it didn't stop within 2 minutes.
 
 Below them, **MCSS (the server software)** shows whether MCSS is running on the server PC, with **Start MCSS** and
-**Close MCSS**. The first time, your device asks for this and waits until the owner allows it in the host panel on the
+**Close MCSS**. The first time, your device asks for this and waits until the owner allows it in the control panel on the
 server PC. Closing only works once the Minecraft server is stopped, so the world is never cut off mid-save. The
 button says how it will close MCSS, from MCSS's own close option on the server PC: **Close MCSS** when MCSS's X
 button exits it (a normal close), or **Force close MCSS** when its X button only hides it to the taskbar (MCSS is
@@ -144,22 +144,22 @@ ended instead).
 permission from the owner, separate from MCSS control, and only works while the Minecraft server is stopped.
 
 A fourth tab, **Server config**, says how this device controls the server (the same line is under Start and Stop in
-Server controls): **through the host helper** (the owner allowed it; nothing is saved on your device) or **with your
+Server controls): **through Gatehouse Keeper** (the owner allowed it; nothing is saved on your device) or **with your
 panel sign-in**. When the owner allowed
-the helper way, that is the one used. The owner can remove any of them from the server PC; your device then forgets
+the Keeper way, that is the one used. The owner can remove any of them from the server PC; your device then forgets
 what it had saved. Below that is the **server panel sign-in**: username, password, **Sign in** and **Sign out**. The
 launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never
-your password. You don't need it if the owner allowed your device through the host helper.
+your password. You don't need it if the owner allowed your device through Gatehouse Keeper.
 
-One more tab, **Remote host panel**, appears only on a device the owner has allowed **Helper control**. It has two
+One more tab, **Remote control panel**, appears only on a device the owner has allowed **Keeper control**. It has two
 tabs inside:
 - **Manage access:** who may do what. **By launcher** lists the launchers that have asked the server PC for access,
   with their permissions (Server control, MCSS control, PC sleep) switched on or off for the one you select, plus
   **Remove server access** and **Forget**. **By player** lists the players, and what you allow a player is set on all
   their confirmed devices and on ones they join the server from later.
-- **Host activity:** whether MCSS and the Minecraft server are running right now, and the helper's activity.
+- **Keeper activity:** whether MCSS and the Minecraft server are running right now, and the Keeper's activity.
 
-Helper control itself is only given on the server PC.
+Keeper control itself is only given on the server PC.
 
 The window stays open while the server wakes or starts: nothing closes it but you.
 

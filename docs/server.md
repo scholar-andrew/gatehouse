@@ -70,73 +70,83 @@ pop-up keeps the session key the panel returns, never the password. The wake sig
 network, unless a player has an internet wake address (a router that passes wake signals from the internet on to the
 home network); that address is also kept on the device, not in this public repository.
 
-## The host helper (starting and closing MCSS)
+## Gatehouse Keeper (starting and closing MCSS)
 
 MCSS's web panel only exists while MCSS is running, so starting MCSS itself needs something else on the PC: the host
 helper (`host/`, built by `tools/build_host.ps1`, installed by `tools/install_host.ps1` into
-`C:\Minecraft\GatehouseHost`). A scheduled task, "Gatehouse host helper", starts it (javaw, no window)
+`C:\Minecraft\GatehouseKeeper`). A scheduled task, "Gatehouse Keeper", starts it (javaw, no window)
 when the owner signs in to Windows, in the owner's session, so MCSS opens on the desktop as usual.
 
 - It listens on the Tailscale address only (port 25570, `helper_url` in `server_control`), plus 127.0.0.1 for the
   panel.
 - Each launcher introduces itself from the pop-up's Server controls tab: an id and a secret it made itself, its
-  computer name and system. The helper also asks Tailscale which device the request came from (`tailscale whois`).
+  computer name and system. The Keeper also asks Tailscale which device the request came from (`tailscale whois`).
   New launchers wait for permission.
-- **Gatehouse host panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
+- **Gatehouse control panel** (Start menu) lists the launchers (name, Tailscale device, system, first and last
   seen), with **Start MCSS** / **Close MCSS** for MCSS itself at the top (the same start and close the launchers
-  ask for), and with their four permissions, **Server control**, **MCSS control**, **PC sleep** and **Helper control**, each switched on or off
+  ask for), and with their four permissions, **Server control**, **MCSS control**, **PC sleep** and **Keeper control**, each switched on or off
   for the selected launcher, plus **Forget** and **Set MCSS key...**, and shows a log of every request.
 - A launcher shows its Server controls and Server config tabs only once it has at least one permission (or its own
-  panel access). It remembers what the helper last said (`perm_*` in its `server-access.json`), so the tabs are still
+  panel access). It remembers what the Keeper last said (`perm_*` in its `server-access.json`), so the tabs are still
   there to wake a sleeping PC.
-- Launchers allowed **Server control** start and stop the Minecraft server through the helper (`POST
+- Launchers allowed **Server control** start and stop the Minecraft server through the Keeper (`POST
   /v1/server/start|stop`; status from `GET /v1/server`, the shutdown check from `GET /v1/server/log`, the end of
-  `logs/latest.log`), with no panel account or key on the device. The helper does it with its own MCSS API key, which
+  `logs/latest.log`), with no panel account or key on the device. The Keeper does it with its own MCSS API key, which
   the owner makes in MCSS's web panel (API Keys: view, start and stop this server) and enters once with **Set MCSS
-  key...**. Or, simpler, **Sign in to MCSS...** in the host panel: the owner types a panel account's username and
-  password there, the helper signs in (the panel's `POST /auth`) and keeps the key MCSS hands back, not the password. It's kept in `host.json` on the PC only and is never sent to launchers.
+  key...**. Or, simpler, **Sign in to MCSS...** in the control panel: the owner types a panel account's username and
+  password there, the Keeper signs in (the panel's `POST /auth`) and keeps the key MCSS hands back, not the password. It's kept in `host.json` on the PC only and is never sent to launchers.
 - Allowed launchers can start MCSS, and close it. Closing is refused while the Minecraft server is running (stop it
   first). How depends on MCSS's own close setting (`mcssClosePreference` in `resources/mcss_config.json`), which the
   helper reports to launchers (`close` in `/v1/mcss`) so the button can say what it will do: with the exit choice,
   **Close MCSS** asks MCSS's window to close as its X button would and waits up to 30 seconds, never forcing; with
-  HideToTaskbar or MinimizeToTaskbar (the X button only hides it), the button reads **Force close MCSS** and the helper
+  HideToTaskbar or MinimizeToTaskbar (the X button only hides it), the button reads **Force close MCSS** and the Keeper
   ends MCSS, only when the request says force. It only
   touches the configured `mcss.exe`.
 - Separately, launchers the owner allows **PC sleep** (its own switch in the panel) can put the PC to sleep
-  (`POST /v1/pc/sleep`): refused while the Minecraft server is running; otherwise the helper suspends the PC about 5
+  (`POST /v1/pc/sleep`): refused while the Minecraft server is running; otherwise the Keeper suspends the PC about 5
   seconds later (Windows' SetSuspendState, as the Start menu's Sleep). MCSS stays open; Wake on LAN wakes the PC.
-- Launchers allowed **Helper control** get **Manage launchers...** in their Server config tab: the panel's list,
+- Launchers allowed **Keeper control** get **Manage launchers...** in their Server config tab: the panel's list,
   permission switches, Forget and activity, through `GET /v1/admin/devices|log` and `POST /v1/admin/perm|forget`.
-  Three things stay with the panel on the PC: giving or removing Helper control, forgetting a launcher that has it
-  (or the one asking), and the helper's MCSS key, which is never sent anywhere. Every change is logged with who
+  Three things stay with the panel on the PC: giving or removing Keeper control, forgetting a launcher that has it
+  (or the one asking), and the Keeper's MCSS key, which is never sent anywhere. Every change is logged with who
   asked.
-- Each launcher tells the helper how it controls the server (`X-Access`: `helper`, or what it has saved, `X-Saved`:
+- Each launcher tells the Keeper how it controls the server (`X-Access`: `helper`, or what it has saved, `X-Saved`:
   `signin`, `key` (one saved before sign-in became the only way), `none`; a sign-in's username in `X-Access-User`), shown in the panel's **Controls the
   server** column. MCSS control includes server control.
 - **Remove server access** (panel, and Manage launchers): switches the launcher's server and MCSS control off and tells it to forget whatever it has saved (`clear_access`, until it reports `none`). A
   sign-in or key it got elsewhere still exists in MCSS; the panel says so, and only removing that account or key in
   MCSS blocks it for good.
-- **Players** (the panel's second tab). The helper reads the Minecraft server's `logs/latest.log` for joins (`Name[/address:port]
-  logged in`) and ties the player to the launcher that talks to the helper from the same Tailscale address: that
+- **Players** (the panel's second tab). The Keeper reads the Minecraft server's `logs/latest.log` for joins (`Name[/address:port]
+  logged in`) and ties the player to the launcher that talks to the Keeper from the same Tailscale address: that
   launcher is then confirmed as theirs (`player`, `player_confirmed`, `player_seen` in `devices.json`). A launcher
   also says which account its game last started as (`X-Player`, from "Setting user" in the game's own log), shown as
   "not confirmed" until the server sees that player join from it. What the owner allows a player (`players.json`)
   is set on all their confirmed launchers and on ones they join from later; a claim alone gets nothing. Player names
-  stay in the helper's files on the PC.
-- **Requests.** Any launcher the helper knows can ask for the server to be turned on (`POST /v1/request`, the
-  launcher's Play button while the server is off; one a minute each, refused while the server runs). The helper logs
-  it, plays a short chime and, if the host panel isn't open, opens it minimized (`--panel --minimized`). The panel
+  stay in the Keeper's files on the PC.
+- **Requests.** Any launcher the Keeper knows can ask for the server to be turned on (`POST /v1/request`, the
+  launcher's Play button while the server is off; one a minute each, refused while the server runs). The Keeper logs
+  it, plays a short chime and, if the control panel isn't open, opens it minimized (`--panel --minimized`). The panel
   shows who asked in a banner with **Start server** (starts MCSS first if needed) and **Dismiss**, puts it in its
   window title and flashes its taskbar button. `request_alert` = `false` in `host.json` turns the chime and the
   pop-up off.
-- The host panel has two tabs. **Access**: manage access **by launcher** (one device) or **by player** (all their
-  devices), switched with the two choices at the top. **Status**: the helper, MCSS (Start/Close, sign-in or key), the
-  Minecraft server (Start/Stop) and the activity log. A launcher with Helper control has the same split in its
-  **Remote host panel** tab, as **Manage access** and **Host activity** (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
+- The control panel has two tabs. **Access**: manage access **by launcher** (one device) or **by player** (all their
+  devices), switched with the two choices at the top. **Status**: the Keeper, MCSS (Start/Close, sign-in or key), the
+  Minecraft server (Start/Stop) and the activity log. A launcher with Keeper control has the same split in its
+  **Remote control panel** tab, as **Manage access** and **Keeper activity** (`GET /v1/admin/players`, `POST /v1/admin/player/perm`; never Helper
   control itself). `OJ_PANEL_PNG=<file>` saves pictures of the panel's tabs instead of showing it (testing).
 - In the code, everything about MCSS is one file, `McssHost.java`, behind the `ServerHost` interface (running, start,
-  close, the server's state, start/stop, and the helper's own access). The rest of the helper never reaches MCSS any
+  close, the server's state, start/stop, and the Keeper's own access). The rest of the Keeper never reaches MCSS any
   other way, so another host program would be a second implementation of that interface.
+- **Whitelist.** In the control panel's Access tab, **By player**, each player has a **Whitelisted** tick-box for the
+  server being looked at. The list is every player the Keeper knows (from joins, or a launcher's word, marked "not
+  confirmed") plus everyone already in the server's `whitelist.json`. Ticking or unticking: while the server runs,
+  the Keeper sends it `whitelist add <name>` or `whitelist remove <name>` through MCSS (`POST
+  .../execute/command`; the Keeper's MCSS key needs console permission), so the server finds the account and saves
+  the file itself. While it's off, the Keeper edits `whitelist.json` directly; adding then needs the account's id from
+  the server's `usercache.json`, so a player the server has never seen can only be added while it runs. Only from the
+  control panel on the PC, not from a launcher.
+- **A dismissed request** is told to the launcher that asked: `/v1/mcss` carries `request` (`asked`, `denied` or
+  empty), and the launcher shows "Request denied" above its button.
 - `devices.json` keeps a hash of each secret, never the secret. Settings: `host.json` (`bind`, `port`, `mcss_exe`,
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.

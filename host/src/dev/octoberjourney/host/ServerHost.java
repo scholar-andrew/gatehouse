@@ -3,10 +3,10 @@ package dev.octoberjourney.host;
 import java.util.Map;
 
 /**
- * The seam between the host helper and whatever program hosts the Minecraft server on this machine (docs/profiles.md,
- * stage 2). The helper asks for these things and nothing else; it never reaches the host program any other way.
- * MCSS (McssHost) is the only implementation so far. Another host program, or the helper running servers itself, is a
- * second implementation of this, with the rest of the helper unchanged.
+ * The seam between Gatehouse Keeper and whatever program hosts the Minecraft server on this machine (docs/profiles.md,
+ * stage 2). The Keeper asks for these things and nothing else; it never reaches the host program any other way.
+ * MCSS (McssHost) is the only implementation so far. Another host program, or the Keeper running servers itself, is a
+ * second implementation of this, with the rest of the Keeper unchanged.
  *
  * Results that are told to a person come back as {result, message}: result is "ok", "refused" (not allowed right now,
  * with why), "failed", or "wait" where noted.
@@ -26,17 +26,20 @@ interface ServerHost {
 	/** Asks for the Minecraft server to start or stop. */
 	String[] serverAction(boolean start);
 
-	/** Does the helper have access (a key or a sign-in) to the host program? */
+	/** Sends the Minecraft server a console command (as typed in its console, no leading slash). */
+	String[] command(String command);
+
+	/** Does the Keeper have access (a key or a sign-in) to the host program? */
 	boolean hasAccess();
 	/** How the host program takes that access: "yes", "forbidden" (known, but no right to this server), "unknown"
 	 *  (not recognised), "no" (not answering). */
 	String accessState();
-	/** The account the helper is signed in as, or empty (a key was entered, or nothing). */
+	/** The account the Keeper is signed in as, or empty (a key was entered, or nothing). */
 	String user();
-	/** Signs the helper in with an account on the host program; what's handed back is kept, never the password. */
+	/** Signs the Keeper in with an account on the host program; what's handed back is kept, never the password. */
 	String[] signIn(String user, String password);
-	/** Sets (or, when empty, clears) the helper's key for the host program. */
+	/** Sets (or, when empty, clears) the Keeper's key for the host program. */
 	void setKey(String key);
-	/** Troubleshooting: what the host program answers to the helper's access. Never contains the access itself. */
+	/** Troubleshooting: what the host program answers to the Keeper's access. Never contains the access itself. */
 	Map<String, Object> diagnose();
 }
