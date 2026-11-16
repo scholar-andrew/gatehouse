@@ -64,6 +64,17 @@ final class Home {
 	}
 
 	private static String str(Object o) { return o == null ? "" : o.toString(); }
+
+	/** A list's panel that is always exactly as wide as the scrolling area it sits in, so a row's long status line is
+	 *  shortened (with its full text on hover) and the buttons on its right stay in view. */
+	private static final class Fitted extends JPanel implements javax.swing.Scrollable {
+		Fitted() { super(new BorderLayout()); }
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle r, int orientation, int direction) { return 16; }
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle r, int orientation, int direction) { return 96; }
+		@Override public boolean getScrollableTracksViewportWidth() { return true; }
+		@Override public boolean getScrollableTracksViewportHeight() { return false; }
+	}
 	/** An address as it's kept: http://host:port, no slash at the end. Empty for nothing. */
 	static String norm(String url) {
 		String u = url == null ? "" : url.trim().replaceAll("/+$", "");
@@ -213,7 +224,7 @@ final class Home {
 			JPanel keeperList = new JPanel(), serverList = new JPanel();
 			for (JPanel l : new JPanel[] {keeperList, serverList}) l.setLayout(new BoxLayout(l, BoxLayout.Y_AXIS));
 			for (Object[] c : new Object[][] {{keeperList, "keepers"}, {serverList, "servers"}}) {
-				JPanel inner = new JPanel(new BorderLayout());
+				JPanel inner = new Fitted();   // (as wide as the window, never wider: a long line is cut short, not the buttons pushed out)
 				inner.add((JPanel) c[0], BorderLayout.NORTH);
 				JScrollPane sc = new JScrollPane(inner);
 				sc.setBorder(null);
@@ -239,6 +250,8 @@ final class Home {
 				JPanel text = new JPanel(new BorderLayout(0, 4));
 				text.setOpaque(false);
 				text.add(n, BorderLayout.NORTH); text.add(state, BorderLayout.SOUTH);
+				text.setMinimumSize(new Dimension(60, 10));
+				text.setPreferredSize(new Dimension(300, 46));   // (the line under the name takes what room there is; it doesn't ask for more)
 				JPanel east = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
 				east.setOpaque(false);
 				for (Component c : right) east.add(c);
@@ -247,7 +260,7 @@ final class Home {
 				r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 92));
 				return new Object[] {r, n, state};
 			};
-			java.util.function.BiConsumer<JLabel, String[]> set = (label, st) -> { Runnable ui = () -> { label.setIcon(LaunchPopup.dot(LaunchPopup.colour(st[0]))); label.setText(st[1]); };
+			java.util.function.BiConsumer<JLabel, String[]> set = (label, st) -> { Runnable ui = () -> { label.setIcon(LaunchPopup.dot(LaunchPopup.colour(st[0]))); label.setText(st[1]); label.setToolTipText(st[1]); };
 				if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui); };
 
 			// ---- level 2: one Gatekeeper's servers
