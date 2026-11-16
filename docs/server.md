@@ -225,6 +225,26 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   `minecraft`, `tailscale_exe`, `mcss_api_key`, and if they differ from the defaults `mcss_panel`, `mcss_server`,
   `server_dir`). It only works while the owner is signed in to Windows.
 
+### Host setup
+
+The fourth tab on Gatekeeper's first screen. It asks the running Gatekeeper (`GET /admin/checklist`) for the steps a
+machine needs before players can use it, each marked done, to do, or worth changing, with what to do:
+
+- Tailscale installed and connected (from `tailscale status --json`; `host.json` `tailscale_exe` if it's installed
+  somewhere unusual), key expiry off for this machine, and Run unattended on (from `tailscale debug prefs`).
+- Gatekeeper listening on this machine's Tailscale address.
+- MCSS found, and Gatekeeper holding its own key for it.
+- The servers chosen in Server setup, each on its own port, with their whitelists on and online-mode not off (read
+  from each `server.properties`).
+- Whether any launcher has ever reached this Gatekeeper: the only check that sees it from outside. If none can,
+  Windows Firewall has to allow Gatekeeper's Java on private networks.
+- A Tailscale invite link for players. Make it in Tailscale's admin page (Machines, this machine, Share, a reusable
+  invite link): it shares only this machine. Pasted into the field at the bottom (`POST /admin/checklist`; only a
+  `https://login.tailscale.com/` link is taken), it is kept in `host.json` as `tailscale_share_link` and goes out in
+  Share pairing: `&ts=` in the pairing link, `tailscale_share` in the pairing file.
+
+Nothing is changed by looking, and nothing here installs or configures Tailscale, MCSS or the firewall for you.
+
 ### Gatekeeper's and Gatehouse's own notes
 
 Gatekeeper's window is titled with its version, and its first screen has three tabs: Servers, Gatekeeper updates (what

@@ -1,7 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.0.0",
+ "version": "2.1.0",
  "changes": [
+  {"version": "2.1.0", "date": "2026-11-16", "notes": [
+   "New tab on the first screen: Host setup. It lists everything this machine needs to serve players, and for each step says whether it's done, still to do, or worth changing, with what to do about it: Tailscale installed and connected, this machine staying signed in to Tailscale, Tailscale running before anyone signs in to Windows, Gatekeeper's address, MCSS found and usable, the servers chosen, each on its own port, whitelists on, and whether a launcher has ever reached this Gatekeeper from outside. The tab's title says how many steps are left. Looking changes nothing.",
+   "Host setup has a place for a Tailscale invite link for players: the reusable link you make in Tailscale's admin page for sharing this one machine. Share pairing then puts it in the pairing link and the pairing file, so a player gets the way in together with the address. Only a link from login.tailscale.com is accepted, and it's kept on this PC."
+  ]},
   {"version": "2.0.0", "date": "2026-11-16", "notes": [
    "Gatekeeper now has its own version and its own notes, here, and tells launchers which version it is. Gatehouse shows these notes on a Gatekeeper updates tab beside this Gatekeeper's servers.",
    "The first screen has two more tabs: Gatekeeper updates (these notes) and Gatehouse updates (the launcher's notes, fetched from the repository, with the copy that came with this Gatekeeper as a fallback).",
