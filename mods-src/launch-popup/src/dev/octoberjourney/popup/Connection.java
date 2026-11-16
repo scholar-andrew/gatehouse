@@ -51,6 +51,8 @@ final class Connection {
 
 	static List<Check> run(Path dir, ServerControl c) {
 		List<Check> out = new ArrayList<>();
+		// (What Gatekeeper says about this launcher right now, so one blacklisted a moment ago is treated as such.)
+		if (c.hasHelper() && !c.ban.equals("blacklist")) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) {}
 		if (c.ban.equals("blacklist")) {
 			// Blacklisted: nothing about the server machine, its addresses or the pack's source is checked or shown.
 			boolean net = ServerControl.answers("github.com:443", 4000);
@@ -116,22 +118,22 @@ final class Connection {
 		boolean pack = owner != null && httpOk(owner + "/" + variant + "/pack.toml");
 		if (pack) answering.add("the pack");
 		boolean keeper = c.hasHelper() && ServerControl.answers(c.helperHostPort(), 2500);
-		if (keeper) answering.add("Gatehouse Keeper");
+		if (keeper) answering.add("Gatekeeper");
 		String[] ping = c.minecraft.isEmpty() ? null : ServerControl.serverListPing(c.minecraft, 2500);
 		if (ping != null) answering.add("the Minecraft server");
 		if (!answering.isEmpty()) out.add(new Check("ok", "Server machine answers", "Yes: " + String.join(", ", answering), ""));
 		else if (mine == null) out.add(new Check("off", "Server machine answers", "Can't be reached until Tailscale is connected on this device", ""));
 		else if (peerState.equals("offline") || peerState.equals("missing")) out.add(new Check("off", "Server machine answers", "No (see the line above)", ""));
 		else out.add(new Check("failed", "Server machine answers", "No: nothing on it answered",
-				peerState.equals("online") ? "Tailscale says it's online, yet nothing answers: ask the owner to check the pack server and Gatehouse Keeper on it."
+				peerState.equals("online") ? "Tailscale says it's online, yet nothing answers: ask the owner to check the pack server and Gatekeeper on it."
 						: "Either it's asleep or switched off (Server controls can wake it from the owner's home network), or this device hasn't been given access to the owner's Tailscale network: ask the owner."));
 
 		// 5-7. What runs on it.
 		if (owner != null) out.add(pack ? new Check("ok", "Updates", "From the owner's PC", "")
 				: internet ? new Check("warn", "Updates", "The owner's PC isn't answering, so updates come from GitHub", "")
 				: new Check("failed", "Updates", "No source for updates can be reached", ""));
-		if (c.hasHelper()) out.add(keeper ? new Check("ok", "Gatehouse Keeper", "Answering", "")
-				: new Check(answering.isEmpty() ? "off" : "warn", "Gatehouse Keeper", "Not answering", answering.isEmpty() ? "" : "It runs while the owner is signed in to the server machine: ask the owner."));
+		if (c.hasHelper()) out.add(keeper ? new Check("ok", "Gatekeeper", "Answering", "")
+				: new Check(answering.isEmpty() ? "off" : "warn", "Gatekeeper", "Not answering", answering.isEmpty() ? "" : "It runs while the owner is signed in to the server machine: ask the owner."));
 		if (!c.minecraft.isEmpty()) out.add(ping != null ? new Check("ok", "Minecraft server", "Online, " + ping[0] + " ms", "")
 				: new Check("off", "Minecraft server", "Not running" + (answering.isEmpty() ? " (or not reachable)" : ""), answering.isEmpty() ? "" : "Request server on the Play button asks the owner to turn it on."));
 		return out;
@@ -209,6 +211,10 @@ final class Connection {
 		listTop.add(list, BorderLayout.NORTH);
 		p.add(listTop, BorderLayout.CENTER);
 		JButton again = new JButton("Check again"), openTs = new JButton("Open Tailscale"), getTs = new JButton("Get Tailscale"), copy = new JButton("Copy details");
+		again.setToolTipText("Runs the checks again now");
+		openTs.setToolTipText("Opens the Tailscale app on this device, to sign in or switch it on");
+		getTs.setToolTipText("Opens Tailscale's download page in your browser");
+		copy.setToolTipText("Copies the result of these checks, to send to the owner");
 		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
 		for (JButton b : new JButton[] {again, openTs, getTs, copy}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
 		JLabel note = new JLabel(" ");

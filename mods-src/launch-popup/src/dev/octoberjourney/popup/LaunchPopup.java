@@ -79,7 +79,7 @@ public final class LaunchPopup {
 	/** The name this launcher shows: the server profile's (extras/profile.json, shipped with the pack; see
 	 *  docs/profiles.md). Until that file has arrived (the first launch after an update that brings it), the name of the
 	 *  pack's first server in extras/servers.json, which older packs have too. Nothing about a server is fixed here. */
-	/** This tool's own name (the launcher, the installers and Gatehouse Keeper are Gatehouse; the pack and its server
+	/** This tool's own name (the launcher, the installers and Gatekeeper are Gatehouse; the pack and its server
 	 *  have the profile's name). */
 	static final String TOOL = "Gatehouse";
 	static String NAME = "Minecraft";
@@ -473,6 +473,7 @@ public final class LaunchPopup {
 				text.setOpaque(false);
 				text.add(name, BorderLayout.NORTH); text.add(state, BorderLayout.SOUTH);
 				PlayButton go = new PlayButton("Play");
+				go.setToolTipText("Updates this pack, then shows its window before the game starts");
 				go.addActionListener(ev -> { chosen[0] = e; f.dispose(); });
 				row.add(text, BorderLayout.CENTER); row.add(go, BorderLayout.EAST);
 				row.setAlignmentX(Component.LEFT_ALIGNMENT);
@@ -964,7 +965,10 @@ public final class LaunchPopup {
 		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, 13f));
 		stopped.setIconTextGap(8);
 		JButton wake = new JButton("Wake server machine"), start = new JButton("Start server"), stop = new JButton("Stop server");
-		Runnable[] permsChanged = {() -> {}};   // (set further down: the Request permission buttons follow what the Keeper says)
+		wake.setToolTipText("Wakes the server machine if it's asleep (Wake on LAN: works from the owner's home network)");
+		start.setToolTipText("Starts the Minecraft server. Through Gatekeeper it starts MCSS first if MCSS isn't running.");
+		stop.setToolTipText("Stops the Minecraft server: the world is saved first, and anyone playing is disconnected. It asks before stopping.");
+		Runnable[] permsChanged = {() -> {}};   // (set further down: the Request permission buttons follow what Gatekeeper says)
 		wake.setEnabled(false);   // (until the first reading: only while the PC isn't answering)
 		start.setEnabled(false);
 		stop.setEnabled(false);
@@ -984,7 +988,7 @@ public final class LaunchPopup {
 			also.accept(s);   // (the Server tab's live line, from the same reading)
 			{
 				String phase = s.length > 2 ? s[2] : "";
-				// The PC: awake whenever anything on it answers (game server, panel or Gatehouse Keeper).
+				// The PC: awake whenever anything on it answers (game server, panel or Gatekeeper).
 				boolean asleep = phase.equals("asleep"), blocked = phase.equals("blocked");   // (blocked: blacklisted, nothing is shown)
 				pcStatus.setIcon(dot(blocked ? GRAY : asleep ? (waking ? AMBER : GRAY) : GREEN));
 				pcStatus.setText(wrap(blocked ? s[1] : asleep ? (waking ? "Waking up\u2026 (it can take a minute)" : "Asleep or off") : "Awake"));
@@ -1076,11 +1080,14 @@ public final class LaunchPopup {
 			}, "stop").start();
 		});
 
-		// MCSS itself (the server software), through Gatehouse Keeper on the server machine: allowed per launcher by the owner.
+		// MCSS itself (the server software), through Gatekeeper on the server machine: allowed per launcher by the owner.
 		JLabel mcss = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
 		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, 13f));
 		mcss.setIconTextGap(8);
 		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS"), pcSleep = new JButton("Sleep server machine");
+		mStart.setToolTipText("Starts MCSS (the program that runs the Minecraft server) on the server machine");
+		mClose.setToolTipText("Closes MCSS on the server machine. Only once the Minecraft server is stopped.");
+		pcSleep.setToolTipText("Puts the server machine to sleep. Only while the Minecraft server is stopped; Wake brings it back.");
 		boolean[] forceMode = {false};
 		mStart.setEnabled(false); mClose.setEnabled(false); pcSleep.setEnabled(false);
 		JLabel mNote = new JLabel(" ");
@@ -1099,7 +1106,7 @@ public final class LaunchPopup {
 				// How MCSS is, whatever this device may do about it (only a blacklisted launcher isn't told).
 				if (c.ban.equals("blacklist")) { text = "Not shown: this launcher is blacklisted"; state = "off"; }
 				else { text = running ? "MCSS is running" : "MCSS isn't running"; state = running ? "ok" : "off"; }
-			} catch (IOException | RuntimeException e) { state = "off"; text = "Gatehouse Keeper isn't answering (the server machine may be asleep or signed out)"; }
+			} catch (IOException | RuntimeException e) { state = "off"; text = "Gatekeeper isn't answering (the server machine may be asleep or signed out)"; }
 			String st = state, tx = text, md = mode; boolean g = granted, run = running, sl = sleepOk, gm = game;
 			SwingUtilities.invokeLater(() -> {
 				// The button says what it will do: MCSS's X button either exits it (Close) or only hides it (Force close).
@@ -1115,7 +1122,7 @@ public final class LaunchPopup {
 				permsChanged[0].run();
 				// Sleep: only with the owner's PC sleep permission, and only while the Minecraft server is stopped.
 				pcSleep.setEnabled(sl && !gm);
-				pcSleep.setToolTipText(!sl ? "This device isn't allowed to sleep the PC (the owner allows it in the control panel)"
+				pcSleep.setToolTipText(!sl ? "This device isn't allowed to sleep the PC (the owner allows it in Gatekeeper)"
 						: gm ? "Stop the Minecraft server first" : "Put the server machine to sleep (Wake server machine wakes it from the home network)");
 			});
 		}, "mcss-status").start();
@@ -1130,7 +1137,7 @@ public final class LaunchPopup {
 			new Thread(() -> {
 				String msg;
 				try { Map<String, Object> r = startIt ? c.mcssStart() : c.mcssClose(force); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
-				catch (IOException | RuntimeException ex) { msg = "Couldn't reach Gatehouse Keeper: is the server machine awake?"; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach Gatekeeper: is the server machine awake?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> mNote.setText(wrap(m)));
 				mcssRefresh.run();
@@ -1146,7 +1153,7 @@ public final class LaunchPopup {
 			new Thread(() -> {
 				String msg;
 				try { Map<String, Object> r = c.sleepPc(); msg = s(r.get("message")).isEmpty() ? s(r.get("error")) : s(r.get("message")); }
-				catch (IOException | RuntimeException ex) { msg = "Couldn't reach Gatehouse Keeper: is the server machine awake?"; }
+				catch (IOException | RuntimeException ex) { msg = "Couldn't reach Gatekeeper: is the server machine awake?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> pcNote.setText(wrap(m)));
 			}, "pc-sleep").start();
@@ -1170,7 +1177,7 @@ public final class LaunchPopup {
 			return r;
 		};
 		// "Request permission", one for each thing this device may not do: it asks the owner (a chime and a line in the
-		// control panel there). Granted: a chime here and a note. Denied: the button flashes red, with the owner's reason.
+		// Gatekeeper there). Granted: a chime here and a note. Denied: the button flashes red, with the owner's reason.
 		PlayButton[] reqB = {new PlayButton("Request permission", SLATE, Color.WHITE, 13f), new PlayButton("Request permission", SLATE, Color.WHITE, 13f), new PlayButton("Request permission", SLATE, Color.WHITE, 13f)};
 		String[] reqType = {"perm:machine", "perm:mcss", "perm:server"};
 		JLabel[] reqNote = {pcNote, mNote, note};
@@ -1178,6 +1185,7 @@ public final class LaunchPopup {
 		long[] reqWait = new long[3];
 		for (int i = 0; i < 3; i++) {
 			int k = i;
+			reqB[i].setToolTipText("Asks the owner to allow this device these controls. The launcher chimes if they say yes; the button flashes red if they say no.");
 			reqB[i].setBorder(BorderFactory.createEmptyBorder(4, 12, 4, 12));
 			reqB[i].setVisible(false);
 			reqB[i].addActionListener(e -> {
@@ -1190,9 +1198,9 @@ public final class LaunchPopup {
 					String m;
 					try {
 						Map<String, Object> r = c.request(reqType[k], "");
-						m = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty() ? "Gatehouse Keeper didn't take the request" : s(r.get("error"))) : s(r.get("message"));
+						m = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty() ? "Gatekeeper didn't take the request" : s(r.get("error"))) : s(r.get("message"));
 						if (!"ok".equals(s(r.get("result")))) { reqPending[k] = false; reqWait[k] = 0; }
-					} catch (IOException | RuntimeException ex) { m = "Couldn't reach Gatehouse Keeper (the server machine may be asleep)"; reqPending[k] = false; reqWait[k] = 0; }
+					} catch (IOException | RuntimeException ex) { m = "Couldn't reach Gatekeeper (the server machine may be asleep)"; reqPending[k] = false; reqWait[k] = 0; }
 					String msg = m;
 					SwingUtilities.invokeLater(() -> { reqNote[k].setText(wrap(msg)); permsChanged[0].run(); });
 				}, "request-permission").start();
@@ -1246,6 +1254,7 @@ public final class LaunchPopup {
 		javax.swing.JTextField user = new javax.swing.JTextField(c.username, 18);
 		javax.swing.JPasswordField pass = new javax.swing.JPasswordField(18);
 		JButton signIn = new JButton("Sign in");
+		signIn.setToolTipText("Signs in to the server panel with your own account there. Only the key it hands back is saved on this device, never your password.");
 		Runnable doSignIn = () -> {
 			hold.run();
 			signIn.setEnabled(false);
@@ -1282,19 +1291,21 @@ public final class LaunchPopup {
 		gc.gridx = 1; gc.gridy = 2; gc.insets = new java.awt.Insets(2, -6, 2, 0); fields.add(signButtons, gc);
 		JPanel fieldsWrap = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
 		fieldsWrap.add(fields);
-		JLabel signHelp = new JLabel(wrap("Sign in with your own account on the server panel. Only the key the panel hands back is saved, on this device; your password isn't. If the owner allowed this device through Gatehouse Keeper, you don't need to sign in."));
+		JLabel signHelp = new JLabel(wrap("Sign in with your own account on the server panel. Only the key the panel hands back is saved, on this device; your password isn't. If the owner allowed this device through Gatekeeper, you don't need to sign in."));
 		signHelp.setForeground(new Color(0x8F98A0));
 		showWho.run();
-		// Which Gatehouse Keeper this launcher talks to: the pack's, or one this device was paired with by address.
-		JLabel keeperHead = new JLabel("Gatehouse Keeper");
+		// Which Gatekeeper this launcher talks to: the pack's, or one this device was paired with by address.
+		JLabel keeperHead = new JLabel("Gatekeeper");
 		keeperHead.setFont(keeperHead.getFont().deriveFont(Font.BOLD, 14f));
 		keeperHead.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
 		JLabel keeperNow = new JLabel(), keeperNote = new JLabel(" ");
-		Runnable showKeeper = () -> keeperNow.setText(wrap(!c.hasHelper() ? "This launcher isn't paired with a Keeper: it can show whether the server is online, and nothing more."
-				: "This launcher talks to the Keeper at " + c.helperLabel() + (c.keeperUrl.isEmpty() ? " (the one this pack names)." : " (paired on this device).")));
+		Runnable showKeeper = () -> keeperNow.setText(wrap(!c.hasHelper() ? "This launcher isn't paired with a Gatekeeper: it can show whether the server is online, and nothing more."
+				: "This launcher talks to Gatekeeper at " + c.helperLabel() + (c.keeperUrl.isEmpty() ? " (the one this pack names)." : " (paired on this device).")));
 		showKeeper.run();
 		javax.swing.JTextField keeperField = new javax.swing.JTextField(c.keeperUrl.replaceFirst("(?i)^https?://", ""), 20);
-		JButton pairB = new JButton("Pair"), unpairB = new JButton("Use the pack's Keeper");
+		JButton pairB = new JButton("Pair"), unpairB = new JButton("Use the pack's Gatekeeper");
+		pairB.setToolTipText("Makes this launcher talk to the Gatekeeper at the address typed here, after checking one answers there");
+		unpairB.setToolTipText("Goes back to the Gatekeeper this pack names");
 		unpairB.setVisible(!c.packHelperUrl.isEmpty());
 		java.util.function.Consumer<String> pairWith = address -> {
 			hold.run();
@@ -1310,12 +1321,12 @@ public final class LaunchPopup {
 				});
 			}, "pair").start();
 		};
-		pairB.addActionListener(e -> { if (keeperField.getText().isBlank()) { keeperNote.setForeground(RED); keeperNote.setText("Type the Keeper's address first (the owner copies it from the control panel)."); } else pairWith.accept(keeperField.getText()); });
+		pairB.addActionListener(e -> { if (keeperField.getText().isBlank()) { keeperNote.setForeground(RED); keeperNote.setText("Type Gatekeeper's address first (the owner copies it from Gatekeeper)."); } else pairWith.accept(keeperField.getText()); });
 		unpairB.addActionListener(e -> pairWith.accept(""));
 		JPanel keeperRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
-		keeperRow.add(new JLabel("Keeper address")); keeperRow.add(keeperField);
+		keeperRow.add(new JLabel("Gatekeeper address")); keeperRow.add(keeperField);
 		for (JButton bt : new JButton[] {pairB, unpairB}) { bt.setFont(bt.getFont().deriveFont(13f)); keeperRow.add(bt); }
-		JLabel keeperHelp = new JLabel(wrap("To pair with another Keeper, ask its owner for the pairing address (control panel on the server machine: Status, Copy pairing address) and type it here. This device has to be in that owner's Tailscale network."));
+		JLabel keeperHelp = new JLabel(wrap("To pair with another Gatekeeper, ask its owner for the pairing address (Gatekeeper on the server machine: Status, Copy pairing address) and type it here. This device has to be in that owner's Tailscale network."));
 		keeperHelp.setForeground(new Color(0x8F98A0));
 		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote, keeperHead, keeperNow, keeperHelp, keeperRow, keeperNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
 
@@ -1333,11 +1344,11 @@ public final class LaunchPopup {
 
 	/** After a stop: was the world saved? The end of the server's log (through the panel's console) should show
 	 *  "Stopping server", "Saving worlds" and a chunk save for each dimension, with no errors after the stop began. */
-	/** For a device the owner allowed Keeper control, what the control panel on the server machine does, as two tabs:
+	/** For a device the owner allowed Gatekeeper control, what Gatekeeper on the server machine does, as two tabs:
 	 *  Manage access (who may do what, one launcher at a time or a player with all their devices; Remove server access;
-	 *  Forget) and Keeper activity (MCSS and the Minecraft server right now, and everything asked of the Keeper). Helper
-	 *  control itself and the Keeper's MCSS sign-in stay with the panel on the server machine. Returns the one panel
-	 *  that holds both (the launcher's Remote control panel tab). */
+	 *  Forget) and Gatekeeper activity (MCSS and the Minecraft server right now, and everything asked of Gatekeeper). Helper
+	 *  control itself and Gatekeeper's MCSS sign-in stay with the panel on the server machine. Returns the one panel
+	 *  that holds both (the launcher's Remote Gatekeeper tab). */
 	private static JPanel[] managePanel(ServerControl c, JFrame f) {
 		Color grey = new Color(0x8F98A0);
 		// ---- Access Manager: each permission is Allowed (green), Not allowed (white) or Denied (red); click one to change
@@ -1351,7 +1362,7 @@ public final class LaunchPopup {
 		pick.add(byDevice); pick.add(byPlayer);
 		access.add(pick, BorderLayout.NORTH);
 		java.util.function.Function<String[], javax.swing.table.DefaultTableModel> newModel = cols -> new javax.swing.table.DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
-		javax.swing.table.DefaultTableModel model = newModel.apply(new String[] {"Launcher", "Player", "Last seen", "Status", "Server Machine", "MCSS", "Minecraft server", "Keeper control", "Controls the server"});
+		javax.swing.table.DefaultTableModel model = newModel.apply(new String[] {"Launcher", "Player", "Last seen", "Status", "Server Machine", "MCSS", "Minecraft server", "Gatekeeper control", "Controls the server"});
 		javax.swing.table.DefaultTableModel pmodel = newModel.apply(new String[] {"Player", "Launchers", "Last joined", "Whitelist", "Status", "Server Machine", "MCSS", "Minecraft server"});
 		javax.swing.JTable table = new javax.swing.JTable(model), ptable = new javax.swing.JTable(pmodel);
 		javax.swing.table.DefaultTableCellRenderer paint = new javax.swing.table.DefaultTableCellRenderer() {
@@ -1376,18 +1387,38 @@ public final class LaunchPopup {
 		access.add(deck, BorderLayout.CENTER);
 		JButton wlB = new JButton("Add to whitelist"), kickB = new JButton("Kick\u2026"), suspendB = new JButton("Suspend\u2026"), blackB = new JButton("Blacklist\u2026"), liftB = new JButton("Lift"),
 				forget = new JButton("Forget"), revoke = new JButton("Remove server access");
-		JPanel buttons = new JPanel(new java.awt.GridLayout(0, 4, 6, 4));
-		for (JButton b : new JButton[] {suspendB, blackB, liftB, wlB, kickB, revoke, forget}) buttons.add(b);
+		wlB.setToolTipText("Adds the selected player to the server's whitelist, or takes them off it");
+		kickB.setToolTipText("Kicks the selected player off the Minecraft server now. They can join again.");
+		suspendB.setToolTipText("Suspends the selected launcher or player: they still get updates and see the server's status, but can't start the game or use any control.");
+		blackB.setToolTipText("Blacklists the selected launcher or player: as suspended, and they are shown nothing about the server.");
+		liftB.setToolTipText("Lifts a suspension or blacklisting");
+		revoke.setToolTipText("Switches off the selected launcher's server and MCSS control, and tells it to forget any sign-in or key it has saved");
+		forget.setToolTipText("Takes the selected launcher off the list, with everything it was allowed. It can introduce itself again later.");
+		// Three sets, as in Gatekeeper itself: what they may do with the server, shutting someone out, and the list.
+		java.util.function.BiFunction<String, JButton[], JPanel> set = (title, bs) -> {
+			JPanel g = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+			javax.swing.border.TitledBorder tb = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), title);
+			tb.setTitleColor(new Color(0x8F98A0));
+			g.setBorder(tb);
+			for (JButton b : bs) g.add(b);
+			return g;
+		};
+		JPanel buttons = new JPanel();
+		buttons.setLayout(new BoxLayout(buttons, BoxLayout.X_AXIS));
+		for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {wlB, revoke}), set.apply("Administration actions", new JButton[] {kickB, suspendB, blackB, liftB}), set.apply("List", new JButton[] {forget}))) {
+			g.setAlignmentY(Component.TOP_ALIGNMENT); buttons.add(g); buttons.add(Box.createHorizontalStrut(6));
+		}
+		buttons.add(Box.createHorizontalGlue());
 		String hint = "Click a permission to change it: Allowed, Not allowed or Denied.";
 		JLabel note = new JLabel(wrap(hint));
 		note.setForeground(grey);
 		JPanel under = new JPanel(new BorderLayout(0, 2));
 		under.add(buttons, BorderLayout.NORTH); under.add(note, BorderLayout.SOUTH);
 		access.add(under, BorderLayout.SOUTH);
-		// ---- Keeper activity
+		// ---- Gatekeeper activity
 		JPanel activity = new JPanel(new BorderLayout(0, 8));
 		activity.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
-		JLabel mcssLine = new JLabel("Asking Gatehouse Keeper\u2026", dot(GRAY), JLabel.LEFT), serverLine = new JLabel(" ", dot(GRAY), JLabel.LEFT), keyLine = new JLabel(" ");
+		JLabel mcssLine = new JLabel("Asking Gatekeeper\u2026", dot(GRAY), JLabel.LEFT), serverLine = new JLabel(" ", dot(GRAY), JLabel.LEFT), keyLine = new JLabel(" ");
 		keyLine.setForeground(grey);
 		JPanel lines = new JPanel();
 		lines.setLayout(new BoxLayout(lines, BoxLayout.Y_AXIS));
@@ -1420,7 +1451,7 @@ public final class LaunchPopup {
 			try {
 				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), pl = c.helper("GET", "/v1/admin/players", null), lg = c.helper("GET", "/v1/admin/log", null);
 				ui.accept(() -> {
-					if (!"200".equals(s(r.get("_code")))) { mcssLine.setIcon(dot(RED)); mcssLine.setText(s(r.get("error")).isEmpty() ? "Gatehouse Keeper said no (" + s(r.get("_code")) + ")" : s(r.get("error"))); note.setText(wrap(mcssLine.getText())); return; }
+					if (!"200".equals(s(r.get("_code")))) { mcssLine.setIcon(dot(RED)); mcssLine.setText(s(r.get("error")).isEmpty() ? "Gatekeeper said no (" + s(r.get("_code")) + ")" : s(r.get("error"))); note.setText(wrap(mcssLine.getText())); return; }
 					int sel = table.getSelectedRow();
 					String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null, you = s(r.get("you"));
 					model.setRowCount(0); ids.clear(); dban.clear();
@@ -1456,26 +1487,26 @@ public final class LaunchPopup {
 					boolean mc = "true".equals(s(r.get("mcss"))), sv = "true".equals(s(r.get("minecraft")));
 					mcssLine.setIcon(dot(mc ? GREEN : GRAY)); mcssLine.setText(mc ? "MCSS is running" : "MCSS isn't running");
 					serverLine.setIcon(dot(sv ? GREEN : GRAY)); serverLine.setText(sv ? "The Minecraft server is running" : "The Minecraft server is off");
-					keyLine.setText("true".equals(s(r.get("has_key"))) ? " " : "The Keeper isn't signed in to MCSS yet (server control needs it; done on the server machine).");
+					keyLine.setText("true".equals(s(r.get("has_key"))) ? " " : "Gatekeeper isn't signed in to MCSS yet (server control needs it; done on the server machine).");
 					StringBuilder sb = new StringBuilder();
 					if (lg.get("log") instanceof List<?> l) for (Object x : l) sb.append(x).append('\n');
 					if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
 				});
 			} catch (IOException | RuntimeException ex) {
-				ui.accept(() -> { mcssLine.setIcon(dot(RED)); mcssLine.setText("Couldn't reach Gatehouse Keeper (is the server machine awake?)"); serverLine.setText(" "); note.setText(wrap(mcssLine.getText())); });
+				ui.accept(() -> { mcssLine.setIcon(dot(RED)); mcssLine.setText("Couldn't reach Gatekeeper (is the server machine awake?)"); serverLine.setText(" "); note.setText(wrap(mcssLine.getText())); });
 			}
 		};
 		Runnable load = () -> new Thread(fetch, "manage").start();
 		java.util.function.BiConsumer<String, String> act = (path, body) -> new Thread(() -> {
 			String m;
-			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code"))) ? (s(r.get("message")).isEmpty() ? " " : s(r.get("message"))) : s(r.get("error")).isEmpty() ? "Gatehouse Keeper said no (" + s(r.get("_code")) + ")" : s(r.get("error")); }
-			catch (IOException | RuntimeException ex) { m = "Couldn't reach Gatehouse Keeper"; }
+			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code"))) ? (s(r.get("message")).isEmpty() ? " " : s(r.get("message"))) : s(r.get("error")).isEmpty() ? "Gatekeeper said no (" + s(r.get("_code")) + ")" : s(r.get("error")); }
+			catch (IOException | RuntimeException ex) { m = "Couldn't reach Gatekeeper"; }
 			String msg = m;
 			SwingUtilities.invokeLater(() -> note.setText(wrap(msg)));
 			load.run();
 		}, "manage-act").start();
 		String[] permNames = {"machine", "mcss", "server"};
-		// The launcher or player picked in the list, as the start of what's sent to the Keeper (or nothing picked).
+		// The launcher or player picked in the list, as the start of what's sent to Gatekeeper (or nothing picked).
 		java.util.function.Supplier<String> target = () -> {
 			if (players[0]) {
 				int r = ptable.getSelectedRow();
@@ -1550,10 +1581,10 @@ public final class LaunchPopup {
 		t.start();
 		for (JPanel q : new JPanel[] {access, activity})
 			q.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && q.isShowing()) load.run(); });
-		// Both live under one tab of the launcher, Remote control panel, as two tabs of their own.
+		// Both live under one tab of the launcher, Remote Gatekeeper, as two tabs of their own.
 		javax.swing.JTabbedPane inner = new javax.swing.JTabbedPane();
 		inner.addTab("Access Manager", access);
-		inner.addTab("Keeper activity", activity);
+		inner.addTab("Gatekeeper activity", activity);
 		JPanel remote = new JPanel(new BorderLayout());
 		remote.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));
 		remote.add(inner, BorderLayout.CENTER);
@@ -1928,11 +1959,11 @@ public final class LaunchPopup {
 				tabs.addTab("Server config", serverTabs[1]);
 				JComponent modsTab = modsPanel(dir);
 				if (modsTab != null) tabs.addTab("Client mods", modsTab);
-				// Remote control panel: only for a device the owner allowed Keeper control (in the control panel on the
+				// Remote Gatekeeper: only for a device the owner allowed Gatekeeper control (in Gatekeeper on the
 				// server machine); it comes and goes as that's allowed or removed.
 				syncTabs[0] = () -> {
 					boolean wantM = control.permAdmin && control.ban.isEmpty(), haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
-					if (wantM && !haveM) tabs.addTab("Remote control panel", serverTabs[2]);
+					if (wantM && !haveM) tabs.addTab("Remote Gatekeeper", serverTabs[2]);
 					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == serverTabs[2]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); }
 				};
 				syncTabs[0].run();
@@ -1943,6 +1974,7 @@ public final class LaunchPopup {
 			}
 			p.add(tabs, BorderLayout.CENTER);
 			PlayButton play = new PlayButton("Play");
+			play.setToolTipText("Starts the game once the server is online. Until then it asks the owner for whatever is missing: the server turned on, a place on the whitelist, or being let back in.");
 			JLabel playWhy = new JLabel(" ");
 			playWhy.setFont(playWhy.getFont().deriveFont(Font.PLAIN, 12f));
 			playWhy.setForeground(new Color(0x8F98A0));
@@ -1975,8 +2007,8 @@ public final class LaunchPopup {
 			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
 			// "Play" after. Nothing happens on its own: no countdown, the game starts only when the player presses Play.
 			boolean[] serverShown = {!serverNews};
-			// While the server isn't online, the same button is "Request server": it asks Gatehouse Keeper on the server
-			// machine to let the owner know (a chime and the control panel there). It goes back to Play by itself when the
+			// While the server isn't online, the same button is "Request server": it asks Gatekeeper on the server
+			// machine to let the owner know (a chime and Gatekeeper there). It goes back to Play by itself when the
 			// server comes up. One request a minute.
 			// The same goes for a player who isn't on the whitelist ("Request whitelist"), and for a launcher the owner
 			// suspended or blacklisted ("Request unsuspend", "Request unblacklist", with an optional message): the game

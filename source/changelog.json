@@ -1,4 +1,12 @@
 [
+ {"version": "1.11.0", "date": "2026-11-16", "notes": [
+  "New names: the program on the server machine and its window are now both called Gatekeeper (they were Gatehouse Keeper and the control panel). In the launcher, Remote control panel is now Remote Gatekeeper, and Keeper control is Gatekeeper control.",
+  "Start server now always ends with the server on. If MCSS isn't running, Gatekeeper starts MCSS first and then the server by itself, whether you pressed Start server in the launcher or the owner approved a request. Start server in the launcher is available while MCSS is closed.",
+  "When the owner approves Request server, the button flashes green and reads Server starting until the server is up, and the launcher chimes a second time when it's ready to play.",
+  "A blacklisted launcher's Network diagnosis no longer shows anything about the server machine, its addresses or where updates come from.",
+  "Hovering over a button now says what it does, in the launcher and in Gatekeeper.",
+  "For the owner: Gatekeeper no longer needs signing in to MCSS again each time MCSS restarts. Sign in once more after this update and it makes itself a lasting key in MCSS. Access Manager's buttons are in three sets (Server accesses, Administration actions, List), and the System column shows each launcher's operating system, with (linux) after Linux ones."
+ ]},
  {"version": "1.10.4", "date": "2026-11-15", "notes": [
   "The two Steam shortcuts now behave the way round they should. The pack's own shortcut (October Journey) goes straight into the game whenever it can: the update went through, the server is online, and you're allowed to join. That includes right after an update; the notes are kept and shown the next time the launcher's window appears. The Gatehouse Minecraft Launcher shortcut never starts the game by itself: pressing Play there shows the update window, as starting from Prism Launcher does."
  ]},

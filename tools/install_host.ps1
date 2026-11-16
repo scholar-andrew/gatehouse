@@ -1,9 +1,9 @@
-# Installs Gatehouse Keeper (the host helper) on the PC that runs the server (safe to run again: it updates in place):
+# Installs Gatekeeper (the host helper) on the PC that runs the server (safe to run again: it updates in place):
 #   - copies host/oj-host.jar to C:\Minecraft\GatehouseKeeper and writes host.json there if it's missing
 #   - registers the scheduled task "Gatehouse Keeper": runs it (javaw, no window) when you sign in,
 #     in your own session (so MCSS opens on your desktop when a launcher starts it), restarted if it stops
 #   - starts it now
-#   - adds "Gatehouse control panel" to your Start menu (through a one-off task, so it lands in your real Start menu)
+#   - adds "Gatekeeper" to your Start menu (through a one-off task, so it lands in your real Start menu)
 #   powershell -ExecutionPolicy Bypass -File tools\install_host.ps1
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
@@ -12,7 +12,7 @@ $dir = 'C:\Minecraft\GatehouseKeeper'
 $oldDirs = 'C:\Minecraft\GatehouseHost', 'C:\Minecraft\OctoberJourneyHost'
 $oldTasks = 'Gatehouse host helper', 'October Journey host helper'
 $javaw = 'C:\Program Files\Eclipse Adoptium\jdk-25.0.4.101-hotspot\bin\javaw.exe'
-# Stop a running Keeper first (Windows locks its jar while it runs), under its old names too, and the control panel if
+# Stop a running Gatekeeper first (Windows locks its jar while it runs), under its old names too, and Gatekeeper if
 # it's open. Through cmd, so a task that doesn't exist (the new name on the first run, an old one later) is just skipped.
 foreach ($tn in @('Gatehouse Keeper') + $oldTasks) { cmd /c "schtasks /end /tn `"$tn`" >nul 2>&1" }
 Get-CimInstance Win32_Process -Filter "Name='javaw.exe'" | Where-Object { $_.CommandLine -like '*oj-host.jar*' -and ($_.CommandLine -like '*GatehouseKeeper*' -or $_.CommandLine -like '*GatehouseHost*' -or $_.CommandLine -like '*OctoberJourneyHost*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
@@ -63,18 +63,18 @@ $action = New-ScheduledTaskAction -Execute $javaw -Argument "-jar `"$dir\oj-host
 $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
-Register-ScheduledTask -TaskName 'Gatehouse Keeper' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description 'Gatehouse: lets allowed launchers look after the Minecraft servers on this PC (Tailscale only). Start menu: Gatehouse control panel.' -Force | Out-Null
+Register-ScheduledTask -TaskName 'Gatehouse Keeper' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description 'Gatehouse: lets allowed launchers look after the Minecraft servers on this PC (Tailscale only). Start menu: Gatekeeper.' -Force | Out-Null
 schtasks /run /tn "Gatehouse Keeper" | Out-Null
 # The Start menu shortcut, made by a one-off task in your own session.
 $lnk = @"
-foreach (`$old in 'October Journey host panel.lnk', 'Gatehouse host panel.lnk') { Remove-Item ([Environment]::GetFolderPath('Programs') + '\' + `$old) -ErrorAction SilentlyContinue }
-`$s = (New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Programs') + '\Gatehouse control panel.lnk')
+foreach (`$old in 'October Journey host panel.lnk', 'Gatehouse host panel.lnk', 'Gatehouse control panel.lnk') { Remove-Item ([Environment]::GetFolderPath('Programs') + '\' + `$old) -ErrorAction SilentlyContinue }
+`$s = (New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Programs') + '\Gatekeeper.lnk')
 `$s.TargetPath = '$javaw'; `$s.Arguments = '-jar "$dir\oj-host.jar" --panel'; `$s.WorkingDirectory = '$dir'; `$s.Description = 'Gatehouse: who may do what on this server machine, and its status'; `$s.Save()
 "@
 $enc = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($lnk))
 $one = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -EncodedCommand $enc"
-Register-ScheduledTask -TaskName 'Gatehouse control panel shortcut (one-off)' -Action $one -Principal $principal -Force | Out-Null
-schtasks /run /tn "Gatehouse control panel shortcut (one-off)" | Out-Null
+Register-ScheduledTask -TaskName 'Gatekeeper shortcut (one-off)' -Action $one -Principal $principal -Force | Out-Null
+schtasks /run /tn "Gatekeeper shortcut (one-off)" | Out-Null
 Start-Sleep 5
-schtasks /delete /tn "Gatehouse control panel shortcut (one-off)" /f | Out-Null
+schtasks /delete /tn "Gatekeeper shortcut (one-off)" /f | Out-Null
 "installed in $dir"

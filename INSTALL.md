@@ -164,7 +164,7 @@ server is off, Stop while it runs):
 - **Wake server machine:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; not from
   elsewhere.
 - **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is
-  off. It needs the owner's **Server control** permission for your device (set in the control panel; nothing to sign
+  off. It needs the owner's **Server control** permission for your device (set in Gatekeeper; nothing to sign
   in to), or your own panel sign-in (Server config).
 - **Stop server:** stops the Minecraft server through the panel (the world is saved first). It asks before stopping,
   since anyone playing is disconnected. Same access as Start. Then it watches the shutdown and says how it went: green
@@ -181,41 +181,41 @@ ended instead).
 permission from the owner, separate from MCSS control, and only works while the Minecraft server is stopped.
 
 A fourth tab, **Server config**, says how this device controls the server (the same line is under Start and Stop in
-Server controls): **through Gatehouse Keeper** (the owner allowed it; nothing is saved on your device) or **with your
+Server controls): **through Gatekeeper** (the owner allowed it; nothing is saved on your device) or **with your
 panel sign-in**. When the owner allowed
-the Keeper way, that is the one used. The owner can remove any of them from the server PC; your device then forgets
+Gatekeeper way, that is the one used. The owner can remove any of them from the server PC; your device then forgets
 what it had saved. Below that is the **server panel sign-in**: username, password, **Sign in** and **Sign out**. The
 launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never
-your password. You don't need it if the owner allowed your device through Gatehouse Keeper.
+your password. You don't need it if the owner allowed your device through Gatekeeper.
 
 **Client mods** lists the pack's optional mods, each with a tick-box: untick one and it's switched off on this
 device. Only mods the game can join the server without are listed. A mod that needs another one goes off with it. A
 change is applied when the update runs again, so press **Restart** before you play. (The same switches are in the
 game, under Mod Menu.)
 
-Under that, **Gatehouse Keeper** says which Keeper this launcher talks to: the one the pack names, or one you paired
-it with. To pair with another Keeper, ask its owner for the pairing address (control panel on the server machine:
-Status, **Copy pairing address**), type it in **Keeper address** and press **Pair**. The launcher checks that a Keeper
-answers there, introduces itself, and waits for that owner to allow it; what another Keeper allowed doesn't carry
-over. **Use the pack's Keeper** goes back. Your device has to be in that owner's Tailscale network.
+Under that, **Gatekeeper** says which Gatekeeper this launcher talks to: the one the pack names, or one you paired
+it with. To pair with another Gatekeeper, ask its owner for the pairing address (Gatekeeper on the server machine:
+Status, **Copy pairing address**), type it in **Gatekeeper address** and press **Pair**. The launcher checks that a Gatekeeper
+answers there, introduces itself, and waits for that owner to allow it; what another Gatekeeper allowed doesn't carry
+over. **Use the pack's Gatekeeper** goes back. Your device has to be in that owner's Tailscale network.
 
-One more tab, **Remote control panel**, appears only on a device the owner has allowed **Keeper control**. It has two
+One more tab, **Remote Gatekeeper**, appears only on a device the owner has allowed **Gatekeeper control**. It has two
 tabs inside:
-- **Access Manager:** who may do what. **By launcher** lists the launchers the Keeper knows, with a coloured cell
+- **Access Manager:** who may do what. **By launcher** lists the launchers Gatekeeper knows, with a coloured cell
   for each permission (Server Machine, MCSS, Minecraft server): green allowed, white not allowed, red denied. Click a
   cell to change it. **By player** lists the players the same way, plus whether each is on the server's
   **whitelist** (click to add or remove); what you set for a player goes to all their confirmed devices, and ones
   they join from later, except a device that is itself denied. Buttons: **Suspend** (can't start the game or use
   any control), **Blacklist** (the same, and sees nothing about the server), **Lift**, **Kick** (a player, off the
   server now), each with an optional reason the player is shown, plus **Remove server access** and **Forget**. None
-  of these work on a launcher or player that has Keeper control.
-- **Keeper activity:** whether MCSS and the Minecraft server are running right now, and the Keeper's activity.
+  of these work on a launcher or player that has Gatekeeper control.
+- **Gatekeeper activity:** whether MCSS and the Minecraft server are running right now, and Gatekeeper's activity.
 
-Keeper control itself is only given on the server PC.
+Gatekeeper control itself is only given on the server PC.
 
 **Network diagnosis** (the other tab inside Connection) is for when something doesn't connect. It checks in order: the internet, Tailscale on
 this device (installed, signed in, switched on), whether the server machine is in the Tailscale network this device is
-signed in to, whether the server machine answers, where updates come from, Gatehouse Keeper, and the Minecraft server.
+signed in to, whether the server machine answers, where updates come from, Gatekeeper, and the Minecraft server.
 The top line names the first thing to fix, and each failed line says what to do. **Open Tailscale** (Windows) and
 **Get Tailscale** open the app or its download page; **Copy details** copies the result to send to the owner. It
 only looks: it installs nothing and changes no settings. On Linux and the Steam Deck it can't ask Tailscale itself

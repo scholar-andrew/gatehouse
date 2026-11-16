@@ -45,7 +45,7 @@ import javax.swing.WindowConstants;
 import javax.swing.table.DefaultTableModel;
 
 /**
- * Gatehouse Keeper, on the PC that runs the server. Two modes:
+ * Gatekeeper, on the PC that runs the server. Two modes:
  *
  *   --serve  (started at sign-in by a scheduled task) Listens on the Tailscale address only, for the launch pop-up's
  *            "Start MCSS" and "Close MCSS". Launchers introduce themselves (a device id they made, a secret only they
@@ -62,7 +62,7 @@ public final class HostHelper {
 	static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 	static Path dir;
 	static Map<String, Object> cfg;
-	/** The program that hosts the Minecraft server on this machine. Everything the Keeper does with it goes through
+	/** The program that hosts the Minecraft server on this machine. Everything Gatekeeper does with it goes through
 	 *  this one object (see ServerHost); MCSS is the only kind there is so far. */
 	static ServerHost host = new McssHost();
 
@@ -137,11 +137,11 @@ public final class HostHelper {
 		catch (IOException | RuntimeException e) { return false; }
 	}
 
-	// ------------------------------------------------------------------ the Keeper
+	// ------------------------------------------------------------------ Gatekeeper
 
 	static void serve() throws Exception {
 		log("helper starting (port " + port() + ")");
-		// Once a minute, also with no panel or launcher open, the server's log is read for joins (through the Keeper's
+		// Once a minute, also with no panel or launcher open, the server's log is read for joins (through Gatekeeper's
 		// own local call, so it takes its turn with the other requests): the log starts afresh when the server restarts.
 		Thread watch = new Thread(() -> {
 			while (true) {
@@ -160,7 +160,7 @@ public final class HostHelper {
 	static volatile HttpServer remote;
 	static volatile int bindTurn = 0;
 	/** The launchers' side, on this machine's Tailscale address only (host.json "bind"). Tailscale may still be starting
-	 *  at sign-in, and a new install has no address until Server setup in the control panel gives one: retried every
+	 *  at sign-in, and a new install has no address until Server setup in Gatekeeper gives one: retried every
 	 *  10 seconds. Called again when the address changes: the old listener stops and the new one starts. */
 	static synchronized void bindRemote() {
 		int turn = ++bindTurn;
@@ -171,7 +171,7 @@ public final class HostHelper {
 			boolean said = false;
 			while (turn == bindTurn) {
 				String bind = setting("bind", "");
-				if (bind.isEmpty()) { if (!said) log("no Tailscale address yet (host.json \"bind\"): open the control panel, Status, Server setup"); said = true; }
+				if (bind.isEmpty()) { if (!said) log("no Tailscale address yet (host.json \"bind\"): open Gatekeeper, Status, Server setup"); said = true; }
 				else try {
 					HttpServer r = HttpServer.create(new InetSocketAddress(bind, port()), 0);
 					r.createContext("/v1/", HostHelper::launcher);
@@ -187,11 +187,11 @@ public final class HostHelper {
 		}, "bind").start();
 	}
 
-	// ------------------------------------------------------------------ server setup: tying the Keeper to what's on this machine
+	// ------------------------------------------------------------------ server setup: tying Gatekeeper to what's on this machine
 
 	/** What Server setup shows: MCSS's program (as asked, else as set, else looked for in the usual places), the
 	 *  Minecraft servers found in its servers folder (each has MCSS's own mcss_server_config.json, with its name and id;
-	 *  the port is from server.properties) and whether the Keeper looks after each already, and this machine's
+	 *  the port is from server.properties) and whether Gatekeeper looks after each already, and this machine's
 	 *  Tailscale addresses. */
 	static Map<String, Object> setupScan(String exe) {
 		String home = System.getProperty("user.home", "");
@@ -232,7 +232,7 @@ public final class HostHelper {
 		try { return !a.isEmpty() && Path.of(a).toAbsolutePath().normalize().toString().equalsIgnoreCase(b.toAbsolutePath().normalize().toString()); } catch (RuntimeException e) { return false; }
 	}
 
-	/** Saves Server setup: MCSS's program, this machine's Tailscale address, and the servers the Keeper looks after.
+	/** Saves Server setup: MCSS's program, this machine's Tailscale address, and the servers Gatekeeper looks after.
 	 *  Servers it already had keep their place and their id (permissions are filed under them); new ones go after. */
 	static synchronized String[] setupSave(Map<String, Object> b) {
 		String exe = Json.str(b.get("mcss_exe")).trim(), bind = Json.str(b.get("bind")).trim();
@@ -270,14 +270,14 @@ public final class HostHelper {
 		catch (IOException e) { return new String[] {"refused", "Couldn't save host.json: " + e.getMessage()}; }
 		log("server setup: " + keep.size() + " server" + (keep.size() == 1 ? "" : "s") + (added > 0 ? " (" + added + " new)" : "") + (moved ? ", address " + bind : ""));
 		if (moved) bindRemote();
-		return new String[] {"ok", "Saved: the Keeper looks after " + keep.size() + " server" + (keep.size() == 1 ? "" : "s") + (setting("bind", "").isEmpty() ? ". It still needs this machine's Tailscale address before launchers can reach it." : ". Launchers pair with " + setting("bind", "") + ":" + port() + ".")};
+		return new String[] {"ok", "Saved: Gatekeeper looks after " + keep.size() + " server" + (keep.size() == 1 ? "" : "s") + (setting("bind", "").isEmpty() ? ". It still needs this machine's Tailscale address before launchers can reach it." : ". Launchers pair with " + setting("bind", "") + ":" + port() + ".")};
 	}
 
 	/** Starts the Minecraft server, whatever it takes: with MCSS running, it asks MCSS to start it; with MCSS closed,
 	 *  it starts MCSS and carries on in the background, starting the server as soon as MCSS answers (up to 2 minutes).
 	 *  Returns at once with what is happening; how it ended goes in the log. */
 	static String[] startServerFully(String by) {
-		if (!host.hasAccess()) return new String[] {"refused", "The Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
+		if (!host.hasAccess()) return new String[] {"refused", "Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
 		if (host.running()) {
 			int st = host.serverStatus();
 			if (st == 1) return new String[] {"ok", "The server is already on"};
@@ -291,7 +291,7 @@ public final class HostHelper {
 			SERVER.set(which);
 			try {
 				for (int i = 0; i < 120 && host.serverStatus() < 0; i++) Thread.sleep(1000);
-				if (host.serverStatus() < 0) { log("start " + serverName() + " (asked by " + by + "): MCSS started, but it isn't answering the Gatekeeper (if its sign-in ended, sign in again on the Status tab)"); return; }
+				if (host.serverStatus() < 0) { log("start " + serverName() + " (asked by " + by + "): MCSS started, but it isn't answering Gatekeeper (if its sign-in ended, sign in again on the Status tab)"); return; }
 				Thread.sleep(1500);
 				String[] r = host.serverStatus() == 1 || host.serverStatus() == 3 ? new String[] {"ok", "it was already coming up"} : host.serverAction(true);
 				log("start " + serverName() + " (asked by " + by + "), after starting MCSS: " + r[1]);
@@ -355,9 +355,9 @@ public final class HostHelper {
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
 			boolean granted = Boolean.TRUE.equals(d.get("granted")), canSleep = Boolean.TRUE.equals(d.get("sleep")), canServer = Boolean.TRUE.equals(d.get(serverKey())) || granted;   // (MCSS control includes server control)
-			// A fourth, Keeper control: the launcher may do what the control panel does (see the launchers and the activity,
+			// A fourth, Gatekeeper control: the launcher may do what Gatekeeper does (see the launchers and the activity,
 			// switch the other three permissions, forget a launcher). Only the panel on this PC gives or removes it, and
-			// the Keeper's MCSS key can't be read or set from a launcher.
+			// Gatekeeper's MCSS key can't be read or set from a launcher.
 			boolean canAdmin = Boolean.TRUE.equals(d.get("admin"));
 			// A launcher that is shut out: blacklisted, it is told nothing but that; suspended, it still sees how things
 			// are but may do nothing. Either way it can still ask to be let back in (/v1/request).
@@ -369,7 +369,7 @@ public final class HostHelper {
 				return;
 			}
 			if (path.equals("/v1/request") && x.getRequestMethod().equals("POST")) {
-				// A request for the owner, from any launcher the Keeper knows (allowed anything or not): the server turned on
+				// A request for the owner, from any launcher Gatekeeper knows (allowed anything or not): the server turned on
 				// (the default), a permission, the whitelist, or to be let back in.
 				Map<String, Object> rb = body(x);
 				String[] r = request(d, id, Json.str(rb.get("type")).isEmpty() ? "server" : Json.str(rb.get("type")), Json.str(rb.get("message")));
@@ -404,7 +404,7 @@ public final class HostHelper {
 				return;
 			}
 			if (path.startsWith("/v1/admin/")) {
-				if (!canAdmin) { reply(x, 403, m("error", "this device isn't allowed to manage launchers (the owner allows it in the control panel)")); return; }
+				if (!canAdmin) { reply(x, 403, m("error", "this device isn't allowed to manage launchers (the owner allows it in Gatekeeper)")); return; }
 				boolean post = x.getRequestMethod().equals("POST");
 				if (path.equals("/v1/admin/devices") && !post) {
 					Map<String, Object> all = listed();
@@ -424,12 +424,12 @@ public final class HostHelper {
 					else if (!player.isEmpty()) {
 						boolean keeper = false;
 						for (Object o : devs.values()) if (player.equals(Json.str(Json.map(o).get("player"))) && Boolean.TRUE.equals(Json.map(o).get("admin"))) keeper = true;
-						r = keeper && !kind.isEmpty() ? new String[] {"refused", "That player has a launcher with Keeper control: only the control panel on the server PC can do that"} : banPlayer(player, kind, reason);
+						r = keeper && !kind.isEmpty() ? new String[] {"refused", "That player has a launcher with Gatekeeper control: only Gatekeeper on the server PC can do that"} : banPlayer(player, kind, reason);
 					} else {
 						String tid = Json.str(b.get("id"));
 						Map<String, Object> tt = Json.map(devs.get(tid));
 						if (tt.isEmpty()) r = new String[] {"refused", "unknown launcher"};
-						else if (!kind.isEmpty() && (tid.equals(id) || Boolean.TRUE.equals(tt.get("admin")))) r = new String[] {"refused", "That launcher has Keeper control: only the control panel on the server PC can do that"};
+						else if (!kind.isEmpty() && (tid.equals(id) || Boolean.TRUE.equals(tt.get("admin")))) r = new String[] {"refused", "That launcher has Gatekeeper control: only Gatekeeper on the server PC can do that"};
 						else { if (kind.isEmpty()) { tt.remove("ban"); tt.remove("ban_reason"); } else { tt.put("ban", kind); tt.put("ban_reason", reason); } saveDevices(devs); r = new String[] {"ok", who(tt) + (kind.isEmpty() ? " is no longer blacklisted or suspended." : " is " + (kind.equals("blacklist") ? "blacklisted" : "suspended") + " (this device).")}; }
 					}
 					log(path.substring(10) + " " + (player.isEmpty() ? Json.str(b.get("id")) : player.replaceAll("[^\\w]", "")) + ": " + r[1] + " (asked by " + who(d) + ")");
@@ -439,7 +439,7 @@ public final class HostHelper {
 				} else if (path.equals("/v1/admin/player/perm") && post) {
 					Map<String, Object> b = body(x);
 					String perm = Json.str(b.get("perm"));
-					if (perm.equals("admin")) { reply(x, 403, m("error", "Keeper control is only given or removed in the control panel on the server PC")); return; }
+					if (perm.equals("admin")) { reply(x, 403, m("error", "Gatekeeper control is only given or removed in Gatekeeper on the server PC")); return; }
 					String[] r = playerPerm(Json.str(b.get("player")), perm, stateOf(b));
 					log("(asked by " + who(d) + ")");
 					reply(x, 200, m("result", r[0], "message", r[1]));
@@ -449,7 +449,7 @@ public final class HostHelper {
 					Map<String, Object> t = Json.map(devs.get(tid));
 					if (t.isEmpty()) { reply(x, 404, m("error", "unknown launcher")); return; }
 					if (path.endsWith("revoke")) {
-						if (Boolean.TRUE.equals(t.get("admin")) && !tid.equals(id)) { reply(x, 403, m("error", "That launcher has Keeper control: only the control panel on the server PC can remove its access")); return; }
+						if (Boolean.TRUE.equals(t.get("admin")) && !tid.equals(id)) { reply(x, 403, m("error", "That launcher has Gatekeeper control: only Gatekeeper on the server PC can remove its access")); return; }
 						String[] r = revokeAccess(t);
 						log("removed server access from " + who(t) + " (asked by " + who(d) + "): " + r[1]);
 						saveDevices(devs);
@@ -457,13 +457,13 @@ public final class HostHelper {
 						return;
 					}
 					if (path.endsWith("forget")) {
-						if (tid.equals(id)) { reply(x, 403, m("error", "This is the launcher you're using: forget it in the control panel on the server PC")); return; }
-						if (Boolean.TRUE.equals(t.get("admin"))) { reply(x, 403, m("error", "That launcher has Keeper control: only the control panel on the server PC can forget it")); return; }
+						if (tid.equals(id)) { reply(x, 403, m("error", "This is the launcher you're using: forget it in Gatekeeper on the server PC")); return; }
+						if (Boolean.TRUE.equals(t.get("admin"))) { reply(x, 403, m("error", "That launcher has Gatekeeper control: only Gatekeeper on the server PC can forget it")); return; }
 						devs.remove(tid); log("forgot " + who(t) + " (asked by " + who(d) + ")");
 					} else {
 						String perm = Json.str(b.get("perm"));
 						String st = stateOf(b);
-						if (perm.equals("admin") || devKey(perm) == null) { reply(x, 403, m("error", perm.equals("admin") ? "Keeper control is only given or removed in the control panel on the server PC" : "unknown permission")); return; }
+						if (perm.equals("admin") || devKey(perm) == null) { reply(x, 403, m("error", perm.equals("admin") ? "Gatekeeper control is only given or removed in Gatekeeper on the server PC" : "unknown permission")); return; }
 						setPermState(t, perm, st);
 						log(permName(perm) + " for " + who(t) + ": " + (st.equals("none") ? "not allowed" : st) + " (asked by " + who(d) + ")");
 					}
@@ -473,7 +473,7 @@ public final class HostHelper {
 				return;
 			}
 			if (path.startsWith("/v1/server")) {
-				if (!canServer) { reply(x, 403, m("error", "this device isn't allowed to control the server (the owner allows it in the control panel)")); return; }
+				if (!canServer) { reply(x, 403, m("error", "this device isn't allowed to control the server (the owner allows it in Gatekeeper)")); return; }
 				if (path.equals("/v1/server") && x.getRequestMethod().equals("GET")) reply(x, 200, m("status", host.serverStatus()));
 				else if (path.equals("/v1/server/log") && x.getRequestMethod().equals("GET")) reply(x, 200, m("lines", serverLog(80)));
 				else if ((path.equals("/v1/server/start") || path.equals("/v1/server/stop")) && x.getRequestMethod().equals("POST")) {
@@ -484,13 +484,13 @@ public final class HostHelper {
 				return;
 			}
 			if (path.equals("/v1/pc/sleep") && x.getRequestMethod().equals("POST")) {
-				if (!canSleep) { reply(x, 403, m("error", "this device isn't allowed to sleep the PC (the owner allows it in the control panel)")); return; }
+				if (!canSleep) { reply(x, 403, m("error", "this device isn't allowed to sleep the PC (the owner allows it in Gatekeeper)")); return; }
 				String[] r = sleepPc();
 				log("sleep the PC asked by " + who(d) + ": " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 				return;
 			}
-			if (!granted) { reply(x, 403, m("state", "pending", "error", "not allowed yet: the owner allows this device in the control panel")); return; }
+			if (!granted) { reply(x, 403, m("state", "pending", "error", "not allowed yet: the owner allows this device in Gatekeeper")); return; }
 			String[] r;
 			if (path.equals("/v1/mcss/start") && x.getRequestMethod().equals("POST")) r = host.start();
 			else if (path.equals("/v1/mcss/close") && x.getRequestMethod().equals("POST")) r = host.close("true".equals(Json.str(body(x).get("force"))));
@@ -499,7 +499,7 @@ public final class HostHelper {
 			reply(x, 200, m("result", r[0], "message", r[1], "mcss", host.running()));
 		} catch (Exception e) {
 			log("error: " + e);
-			try { reply(x, 500, m("error", "the Keeper had a problem")); } catch (IOException ignored) {}
+			try { reply(x, 500, m("error", "Gatekeeper had a problem")); } catch (IOException ignored) {}
 		}
 	}
 
@@ -511,7 +511,7 @@ public final class HostHelper {
 	 *  fixed here; a host.json from before the list existed may still give server_dir / minecraft / mcss_server itself. */
 	static List<Object> servers() { return Json.list(cfg.get("servers")); }
 	/** Which of them the request being answered is about: its "id", as the launcher's profile names it (X-Server) or
-	 *  the control panel picks it (?server=). Empty or unknown: the first one. */
+	 *  Gatekeeper picks it (?server=). Empty or unknown: the first one. */
 	static final ThreadLocal<String> SERVER = ThreadLocal.withInitial(() -> "");
 	static Map<String, Object> server() {
 		List<Object> l = servers();
@@ -545,7 +545,7 @@ public final class HostHelper {
 	static Path serverDir() { return Path.of(serverSetting("dir", "server_dir", "")); }
 	// ------------------------------------------------------------------ players
 
-	static final String[][] PERMS = {{"server", "server", "server control"}, {"mcss", "granted", "MCSS control"}, {"sleep", "sleep", "Machine wake/sleep"}, {"admin", "admin", "Keeper control"}};
+	static final String[][] PERMS = {{"server", "server", "server control"}, {"mcss", "granted", "MCSS control"}, {"sleep", "sleep", "Machine wake/sleep"}, {"admin", "admin", "Gatekeeper control"}};
 	static long logSeen = -1;
 
 	static Map<String, Object> players() { return Json.map(Json.parse(read(dir.resolve("players.json")))); }
@@ -661,9 +661,9 @@ public final class HostHelper {
 
 	/** Where each permission is kept on a launcher (and, for a player, in players.json): machine (wake and sleep the
 	 *  server machine), mcss (start and close MCSS; it includes server), server (start and stop the Minecraft server
-	 *  being looked at), admin (Keeper control). */
+	 *  being looked at), admin (Gatekeeper control). */
 	static String devKey(String perm) { return perm.equals("machine") || perm.equals("sleep") ? "sleep" : perm.equals("mcss") ? "granted" : perm.equals("server") ? serverKey() : perm.equals("admin") ? "admin" : null; }
-	static String permName(String perm) { return perm.equals("machine") || perm.equals("sleep") ? "machine wake and sleep" : perm.equals("mcss") ? "MCSS control" : perm.equals("server") ? "server control" : "Keeper control"; }
+	static String permName(String perm) { return perm.equals("machine") || perm.equals("sleep") ? "machine wake and sleep" : perm.equals("mcss") ? "MCSS control" : perm.equals("server") ? "server control" : "Gatekeeper control"; }
 	/** A permission is one of three things: "allowed", "denied" (refused on purpose: nothing given to the player's other
 	 *  devices or to the player as a whole changes it), or "none" (simply not allowed). */
 	static String permState(Map<String, Object> holder, String perm) {
@@ -743,9 +743,9 @@ public final class HostHelper {
 	/** What became of each launcher's last request: "asked" (waiting for the owner) or "denied" (dismissed in the panel). */
 	static final Map<String, String> requestState = new java.util.concurrent.ConcurrentHashMap<>();
 	static int requestSeq = 0;
-	static volatile long panelSeen = 0;   // when the control panel last asked for its list (it does every few seconds while open)
+	static volatile long panelSeen = 0;   // when Gatekeeper last asked for its list (it does every few seconds while open)
 
-	/** A launcher asks for the server to be turned on: noted for the control panel, with a chime here and the panel
+	/** A launcher asks for the server to be turned on: noted for Gatekeeper, with a chime here and the panel
 	 *  brought up minimized (its taskbar button flashes) if it isn't open. One a minute from each launcher. */
 	static final Map<String, Long> requestTime = new java.util.concurrent.ConcurrentHashMap<>();
 	static final Map<String, String> requestReason = new java.util.concurrent.ConcurrentHashMap<>();
@@ -764,7 +764,7 @@ public final class HostHelper {
 		};
 	}
 
-	/** A launcher asks for something: noted for the control panel, with a chime here and the panel brought up minimized
+	/** A launcher asks for something: noted for Gatekeeper, with a chime here and the panel brought up minimized
 	 *  (its taskbar button flashes) if it isn't open. One a minute of each kind from each launcher. A launcher that is
 	 *  shut out may only ask to be let back in. */
 	static synchronized String[] request(Map<String, Object> d, String id, String type, String message) {
@@ -870,14 +870,14 @@ public final class HostHelper {
 		t.start();
 	}
 
-	/** Opens the control panel minimized, unless one is open already (an open panel sees the request itself). */
+	/** Opens Gatekeeper minimized, unless one is open already (an open panel sees the request itself). */
 	static void openPanel() {
 		if (System.currentTimeMillis() - panelSeen < 8000) return;
 		try {
 			String java = ProcessHandle.current().info().command().orElse("javaw");
 			String jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
 			new ProcessBuilder(java, "-jar", jar, "--panel", "--minimized").start();
-		} catch (Exception e) { log("couldn't open the control panel: " + e); }
+		} catch (Exception e) { log("couldn't open Gatekeeper: " + e); }
 	}
 
 	// ------------------------------------------------------------------ the server's whitelist
@@ -927,8 +927,8 @@ public final class HostHelper {
 	/** How a launcher controls the server, for the panel's list. */
 	static String accessText(Map<String, Object> d) {
 		String k = Json.str(d.get("access")), s = Json.str(d.get("saved")), u = Json.str(d.get("access_user"));
-		String has = s.equals("signin") ? "signed in to the panel" + (u.isEmpty() ? "" : " as " + u) : s.equals("key") ? "its own API key" : s.equals("issued") ? "a key issued by the Keeper" : "";
-		String t = k.isEmpty() ? "Unknown (older launcher)" : k.equals("helper") ? "Through the Keeper" + (has.isEmpty() ? "" : " (also saved: " + has + ")")
+		String has = s.equals("signin") ? "signed in to the panel" + (u.isEmpty() ? "" : " as " + u) : s.equals("key") ? "its own API key" : s.equals("issued") ? "a key issued by Gatekeeper" : "";
+		String t = k.isEmpty() ? "Unknown (older launcher)" : k.equals("helper") ? "Through Gatekeeper" + (has.isEmpty() ? "" : " (also saved: " + has + ")")
 				: has.isEmpty() ? "None" : Character.toUpperCase(has.charAt(0)) + has.substring(1);
 		if (Boolean.TRUE.equals(d.get("clear_access"))) t += "; told to forget what it has saved";
 		return t;
@@ -1019,7 +1019,7 @@ public final class HostHelper {
 			} else if (path.equals("/admin/mcss/start") || path.equals("/admin/mcss/close")) {
 				// MCSS itself, from the panel on this PC: the same start and close the launchers ask for.
 				String[] r = path.endsWith("start") ? host.start() : host.close("true".equals(Json.str(body(x).get("force"))));
-				log((path.endsWith("start") ? "start" : "close") + " MCSS from the control panel: " + r[1]);
+				log((path.endsWith("start") ? "start" : "close") + " MCSS from Gatekeeper: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/ban")) {
 				// Blacklist or suspend (kind), or lift it (kind empty): a launcher by its id, or a player on every device.
@@ -1075,19 +1075,19 @@ public final class HostHelper {
 				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/server/stop")) {
 				String[] r = host.serverAction(false);
-				log("stop the Minecraft server from the control panel: " + r[1]);
+				log("stop the Minecraft server from Gatekeeper: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/server/start")) {
 				// From the panel's request banner: MCSS first if it isn't running (it needs a moment before it takes the start).
 				String[] r;
 				r = startServerFully("the owner");
-				log("start the Minecraft server from the control panel: " + r[1]);
+				log("start the Minecraft server from Gatekeeper: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/keytest")) {
-				// Troubleshooting: what the host program answers to the Keeper's access (never the access itself).
+				// Troubleshooting: what the host program answers to Gatekeeper's access (never the access itself).
 				reply(x, 200, host.diagnose());
 			} else if (path.equals("/admin/signin")) {
-				// The owner signs the Keeper in to the host program with an account there (typed in the control panel on this
+				// The owner signs Gatekeeper in to the host program with an account there (typed in Gatekeeper on this
 				// PC). What it hands back is kept; the password never is.
 				Map<String, Object> b = body(x);
 				String[] r = host.signIn(Json.str(b.get("username")).trim(), Json.str(b.get("password")));
@@ -1098,7 +1098,7 @@ public final class HostHelper {
 				String[] r = setupSave(body(x));
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/settings")) {
-				// The Keeper's own key for the host program, kept on this PC only.
+				// Gatekeeper's own key for the host program, kept on this PC only.
 				host.setKey(Json.str(body(x).get("mcss_api_key")).trim());
 				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/grant") || path.equals("/admin/forget") || path.equals("/admin/perm")) {
@@ -1129,7 +1129,7 @@ public final class HostHelper {
 
 	// ------------------------------------------------------------------ the panel
 
-	/** The server the control panel is looking at (its pick, when the machine has more than one). */
+	/** The server Gatekeeper is looking at (its pick, when the machine has more than one). */
 	static volatile String panelServer = "";
 	static String call(String method, String path, String body) throws IOException {
 		if (!panelServer.isEmpty()) path += (path.contains("?") ? "&" : "?") + "server=" + panelServer;
@@ -1143,15 +1143,16 @@ public final class HostHelper {
 		if (GraphicsEnvironment.isHeadless()) { System.out.println(call("GET", "/admin/devices", null)); return; }
 		SwingUtilities.invokeAndWait(() -> {
 			dev.gatehouse.look.SteamLook.apply();
-			JFrame f = new JFrame("Gatehouse control panel");
+			JFrame f = new JFrame("Gatekeeper");
 			f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
 			p.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
-			JLabel head = new JLabel("Gatehouse Keeper");
+			JLabel head = new JLabel("Gatekeeper");
 			head.setFont(head.getFont().deriveFont(Font.BOLD, 17f));
 			JLabel state = new JLabel(" ");
 			// MCSS itself: start it, or close it (how follows MCSS's own X-button setting, as for the launchers).
 			JButton mcssRun = new JButton("Start MCSS");
+			mcssRun.setToolTipText("Starts MCSS on this machine, or closes it (only once the Minecraft server is stopped).");
 			boolean[] mcssUp = {false}; String[] mcssClose = {"close"};
 			JPanel stateRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
 			stateRow.add(mcssRun); stateRow.add(state);
@@ -1175,7 +1176,7 @@ public final class HostHelper {
 			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(headLine, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH);
 			p.add(top, BorderLayout.NORTH);
-			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "Machine wake/sleep", "Keeper control", "Controls the server", "Status"};
+			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Controls the server", "Status"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable table = new JTable(model);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -1188,17 +1189,22 @@ public final class HostHelper {
 			JScrollPane ts = new JScrollPane(table); ts.setPreferredSize(new Dimension(1180, 200));
 			mid.add(ts, BorderLayout.CENTER);
 			JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
-			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow machine wake/sleep"), adminB = new JButton("Allow Keeper control"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
-			adminB.setToolTipText("Keeper control lets that launcher manage the others' permissions from its Server config tab, as this panel does (not the MCSS key, and not Keeper control itself).");
+			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow machine wake/sleep"), adminB = new JButton("Allow Gatekeeper control"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
+			serverB.setToolTipText("Server control: the selected launcher may start and stop this Minecraft server (through Gatekeeper; it needs no MCSS account).");
+			mcssB.setToolTipText("MCSS control: the selected launcher may start and close MCSS itself. It includes server control.");
+			sleepB.setToolTipText("Machine wake/sleep: the selected launcher may wake this machine and put it to sleep (sleep only while the Minecraft server is stopped).");
+			forget.setToolTipText("Takes the selected launcher off this list, with everything it was allowed. It can introduce itself again later and starts with nothing.");
+			refreshB.setToolTipText("Reads the list again now (it also refreshes by itself every few seconds).");
+			adminB.setToolTipText("Gatekeeper control lets that launcher manage the others' permissions from its Server config tab, as this panel does (not the MCSS key, and not Gatekeeper control itself).");
 			for (JButton b : new JButton[] {serverB, mcssB, sleepB, adminB, forget, refreshB}) buttons.add(b);
 			Map<String, boolean[]> perms = new java.util.HashMap<>();   // id -> {mcss, sleep, server}, from the last refresh
-			// The Keeper's own MCSS key: needed for "server control" (it starts and stops the server for allowed launchers).
+			// Gatekeeper's own MCSS key: needed for "server control" (it starts and stops the server for allowed launchers).
 			JLabel keyState = new JLabel(" ");
 			JButton keyB = new JButton("Set MCSS key\u2026");
 			JButton signB = new JButton("Sign in to MCSS\u2026");
 			JPanel keyRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			keyRow.add(signB); keyRow.add(keyB); keyRow.add(keyState);
-			// For the selected launcher: an MCSS key of its own, made and handed over by the Keeper; and taking away
+			// For the selected launcher: an MCSS key of its own, made and handed over by Gatekeeper; and taking away
 			// whatever lets it control the server.
 			JButton revokeB = new JButton("Remove server access");
 			revokeB.setToolTipText("Switches off the selected launcher's server and MCSS control, and tells it to forget any sign-in or key it has saved.");
@@ -1207,12 +1213,12 @@ public final class HostHelper {
 				int row = table.getSelectedRow();
 				if (row < 0) { JOptionPane.showMessageDialog(f, "Pick a launcher in the list first."); return; }
 				String id = ids.get(row);
-				if (JOptionPane.showConfirmDialog(f, "<html><div style='width:380px'>" + confirm + "</div></html>", "Gatehouse control panel", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+				if (JOptionPane.showConfirmDialog(f, "<html><div style='width:380px'>" + confirm + "</div></html>", "Gatekeeper", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 				new Thread(() -> {
 					String msg;
-					try { msg = Json.str(Json.map(Json.parse(call("POST", path, "{\"id\":\"" + id + "\"}"))).get("message")); } catch (IOException ex) { msg = "The Keeper isn't running."; }
+					try { msg = Json.str(Json.map(Json.parse(call("POST", path, "{\"id\":\"" + id + "\"}"))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 					String m2 = "<html><div style='width:420px'>" + msg.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>";
-					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "Gatehouse control panel", JOptionPane.PLAIN_MESSAGE));
+					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "Gatekeeper", JOptionPane.PLAIN_MESSAGE));
 				}, "ask").start();
 			};
 			revokeB.addActionListener(e -> ask.accept("/admin/revoke", "Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."));
@@ -1221,7 +1227,7 @@ public final class HostHelper {
 			mid.add(south, BorderLayout.SOUTH);
 			// Players: the same permissions, per player. A player is tied to a launcher when the server's log shows them
 			// joining from it; allowing a player something sets it on all their launchers, and on ones they join from later.
-			String[] pcols = {"Player", "Whitelisted", "Launchers", "Last joined", "Server control", "MCSS control", "Machine wake/sleep", "Keeper control", "Status"};
+			String[] pcols = {"Player", "Whitelisted", "Launchers", "Last joined", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Status"};
 			// The Whitelisted column is a tick-box: ticking or unticking a player changes the server's whitelist.
 			boolean[] filling = {false};
 			DefaultTableModel pmodel = new DefaultTableModel(pcols, 0) {
@@ -1233,7 +1239,7 @@ public final class HostHelper {
 			ptable.setRowHeight(24);
 			List<String> pnames = new ArrayList<>();
 			Map<String, boolean[]> pallow = new java.util.HashMap<>();   // player -> allowed {server, mcss, sleep, admin}
-			JButton[] pB = {new JButton("Allow server control"), new JButton("Allow MCSS control"), new JButton("Allow machine wake/sleep"), new JButton("Allow Keeper control")};
+			JButton[] pB = {new JButton("Allow server control"), new JButton("Allow MCSS control"), new JButton("Allow machine wake/sleep"), new JButton("Allow Gatekeeper control")};
 			JPanel pbuttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			for (JButton b : pB) pbuttons.add(b);
 			JLabel pnote = new JLabel("<html><div style='width:900px'>A player appears once they've joined the server from a device with the launcher (matched by its Tailscale address), or when a launcher says who last played on it (\"not confirmed\" until they join). Click a permission to set it: white is not allowed, green allowed, red denied. What you set for a player is set on all their confirmed launchers (and on launchers they join from later), except a launcher that is itself Denied that thing. The Whitelisted box puts a player on the server's whitelist or takes them off (a name that is \"not confirmed\" is only what a launcher said, so check it before ticking). The Launchers tab still changes one launcher at a time.</div></html>");
@@ -1256,9 +1262,10 @@ public final class HostHelper {
 			JPanel accessTab = new JPanel(new BorderLayout(0, 4));
 			accessTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
 			accessTab.add(pick, BorderLayout.NORTH); accessTab.add(deck, BorderLayout.CENTER);
-			// Status: the Keeper, MCSS, the Minecraft server, and everything that was asked of the Keeper.
+			// Status: Gatekeeper, MCSS, the Minecraft server, and everything that was asked of Gatekeeper.
 			JLabel mcssState = new JLabel(" "), serverState = new JLabel(" ");
 			JButton serverRun = new JButton("Start server");
+			serverRun.setToolTipText("Starts the Minecraft server (starting MCSS first if it isn't running), or stops it: the world is saved first.");
 			boolean[] serverUpNow = {false};
 			JPanel statusTop = new JPanel();
 			statusTop.setLayout(new javax.swing.BoxLayout(statusTop, javax.swing.BoxLayout.Y_AXIS));
@@ -1273,8 +1280,8 @@ public final class HostHelper {
 			JPanel serverRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); serverRow.add(serverRun); serverRow.add(serverState);
 			JPanel helperRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); helperRow.add(state);
 			JButton setupB = new JButton("Server setup\u2026"), pairB = new JButton("Copy pairing address");
-			setupB.setToolTipText("Which MCSS and which Minecraft servers on this machine the Keeper looks after, and this machine's Tailscale address.");
-			pairB.setToolTipText("The address a launcher is given to pair with this Keeper (in its Server config tab).");
+			setupB.setToolTipText("Which MCSS and which Minecraft servers on this machine Gatekeeper looks after, and this machine's Tailscale address.");
+			pairB.setToolTipText("The address a launcher is given to pair with this Gatekeeper (in its Server config tab).");
 			JLabel pairNote = new JLabel(" ");
 			pairNote.setForeground(new Color(0x8F98A0));
 			JPanel setupRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); setupRow.add(setupB); setupRow.add(pairB); setupRow.add(pairNote);
@@ -1284,8 +1291,8 @@ public final class HostHelper {
 					if (Json.str(r.get("bind")).isEmpty()) { pairNote.setText("No Tailscale address yet: use Server setup first."); return; }
 					String addr = Json.str(r.get("bind")) + ":" + Json.str(r.get("port"));
 					java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(addr), null);
-					pairNote.setText("Copied " + addr + ". In the launcher: Server config, Gatehouse Keeper, Pair.");
-				} catch (Exception ex) { pairNote.setText("Couldn't ask the Keeper: is it running?"); }
+					pairNote.setText("Copied " + addr + ". In the launcher: Server config, Gatekeeper, Pair.");
+				} catch (Exception ex) { pairNote.setText("Couldn't ask Gatekeeper: is it running?"); }
 			});
 			// Server setup: MCSS's program, this machine's Tailscale address, and a tick for each Minecraft server MCSS has.
 			Runnable setup = () -> {
@@ -1318,7 +1325,7 @@ public final class HostHelper {
 						list.revalidate(); list.repaint();
 						java.awt.Window w = SwingUtilities.getWindowAncestor(list);
 						if (w != null) w.pack();
-					} catch (Exception ex) { problem.setText("Couldn't ask the Keeper: is it running? (Task Scheduler, Gatehouse Keeper)"); }
+					} catch (Exception ex) { problem.setText("Couldn't ask Gatekeeper: is it running? (Task Scheduler, Gatehouse Keeper)"); }
 				};
 				JButton browse = new JButton("Browse\u2026"), again = new JButton("Look again");
 				browse.addActionListener(ev -> {
@@ -1333,8 +1340,8 @@ public final class HostHelper {
 				JPanel addrRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); addrRow.add(addrF);
 				java.util.function.Function<String, JLabel> subHead = hs -> { JLabel l = new JLabel(hs); l.setFont(l.getFont().deriveFont(Font.BOLD)); l.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0)); return l; };
 				for (javax.swing.JComponent c : new javax.swing.JComponent[] {subHead.apply("MCSS on this machine (mcss.exe)"), exeRow,
-						subHead.apply("This machine's Tailscale address (launchers reach the Keeper on it)"), addrRow,
-						subHead.apply("Minecraft servers in MCSS (tick the ones the Keeper looks after)"), list, problem}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); }
+						subHead.apply("This machine's Tailscale address (launchers reach Gatekeeper on it)"), addrRow,
+						subHead.apply("Minecraft servers in MCSS (tick the ones Gatekeeper looks after)"), list, problem}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); }
 				scan.run();
 				String shot = System.getenv("OJ_PANEL_PNG");
 				if (shot != null && !shot.isEmpty()) {   // (testing: a picture of the form instead of the dialog)
@@ -1352,11 +1359,11 @@ public final class HostHelper {
 				try {
 					Map<String, Object> r = Json.map(Json.parse(call("POST", "/admin/setup", Json.write(m("mcss_exe", exeF.getText().trim(), "bind", Json.str(addrF.getEditor().getItem()).trim(), "servers", picked)))));
 					msg = Json.str(r.get("message"));
-				} catch (Exception ex) { msg = "Couldn't ask the Keeper: is it running?"; }
+				} catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
 				JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + msg + "</div></html>", "Server setup", JOptionPane.PLAIN_MESSAGE);
 			};
 			setupB.addActionListener(e -> setup.run());
-			section.accept("Gatehouse Keeper", new javax.swing.JComponent[] {helperRow, setupRow});
+			section.accept("Gatekeeper", new javax.swing.JComponent[] {helperRow, setupRow});
 			section.accept("MCSS (the server software)", new javax.swing.JComponent[] {mcssRow, keyRow});
 			section.accept("Minecraft server", new javax.swing.JComponent[] {serverRow});
 			JPanel activity = new JPanel(new BorderLayout(0, 4));
@@ -1417,11 +1424,11 @@ public final class HostHelper {
 						String works = Json.str(r.get("key_works"));
 						keyState.setForeground(!hasKey ? new Color(0xE9B949) : !works.equals("yes") ? new Color(0xFF7B72) : new Color(0x8BD46E));
 						String as = Json.str(r.get("mcss_user"));
-						keyState.setText(works.equals("forbidden") ? "MCSS knows the Keeper's key, but it has no permission for this server: give it the server (view, start, stop) under API Keys in MCSS's panel."
-								: works.equals("unknown") ? "MCSS doesn't know the Keeper's key: set it again, or sign in."
-								: !hasKey ? "The Keeper isn't signed in to MCSS: server control won't work until it is."
-								: works.equals("no") ? (as.isEmpty() ? "The Keeper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
-								: as.isEmpty() ? "The Keeper's MCSS key is set and working." : "Signed in to MCSS as " + as + ": working.");
+						keyState.setText(works.equals("forbidden") ? "MCSS knows Gatekeeper's key, but it has no permission for this server: give it the server (view, start, stop) under API Keys in MCSS's panel."
+								: works.equals("unknown") ? "MCSS doesn't know Gatekeeper's key: set it again, or sign in."
+								: !hasKey ? "Gatekeeper isn't signed in to MCSS: server control won't work until it is."
+								: works.equals("no") ? (as.isEmpty() ? "Gatekeeper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
+								: as.isEmpty() ? "Gatekeeper's MCSS key is set and working." : "Signed in to MCSS as " + as + ": working.");
 						List<Object> sv = Json.list(r.get("servers"));
 						if (sv.size() != serverIds.size()) {
 							serverIds.clear(); serverPick.removeAllItems();
@@ -1433,7 +1440,7 @@ public final class HostHelper {
 						List<Object> asked = Json.list(r.get("requests"));
 						int seq = r.get("request_seq") instanceof Number n ? n.intValue() : 0;
 						if (asked.isEmpty()) {
-							if (reqRow.isVisible()) { reqRow.setVisible(false); reqRow.removeAll(); reqShown[0] = ""; f.setTitle("Gatehouse control panel"); }
+							if (reqRow.isVisible()) { reqRow.setVisible(false); reqRow.removeAll(); reqShown[0] = ""; f.setTitle("Gatekeeper"); }
 						} else {
 							String sig = Json.write(asked);
 							if (!sig.equals(reqShown[0])) {   // (rebuilt only when the requests change, so a button isn't replaced under the mouse)
@@ -1450,9 +1457,9 @@ public final class HostHelper {
 									java.util.function.BiConsumer<Boolean, String> answer = (grant, reason) -> new Thread(() -> {
 										String res = "failed", m2;
 										try { Map<String, Object> rr = Json.map(Json.parse(call("POST", "/admin/request/answer", Json.write(m("id", rid, "type", type, "grant", grant, "reason", reason))))); res = Json.str(rr.get("result")); m2 = Json.str(rr.get("message")); }
-										catch (IOException ex) { m2 = "The Keeper isn't running."; }
+										catch (IOException ex) { m2 = "Gatekeeper isn't running."; }
 										String shown = m2; boolean tell = !res.equals("ok");
-										SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + shown + "</div></html>", "Gatehouse control panel", JOptionPane.PLAIN_MESSAGE); refreshLater[0].run(); });
+										SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + shown + "</div></html>", "Gatekeeper", JOptionPane.PLAIN_MESSAGE); refreshLater[0].run(); });
 									}, "answer").start();
 									yes.addActionListener(ev -> answer.accept(true, ""));
 									no.addActionListener(ev -> {
@@ -1470,7 +1477,7 @@ public final class HostHelper {
 								reqRow.revalidate(); reqRow.repaint();
 							}
 							Map<String, Object> lastAsk = Json.map(asked.get(asked.size() - 1));
-							f.setTitle(asked.size() + (asked.size() == 1 ? " request" : " requests") + " (" + Json.str(lastAsk.get("who")) + ") \u2013 Gatehouse control panel");
+							f.setTitle(asked.size() + (asked.size() == 1 ? " request" : " requests") + " (" + Json.str(lastAsk.get("who")) + ") \u2013 Gatekeeper");
 							if (seq != seqSeen[0]) {   // a new one: flash the taskbar button
 								try { if (java.awt.Taskbar.isTaskbarSupported() && java.awt.Taskbar.getTaskbar().isSupported(java.awt.Taskbar.Feature.USER_ATTENTION_WINDOW)) java.awt.Taskbar.getTaskbar().requestWindowUserAttention(f); }
 								catch (RuntimeException ignored) {}
@@ -1480,7 +1487,7 @@ public final class HostHelper {
 						mcssUp[0] = Boolean.TRUE.equals(r.get("mcss")); mcssClose[0] = Json.str(r.get("close"));
 						mcssRun.setText(!mcssUp[0] ? "Start MCSS" : mcssClose[0].equals("force") ? "Force close MCSS" : "Close MCSS");
 						mcssRun.setEnabled(!mcssUp[0] || !Boolean.TRUE.equals(r.get("minecraft")));
-						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Stop the Minecraft server first" : null);
+						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Stop the Minecraft server first" : "Starts MCSS on this machine, or closes it (only once the Minecraft server is stopped).");
 						state.setForeground(new Color(0x8BD46E));
 						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over Tailscale).");
 						mcssState.setForeground(Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0x8F98A0));
@@ -1494,11 +1501,11 @@ public final class HostHelper {
 						if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
 					});
 				} catch (IOException e) {
-					SwingUtilities.invokeLater(() -> { state.setForeground(new Color(0xFF7B72)); state.setText("The Keeper isn't running (it starts when you sign in to Windows)."); });
+					SwingUtilities.invokeLater(() -> { state.setForeground(new Color(0xFF7B72)); state.setText("Gatekeeper isn't running (it starts when you sign in to Windows)."); });
 				}
 			}, "refresh").start();
 			java.util.function.BiConsumer<String, String> act = (what, body) -> new Thread(() -> {
-				try { call("POST", what, body); } catch (IOException e) { SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, "The Keeper isn't running.")); }
+				try { call("POST", what, body); } catch (IOException e) { SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, "Gatekeeper isn't running.")); }
 				refresh.run();
 			}, "act").start();
 			java.util.function.Supplier<String> chosen = () -> {
@@ -1510,7 +1517,7 @@ public final class HostHelper {
 			Runnable labels = () -> {
 				int r = table.getSelectedRow();
 				boolean[] pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[4]) : new boolean[4];
-				adminB.setText(pp[3] ? "Remove Keeper control" : "Allow Keeper control");
+				adminB.setText(pp[3] ? "Remove Gatekeeper control" : "Allow Gatekeeper control");
 				serverB.setText(pp[2] ? "Remove server control" : "Allow server control");
 				mcssB.setText(pp[0] ? "Remove MCSS control" : "Allow MCSS control");
 				sleepB.setText(pp[1] ? "Remove PC sleep" : "Allow machine wake/sleep");
@@ -1520,7 +1527,7 @@ public final class HostHelper {
 			mcssB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"mcss\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[0] + "}"); });
 			sleepB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"sleep\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[1] + "}"); });
 			serverB.addActionListener(e -> { String id = chosen.get(); if (id != null) act.accept("/admin/perm", "{\"id\":\"" + id + "\",\"perm\":\"server\",\"value\":" + !perms.getOrDefault(id, new boolean[4])[2] + "}"); });
-			String[] pkeys = {"server", "mcss", "sleep", "admin"}, pwords = {"server control", "MCSS control", "Machine wake/sleep", "Keeper control"};
+			String[] pkeys = {"server", "mcss", "sleep", "admin"}, pwords = {"server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control"};
 			pmodel.addTableModelListener(e -> {
 				if (filling[0] || e.getType() != javax.swing.event.TableModelEvent.UPDATE || e.getColumn() != 1) return;
 				int row = e.getFirstRow();
@@ -1530,7 +1537,7 @@ public final class HostHelper {
 				new Thread(() -> {
 					String res = "failed", msg;
 					try { Map<String, Object> rr = Json.map(Json.parse(call("POST", "/admin/whitelist", Json.write(m("player", name, "value", on))))); res = Json.str(rr.get("result")); msg = Json.str(rr.get("message")); }
-					catch (IOException ex) { msg = "The Keeper isn't running."; }
+					catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 					String m2 = msg; boolean bad = !res.equals("ok");
 					SwingUtilities.invokeLater(() -> { if (bad) JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + m2 + "</div></html>", "Whitelist", JOptionPane.PLAIN_MESSAGE); });
 					refresh.run();
@@ -1552,7 +1559,7 @@ public final class HostHelper {
 					boolean v = !pallow.getOrDefault(name, new boolean[4])[k];
 					new Thread(() -> {
 						String msg;
-						try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/player/perm", Json.write(m("player", name, "perm", pkeys[k], "value", v))))).get("message")); } catch (IOException ex) { msg = "The Keeper isn't running."; }
+						try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/player/perm", Json.write(m("player", name, "perm", pkeys[k], "value", v))))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 						String m2 = msg;
 						SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + m2 + "</div></html>", "Players", JOptionPane.PLAIN_MESSAGE));
 						refresh.run();
@@ -1570,7 +1577,7 @@ public final class HostHelper {
 				if (up && JOptionPane.showConfirmDialog(f, "Stop the Minecraft server? Anyone playing is disconnected (the world is saved first).", "Minecraft server", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 				new Thread(() -> {
 					String msg;
-					try { msg = Json.str(Json.map(Json.parse(call("POST", up ? "/admin/server/stop" : "/admin/server/start", "{}"))).get("message")); } catch (IOException ex) { msg = "The Keeper isn't running."; }
+					try { msg = Json.str(Json.map(Json.parse(call("POST", up ? "/admin/server/stop" : "/admin/server/start", "{}"))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 					String m2 = msg;
 					SwingUtilities.invokeLater(() -> serverState.setText(m2));
 					try { Thread.sleep(4000); } catch (InterruptedException ignored) {}
@@ -1595,9 +1602,9 @@ public final class HostHelper {
 			java.util.function.BiConsumer<String, String> post = (path, body) -> new Thread(() -> {
 				String res = "ok", msg = "";
 				try { Map<String, Object> rr = Json.map(Json.parse(call("POST", path, body))); res = Json.str(rr.get("result")); msg = Json.str(rr.get("message")); if (!Json.str(rr.get("error")).isEmpty()) { res = "failed"; msg = Json.str(rr.get("error")); } }
-				catch (IOException ex) { res = "failed"; msg = "The Keeper isn't running."; }
+				catch (IOException ex) { res = "failed"; msg = "Gatekeeper isn't running."; }
 				String m2 = msg; boolean tell = !msg.isEmpty() && (!res.equals("ok") || path.contains("ban") || path.contains("kick"));
-				SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f, "<html><div style='width:440px'>" + m2 + "</div></html>", "Gatehouse control panel", JOptionPane.PLAIN_MESSAGE); refresh.run(); });
+				SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f, "<html><div style='width:440px'>" + m2 + "</div></html>", "Gatekeeper", JOptionPane.PLAIN_MESSAGE); refresh.run(); });
 			}, "post").start();
 			String[] devPerm = {"server", "mcss", "machine", "admin"};   // the launchers table's columns 6 to 9, the players table's 4 to 7
 			java.awt.event.MouseAdapter menus = new java.awt.event.MouseAdapter() {
@@ -1639,20 +1646,51 @@ public final class HostHelper {
 				else post.accept("/admin/ban", Json.write(players ? m("player", who, "kind", kind, "reason", reason) : m("id", who, "kind", kind, "reason", reason)));
 			};
 			JButton dSuspend = new JButton("Suspend\u2026"), dBlack = new JButton("Blacklist\u2026"), dLift = new JButton("Lift");
+			dSuspend.setToolTipText("Suspends the selected launcher: it still updates the game and sees the server's status, but can't start the game or use any control. It can ask to be let back.");
+			dBlack.setToolTipText("Blacklists the selected launcher: as suspended, and it is shown nothing about the machine, MCSS or the server. It can ask to be let back.");
 			dSuspend.addActionListener(e -> shutOut.accept(false, "suspend")); dBlack.addActionListener(e -> shutOut.accept(false, "blacklist")); dLift.addActionListener(e -> shutOut.accept(false, ""));
 			dLift.setToolTipText("Lifts a suspension or blacklisting of the selected launcher");
 			for (JButton b : new JButton[] {dSuspend, dBlack, dLift}) buttons.add(b);
 			JButton pKick = new JButton("Kick\u2026"), pSuspend = new JButton("Suspend\u2026"), pBlack = new JButton("Blacklist\u2026"), pLift = new JButton("Lift");
+			pKick.setToolTipText("Kicks the selected player off the Minecraft server now. They can join again.");
+			pSuspend.setToolTipText("Suspends the selected player on every device: kicked, taken off the whitelist until lifted, and their launchers can't start the game or use any control.");
+			pBlack.setToolTipText("Blacklists the selected player on every device: as suspended, and their launchers are shown nothing about the machine, MCSS or the server.");
+			String[] pTips = {"Server control for this player: every confirmed device of theirs may start and stop this Minecraft server.", "MCSS control for this player: every confirmed device of theirs may start and close MCSS (it includes server control).",
+					"Machine wake/sleep for this player: every confirmed device of theirs may wake this machine and put it to sleep.", "Gatekeeper control for this player: their devices may manage the others' access from the launcher's Remote Gatekeeper tab."};
+			for (int i = 0; i < pB.length; i++) pB[i].setToolTipText(pTips[i]);
 			pKick.addActionListener(e -> shutOut.accept(true, "kick")); pSuspend.addActionListener(e -> shutOut.accept(true, "suspend")); pBlack.addActionListener(e -> shutOut.accept(true, "blacklist")); pLift.addActionListener(e -> shutOut.accept(true, ""));
 			pLift.setToolTipText("Lifts a suspension or blacklisting of the selected player");
 			for (JButton b : new JButton[] {pKick, pSuspend, pBlack, pLift}) pbuttons.add(b);
+			// The buttons, in three sets: what the launcher (or player) may do with the server, shutting someone out, and
+			// the list itself.
+			revokeB.setText("Remove server accesses");
+			java.util.function.BiFunction<String, JButton[], JPanel> set = (title, bs) -> {
+				JPanel g = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+				javax.swing.border.TitledBorder tb = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), title);
+				tb.setTitleColor(new Color(0x8F98A0));
+				g.setBorder(tb);
+				for (JButton b : bs) g.add(b);
+				return g;
+			};
+			buttons.removeAll();
+			buttons.setLayout(new javax.swing.BoxLayout(buttons, javax.swing.BoxLayout.X_AXIS));
+			for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {sleepB, mcssB, serverB, adminB, revokeB}), set.apply("Administration actions", new JButton[] {dSuspend, dBlack, dLift}), set.apply("List", new JButton[] {refreshB, forget}))) {
+				g.setAlignmentY(java.awt.Component.TOP_ALIGNMENT); buttons.add(g); buttons.add(javax.swing.Box.createHorizontalStrut(6));
+			}
+			buttons.add(javax.swing.Box.createHorizontalGlue());
+			pbuttons.removeAll();
+			pbuttons.setLayout(new javax.swing.BoxLayout(pbuttons, javax.swing.BoxLayout.X_AXIS));
+			for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {pB[2], pB[1], pB[0], pB[3]}), set.apply("Administration actions", new JButton[] {pKick, pSuspend, pBlack, pLift}))) {
+				g.setAlignmentY(java.awt.Component.TOP_ALIGNMENT); pbuttons.add(g); pbuttons.add(javax.swing.Box.createHorizontalStrut(6));
+			}
+			pbuttons.add(javax.swing.Box.createHorizontalGlue());
 			mcssRun.addActionListener(e -> {
 				boolean up = mcssUp[0], force = mcssClose[0].equals("force");
 				if (up && JOptionPane.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead." : "Close MCSS?", "MCSS", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 				mcssRun.setEnabled(false);
 				new Thread(() -> {
 					String msg;
-					try { msg = Json.str(Json.map(Json.parse(call("POST", up ? "/admin/mcss/close" : "/admin/mcss/start", "{\"force\":" + force + "}"))).get("message")); } catch (IOException ex) { msg = "The Keeper isn't running."; }
+					try { msg = Json.str(Json.map(Json.parse(call("POST", up ? "/admin/mcss/close" : "/admin/mcss/start", "{\"force\":" + force + "}"))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 					String m2 = msg;
 					SwingUtilities.invokeLater(() -> { mcssState.setText(m2); });
 					try { Thread.sleep(1500); } catch (InterruptedException ignored) {}
@@ -1664,14 +1702,14 @@ public final class HostHelper {
 				javax.swing.JTextField user = new javax.swing.JTextField(24);
 				javax.swing.JPasswordField pass = new javax.swing.JPasswordField(24);
 				JPanel form = new JPanel(new java.awt.GridLayout(0, 1, 0, 4));
-				form.add(new JLabel("<html><div style='width:380px'>Sign the Keeper in to MCSS with a panel account that can view, start and stop the server. MCSS hands back a key, which is kept on this PC; the password isn't kept.</div></html>"));
+				form.add(new JLabel("<html><div style='width:380px'>Sign Gatekeeper in to MCSS with a panel account that can view, start and stop the server. MCSS hands back a key, which is kept on this PC; the password isn't kept.</div></html>"));
 				form.add(new JLabel("Username")); form.add(user);
 				form.add(new JLabel("Password")); form.add(pass);
 				if (JOptionPane.showConfirmDialog(f, form, "Sign in to MCSS", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 				String body = Json.write(m("username", user.getText().trim(), "password", new String(pass.getPassword())));
 				new Thread(() -> {
 					String msg;
-					try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/signin", body))).get("message")); } catch (IOException ex) { msg = "The Keeper isn't running."; }
+					try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/signin", body))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 					String m2 = msg;
 					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "Sign in to MCSS", JOptionPane.PLAIN_MESSAGE));
 					refresh.run();
@@ -1686,7 +1724,7 @@ public final class HostHelper {
 				});
 				JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); row.add(key); row.add(paste);
 				JPanel form = new JPanel(new BorderLayout(0, 6));
-				form.add(new JLabel("<html><div style='width:420px'>An MCSS API key for the Keeper (make it in MCSS's web panel, under API Keys, with permission to view, start and stop the server). It's kept in host.json on this PC only. Leave empty to clear it.</div></html>"), BorderLayout.NORTH);
+				form.add(new JLabel("<html><div style='width:420px'>An MCSS API key for Gatekeeper (make it in MCSS's web panel, under API Keys, with permission to view, start and stop the server). It's kept in host.json on this PC only. Leave empty to clear it.</div></html>"), BorderLayout.NORTH);
 				form.add(row, BorderLayout.CENTER);
 				if (JOptionPane.showConfirmDialog(f, form, "Set MCSS key", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 				act.accept("/admin/settings", Json.write(m("mcss_api_key", new String(key.getPassword()).trim())));
@@ -1720,7 +1758,7 @@ public final class HostHelper {
 				return;
 			}
 			f.setLocationRelativeTo(null);
-			if (startMinimized) f.setExtendedState(JFrame.ICONIFIED);   // (opened by the Keeper for a request: on the taskbar, flashing)
+			if (startMinimized) f.setExtendedState(JFrame.ICONIFIED);   // (opened by Gatekeeper for a request: on the taskbar, flashing)
 			f.setVisible(true);
 			// A new install knows no server yet (or no address): Server setup opens by itself.
 			if (!startMinimized && (servers().isEmpty() || setting("bind", "").isEmpty())) SwingUtilities.invokeLater(setup);

@@ -31,33 +31,33 @@ import java.util.Map;
 final class ServerControl {
 	final Path dir;
 	final String panelUrl, serverId, minecraft, mac;
-	/** Where Gatehouse Keeper is: the address this device was paired with (Server config, kept in server-access.json),
+	/** Where Gatekeeper is: the address this device was paired with (Server config, kept in server-access.json),
 	 *  else the one the pack names. */
 	volatile String helperUrl;
 	final String packHelperUrl;
 	volatile String keeperUrl = "";
-	/** This launcher's id and secret for each Keeper it has talked to, by address: a Keeper is never shown the secret
+	/** This launcher's id and secret for each Gatekeeper it has talked to, by address: a Gatekeeper is never shown the secret
 	 *  made for another one. */
 	final Map<String, String[]> identities = new java.util.LinkedHashMap<>();
 	final List<String> broadcasts = new ArrayList<>();
 	final int wakePort;
 	String apiKey, wakeAddress, username;
-	/** This launcher's identity for Gatehouse Keeper: an id and a secret it made itself (kept in server-access.json). */
+	/** This launcher's identity for Gatekeeper: an id and a secret it made itself (kept in server-access.json). */
 	String deviceId, deviceToken;
 	/** The profile's name for its server on the host machine (extras/server-control.json "server"), sent to the host
 	 *  helper so a machine with several servers knows which one this pack means. Empty: its first. */
 	String serverKey = "";
-	/** What the owner has allowed this launcher in the control panel, as the Keeper last said (remembered in
-	 *  server-access.json, so it's known while the server machine is asleep and the Keeper can't be asked). */
+	/** What the owner has allowed this launcher in Gatekeeper, as Gatekeeper last said (remembered in
+	 *  server-access.json, so it's known while the server machine is asleep and Gatekeeper can't be asked). */
 	boolean permMcss, permSleep, permServer, permAdmin;
-	/** What became of this launcher's last request for the server to be turned on, as Gatehouse Keeper says: "asked",
+	/** What became of this launcher's last request for the server to be turned on, as Gatekeeper says: "asked",
 	 *  "denied" (the owner dismissed it), or empty. */
 	volatile String requestStatus = "";
-	/** Whether this launcher is shut out, as the Keeper says (remembered, so it holds while the server machine can't be
+	/** Whether this launcher is shut out, as Gatekeeper says (remembered, so it holds while the server machine can't be
 	 *  asked): "blacklist" (told nothing about the machine, MCSS or the server), "suspend" (may not start the game or
 	 *  use any control), or empty. Scope "machine" (this device) or "user" (the player, on every device). */
 	volatile String ban = "", banScope = "", banReason = "";
-	/** Is this device's player on the server's whitelist: "yes", "no", or "unknown" (the Keeper doesn't know the name
+	/** Is this device's player on the server's whitelist: "yes", "no", or "unknown" (Gatekeeper doesn't know the name
 	 *  yet, or couldn't be asked). */
 	volatile String whitelisted = "unknown";
 	/** Each permission's state ("allowed", "denied", "none") for machine, mcss and server; and what became of this
@@ -70,9 +70,9 @@ final class ServerControl {
 		return (perm.equals("machine") ? permSleep : perm.equals("mcss") ? permMcss : permServer) ? "allowed" : "none";
 	}
 
-	/** Asks the owner for something through Gatehouse Keeper (a chime and a line in the control panel there): "server"
+	/** Asks the owner for something through Gatekeeper (a chime and a line in Gatekeeper there): "server"
 	 *  (turn the server on), "perm:machine", "perm:mcss", "perm:server", "whitelist", "unblacklist" or "unsuspend",
-	 *  with an optional message. Any launcher the Keeper knows may ask. */
+	 *  with an optional message. Any launcher Gatekeeper knows may ask. */
 	Map<String, Object> request(String type, String message) throws IOException {
 		String body = "{\"type\": \"" + jsonEsc(type) + "\", \"message\": \"" + jsonEsc(message == null ? "" : message) + "\"}";
 		Map<String, Object> r = helper("POST", "/v1/request", body);
@@ -83,7 +83,7 @@ final class ServerControl {
 	volatile boolean accessRejected;
 
 
-	/** A request the Keeper (or MCSS behind it) turned down, with its reason. */
+	/** A request Gatekeeper (or MCSS behind it) turned down, with its reason. */
 	static final class Refused extends IOException {
 		Refused(String why) { super(why); }
 	}
@@ -113,12 +113,12 @@ final class ServerControl {
 		keeperUrl = str(a.get("keeper_url"));
 		helperUrl = keeperUrl.isEmpty() ? packHelperUrl : keeperUrl;
 		for (Map.Entry<String, Object> e : asMap(a.get("identities")).entrySet()) identities.put(e.getKey(), new String[] {str(asMap(e.getValue()).get("id")), str(asMap(e.getValue()).get("token"))});
-		// (An id and secret saved before pairing existed belong to the pack's Keeper.)
+		// (An id and secret saved before pairing existed belong to the pack's Gatekeeper.)
 		if (!deviceId.isEmpty() && deviceToken.length() >= 32 && !packHelperUrl.isEmpty() && !identities.containsKey(packHelperUrl)) identities.put(packHelperUrl, new String[] {deviceId, deviceToken});
 		identity();
 	}
 
-	/** This launcher's id and secret for the Keeper in use: the ones it has for that address, else new ones. */
+	/** This launcher's id and secret for Gatekeeper in use: the ones it has for that address, else new ones. */
 	private void identity() {
 		if (helperUrl.isEmpty()) return;
 		String[] have = identities.get(helperUrl);
@@ -134,9 +134,9 @@ final class ServerControl {
 		if (changed) try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
 	}
 
-	/** Pairs this launcher with a Gatehouse Keeper by its address (the owner copies it from the control panel: Status,
-	 *  Copy pairing address), or with an empty address goes back to the Keeper the pack names. The address has to
-	 *  answer as a Keeper before it's kept. What the old Keeper allowed doesn't carry over: this launcher introduces
+	/** Pairs this launcher with a Gatekeeper by its address (the owner copies it from Gatekeeper: Status,
+	 *  Copy pairing address), or with an empty address goes back to Gatekeeper the pack names. The address has to
+	 *  answer as a Gatekeeper before it's kept. What the old Gatekeeper allowed doesn't carry over: this launcher introduces
 	 *  itself to the new one and waits for its owner. Returns {"ok" or "failed", what to tell the player}. */
 	String[] pair(String address) {
 		String url = address.trim().replaceAll("/+$", "");
@@ -153,9 +153,9 @@ final class ServerControl {
 				int code = c.getResponseCode();
 				String body;
 				try (java.io.InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream()) { body = in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
-				if (!(body.trim().startsWith("{") && (code == 200 || code == 401 || code == 403))) return new String[] {"failed", "Something answers at " + url + ", but it isn't Gatehouse Keeper."};
+				if (!(body.trim().startsWith("{") && (code == 200 || code == 401 || code == 403))) return new String[] {"failed", "Something answers at " + url + ", but it isn't Gatekeeper."};
 			} catch (IOException | RuntimeException e) { return new String[] {"failed", "Nothing answers at " + url + ". Is the server machine awake, and is this device in its Tailscale network? (Connection, Network diagnosis)"}; }
-		} else if (packHelperUrl.isEmpty() && keeperUrl.isEmpty()) return new String[] {"failed", "Type the Keeper's address first."};
+		} else if (packHelperUrl.isEmpty() && keeperUrl.isEmpty()) return new String[] {"failed", "Type Gatekeeper's address first."};
 		String before = helperUrl;
 		keeperUrl = url.equals(packHelperUrl) ? "" : url;
 		helperUrl = keeperUrl.isEmpty() ? packHelperUrl : keeperUrl;
@@ -166,28 +166,28 @@ final class ServerControl {
 		}
 		identity();
 		try { save(apiKey, wakeAddress); } catch (IOException e) { return new String[] {"failed", "Couldn't save: " + e.getMessage()}; }
-		if (helperUrl.isEmpty()) return new String[] {"ok", "Not paired with a Keeper now."};
+		if (helperUrl.isEmpty()) return new String[] {"ok", "Not paired with a Gatekeeper now."};
 		try { hello(); } catch (IOException | RuntimeException ignored) {}
-		return new String[] {"ok", (keeperUrl.isEmpty() ? "Back with the pack's Keeper, " : "Paired with the Keeper at ") + helperLabel() + ". Its owner decides what this device may do. Press Restart to carry on with it."};
+		return new String[] {"ok", (keeperUrl.isEmpty() ? "Back with the pack's Gatekeeper, " : "Paired with Gatekeeper at ") + helperLabel() + ". Its owner decides what this device may do. Press Restart to carry on with it."};
 	}
-	/** The Keeper's address as shown: host and port. */
+	/** Gatekeeper's address as shown: host and port. */
 	String helperLabel() { return helperUrl.replaceFirst("(?i)^https?://", "").replaceAll("/+$", ""); }
 
 	boolean configured() { return !panelUrl.isEmpty() || !mac.isEmpty() || !minecraft.isEmpty(); }
 	boolean canWake() { return mac.replaceAll("[^0-9A-Fa-f]", "").length() == 12; }
 	boolean hasKey() { return !apiKey.isEmpty() && !serverId.isEmpty() && !panelUrl.isEmpty(); }
-	/** Server control through Gatehouse Keeper: the owner allowed it, so no panel sign-in or key is needed here. */
+	/** Server control through Gatekeeper: the owner allowed it, so no panel sign-in or key is needed here. */
 	boolean viaHelper() { return hasHelper() && permServer; }
-	/** Start and stop are possible: through the Keeper, or with this device's own panel access. */
+	/** Start and stop are possible: through Gatekeeper, or with this device's own panel access. */
 	boolean canControlServer() { return viaHelper() || (hasKey() && !accessRejected); }
 	/** The Server controls and Server config tabs are shown once the owner has allowed this launcher anything (or it
-	 *  has its own panel access); always when there's no Gatehouse Keeper to ask. */
+	 *  has its own panel access); always when there's no Gatekeeper to ask. */
 	boolean showServerTabs() { return !hasHelper() || permMcss || permSleep || permServer || permAdmin || hasKey(); }
 	Path access() { return dir.resolve("server-access.json"); }
 
 	private String player;
 	/** The Minecraft account the game last started as on this device, from the game's own log ("Setting user: Name";
-	 *  nothing else is read). Told to Gatehouse Keeper as a hint of whose device this is; the Keeper only counts it as
+	 *  nothing else is read). Told to Gatekeeper as a hint of whose device this is; Gatekeeper only counts it as
 	 *  confirmed once the server sees that player join from here. Empty if the game hasn't run yet. */
 	String player() {
 		if (player == null) {
@@ -202,7 +202,7 @@ final class ServerControl {
 	 *  key from signing in with a panel account), "key" (an API key typed in), or "none". */
 	String saved() { return !hasKey() ? "none" : !username.isEmpty() ? "signin" : "key"; }
 	/** How Start and Stop go from this device right now: "helper" when the owner allowed it there (that comes first),
-	 *  otherwise with what's saved. The Keeper is told both, so the owner can see it in the control panel. */
+	 *  otherwise with what's saved. Gatekeeper is told both, so the owner can see it in Gatekeeper. */
 	String kind() { return viaHelper() ? "helper" : saved(); }
 	/** The same, in words for the player. */
 	String accessText() {
@@ -211,7 +211,7 @@ final class ServerControl {
 			case "key" -> "an API key saved on this device";
 			default -> "";
 		};
-		if (viaHelper()) return "through Gatehouse Keeper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " (" + has + " is also saved, but not used)");
+		if (viaHelper()) return "through Gatekeeper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " (" + has + " is also saved, but not used)");
 		if (!has.isEmpty() && accessRejected) return "none right now: the server panel no longer accepts " + has + " (sign in again under Server config, or ask the owner)";
 		return has.isEmpty() ? "none (ask the owner, or sign in under Server config)" : "with " + has;
 	}
@@ -346,13 +346,13 @@ final class ServerControl {
 
 	/** Where things stand: {colour key, text, phase, ping ms, players}. Colour keys as in the pop-up (ok, warn, off,
 	 *  failed); phase: online, starting, stopping, off (MCSS is running, the game server isn't), nomcss (the PC is awake
-	 *  (its Gatehouse Keeper answers) but MCSS isn't running), asleep (nothing on the PC answers), error.
+	 *  (its Gatekeeper answers) but MCSS isn't running), asleep (nothing on the PC answers), error.
 	 *  Ping and players come from the game server itself (empty when it isn't answering). */
 	String[] status() {
 		String[] slp = minecraft.isEmpty() ? null : serverListPing(minecraft, 2500);
 		boolean game = slp != null;
 		boolean panel = game || (!panelUrl.isEmpty() && answers(panelHostPort(), 2000));
-		// MCSS (and its panel) can be closed while the PC is on: Gatehouse Keeper, which runs whenever the owner is
+		// MCSS (and its panel) can be closed while the PC is on: Gatekeeper, which runs whenever the owner is
 		// signed in, then still answers.
 		boolean pc = panel || (hasHelper() && answers(helperHostPort(), 2000));
 		String ping = game ? slp[0] : "", players = game ? slp[1] + " of " + slp[2] : "";
@@ -396,7 +396,7 @@ final class ServerControl {
 		}
 	}
 
-	/** Start or stop: through Gatehouse Keeper when the owner allowed this launcher server control (the Keeper uses its
+	/** Start or stop: through Gatekeeper when the owner allowed this launcher server control (Gatekeeper uses its
 	 *  own MCSS key), otherwise with this device's own panel access. */
 	private void serverAction(boolean start) throws IOException {
 		if (viaHelper()) {
@@ -425,7 +425,7 @@ final class ServerControl {
 		if (viaHelper()) {
 			List<String> out = new ArrayList<>();
 			if (helper("GET", "/v1/server/log", null).get("lines") instanceof List<?> l) for (Object x : l) out.add(str(x));
-			else throw new IOException("the Keeper sent no log");
+			else throw new IOException("Gatekeeper sent no log");
 			return out;
 		}
 		Object o = LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId + "/console?amountOfLines=" + lines + "&reversed=false", null));
@@ -435,11 +435,11 @@ final class ServerControl {
 		return out;
 	}
 
-	// ------------------------------------------------------------------ MCSS itself, through Gatehouse Keeper
+	// ------------------------------------------------------------------ MCSS itself, through Gatekeeper
 
 	boolean hasHelper() { return !helperUrl.isEmpty(); }
 
-	/** One call to Gatehouse Keeper on the server machine, as this launcher. */
+	/** One call to Gatekeeper on the server machine, as this launcher. */
 	Map<String, Object> helper(String method, String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(helperUrl.replaceAll("/+$", "") + path).openConnection();
 		c.setConnectTimeout(3000); c.setReadTimeout(60000);
@@ -463,7 +463,7 @@ final class ServerControl {
 		return r;
 	}
 
-	/** This device's operating system, as the Gatekeeper lists it: "Windows 10", "macOS", or for Linux the system's own
+	/** This device's operating system, as Gatekeeper lists it: "Windows 10", "macOS", or for Linux the system's own
 	 *  name with "(linux)" after it, like "SteamOS (linux)". (Inside a Flatpak the system's own name is in
 	 *  /run/host/os-release; /etc/os-release there is the Flatpak runtime's.) */
 	static String systemName() {
@@ -481,7 +481,7 @@ final class ServerControl {
 		return os.isEmpty() ? "Unknown" : os.equalsIgnoreCase("Linux") ? "Linux" : os + " (linux)";
 	}
 
-	/** Introduces this launcher (it then shows in the owner's control panel, waiting until allowed). Returns its state. */
+	/** Introduces this launcher (it then shows in the owner's Gatekeeper, waiting until allowed). Returns its state. */
 	String hello() throws IOException {
 		String name = "", os = systemName();
 		try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
@@ -511,7 +511,7 @@ final class ServerControl {
 				into.clear();
 				for (Map.Entry<String, Object> e : asMap(pair[1]).entrySet()) into.put(e.getKey(), str(e.getValue()));
 			}
-			// From the owner, through the Keeper: the order to forget whatever sign-in or key is saved here.
+			// From the owner, through Gatekeeper: the order to forget whatever sign-in or key is saved here.
 			if ("true".equals(str(r.get("clear_access"))) && !apiKey.isEmpty()) {
 				try { username = ""; save("", wakeAddress); } catch (IOException ignored) {}
 			}
@@ -519,11 +519,11 @@ final class ServerControl {
 		return r;
 	}
 
-	/** Asks Gatehouse Keeper to tell the owner this device wants the server turned on (a chime and the control panel on the
-	 *  server machine). Any launcher the Keeper knows may ask; no permission is needed. */
+	/** Asks Gatekeeper to tell the owner this device wants the server turned on (a chime and Gatekeeper on the
+	 *  server machine). Any launcher Gatekeeper knows may ask; no permission is needed. */
 	Map<String, Object> requestServer() throws IOException { return request("server", ""); }
 
-	/** Asks Gatehouse Keeper to put the server machine to sleep (needs the owner's separate "PC sleep" permission). */
+	/** Asks Gatekeeper to put the server machine to sleep (needs the owner's separate "PC sleep" permission). */
 	Map<String, Object> sleepPc() throws IOException { return helper("POST", "/v1/pc/sleep", "{}"); }
 
 	Map<String, Object> mcssStart() throws IOException { return helper("POST", "/v1/mcss/start", "{}"); }
