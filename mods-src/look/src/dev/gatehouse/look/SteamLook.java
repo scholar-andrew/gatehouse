@@ -147,7 +147,12 @@ public final class SteamLook {
 			if (selected) { g.setColor(ACCENT); g.fillRect(x, y + h - 3, w, 3); }
 		}
 		@Override protected void paintTabBorder(Graphics g, int placement, int index, int x, int y, int w, int h, boolean selected) {}
-		@Override protected void paintFocusIndicator(Graphics g, int placement, Rectangle[] rects, int index, Rectangle icon, Rectangle text, boolean selected) {}
+		@Override protected void paintFocusIndicator(Graphics g, int placement, Rectangle[] rects, int index, Rectangle icon, Rectangle text, boolean selected) {
+			// (the row of tabs is what a controller or the keyboard has selected: an outline round the open tab)
+			if (!selected || !tabPane.isFocusOwner() || index < 0 || index >= rects.length) return;
+			g.setColor(ACCENT);
+			g.drawRect(rects[index].x + 1, rects[index].y + 1, rects[index].width - 3, rects[index].height - 3);
+		}
 		@Override protected void paintContentBorder(Graphics g, int placement, int selectedIndex) {
 			Insets in = tabPane.getInsets();
 			int y = in.top + calculateTabAreaHeight(placement, runCount, maxTabHeight);

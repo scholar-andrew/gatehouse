@@ -129,6 +129,28 @@ window first.
 
 Both programs use the same dark look, sized for a Steam Deck's screen.
 
+### Using a controller
+
+Every window of the launcher can be driven with a controller: the Steam Deck's own controls, a Steam Controller, or
+any pad Steam presents as a gamepad (the launcher reads the same pad the game does, so the Steam layout stays a gamepad
+layout).
+
+| Control | What it does |
+| --- | --- |
+| Left stick, d-pad | Move the selection to the nearest button, tab, box or list that way. An outline shows it. |
+| A | Presses the selected button (ticks a box, opens a drop-down). |
+| B, Select | Jump to the button that goes up a level: **Menu** in a server's launcher, **Gatekeepers** in the list of servers, Cancel in a question. |
+| Y | Jumps to **Restart**. |
+| Start | Jumps to **Quit**. |
+| Right trigger | A left click where the pointer is. |
+| Right trackpad | Moves the pointer; pressing it clicks (from the Steam layout). |
+| Left trigger | Nothing. |
+
+On a row of tabs, left and right change the tab; in a list, up and down move the row. B, Y and Start only move the
+selection: nothing happens until you press A. Typing (a sign-in, an address) still needs the on-screen keyboard
+(Steam + X on a Steam Deck). On Windows the controller is read through XInput, which needs the Java the game itself
+uses (22 or newer); on Linux through the system's joystick devices, which Prism Launcher's Flatpak can read.
+
 ### Before the game starts: the launch pop-up
 From the moment you press Play, one October Journey window shows the update's steps as a checklist, each ticked off as
 it finishes (the download shows its progress), with **Quit** to cancel the launch. When there's something to

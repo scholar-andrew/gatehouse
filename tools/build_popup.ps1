@@ -14,8 +14,15 @@ $files = @(Get-ChildItem (Join-Path $root 'mods-src\launch-popup\src') -Recurse 
 $files += @(Get-ChildItem (Join-Path $root 'mods-src\look\src') -Recurse -Filter *.java | ForEach-Object FullName)
 & (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 17 -d (Join-Path $out 'classes') @files
 if ($LASTEXITCODE) { throw 'javac failed' }
+# One class is built for Java 22: the Windows controller reader, which uses Java's own foreign-function support (final
+# in 22). The launcher loads it by name and does without it on an older Java.
+$files22 = @(Get-ChildItem (Join-Path $root 'mods-src\launch-popup\src22') -Recurse -Filter *.java | ForEach-Object FullName)
+& (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 22 -cp (Join-Path $out 'classes') -d (Join-Path $out 'classes') @files22
+if ($LASTEXITCODE) { throw 'javac (Java 22 part) failed' }
+# (so that Java doesn't warn about that reader calling into Windows)
+Set-Content -Path (Join-Path $out 'manifest.txt') -Value 'Enable-Native-Access: ALL-UNNAMED' -Encoding ascii
 $jar = Join-Path $root 'source\files\launch-popup.jar'
 Remove-Item $jar -ErrorAction SilentlyContinue
-& (Join-Path $jdk 'jar.exe') --create --file $jar --main-class dev.octoberjourney.popup.LaunchPopup -C (Join-Path $out 'classes') .
+& (Join-Path $jdk 'jar.exe') --create --file $jar --main-class dev.octoberjourney.popup.LaunchPopup --manifest (Join-Path $out 'manifest.txt') -C (Join-Path $out 'classes') .
 if ($LASTEXITCODE) { throw 'jar failed' }
 "$jar"

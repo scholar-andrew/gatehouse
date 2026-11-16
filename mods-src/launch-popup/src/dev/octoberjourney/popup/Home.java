@@ -442,6 +442,7 @@ final class Home {
 				if (shot != null) poll.run(); else new Thread(poll, "catalog").start();
 				cards.show(deck, "servers");
 				serverList.revalidate(); serverList.repaint();
+				SwingUtilities.invokeLater(() -> Nav.home(f));
 			};
 
 			// ---- level 1: the Gatekeepers
@@ -491,8 +492,10 @@ final class Home {
 				}
 				cards.show(deck, "keepers");
 				keeperList.revalidate(); keeperList.repaint();
+				SwingUtilities.invokeLater(() -> Nav.home(f));
 			};
 			backB.addActionListener(ev -> showKeepers[0].run());
+			Nav.tag(backB, "back");
 
 			// ---- the bottom: add a Gatekeeper, Gatehouse's own Steam shortcut, Prism Launcher, Quit
 			JButton addB = new JButton("Add Gatekeeper…");
@@ -501,6 +504,8 @@ final class Home {
 			prismB.setToolTipText("Prism Launcher itself: accounts, other instances, settings");
 			quit.setToolTipText("Closes the launcher");
 			prismB.addActionListener(ev -> { openPrism[0] = true; f.dispose(); });
+			Nav.tag(quit, "quit");
+			Nav.start();
 			quit.addActionListener(ev -> f.dispose());
 			addB.addActionListener(ev -> {
 				javax.swing.JTextField field = new javax.swing.JTextField(30);
@@ -569,6 +574,7 @@ final class Home {
 			f.setLocationRelativeTo(null);
 			f.setVisible(true);
 			LaunchPopup.bringForwardOnce(f);
+			SwingUtilities.invokeLater(() -> Nav.home(f));
 		});
 		closed.await();
 	}

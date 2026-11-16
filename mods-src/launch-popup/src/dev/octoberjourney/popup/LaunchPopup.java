@@ -178,6 +178,13 @@ public final class LaunchPopup {
 			return;
 		}
 		if (args.length >= 2 && args[0].equals("--progress")) { progress(Path.of(args[1])); System.exit(exitCode); }
+		if (args.length >= 1 && args[0].equals("--pad-test")) {   // testing: what the controller reader sees, for a few seconds
+			Pad.start(w -> System.out.println("pad: " + w));
+			Thread.sleep(1500);
+			System.out.println("controller source: " + Pad.source);
+			Thread.sleep(args.length > 1 ? Long.parseLong(args[1]) : 1500);
+			System.exit(0);
+		}
 		if (args.length >= 2 && args[0].equals("--home")) { Home.run(args); System.exit(0); }
 		summary(Path.of(args.length > 0 ? args[0] : "."), args.length > 1 ? args[1] : "ok");
 		System.exit(exitCode);
@@ -2029,6 +2036,8 @@ public final class LaunchPopup {
 				exitCode = QUIT; f.dispose();
 			});
 			menu.setVisible(Files.isRegularFile(dir.resolve("extras").resolve(System.getProperty("os.name", "").startsWith("Windows") ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")));
+			Nav.tag(menu, "back"); Nav.tag(again, "restart"); Nav.tag(quit, "quit");
+			Nav.start();
 			haloQuit[0] = () -> ((PlayButton) quit).halo();
 			again.setToolTipText("Run the update again");
 			quit.setToolTipText("Don't start the game");
