@@ -1,5 +1,8 @@
 # Playing on October Journey
 
+> New here? **[How to use Gatehouse and Gatekeeper](docs/guide.md)** is the short, step-by-step page. This one is the
+> full reference for the October Journey pack and its installers.
+
 One download sets everything up: Prism Launcher, the modpack (it updates itself every time you play), the server in your
 server list, and two Steam shortcuts: **October Journey**, which updates the pack, starts the game and joins the
 server, and **Prism Launcher**, which opens the launcher. Both get library art and the Steam Deck controller layout.

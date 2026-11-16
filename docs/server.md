@@ -72,6 +72,9 @@ home network); that address is also kept on the device, not in this public repos
 
 ## Gatekeeper (starting and closing MCSS)
 
+Setting Gatekeeper up step by step, for a host: [How to use Gatehouse and Gatekeeper](guide.md#for-hosts-gatekeeper).
+This section is the reference.
+
 MCSS's web panel only exists while MCSS is running, so starting MCSS itself needs something else on the PC: the host
 helper (`host/`, built by `tools/build_host.ps1`). It is installed from **gatehouse-keeper.zip** (on the releases
 page): unpack it and run `install-keeper.ps1`, a plain PowerShell script you can read first
