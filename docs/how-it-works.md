@@ -243,6 +243,14 @@ their next launch; nobody has to touch a device.
   answer (it is now remembered all the same) and from the Connect button on one that isn't answering.
   `OJ_CONNECT_FAKE=<tailscale><reach><pair>` (each 0 or 1) stands in for the checks; `OJ_CONNECT_SHOT=<pairing>` with
   `OJ_POPUP_PNG` writes `<file>-connect.png`.
+- **The rest in the one window (the third step).** `Home.embeddable` says whether a game folder's launcher can be
+  shown in the main window: `pack` (its `pack-sync` script mentions `GATEHOUSE_PLAY`), `plain` (no pack; its
+  `plain-launch` script mentions it), or not. A plain server has no update: Launch goes straight to its page, and
+  Play leaves the same `<unix time>|play` note, which `plain-launch.ps1` / `.sh` take as "start the game". Opened
+  with `--play <instance>` (a pack's own Steam shortcut), the main window opens on that Gatekeeper's servers and
+  presses that pack's Launch itself (`autoLaunch`), leaving a `direct-launch` note before the launcher's page, which
+  then goes straight to Play when there is nothing to show and the server is ready. What can't be embedded (an older
+  script, a launch from Prism Launcher itself) uses the window hand-over below, which stays as the fallback.
 - **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
   Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
   `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)

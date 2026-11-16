@@ -154,6 +154,20 @@ final class Home {
 	 *  pack's own window has taken its place). */
 	private static volatile Thread launching;
 	private static volatile boolean launchBusy;
+	/** A pack to start as soon as the window is up, as if Launch had been pressed (this launcher was opened from that
+	 *  pack's own Steam shortcut); autoDirect: and to go straight into the game when nothing needs to be seen first. */
+	private static volatile String[] autoLaunch;
+	private static volatile boolean autoDirect;
+
+	/** Can this game folder's launcher be shown inside this window: "pack" (its update script can be run from here
+	 *  and knows about Play pressed here), "plain" (a plain server, with a script that knows the same), or "" (it
+	 *  opens in a window of its own, as it always did). */
+	static String embeddable(Path dir) {
+		boolean win = System.getProperty("os.name", "").startsWith("Windows");
+		Path sync = dir.resolve(win ? "pack-sync.ps1" : "pack-sync.sh"), plain = dir.resolve(win ? "plain-launch.ps1" : "plain-launch.sh");
+		if (Files.isRegularFile(sync)) return LaunchPopup.readFile(sync).contains("GATEHOUSE_PLAY") ? "pack" : "";
+		return Files.isRegularFile(plain) && LaunchPopup.readFile(plain).contains("GATEHOUSE_PLAY") ? "plain" : "";
+	}
 
 	/** Starts a pack's update script from here (GATEHOUSE_EMBED=1: it opens no window of its own, reports into its
 	 *  status file, and ends when done instead of waiting for Play). Null when this pack has no such script, or one
@@ -222,7 +236,12 @@ final class Home {
 				String want = play; play = null;
 				String[] hit = null;
 				for (String[] e : packs) if (e[0].equals(want)) hit = e;
-				if (hit != null) { LaunchPopup.startGame(prismCmd, hit, true); openAt = back(packs); if (openAt == null) return; continue; }
+				if (hit != null) {
+					// Inside this window when it can be (the update, then straight into the game unless there's something to
+					// see or the server isn't ready); otherwise the pack's own window, as before.
+					if (!embeddable(Path.of(hit[3])).isEmpty() && System.getenv("OJ_HOME_DRY") == null && !java.awt.GraphicsEnvironment.isHeadless()) { autoLaunch = hit; openAt = hit[4]; }
+					else { LaunchPopup.startGame(prismCmd, hit, true); openAt = back(packs); if (openAt == null) return; continue; }
+				}
 			}
 			String[][] chosen = {null};
 			boolean[] openPrism = {false};
@@ -445,7 +464,9 @@ final class Home {
 						// The pack's update, run from here with its checklist in this window, when the pack's update
 						// script knows how to be run that way (one from before Gatehouse 2.1.0 opens its own window).
 						Process sync = startSync(Path.of(pack[3]));
-						if (sync == null) { sub.setText("Opening " + pack[1] + "\u2026"); handOver.run(); return; }
+						boolean plainHere = sync == null && embeddable(Path.of(pack[3])).equals("plain");   // (a plain server: no update, just its launcher's page)
+						boolean direct = autoDirect; autoDirect = false;
+						if (sync == null && !plainHere) { sub.setText("Opening " + pack[1] + "\u2026"); handOver.run(); return; }
 						java.awt.Container homePage = f.getContentPane();
 						String homeTitle = f.getTitle();
 						List<java.awt.event.WindowListener> homeListeners = List.of(f.getWindowListeners());
@@ -454,10 +475,12 @@ final class Home {
 							Path dir = Path.of(pack[3]);
 							// (a script from pack 1.18.0 can be run from here but doesn't know about Play pressed here:
 							// its launcher still opens as a window of its own, in this one's place)
-							boolean whole = LaunchPopup.readFile(dir.resolve(System.getProperty("os.name", "").startsWith("Windows") ? "pack-sync.ps1" : "pack-sync.sh")).contains("GATEHOUSE_PLAY");
+							boolean whole = plainHere || LaunchPopup.readFile(dir.resolve(System.getProperty("os.name", "").startsWith("Windows") ? "pack-sync.ps1" : "pack-sync.sh")).contains("GATEHOUSE_PLAY");
+							boolean first = true;
 							while (true) {
 								String done;
-								try { done = LaunchPopup.checklist(dir, f, running[0]); } catch (Exception ex) { done = "stopped"; }
+								if (plainHere) { done = "ok"; LaunchPopup.loadProfile(dir); LaunchPopup.embedded = true; LaunchPopup.reuse = f; LaunchPopup.embedQuit = false; }
+								else try { done = LaunchPopup.checklist(dir, f, running[0]); } catch (Exception ex) { done = "stopped"; }
 								boolean quit = LaunchPopup.embedQuit;
 								LaunchPopup.embedQuit = false;
 								if (done == null) {   // Quit (back to the list of servers, in the same place), or the window was closed
@@ -479,7 +502,11 @@ final class Home {
 									return;
 								}
 								// The server's launcher, in this window. (The script has ended; its note isn't needed.)
-								try { running[0].waitFor(15, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
+								if (running[0] != null) try { running[0].waitFor(15, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
+								// (opened from the pack's own shortcut: straight into the game when nothing needs seeing first, which
+								// the launcher's page decides for itself on finding this note; only the first time round)
+								try { if (direct && first) Files.writeString(dir.resolve("direct-launch"), String.valueOf(System.currentTimeMillis()), StandardCharsets.UTF_8); else Files.deleteIfExists(dir.resolve("direct-launch")); } catch (IOException ignored) {}
+								first = false;
 								try { Files.deleteIfExists(dir.resolve("pack-sync-fresh.txt")); } catch (IOException ignored) {}
 								LaunchPopup.exitCode = 0; LaunchPopup.embedBack = false;
 								// (its buttons "close the window": here that ends the page, as closing would have, and no more)
@@ -495,6 +522,7 @@ final class Home {
 								boolean back = LaunchPopup.embedBack;
 								LaunchPopup.embedClose = null; LaunchPopup.embedBack = false; LaunchPopup.exitCode = 0;
 								if (chose == LaunchPopup.RESTART && !back) {   // the update again, here
+									if (plainHere) continue;   // (nothing to update: its page again)
 									Process again2 = startSync(dir);
 									if (again2 != null) { running[0] = again2; SwingUtilities.invokeLater(() -> f.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)); continue; }
 									back = true;
@@ -522,6 +550,8 @@ final class Home {
 							}
 						}, "embedded-sync").start();
 					});
+					// (opened from this pack's own Steam shortcut: as if Launch had been pressed)
+					if (pack != null && autoLaunch != null && autoLaunch[0].equals(pack[0])) { autoLaunch = null; autoDirect = true; SwingUtilities.invokeLater(go::doClick); }
 					serverList.add((JPanel) r[0]); serverList.add(Box.createVerticalStrut(8));
 					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install});
 				};

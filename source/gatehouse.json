@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.5.0",
+ "version": "2.6.0",
  "changes": [
+  {"version": "2.6.0", "date": "2026-11-16", "notes": [
+   "Third step of making Gatehouse one program: the two ways left that still opened a second window now stay in this one.",
+   "A plain server: Launch shows its launcher (whether it's on, Request server, the whitelist, Server controls, Play) inside the main window, like a pack's.",
+   "A pack started from its own Steam shortcut: the update's checklist and the launcher show in this window. As before, it goes straight into the game when there's nothing new to see and the server is ready.",
+   "Both take effect one launch after this update arrives. Starting an instance from Prism Launcher itself still opens the launcher as a window of its own, and so does a pack whose scripts are older; that path is kept as the fallback."
+  ]},
   {"version": "2.5.0", "date": "2026-11-16", "notes": [
    "A server's launcher can now show Update needed instead of Play, with the reason. Its Gatekeeper says so in two cases: the Gatekeeper itself is out of date (its owner has to update it), or Gatehouse on this device is (update it on the main window: the Update Gatehouse line, or Restart).",
    "Gatehouse tells a Gatekeeper which version it is, so the Gatekeeper can tell.",
