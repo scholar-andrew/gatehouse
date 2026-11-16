@@ -139,6 +139,7 @@ public final class LaunchPopup {
 					try { for (String l : SteamUpdate.run(Path.of(args[1]), args.length > 3 ? args[3] : "all", !(args.length > 4 && args[4].equals("plan")))) System.out.println(l); }
 					catch (SteamUpdate.NeedsPermission ex) { System.out.println("needs permission: " + ex.getMessage()); }
 				}
+				case "install-pack" -> System.out.println("installed: " + PackInstall.install(Path.of(args[1]), args[3], null, m -> System.out.println("   " + m)));   // (testing: args[1] is the instances folder)
 				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
 				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
@@ -485,14 +486,14 @@ public final class LaunchPopup {
 
 	private static String fetch(String url) throws IOException { return new String(fetchBytes(url), StandardCharsets.UTF_8); }
 
-	private static byte[] fetchBytes(String url) throws IOException {
+	static byte[] fetchBytes(String url) throws IOException {
 		java.net.URLConnection c = java.net.URI.create(url).toURL().openConnection();
 		c.setConnectTimeout(5000);
 		c.setReadTimeout(10000);
 		try (java.io.InputStream in = c.getInputStream()) { return in.readAllBytes(); }
 	}
 
-	private static String sha256(byte[] b) throws java.security.NoSuchAlgorithmException {
+	static String sha256(byte[] b) throws java.security.NoSuchAlgorithmException {
 		StringBuilder sb = new StringBuilder();
 		for (byte x : java.security.MessageDigest.getInstance("SHA-256").digest(b)) sb.append(String.format("%02x", x));
 		return sb.toString();
@@ -1804,7 +1805,7 @@ public final class LaunchPopup {
 		};
 	}
 
-	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"); }
+	static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"); }
 
 	private static JComponent heading(String s) {
 		JLabel l = new JLabel(s);

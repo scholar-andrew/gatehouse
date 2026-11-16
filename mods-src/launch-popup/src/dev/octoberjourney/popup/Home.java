@@ -142,7 +142,9 @@ final class Home {
 			}
 			String[][] chosen = {null};
 			boolean[] openPrism = {false};
-			window(instances, home, packs, openAt, chosen, openPrism);
+			String[] again = {null};
+			window(instances, home, packs, openAt, chosen, openPrism, again);
+			if (again[0] != null) { openAt = again[0]; continue; }
 			if (chosen[0] != null) LaunchPopup.startGame(prismCmd, chosen[0], false);
 			else if (openPrism[0]) LaunchPopup.run(List.of(prismCmd));
 			else return;
@@ -177,7 +179,7 @@ final class Home {
 	}
 
 	// ---- the window
-	private static void window(Path instances, Path home, List<String[]> packs, String openAt, String[][] chosen, boolean[] openPrism) throws Exception {
+	private static void window(Path instances, Path home, List<String[]> packs, String openAt, String[][] chosen, boolean[] openPrism, String[] again) throws Exception {
 		// The Gatekeepers: the ones remembered, and any an installed pack names that isn't remembered yet.
 		List<String[]> keepers = savedKeepers(home);
 		boolean added = false;
@@ -263,11 +265,14 @@ final class Home {
 					go.setToolTipText("Updates this pack, then shows its window before the game starts");
 					JLabel missing = new JLabel("Not installed on this device");
 					missing.setForeground(new Color(0x8F98A0));
-					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {missing, go});
+					JButton install = new JButton("Install");
+					install.setToolTipText("Sets this server's pack up in Prism Launcher on this device. The mods download on the first launch.");
+					install.setVisible(false);
+					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {missing, install, go});
 					go.setVisible(pack != null); missing.setVisible(pack == null);
 					if (pack != null) go.addActionListener(ev -> { chosen[0] = pack; f.dispose(); });
 					serverList.add((JPanel) r[0]); serverList.add(Box.createVerticalStrut(8));
-					rows.put(id, new Object[] {r[2], pack, go, r[1], missing});
+					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install});
 				};
 				for (String[] pk : packs) if (pk[4].equals(url)) add.accept(pk[0], pk);
 				ServerControl c = url.isEmpty() ? null : client(home, url, packs);
@@ -284,7 +289,37 @@ final class Home {
 								Object[] r = rows.get(id);
 								if (r[1] == null) ((JLabel) r[3]).setText(str(s.get("name")).isEmpty() ? id : str(s.get("name")));
 								boolean on = "true".equals(str(s.get("online")));
-								set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + (r[1] == null ? ". To play here, install its pack on this device (run setup for it)." : "")});
+								String profile = str(s.get("profile"));
+								set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + (r[1] != null ? "" : profile.isEmpty() ? ". Its pack isn't published for launchers to install: ask the owner." : ". Install sets its pack up on this device.")});
+								JButton ib = (JButton) r[5];
+								if (r[1] == null && !profile.isEmpty() && !ib.isVisible() && ib.getActionListeners().length == 0) {
+									ib.setVisible(true); ((JLabel) r[4]).setVisible(false);
+									ib.addActionListener(ev -> {
+										ib.setEnabled(false);
+										sub.setText("Looking at the pack\u2026");
+										new Thread(() -> {
+											String[] what; String problem = null;
+											try { what = PackInstall.look(profile); } catch (IOException | RuntimeException ex) { what = null; problem = ex.getMessage() == null ? ex.toString() : ex.getMessage(); }
+											String[] w = what; String pr = problem;
+											SwingUtilities.invokeLater(() -> {
+												if (w == null) { ib.setEnabled(true); sub.setText("Couldn't read the pack's profile: " + pr); return; }
+												int ok = JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Install <b>" + LaunchPopup.esc(w[1]) + "</b> on this device?<br><br>It makes a Prism Launcher instance (\"" + LaunchPopup.esc(w[0]) + "\") and downloads its setup files from<br>"
+														+ LaunchPopup.esc(w[2]) + "<br><br>The mods download the first time you press Play. No Steam shortcut is added; Prism Launcher has to be installed already.</div></html>", "Install", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+												if (ok != JOptionPane.OK_OPTION) { ib.setEnabled(true); sub.setText("Pick a server to play. The pack updates first, as always."); return; }
+												new Thread(() -> {
+													String err = null;
+													try { PackInstall.install(instances, profile, c, m -> SwingUtilities.invokeLater(() -> sub.setText(m))); }
+													catch (IOException | RuntimeException ex) { err = ex.getMessage() == null ? ex.toString() : ex.getMessage(); }
+													String e2 = err;
+													SwingUtilities.invokeLater(() -> {
+														if (e2 != null) { ib.setEnabled(true); sub.setText("Not installed: " + e2); return; }
+														again[0] = url; f.dispose();   // (the window comes straight back, with the pack listed and Play beside it)
+													});
+												}, "install").start();
+											});
+										}, "install-look").start();
+									});
+								}
 							}
 						} else for (Object[] r : rows.values()) if (r[1] != null) {
 							// (No catalog: asleep, an older Gatekeeper, or refused. What this device can see for itself.)
