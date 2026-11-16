@@ -644,36 +644,50 @@ final class Home {
 			// Opened directly (not on the way back from a server): look for a newer Gatehouse; with one in place, close
 			// and let the shortcut's script open it. (GATEHOUSE_UPDATED: just reopened for that, so not again.)
 			// It asks first: the line under the heading says a newer one is there (which, and how big), with Update
-			// Gatehouse and Later. OJ_GATEHOUSE_NEWER (testing): pretend one was found, "version|bytes".
+			// Gatehouse and Later, and a chime. Looked for when the window opens and again every couple of minutes
+			// while it's open, so one published in the meantime shows without reopening anything. Later: not asked
+			// again about that one in this window. OJ_GATEHOUSE_NEWER (testing): pretend one was found, "version|bytes".
 			String pretend = System.getenv("OJ_GATEHOUSE_NEWER");
-			if (pretend != null || (openAt == null && shot == null && System.getenv("GATEHOUSE_UPDATED") == null)) {
-				Runnable look = () -> {
-					String[] found = pretend != null ? new String[] {"", "", "", pretend.replaceAll("^.*\\|", ""), pretend.replaceAll("\\|.*$", "")} : Notes.newer(instances);
-					if (found == null) return;
-					Runnable ui = () -> {
-						long bytes = 0; try { bytes = Long.parseLong(found[3]); } catch (NumberFormatException ignored) {}
-						String have = Notes.version(Notes.own());
-						ownUpdateText.setText("<html><b>A " + LaunchPopup.TOOL + " update is ready" + (found[4].isEmpty() || found[4].equals(have) ? "" : ": " + LaunchPopup.esc(found[4])) + ".</b> You have " + LaunchPopup.esc(have) + "." + (bytes > 0 ? " " + Math.max(1, Math.round(bytes / 1024.0)) + " KB to download." : "") + "</html>");
-						ownUpdateLater.addActionListener(ev -> { ownUpdate.setVisible(false); f.validate(); });
-						ownUpdateGo.addActionListener(ev -> {
-							ownUpdateGo.setEnabled(false); ownUpdateLater.setEnabled(false);
-							ownUpdateText.setText("Fetching the newer " + LaunchPopup.TOOL + "\u2026");
-							new Thread(() -> {
-								boolean ok = Notes.fetch(found);
-								SwingUtilities.invokeLater(() -> {
-									if (ok) { again[0] = "\u0000relaunch"; f.dispose(); return; }
-									ownUpdateText.setText("<html>Couldn't fetch it just now. Nothing was changed; it will be offered again next time.</html>");
-									ownUpdateLater.setText("Close"); ownUpdateLater.setEnabled(true);
-								});
-							}, "self-update").start();
-						});
-						ownUpdate.setVisible(true);
-						f.validate();
-						Nav.land(ownUpdateGo);
-					};
-					if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
+			String[][] offered = {null};
+			String[] declined = {""};
+			ownUpdateLater.addActionListener(ev -> { if (offered[0] != null) declined[0] = offered[0][1]; ownUpdate.setVisible(false); f.validate(); });
+			ownUpdateGo.addActionListener(ev -> {
+				String[] found = offered[0];
+				if (found == null) return;
+				ownUpdateGo.setEnabled(false); ownUpdateLater.setEnabled(false);
+				ownUpdateText.setText("Fetching the newer " + LaunchPopup.TOOL + "\u2026");
+				new Thread(() -> {
+					boolean ok = Notes.fetch(found);
+					SwingUtilities.invokeLater(() -> {
+						if (ok) { again[0] = "\u0000relaunch"; f.dispose(); return; }
+						ownUpdateText.setText("<html>Couldn't fetch it just now. Nothing was changed; it will be offered again.</html>");
+						offered[0] = null;
+						ownUpdateLater.setText("Close"); ownUpdateLater.setEnabled(true);
+					});
+				}, "self-update").start();
+			});
+			Runnable look = () -> {
+				String[] found = pretend != null ? new String[] {"", "pretend", "", pretend.replaceAll("^.*\\|", ""), pretend.replaceAll("\\|.*$", "")} : Notes.newer(instances);
+				if (found == null) return;
+				Runnable ui = () -> {
+					if (!f.isDisplayable() && shot == null) return;
+					if (found[1].equals(declined[0]) || (offered[0] != null && offered[0][1].equals(found[1]) && ownUpdate.isVisible())) return;
+					if (!ownUpdateGo.isEnabled() && ownUpdate.isVisible() && !ownUpdateLater.isEnabled()) return;   // (one is being fetched right now)
+					offered[0] = found;
+					long bytes = 0; try { bytes = Long.parseLong(found[3]); } catch (NumberFormatException ignored) {}
+					String have = Notes.version(Notes.own());
+					ownUpdateText.setText("<html><b>A " + LaunchPopup.TOOL + " update is ready" + (found[4].isEmpty() || found[4].equals(have) ? "" : ": " + LaunchPopup.esc(found[4])) + ".</b> You have " + LaunchPopup.esc(have) + "." + (bytes > 0 ? " " + Math.max(1, Math.round(bytes / 1024.0)) + " KB to download." : "") + "</html>");
+					ownUpdateGo.setEnabled(true); ownUpdateLater.setEnabled(true); ownUpdateLater.setText("Later");
+					ownUpdate.setVisible(true);
+					f.validate();
+					if (shot == null) { LaunchPopup.chime(); Nav.land(ownUpdateGo); }
 				};
-				if (shot != null) look.run(); else new Thread(look, "self-update").start();
+				if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
+			};
+			if (pretend != null && shot != null) look.run();
+			else if (shot == null) {
+				new Thread(look, "self-update").start();
+				new Timer(Notes.pollMillis(), tick -> { if (f.isDisplayable()) new Thread(look, "self-update").start(); else ((Timer) tick.getSource()).stop(); }).start();
 			}
 			f.pack();
 			if (shot == null) f.setSize(Math.max(f.getWidth(), 900), Math.max(f.getHeight(), 600));   // (as wide as a server's window, so little changes on the way in)

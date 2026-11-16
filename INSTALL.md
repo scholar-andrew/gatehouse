@@ -141,6 +141,10 @@ Gatehouse and Gatekeeper each have a version and notes of their own, apart from 
   with that tab in front, marked "(new)". This is apart from a pack's update, which that server's launcher asks
   about; starting a server straight from its Steam shortcut still updates both, Gatehouse first. You can read the tab
   any time.
+- **While a window is open** it keeps looking, every couple of minutes: the main window for a newer Gatehouse, a
+  server's launcher for a newer version of its pack. When one appears, a line shows under the heading, with a chime:
+  **Update Gatehouse** or, in a server's launcher, **Update now** (the update runs again, as with Restart), and
+  **Later** (not asked again about that one while the window stays open).
 - **Gatekeeper updates**, a tab beside a Gatekeeper's servers, lists what changed in that Gatekeeper (it's asked for
   them; one from before Gatekeeper 2.0.0 says so instead).
 - A server's own window shows neither: its Client updates tab is about the pack, and Server updates about the server.

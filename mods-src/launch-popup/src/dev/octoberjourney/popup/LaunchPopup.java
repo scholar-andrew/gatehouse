@@ -1948,8 +1948,50 @@ public final class LaunchPopup {
 			h.setFont(h.getFont().deriveFont(Font.BOLD, 18f));
 			JLabel s = new JLabel(sub);
 			s.setFont(s.getFont().deriveFont(14f));
+			// An update to this pack published while this window is open: a line under the heading says so (which
+			// version, how much to download), with Update now (the same as Restart: the update runs again) and Later,
+			// and a chime. Looked for every couple of minutes; what the source served when the window opened is the
+			// starting point, so only something newer than that is announced. OJ_PACK_NEWER (testing): pretend,
+			// "version|files|bytes".
+			JPanel packUpdate = new JPanel(new BorderLayout(10, 0));
+			packUpdate.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x3D6FD6)), BorderFactory.createEmptyBorder(8, 12, 8, 8)));
+			JLabel packUpdateText = new JLabel(" ");
+			JButton packUpdateGo = new PlayButton("Update now"), packUpdateLater = new JButton("Later");
+			packUpdateGo.setToolTipText("Runs the update again, as Restart does, then comes back to this window");
+			packUpdateLater.setToolTipText("Carry on as it is; the update runs the next time this pack is started");
+			JPanel packUpdateButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
+			packUpdateButtons.add(packUpdateLater); packUpdateButtons.add(packUpdateGo);
+			packUpdate.add(packUpdateText, BorderLayout.CENTER); packUpdate.add(packUpdateButtons, BorderLayout.EAST);
+			packUpdate.setVisible(false);
+			packUpdateGo.addActionListener(e -> { exitCode = RESTART; f.dispose(); });
+			String[] packSeen = {null}, packDeclined = {""};
+			packUpdateLater.addActionListener(e -> { packDeclined[0] = packSeen[0] == null ? "" : packSeen[0]; packUpdate.setVisible(false); f.validate(); });
+			String packPretend = System.getenv("OJ_PACK_NEWER");
+			String[] packStart = {null};
+			Runnable packLook = () -> {
+				String[] got = packPretend != null ? packPretend.split("\\|") : Notes.packNewer(dir);
+				if (got == null || got.length != 3) return;
+				String sig = String.join("|", got);
+				Runnable ui = () -> {
+					if (packPretend == null && packStart[0] == null) { packStart[0] = sig; return; }   // (the starting point)
+					if (sig.equals(packStart[0]) || sig.equals(packDeclined[0]) || got[1].equals("0") || (sig.equals(packSeen[0]) && packUpdate.isVisible())) return;
+					packSeen[0] = sig;
+					long bytes = 0; try { bytes = Long.parseLong(got[2]); } catch (NumberFormatException ignored) {}
+					packUpdateText.setText("<html><b>An update to " + esc(NAME) + " is ready" + (got[0].isEmpty() ? "" : ": " + esc(got[0])) + ".</b> " + got[1] + (got[1].equals("1") ? " file" : " files") + (bytes > 0 ? ", " + sizeText(bytes) : "") + " to download.</html>");
+					packUpdate.setVisible(true);
+					f.validate();
+					if (System.getenv("OJ_POPUP_PNG") == null) chime();
+				};
+				if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
+			};
+			if (packPretend != null) packLook.run();
+			else if (System.getenv("OJ_POPUP_PNG") == null) {
+				new Thread(packLook, "pack-update").start();
+				new Timer(Notes.pollMillis(), tick -> { if (f.isDisplayable()) new Thread(packLook, "pack-update").start(); else ((Timer) tick.getSource()).stop(); }).start();
+			}
 			top.add(h, BorderLayout.NORTH);
-			top.add(s, BorderLayout.SOUTH);
+			top.add(s, BorderLayout.CENTER);
+			top.add(packUpdate, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
 			// Two tabs: this device (the pack's update) and the server.
 			javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();

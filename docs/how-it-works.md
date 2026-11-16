@@ -199,6 +199,12 @@ their next launch; nobody has to touch a device.
   opens in that place, at least that big, and removes the note, which is the main window's cue to go (it also goes
   when Prism finishes or after 30 seconds). The Gatehouse button writes the same into `back-to-menu`, and the main
   window opens there.
+- **Noticing updates while open.** Both windows look again every two minutes (`Notes.pollMillis`;
+  `OJ_UPDATE_POLL_MS` for tests). The main window compares the served launcher's hash with its own (`Notes.newer`). A
+  server's launcher compares the served `update-sizes.json` with what's installed (`Notes.packNewer`, the same count
+  the download question uses); what was served when the window opened is the starting point, so only a change after
+  that is announced. `OJ_GATEHOUSE_NEWER` (`version|bytes`) and `OJ_PACK_NEWER` (`version|files|bytes`) pretend one
+  was found, for pictures.
 - **Gatehouse updating itself.** Opened directly (the Gatehouse shortcut, no server chosen), the launcher looks where
   the installed packs get their updates (`pack-sources.txt`), compares the hash of `extras/launch-popup.jar` in
   `update-sizes.json` with its own, and if they differ says so under the heading (the version from `gatehouse` in

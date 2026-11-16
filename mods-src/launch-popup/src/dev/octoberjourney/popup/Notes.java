@@ -73,6 +73,35 @@ final class Notes {
 		return found != null && fetch(found);
 	}
 
+	/** How often an open window looks again for something newer (OJ_UPDATE_POLL_MS: testing). */
+	static int pollMillis() {
+		try { return Math.max(500, Integer.parseInt(System.getenv("OJ_UPDATE_POLL_MS"))); } catch (RuntimeException e) { return 120_000; }
+	}
+
+	private static boolean deck() {
+		try { String p = Files.readString(Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); return p.equals("Jupiter") || p.equals("Galileo"); } catch (IOException | RuntimeException e) { return false; }
+	}
+
+	/** A pack's update, looked for while that server's launcher is open: what the pack's source serves now against
+	 *  what's installed in this game folder. Null when nothing could be reached (or this isn't a pack); else
+	 *  {the pack version served, how many files would be downloaded, how many bytes}. Nothing is changed. */
+	static String[] packNewer(Path dir) {
+		try {
+			if (!Files.isRegularFile(dir.resolve("pack-sources.txt"))) return null;
+			for (String line : Files.readAllLines(dir.resolve("pack-sources.txt"), StandardCharsets.UTF_8)) {
+				String src = line.strip().replaceAll("/+$", "");
+				if (src.isEmpty() || src.startsWith("#")) continue;
+				for (String variant : deck() ? new String[] {"deck", "main"} : new String[] {"main"}) try {
+					String json = new String(LaunchPopup.fetchBytes(src + "/" + variant + "/update-sizes.json"), StandardCharsets.UTF_8);
+					long[] n = LaunchPopup.pending(dir, json);
+					if (n == null) continue;
+					return new String[] {str(ServerControl.asMap(LaunchPopup.parseJson(json)).get("version")), String.valueOf(n[1]), String.valueOf(n[0])};
+				} catch (IOException | RuntimeException next) { /* the next place */ }
+			}
+		} catch (Exception ignored) {}
+		return null;
+	}
+
 	/** The fetching half: {where the pack is served, the hash wanted, the pack folder here to put it in, ...} from newer(). */
 	static boolean fetch(String[] found) {
 		try {

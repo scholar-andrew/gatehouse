@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.0.3",
+ "version": "2.0.4",
  "changes": [
+  {"version": "2.0.4", "date": "2026-11-16", "notes": [
+   "Updates are noticed while a window is open, with no need to reopen anything. The main window looks for a newer Gatehouse every couple of minutes; a server's launcher looks for a newer version of its pack. When one appears, the line under the heading shows up, with a chime.",
+   "In a server's launcher that line says which pack version is ready and how much there is to download, with Update now (the update runs again, as with Restart) and Later.",
+   "Later is remembered for as long as that window is open: you aren't asked again about the same update, only about a newer one."
+  ]},
   {"version": "2.0.3", "date": "2026-11-16", "notes": [
    "Going from the main window into a server's launcher no longer looks like one window closing and another opening somewhere else. The main window stays up, saying which server it's opening, until that server's window (its update checklist, then its launcher) has appeared in exactly the same place, at least as big. The Gatehouse button comes back the same way.",
    "The main window now opens as wide as a server's launcher, so little changes on the way in."
