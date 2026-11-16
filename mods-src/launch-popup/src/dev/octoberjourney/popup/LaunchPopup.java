@@ -421,9 +421,9 @@ public final class LaunchPopup {
 	 *    --home <Prism's instances folder> --prism <how to start Prism Launcher> [--play <instance id>]
 	 *  It lists the Gatehouse packs installed in Prism (instances whose game folder has extras/profile.json), each with
 	 *  whether its server is online right now and a Play button. Play starts that instance through Prism (--launch,
-	 *  and --server to join); the pack's update runs first as always, and its window is skipped when there's nothing
-	 *  to show and the server is online (directLaunch). With --play, there's no window here at all: that's a
-	 *  server's own Steam shortcut. This program stays until Prism closes, so Steam sees the game as running. */
+	 *  and --server to join); the pack's update runs first and its window appears, as always. With --play, there's
+	 *  no window here at all: that's a pack's own Steam shortcut, and the game then starts straight away when it can
+	 *  (directLaunch). This program stays until Prism closes, so Steam sees the game as running. */
 	static void home(String[] args) throws Exception {
 		Path instances = Path.of(args[1]);
 		String prism = "prismlauncher", play = null;
@@ -440,7 +440,7 @@ public final class LaunchPopup {
 			}
 		} catch (IOException ignored) {}
 		String prismCmd = prism;
-		if (play != null) for (String[] e : servers) if (e[0].equals(play)) { startGame(prismCmd, e); return; }
+		if (play != null) for (String[] e : servers) if (e[0].equals(play)) { startGame(prismCmd, e, true); return; }
 		String[][] chosen = {null};
 		boolean[] openPrism = {false};
 		java.util.concurrent.CountDownLatch closed = new java.util.concurrent.CountDownLatch(1);
@@ -522,13 +522,14 @@ public final class LaunchPopup {
 			bringForwardOnce(f);
 		});
 		closed.await();
-		if (chosen[0] != null) startGame(prismCmd, chosen[0]);
+		if (chosen[0] != null) startGame(prismCmd, chosen[0], false);
 		else if (openPrism[0]) run(List.of(prismCmd));
 	}
 
 	/** Starts an instance through Prism Launcher, joining its server, and waits for Prism to close. */
-	private static void startGame(String prism, String[] e) {
-		try { Files.writeString(Path.of(e[3]).resolve("direct-launch"), String.valueOf(System.currentTimeMillis()), StandardCharsets.UTF_8); } catch (IOException ignored) {}
+	private static void startGame(String prism, String[] e, boolean direct) {
+		Path note = Path.of(e[3]).resolve("direct-launch");
+		try { if (direct) Files.writeString(note, String.valueOf(System.currentTimeMillis()), StandardCharsets.UTF_8); else Files.deleteIfExists(note); } catch (IOException ignored) {}
 		List<String> cmd = new ArrayList<>(List.of(prism, "--launch", e[0]));
 		if (!e[2].isEmpty()) { cmd.add("--server"); cmd.add(e[2]); }
 		run(cmd);
@@ -739,6 +740,9 @@ public final class LaunchPopup {
 	// ------------------------------------------------------------------ the summary
 
 	static void summary(Path dir, String status) throws Exception {
+		// (What the player had seen before this launch: put back if the window isn't shown, so the notes aren't lost.)
+		String[] seenFiles = {"server-state-seen.json", "server-notes-seen.txt", "pack-version-seen.txt"}, seenBefore = new String[seenFiles.length];
+		for (int i = 0; i < seenFiles.length; i++) seenBefore[i] = Files.isRegularFile(dir.resolve(seenFiles[i])) ? Files.readString(dir.resolve(seenFiles[i]), StandardCharsets.UTF_8) : null;
 		loadProfile(dir);
 		List<Version> log = changelog(dir.resolve("extras/changelog.txt"));
 		String current = log.isEmpty() ? null : log.get(0).version();
@@ -862,9 +866,13 @@ public final class LaunchPopup {
 			rows.add(heading(fresh.size() > 1 || !seen.isEmpty() ? "What's new in " + v.version() + (v.date().isEmpty() ? "" : " (" + v.date() + ")") : "What's new"));
 			for (String n : v.notes()) rows.add(text("• " + n));
 		}
-		// Started from the Gatehouse launcher or a server's own Steam shortcut (the player already said Play there): with
-		// nothing new to show and the server online, the game starts straight away.
-		if (directLaunch(dir, status.equals("ok") && !updated && !somethingHappened && !serverNews && skipped == null)) {
+		// Started from the pack's own Steam shortcut (through the Gatehouse launcher, --play): the game starts straight
+		// away whenever it can: the update went through, the server is online, and this player may join. News that this
+		// window would have shown stays unseen, so it's shown the next time the window does appear.
+		if (directLaunch(dir, !status.equals("failed") && !status.equals("offline") && skipped == null)) {
+			for (int i = 0; i < seenFiles.length; i++) {
+				if (seenBefore[i] == null) Files.deleteIfExists(dir.resolve(seenFiles[i])); else Files.writeString(dir.resolve(seenFiles[i]), seenBefore[i], StandardCharsets.UTF_8);
+			}
 			SwingUtilities.invokeAndWait(() -> { if (reuse != null) reuse.dispose(); });
 			exitCode = 0;
 			return;

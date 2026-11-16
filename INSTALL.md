@@ -98,10 +98,12 @@ safe; it updates your setup without duplicating anything.
 whether its server is online right now and a **Play** button, plus **Open Prism Launcher** (accounts, other instances,
 settings) and **Quit**. Play starts that pack: its update runs first, as always.
 
-When you start a pack from here, or from its own Steam shortcut, the game starts straight away if there is nothing new
-to show and the server is online. Otherwise the window described below appears first: after an update, when the
-server has news, when the server is off, or when you aren't on the whitelist or have been suspended or blacklisted.
-Starting the instance from inside Prism Launcher always shows it.
+The two shortcuts differ in one thing. A pack's own Steam shortcut (**October Journey - ...**) goes straight into the
+game whenever it can: the update went through, the server is online, and you may join. News it would have shown is
+kept for the next time the window appears. It shows the window described below instead when the update failed or
+couldn't be checked, the server is off, or you aren't on the whitelist or have been suspended or blacklisted.
+Pressing **Play** in the Gatehouse launcher, like starting the instance from inside Prism Launcher, always shows that
+window first.
 
 Both programs use the same dark look, sized for a Steam Deck's screen.
 

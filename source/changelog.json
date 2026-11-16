@@ -1,4 +1,7 @@
 [
+ {"version": "1.10.4", "date": "2026-11-15", "notes": [
+  "The two Steam shortcuts now behave the way round they should. The pack's own shortcut (October Journey) goes straight into the game whenever it can: the update went through, the server is online, and you're allowed to join. That includes right after an update; the notes are kept and shown the next time the launcher's window appears. The Gatehouse Minecraft Launcher shortcut never starts the game by itself: pressing Play there shows the update window, as starting from Prism Launcher does."
+ ]},
  {"version": "1.10.3", "date": "2026-11-15", "notes": [
   "Fixed: on a Steam Deck (and other Linux devices), Update Steam shortcuts stopped with \"Steam's shortcut list isn't where setup left it\". Prism Launcher runs in a sandbox there that was only allowed Steam's art and controller folders, not the shortcut list. The button now says so and gives the one command that allows it (copied for you to paste into Konsole); after that it works. Setup grants this itself from now on.",
   "The backup of Steam's shortcut list that the button makes is now kept in the game folder (shortcuts.vdf.bak-launcher)."
