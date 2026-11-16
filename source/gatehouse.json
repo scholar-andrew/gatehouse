@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.2.0",
+ "version": "2.2.1",
  "changes": [
+  {"version": "2.2.1", "date": "2026-11-16", "notes": [
+   "Fixed: going from Launch to Play took a long time when there was nothing to update. The checklist could take the previous launch's result for this one's, show everything ticked, and then wait unseen for the real update to finish.",
+   "With nothing to update, the update itself is now much shorter: the launcher already compares the pack's files with what's installed, and when everything matches the installer program isn't run at all. (As a safety net it still runs in full once a week, and whenever a file is missing or left over.)",
+   "The update asks only the first pack source that answers, instead of waiting on all of them every time."
+  ]},
   {"version": "2.2.0", "date": "2026-11-16", "notes": [
    "Second step of making Gatehouse one program: after the update, that server's launcher (Client updates, Server updates, Connection and the rest, with Play) now shows inside the main Gatehouse window too. Nothing closes and nothing opens between pressing Launch and pressing Play.",
    "The Gatehouse button goes back to the list of servers at once, in the same window. Restart runs the update again right there. Quit closes Gatehouse without starting the game.",

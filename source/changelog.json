@@ -1,4 +1,7 @@
 [
+ {"version": "1.19.1", "date": "2026-11-16", "notes": [
+  "Starting is faster when there's nothing to update: the update no longer runs its installer when every file of the pack is already here, and asks only the first pack source that answers. This takes effect one launch after this update. (Once a week the installer still runs in full, as a check.)"
+ ]},
  {"version": "1.19.0", "date": "2026-11-16", "notes": [
   "When the pack is started from the Gatehouse launcher, this window is now a page inside Gatehouse's own window instead of a window of its own (Gatehouse 2.2.0; see the Gatehouse updates tab there). It takes effect one launch after this update.",
   "Nothing else changed in the pack."

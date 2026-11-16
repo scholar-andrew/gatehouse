@@ -196,11 +196,16 @@ reachable() {
     s="${s%%$'\r'}"; s="${s%/}"
     [ -z "$s" ] && continue
     [[ "$s" == \#* ]] && continue
-    curl -fsI --max-time 5 "$s/$variant/pack.toml" >/dev/null 2>&1 && urls+=("$s/$variant/pack.toml")
+    if curl -fsI --max-time 5 "$s/$variant/pack.toml" >/dev/null 2>&1; then
+      urls+=("$s/$variant/pack.toml")
+      [ "${1:-}" = first ] && break
+    fi
   done < "$here/pack-sources.txt"
 }
-reachable
-if [ "${#urls[@]}" = 0 ]; then note "no source answered; trying again in 5 seconds"; sleep 5; reachable; fi
+# To begin with only the first one that answers is looked for (the others are asked only if the update from it fails):
+# every launch waited on all of them before.
+reachable first
+if [ "${#urls[@]}" = 0 ]; then note "no source answered; trying again in 5 seconds"; sleep 5; reachable first; fi
 if [ "${#urls[@]}" = 0 ]; then
   status warn "Connection" "No pack source answered (Tailscale or internet)"; status warn "Mods and settings" "Not checked; playing what's installed"
   stop_if_no_mods "no source reachable" "" offline
@@ -216,18 +221,26 @@ fi
 # this script swaps it in and opens the new launcher, which then answers the same question. One such round at most.
 rm -f "$here/pack-sync-answer.txt" "$here/extras/launch-popup.jar.new"
 skip=0; skip_size=""
+# Nothing to update: the launcher compares the pack's file list with what's installed here anyway (for the size of the
+# download), and when every file is here and none is left over it answers "current" ("current-ok" on the ask line says
+# this script understands that). packwiz-installer then isn't run at all, which is most of what a launch with no
+# update used to wait for. As a safety net it is still run in full when it hasn't been for a week
+# (pack-sync-full.txt: when it last was).
+current=0; recent_full=0
+full_when="$(tr -d '\r\n' < "$here/pack-sync-full.txt" 2>/dev/null || true)"
+case "$full_when" in ''|*[!0-9]*) ;; *) full_age=$(( $(date +%s) - full_when )); if [ "$full_age" -ge 0 ] && [ "$full_age" -lt 604800 ]; then recent_full=1; fi ;; esac
 for round in 1 2; do
   if [ -z "$embed" ]; then [ -n "$popup_pid" ] && kill -0 "$popup_pid" 2>/dev/null || break; fi
   # (Gatehouse's window updates Gatehouse itself, in its own time: no "self-update" for it)
   if [ "$round" = 1 ]; then
-    if [ -n "$embed" ]; then echo "ask|${urls[0]%/pack.toml}" >> "$here/pack-sync-status.txt"; else echo "ask|${urls[0]%/pack.toml}|self-update" >> "$here/pack-sync-status.txt"; fi
+    if [ -n "$embed" ]; then echo "ask|${urls[0]%/pack.toml}||current-ok" >> "$here/pack-sync-status.txt"; else echo "ask|${urls[0]%/pack.toml}|self-update|current-ok" >> "$here/pack-sync-status.txt"; fi
   fi
   asked=$SECONDS; answer=""
   while [ -n "$embed" ] || kill -0 "$popup_pid" 2>/dev/null; do
     answer="$(tr -d '\r\n' < "$here/pack-sync-answer.txt" 2>/dev/null || true)"
     if [ -n "$answer" ] && [ "$answer" != wait ]; then break; fi
     if [ -z "$answer" ] && [ $((SECONDS - asked)) -gt 30 ]; then note "the launcher gave no answer about the update size; updating"; break; fi
-    sleep 0.2
+    sleep 0.05
   done
   if [ -n "$embed" ]; then
     if [ "$answer" = quit ]; then note "launch cancelled in the Gatehouse window (Quit)"; exit 10; fi
@@ -241,6 +254,7 @@ for round in 1 2; do
       continue
     fi
   fi
+  if [ "$answer" = current ] && [ "$recent_full" = 1 ]; then current=1; note "nothing to update: every file of the pack is already here"; fi
   case "$answer" in skip*) skip=1; skip_size="${answer#skip}"; skip_size="${skip_size#|}"; note "update skipped in the launcher (about $skip_size waiting)" ;; esac
   break
 done
@@ -269,16 +283,24 @@ run_installer() {
 # Each source that answered, in order, then the first once more: an update that fails or stalls (say the connection
 # dropped part-way) is tried again. packwiz-installer only replaces files it has fully downloaded and checked, and
 # picks up where it left off on the next try.
-code=1; url=""
-[ "$skip" = 1 ] && { code=0; url="${urls[0]}"; }
-for u in "${urls[@]}" "${urls[0]}"; do
-  [ "$skip" = 1 ] && break
+code=1; url=""; first_url="${urls[0]}"
+queue=("$first_url"); widened=0
+if [ "$skip" = 1 ] || [ "$current" = 1 ]; then code=0; url="$first_url"; queue=(); fi
+while [ "${#queue[@]}" -gt 0 ]; do
+  u="${queue[0]}"; queue=("${queue[@]:1}")
   run_installer "$u"; code=$?; url="$u"
   note "($variant) $u -> exit $code (Java: $java_bin)"
   [ "$code" = 0 ] && break
   [ "$code" = 124 ] && note "  stopped: not finished after 5 minutes"
   tail -n 5 "$here/pack-sync-java.log" | while IFS= read -r l; do note "  java: $l"; done
+  # (it failed: now the other sources that answer, then the first once more)
+  if [ "$widened" = 0 ]; then
+    widened=1; reachable
+    for m in "${urls[@]}"; do [ "$m" != "$first_url" ] && queue+=("$m"); done
+    queue+=("$first_url")
+  fi
 done
+if [ "$code" = 0 ] && [ "$skip" != 1 ] && [ "$current" != 1 ]; then date +%s > "$here/pack-sync-full.txt"; fi
 case "$url" in *githubusercontent*) where="GitHub" ;; *) where="the owner's PC (Tailscale)" ;; esac
 if [ "$skip" = 1 ]; then
   status ok "Connection" "$where"; status warn "Mods and settings" "Update skipped this time (about $skip_size waiting); playing what's installed"

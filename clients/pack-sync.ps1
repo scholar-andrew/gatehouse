@@ -213,13 +213,15 @@ $variant = 'main'
 $sources = @(Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') })
 # Which sources answer, in order, each given 5 seconds. If none does (after sleep or at startup the network can still be
 # coming up), one more round after 5 seconds.
-function Reachable {
+# To begin with only the first one that answers is looked for (the others are asked only if the update from it fails):
+# every launch waited on all of them before.
+function Reachable($firstOnly) {
     foreach ($s in $sources) {
-        try { $r = Invoke-WebRequest "$s/$variant/pack.toml" -UseBasicParsing -TimeoutSec 5 -Method Head; if ($r.StatusCode -eq 200) { "$s/$variant/pack.toml" } } catch { }
+        try { $r = Invoke-WebRequest "$s/$variant/pack.toml" -UseBasicParsing -TimeoutSec 5 -Method Head; if ($r.StatusCode -eq 200) { "$s/$variant/pack.toml"; if ($firstOnly) { return } } } catch { }
     }
 }
-$urls = @(Reachable)
-if (-not $urls) { Note 'no source answered; trying again in 5 seconds'; Start-Sleep -Seconds 5; $urls = @(Reachable) }
+$urls = @(Reachable $true)
+if (-not $urls) { Note 'no source answered; trying again in 5 seconds'; Start-Sleep -Seconds 5; $urls = @(Reachable $true) }
 if (-not $urls) { Status 'warn' 'Connection' 'No pack source answered (Tailscale or internet)'; Status 'warn' 'Mods and settings' "Not checked; playing what's installed"; StopIfNoMods 'no source reachable' -status 'offline' }
 if (-not $java) { StopIfNoMods "no Java found yet (INST_JAVA was '$env:INST_JAVA')" 'Prism Launcher is still setting up Java: press Play again.' }
 # packwiz-installer (the program the bootstrap runs) is pinned to one release, so it only changes when the pack changes
@@ -271,16 +273,25 @@ function RunInstaller($u) {
 $answerFile = Join-Path $here 'pack-sync-answer.txt'
 Remove-Item $answerFile, "$popupJar.new" -Force -ErrorAction SilentlyContinue
 $skip = $false; $skipSize = ''
+# Nothing to update: the launcher compares the pack's file list with what's installed here anyway (for the size of the
+# download), and when every file is here and none is left over it answers "current" ("current-ok" on the ask line says
+# this script understands that). packwiz-installer then isn't run at all, which is most of what a launch with no
+# update used to wait for. As a safety net it is still run in full when it hasn't been for a week
+# (pack-sync-full.txt: when it last was).
+$current = $false
+$fullFile = Join-Path $here 'pack-sync-full.txt'
+$recentFull = $false
+try { $fa = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]("$(Get-Content $fullFile -Raw -ErrorAction Stop)".Trim()); $recentFull = ($fa -ge 0 -and $fa -lt 7 * 86400) } catch { }
 foreach ($round in 1, 2) {
     if (-not $embed -and -not ($script:popup -and -not $script:popup.HasExited)) { break }
     # (Gatehouse's window updates Gatehouse itself, in its own time: no "self-update" for it)
-    if ($round -eq 1) { Add-Content -Path $statusFile -Value ('ask|' + ($urls[0] -replace '/pack\.toml$', '') + $(if ($embed) { '' } else { '|self-update' })) -Encoding utf8 }
+    if ($round -eq 1) { Add-Content -Path $statusFile -Value ('ask|' + ($urls[0] -replace '/pack\.toml$', '') + $(if ($embed) { '|' } else { '|self-update' }) + '|current-ok') -Encoding utf8 }
     $asked = Get-Date; $answer = ''
     while ($embed -or -not $script:popup.HasExited) {
         $answer = if (Test-Path $answerFile) { "$(Get-Content $answerFile -Raw -ErrorAction SilentlyContinue)".Trim() } else { '' }
         if ($answer -and $answer -ne 'wait') { break }
         if (-not $answer -and ((Get-Date) - $asked).TotalSeconds -gt 30) { Note 'the launcher gave no answer about the update size; updating'; break }
-        Start-Sleep -Milliseconds 200
+        Start-Sleep -Milliseconds 50
     }
     if ($embed) { if ($answer -eq 'quit') { Note 'launch cancelled in the Gatehouse window (Quit)'; exit 10 } }
     elseif ($script:popup.HasExited -and $script:popup.ExitCode -eq 10) { AfterPopup 10 }
@@ -291,6 +302,7 @@ foreach ($round in 1, 2) {
         StartProgress
         continue
     }
+    if ($answer -eq 'current' -and $recentFull) { $current = $true; Note 'nothing to update: every file of the pack is already here' }
     if ($answer -like 'skip*') { $skip = $true; $skipSize = "$(($answer -split '\|', 2)[1])".Trim(); Note "update skipped in the launcher (about $skipSize waiting)" }
     break
 }
@@ -299,13 +311,20 @@ RestoreSwitchedOff
 # dropped part-way) is tried again. packwiz-installer only replaces files it has fully downloaded and checked, and
 # picks up where it left off on the next try.
 $code = $null; $url = $null
-if ($skip) { $code = 0; $url = $urls[0] }
-foreach ($u in $(if ($skip) { @() } else { @($urls) + @($urls[0]) })) {
+if ($skip -or $current) { $code = 0; $url = $urls[0] }
+$queue = New-Object System.Collections.ArrayList
+if (-not ($skip -or $current)) { [void]$queue.Add($urls[0]) }
+$widened = $false
+while ($queue.Count -gt 0) {
+    $u = $queue[0]; $queue.RemoveAt(0)
     $code = RunInstaller $u; $url = $u
     Note "$u -> exit $code (Java: $java)"
     if ("$code" -eq '0') { break }
     if (Test-Path $javaLog) { Get-Content $javaLog -Tail 5 | ForEach-Object { Note "  java: $_" } }
+    # (it failed: now the other sources that answer, then the first once more)
+    if (-not $widened) { $widened = $true; foreach ($m in @(Reachable $false)) { if ($m -ne $urls[0]) { [void]$queue.Add($m) } }; [void]$queue.Add($urls[0]) }
 }
+if ("$code" -eq '0' -and -not $skip -and -not $current) { Set-Content -Path $fullFile -Value ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) -Encoding ascii }
 $where = if ($url -match 'githubusercontent') { 'GitHub' } else { "the owner's PC (Tailscale)" }
 if ($skip) {
     Status 'ok' 'Connection' $where

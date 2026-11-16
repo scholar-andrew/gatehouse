@@ -355,7 +355,8 @@ public final class LaunchPopup {
 					askedOnce = true;
 					String base = f[1].strip();
 					boolean self = f.length > 2 && f[2].strip().equals("self-update");
-					new Thread(() -> ask(dir, base, ui, self), "ask").start();
+					boolean canCurrent = l.contains("|current-ok");   // (the sync understands "current": nothing to update, don't run the installer)
+					new Thread(() -> ask(dir, base, ui, self, canCurrent), "ask").start();
 				}
 			}
 			if (askedOnce) got.putIfAbsent("Connection", new String[] {"ok", ""});   // (the pack answered, or there'd be no question)
@@ -389,7 +390,7 @@ public final class LaunchPopup {
 				});
 			}
 			if (done == null && sync != null && !sync.isAlive() && ++ended > 3) return "stopped";   // (it ended without saying it was done)
-			if (done == null) Thread.sleep(300);
+			if (done == null) Thread.sleep(100);
 		}
 		return done;
 	}
@@ -398,7 +399,7 @@ public final class LaunchPopup {
 	 *  checklist window, where the Play button turns into Download (Quit cancels the launch), then answers the sync in
 	 *  pack-sync-answer.txt: "wait" while asking, "go" after. Nothing to download, the size unknown,
 	 *  or no window: "go" straight away. Quit (or closing the window) leaves no answer; the sync sees the exit code. */
-	private static void ask(Path dir, String base, boolean ui, boolean selfUpdate) {
+	private static void ask(Path dir, String base, boolean ui, boolean selfUpdate, boolean canCurrent) {
 		Path answer = dir.resolve("pack-sync-answer.txt");
 		String reply = "go";
 		try {
@@ -419,6 +420,8 @@ public final class LaunchPopup {
 				}
 			} catch (Exception ignored) {}   // (couldn't: carry on with this launcher; the update replaces it as before)
 			long[] n = pending(dir, sizes);
+			// Every file of the pack is here as the pack has it, and nothing is left over: there is nothing to update.
+			if (canCurrent && n != null && n[1] == 0 && n[3] == 0 && n[6] == 0 && n[7] == 0) reply = "current";
 			Path pull = dir.resolve("pull-pending.json");
 			Files.deleteIfExists(pull);
 			if (n != null && n[0] > 0 && !base.contains("githubusercontent"))
@@ -481,10 +484,19 @@ public final class LaunchPopup {
 		if (files.isEmpty()) return null;
 		String record = read(dir.resolve("packwiz.json"));
 		Map<String, Object> have = record.isBlank() ? new LinkedHashMap<>() : asMap(asMap(parse(record)).get("cachedFiles"));
-		long bytes = 0, n = 0, mods = 0, modrinth = 0, modrinthBytes = 0;
+		long bytes = 0, n = 0, mods = 0, modrinth = 0, modrinthBytes = 0, leftOver = 0, missing = 0;
+		for (String k : have.keySet()) if (!files.containsKey(k)) leftOver++;   // (installed, but no longer in the pack: the update would remove it)
 		for (Map.Entry<String, Object> e : files.entrySet()) {
 			Map<String, Object> f = asMap(e.getValue()), h = asMap(have.get(e.getKey()));
-			if (!h.isEmpty() && ("true".equals(s(f.get("preserve"))) || s(asMap(h.get("hash")).get("value")).equals(s(f.get("hash"))))) continue;
+			if (!h.isEmpty() && ("true".equals(s(f.get("preserve"))) || s(asMap(h.get("hash")).get("value")).equals(s(f.get("hash"))))) {
+				// (recorded as installed: is the file itself still there? A mod switched off is, as .disabled)
+				if (!"true".equals(s(f.get("preserve")))) {
+					String loc = s(h.get("cachedLocation"));
+					Path p = dir.resolve(loc.isEmpty() ? e.getKey() : loc);
+					if (!Files.isRegularFile(p) && !Files.isRegularFile(p.resolveSibling(p.getFileName() + ".disabled"))) missing++;
+				}
+				continue;
+			}
 			long size = 0;
 			try { size = (long) Double.parseDouble(s(f.get("size"))); } catch (NumberFormatException ignored) {}
 			bytes += size;
@@ -492,7 +504,7 @@ public final class LaunchPopup {
 			if (e.getKey().startsWith("mods/")) mods++;
 			if (e.getKey().endsWith(".pw.toml")) { modrinth++; modrinthBytes += size; }   // (a mod listed by the pack and fetched from Modrinth)
 		}
-		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0, modrinth, modrinthBytes};
+		return new long[] {bytes, n, mods, have.isEmpty() ? 1 : 0, modrinth, modrinthBytes, leftOver, missing};
 	}
 
 	/** Was this launch asked for from the Gatehouse launcher (it leaves a "direct-launch" note in the game folder, good

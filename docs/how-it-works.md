@@ -214,6 +214,13 @@ their next launch; nobody has to touch a device.
   `<unix time>|play`, the window closes and Prism starts the instance; Prism's run of the script sees "play" and
   ends at once, so the game starts. A script with `GATEHOUSE_EMBED` only (pack 1.18.0) still gets the first step.
   `OJ_HOME_LAUNCH_PAGE=1` with `OJ_HOME_LAUNCH` takes the page's pictures too.
+- **Nothing to update.** The ask line ends in `|current-ok` when the script understands the answer `current`. The
+  launcher gives it when `pending()` finds every file of the served `update-sizes.json` installed with the same hash,
+  the files themselves on disk, and nothing installed that the pack no longer has. The script then skips
+  packwiz-installer (unless `pack-sync-full.txt`, the time of its last full run, is missing or over a week old). The
+  script also looks only for the first source that answers; the others are asked if the update from it fails.
+  `Home.startSync` empties the status file before starting the script, so the checklist can't read the last run's
+  `done`.
 - **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
   Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
   `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)

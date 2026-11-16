@@ -167,6 +167,11 @@ final class Home {
 			String java = ProcessHandle.current().info().command().orElse("");
 			if (!java.isEmpty() && pb.environment().get("INST_JAVA") == null) pb.environment().put("INST_JAVA", java);
 			pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD);
+			// (what the last run said is cleared here, before the script gets to it: the checklist starts reading at once,
+			// and must not take the last run's "done" for this one's)
+			Files.writeString(dir.resolve("pack-sync-status.txt"), "", StandardCharsets.UTF_8);
+			Files.deleteIfExists(dir.resolve("pack-sync-answer.txt"));
+			Files.deleteIfExists(dir.resolve("pack-sync-fresh.txt"));
 			return pb.start();
 		} catch (IOException | RuntimeException e) { return null; }
 	}
