@@ -1,3 +1,5 @@
+== 1.17.4 | 2026-11-16
+- Nothing changed in the pack itself. The launcher did (Gatehouse 2.0.4): this window now notices a pack update published while it's open, and says so under the heading with a chime (Update now, or Later). The rest is on the Gatehouse updates tab on the main window.
 == 1.17.3 | 2026-11-16
 - Nothing changed in the pack itself. The launcher did (Gatehouse 2.0.3): this window now opens exactly where the main Gatehouse window was, so it looks like one window. The rest is on the Gatehouse updates tab there.
 == 1.17.2 | 2026-11-16
