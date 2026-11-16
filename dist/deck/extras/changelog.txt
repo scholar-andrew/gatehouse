@@ -1,3 +1,8 @@
+== 1.20.0 | 2026-11-16
+- Steam Deck: the pack's controller layout (back grips, trackpad as mouse) now goes only on the shortcuts that start a game. Gatehouse's own shortcut uses Steam's plain layout, and Gatehouse asks Steam to switch to the pack's layout when the game starts (Gatehouse 2.3.0; see the Gatehouse updates tab on its main window).
+- Nothing else changed in the pack.
+== 1.19.1 | 2026-11-16
+- Starting is faster when there's nothing to update: the update no longer runs its installer when every file of the pack is already here, and asks only the first pack source that answers. This takes effect one launch after this update. (Once a week the installer still runs in full, as a check.)
 == 1.19.0 | 2026-11-16
 - When the pack is started from the Gatehouse launcher, this window is now a page inside Gatehouse's own window instead of a window of its own (Gatehouse 2.2.0; see the Gatehouse updates tab there). It takes effect one launch after this update.
 - Nothing else changed in the pack.
