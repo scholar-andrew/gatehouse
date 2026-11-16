@@ -1,10 +1,23 @@
-﻿# October Journey
+# Gatehouse
 
-A private Minecraft 26.3 (Fabric) survival server with Jarvis, a butler who farms, mines, builds and runs errands, and
-this client pack to play on it. **About the server** (settings, mods, Jarvis, and what runs with it):
-[docs/server.md](docs/server.md).
+Gatehouse gets a group of friends onto the same modded Minecraft server and keeps them there. It has two halves:
 
-## Download
+- **The launcher**, on each player's device. It runs inside [Prism Launcher](https://prismlauncher.org/) every time
+  you press Play: it brings the modpack up to date, shows what changed on the device and on the server, and has the
+  controls for the server that the owner has allowed that device. Then it starts the game.
+- **Gatehouse Keeper**, on the machine that hosts the server. It lets allowed launchers wake or sleep the machine and
+  start or stop the server, shows the owner who asked for what, and has a control panel for deciding who may do which,
+  per device or per player, including the server's whitelist.
+
+Everything goes over the owner's private [Tailscale](https://tailscale.com/) network; GitHub is only a fallback for
+downloading the pack.
+
+A server and its modpack are a **profile**, so one copy of Gatehouse can serve several. The first, and the one the
+downloads below install, is **October Journey**: a private Minecraft 26.3 (Fabric) survival server with Jarvis, a
+butler who farms, mines, builds and runs errands. **About that server** (settings, mods, Jarvis, and what runs with
+it): [docs/server.md](docs/server.md).
+
+## Download (October Journey)
 
 | Operating system | Install | Uninstall |
 | --- | --- | --- |
@@ -62,9 +75,13 @@ current: see [What runs each time you play](INSTALL.md#what-runs-each-time-you-p
 | [docs/mods.md](docs/mods.md) | Every mod in the pack and where it comes from (generated). |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each version (the same notes the launch pop-up shows). |
 | [docs/how-it-works.md](docs/how-it-works.md) | For the maintainer: how the pack is built, hosted and synced, the Steam keyboard setup, and how to make common changes. |
-| [mods-src/](mods-src/README.md) | Source of the pack's own mods: Chat Lift, Controller Handoff Fix, and the REI brewing patch. |
-| `source/` | The pack definition (`mods.json`) and files shipped as they are. |
-| `dist/` | The built pack (packwiz format) that devices download. |
+| [docs/profiles.md](docs/profiles.md) | Server profiles: how Gatehouse serves more than one server, and the steps for adding one. |
+| [mods-src/](mods-src/README.md) | Source of the launcher (the window before the game starts), the launch wrapper, and the pack's own mods: Gatehouse Settings, Chat Lift, Controller Handoff Fix, and the REI brewing patch. |
+| `host/` | Gatehouse Keeper: the program on the server machine, and its control panel. |
+| `source/` | October Journey's pack definition (`mods.json`) and files shipped as they are. |
+| `profiles/` | Other server profiles, one folder each (`example/` is a template). |
+| `dist/` | The built packs (packwiz format) that devices download. |
 | `clients/` | The update script each device runs before every launch, and the files setup installs with it. |
-| `installer/` | The installers and uninstallers for Windows and Linux, their settings (`config.json`), the Steam art and the controller layout. |
-| `tools/` | Building the pack and mods, serving the pack over Tailscale, making the art. |
+| `installer/` | The installers and uninstallers for Windows and Linux, October Journey's profile (`config.json`), the Steam art and the controller layout. |
+| `server/` | What the October Journey server runs, recorded for players (shown in the launcher's Server updates tab). |
+| `tools/` | Building the packs, the launcher, the Keeper and the mods; installing the Keeper; serving the packs over Tailscale; making the art. |
