@@ -109,6 +109,15 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
 - **Start server finishes the job.** Every start (the launcher's Start server, Gatekeeper's own button, approving a
   Request server) goes through one routine: with MCSS closed it starts MCSS, waits in the background until MCSS
   answers (up to 2 minutes), then starts the server; the reply says so at once and the log records how it ended.
+- **Where everyone is.** The **Now** column (launchers and players) says **In game**, **In the launcher** or
+  **Offline**. In game: the server's own log (`logged in`, `left the game`, `lost connection`, the server stopping)
+  says the launcher's player is on a running server, having joined from that device's address. In the launcher: its
+  window spoke to Gatekeeper within the last 20 seconds (it asks every few seconds while open). Nothing is stored.
+- **Updates Pulled** (third tab). When a launcher has fetched an update from this machine (never when it came from
+  GitHub), it tells Gatekeeper afterwards (`POST /v1/pulled`: the versions, files, mods, the download's size and how
+  much of it came from this machine; mods the pack only lists come from Modrinth). Kept in `pulls.json` beside
+  `host.json` (the latest 1000) and shown newest first, with totals. It is what launchers report, not a measurement
+  on this machine.
 - **Three states.** Each permission (machine wake and sleep, MCSS, Minecraft server) is `allowed`, `none` (not
   allowed: nobody decided) or `denied`, for a launcher (`devices.json`) or a player (`players.json`; `deny` holds the
   denials). A player's setting goes to all their confirmed launchers, except a launcher that is itself denied that

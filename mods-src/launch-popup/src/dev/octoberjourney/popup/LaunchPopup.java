@@ -136,7 +136,7 @@ public final class LaunchPopup {
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
 				case "steam-update" -> {
 					System.out.println("Steam running: " + SteamUpdate.steamRunning());
-					try { for (String l : SteamUpdate.run(Path.of(args[1]))) System.out.println(l); }
+					try { for (String l : SteamUpdate.run(Path.of(args[1]), args.length > 3 ? args[3] : "all", !(args.length > 4 && args[4].equals("plan")))) System.out.println(l); }
 					catch (SteamUpdate.NeedsPermission ex) { System.out.println("needs permission: " + ex.getMessage()); }
 				}
 				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
@@ -508,7 +508,13 @@ public final class LaunchPopup {
 			quit.addActionListener(ev -> f.dispose());
 			JPanel bottom = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
 			bottom.add(prismB); bottom.add(quit);
-			p.add(bottom, BorderLayout.SOUTH);
+			List<Path> folders = new ArrayList<>();
+			for (String[] e : servers) folders.add(Path.of(e[3]));
+			Path launcherAt = SteamUpdate.launcherHome(folders);
+			JPanel south = new JPanel(new BorderLayout(0, 10));
+			if (launcherAt != null) south.add(steamRow(launcherAt, "launcher", "Update " + TOOL + "'s Steam config", f, () -> ((PlayButton) quit).halo()), BorderLayout.NORTH);
+			south.add(bottom, BorderLayout.SOUTH);
+			p.add(south, BorderLayout.SOUTH);
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent ev) { closed.countDown(); } });
 			f.setContentPane(p);
 			f.pack();
@@ -612,6 +618,15 @@ public final class LaunchPopup {
 		private Timer flashing;
 		PlayButton(String text) { this(text, BLUE, Color.WHITE, 15f); }
 		private Color flashColor = QUIT_RED;
+		private long haloStart;
+		private Timer haloing;
+		/** A soft ring that pulses round the button for six seconds: "this is the one to press next". */
+		void halo() {
+			haloStart = System.currentTimeMillis();
+			if (haloing != null) haloing.stop();
+			haloing = new Timer(40, e -> { if (System.currentTimeMillis() - haloStart > 6000) { haloStart = 0; ((Timer) e.getSource()).stop(); } repaint(); });
+			haloing.start();
+		}
 		/** Flashes, half a second on and half off, for five seconds: red, a request was denied. */
 		void flash() { flash(QUIT_RED); }
 		/** The same in another colour (green: the owner said yes). */
@@ -640,6 +655,14 @@ public final class LaunchPopup {
 			g2.setColor(fill);
 			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
 			if (on && isFocusOwner()) { g2.setColor(new Color(255, 255, 255, 170)); g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 6, 6); }
+			if (haloStart > 0) {
+				double phase = (System.currentTimeMillis() - haloStart) / 600.0;
+				int alpha = (int) (70 + 150 * (0.5 + 0.5 * Math.sin(phase * Math.PI)));
+				g2.setStroke(new java.awt.BasicStroke(3f));
+				g2.setColor(new Color(255, 255, 255, Math.min(255, alpha)));
+				g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 8, 8);
+				g2.setStroke(new java.awt.BasicStroke(1f));
+			}
 			g2.setFont(getFont());
 			java.awt.FontMetrics fm = g2.getFontMetrics();
 			g2.setColor(flashOn ? Color.WHITE : on ? ink : new Color(0x71808F));
@@ -648,7 +671,97 @@ public final class LaunchPopup {
 		}
 	}
 
-	static final Color YELLOW = new Color(0xF2C230), QUIT_RED = new Color(0xD23C3C), INK = new Color(0x3A2F00), SLATE = new Color(0x5B6B82);
+	static final Color YELLOW = new Color(0xF2C230), QUIT_RED = new Color(0xD23C3C), INK = new Color(0x3A2F00), SLATE = new Color(0x5B6B82), ORANGE = new Color(0xE0832B);
+
+	/** The Steam config button and the line beside it, for one shortcut: "pack" (this pack's own, on its launcher's
+	 *  Client updates tab) or "launcher" (the Gatehouse launcher's own, on its main window).
+	 *  The button is grey while there's nothing to update; otherwise the line lists what would change. It's orange
+	 *  while Steam is running, since Steam has to be closed first (it writes its shortcut list itself when it exits).
+	 *  When it's done it starts Steam again and calls after (the Quit button's halo). */
+	static JPanel steamRow(Path mc, String which, String label, JFrame f, Runnable after) {
+		JButton b = new JButton(label);
+		Color grey = new Color(0x8F98A0), plain = b.getBackground();
+		JLabel note = new JLabel(" ");
+		java.util.function.BiConsumer<Color, String> say = (col, msg) -> { note.setForeground(col); note.setText("<html><div style='width:470px'>" + esc(msg).replace("\n", "<br>") + "</div></html>"); };
+		String[] state = {"checking"};   // checking, none, ready, permission, error
+		Runnable look = () -> new Thread(() -> {
+			String st, msg; Color col = grey;
+			try {
+				List<String> todo = SteamUpdate.run(mc, which, false);
+				if (todo.isEmpty()) { st = "none"; msg = "Steam config is up to date."; }
+				else {
+					st = "ready";
+					boolean running = SteamUpdate.steamRunning().equals("yes");
+					msg = "To update: " + String.join("; ", todo) + "." + (running ? "\nSteam is running: quit Steam first (Steam menu, Exit)." : " Steam has to be closed.");
+					if (running) col = ORANGE;
+				}
+			} catch (SteamUpdate.NeedsPermission ex) { st = "permission"; msg = "Prism Launcher's sandbox isn't allowed to see Steam's shortcut list on this device yet. Press the button for the one command that allows it."; }
+			catch (IOException | RuntimeException ex) { st = "error"; msg = ex.getMessage() == null ? ex.toString() : ex.getMessage(); }
+			String s2 = st, m2 = msg; Color c2 = col;
+			SwingUtilities.invokeLater(() -> {
+				if (state[0].equals("busy") || state[0].equals("done")) return;
+				state[0] = s2;
+				b.setEnabled(s2.equals("ready") || s2.equals("permission"));
+				b.setBackground(c2 == ORANGE ? ORANGE : plain);
+				b.setToolTipText(s2.equals("none") ? "Nothing to update: this shortcut, its art and its controller layout match the pack" : "Brings this Steam shortcut, its art and its controller layout up to date with the pack. Steam has to be closed.");
+				say.accept(c2, m2);
+			});
+		}, "steam-look").start();
+		b.setEnabled(false);
+		if (System.getenv("OJ_POPUP_PNG") != null) {   // (test pictures: one look, straight away)
+			try { List<String> todo = SteamUpdate.run(mc, which, false); b.setEnabled(!todo.isEmpty()); say.accept(grey, todo.isEmpty() ? "Steam config is up to date." : "To update: " + String.join("; ", todo) + ". Steam has to be closed."); }
+			catch (IOException | RuntimeException ex) { say.accept(grey, String.valueOf(ex.getMessage())); }
+		} else {
+			look.run();
+			Timer watch = new Timer(4000, e -> { if (!f.isDisplayable()) ((Timer) e.getSource()).stop(); else if (b.isShowing()) look.run(); });
+			watch.start();
+		}
+		b.addActionListener(e -> {
+			String was = state[0];
+			state[0] = "busy";
+			b.setEnabled(false);
+			new Thread(() -> {
+				String running = SteamUpdate.steamRunning();
+				if (running.equals("unknown") && was.equals("ready")) {
+					// (Inside Prism's Flatpak the launcher can't see whether Steam is running: the player says.)
+					int[] answer = {javax.swing.JOptionPane.CANCEL_OPTION};
+					try {
+						SwingUtilities.invokeAndWait(() -> answer[0] = javax.swing.JOptionPane.showConfirmDialog(f, "<html><div style='width:400px'>Steam has to be closed for this, or it undoes the change when it exits.<br><br>"
+								+ "On a Steam Deck: switch to Desktop Mode, quit Steam there (Steam menu, Exit), start this pack from Prism Launcher, and press this button.<br><br>Is Steam closed now?</div></html>",
+								label, javax.swing.JOptionPane.YES_NO_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE));
+					} catch (Exception ignored) {}
+					running = answer[0] == javax.swing.JOptionPane.YES_OPTION ? "no" : "asked";
+				}
+				Color col; String msg; boolean done = false;
+				if (running.equals("yes")) { col = ORANGE; msg = "Steam is running. Quit Steam (Steam menu, Exit), then press this again: Steam would undo the change when it closes. This window can stay open."; }
+				else if (running.equals("asked")) { col = grey; msg = "Nothing was changed."; }
+				else try {
+					List<String> did = SteamUpdate.run(mc, which, true);
+					boolean started = SteamUpdate.startSteam();
+					col = new Color(0x8BD46E); msg = String.join("\n", did) + "\n" + (started ? "Steam is starting again. You can press Quit here." : "Start Steam to see it. You can press Quit here.");
+					done = true;
+				}
+				catch (SteamUpdate.NeedsPermission ex) {
+					boolean copied = false;
+					try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(ex.getMessage()), null); copied = true; } catch (RuntimeException ignored) {}
+					col = new Color(0xE9B949);
+					msg = "Allow it once: open Konsole (in Desktop Mode) and run\n" + ex.getMessage() + "\n" + (copied ? "(The command is copied: paste it there.) " : "") + "Then close Prism Launcher, start the pack again and press this button.";
+				}
+				catch (IOException | RuntimeException ex) { col = new Color(0xFF7B72); msg = "Not updated: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage()); }
+				Color c2 = col; String m2 = msg; boolean d2 = done;
+				SwingUtilities.invokeLater(() -> {
+					say.accept(c2, m2);
+					b.setBackground(plain);
+					if (d2) { state[0] = "done"; b.setEnabled(false); after.run(); }
+					else { state[0] = was; b.setEnabled(true); }
+				});
+			}, "steam-update").start();
+		});
+		JPanel row = new JPanel(new BorderLayout(10, 0));
+		JPanel left = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); left.add(b);
+		row.add(left, BorderLayout.WEST); row.add(note, BorderLayout.CENTER);
+		return row;
+	}
 
 	/** A short, soft three-note chime (made here, no sound file): the owner granted something this device asked for. */
 	static void chime() {
@@ -1877,48 +1990,8 @@ public final class LaunchPopup {
 			// running setup again. Steam has to be closed: it writes its shortcut list itself when it exits.
 			JPanel clientTab = new JPanel(new BorderLayout(0, 6));
 			clientTab.add(scroller(deviceRows, big || serverNews), BorderLayout.CENTER);
-			if (SteamUpdate.available(dir)) {
-				JButton steamB = new JButton("Update Steam shortcuts");
-				steamB.setToolTipText("Brings this device's Steam shortcuts, art and controller layout up to date with the pack");
-				String about = "Brings this device's Steam shortcuts up to date with the pack: its art and controller layout, and how they start. Steam has to be closed.";
-				JLabel steamNote = new JLabel("<html><div style='width:520px'>" + esc(about) + "</div></html>");
-				steamNote.setForeground(new Color(0x8F98A0));
-				java.util.function.BiConsumer<Color, String> say = (col, msg) -> { steamNote.setForeground(col); steamNote.setText("<html><div style='width:520px'>" + esc(msg).replace("\n", "<br>") + "</div></html>"); };
-				steamB.addActionListener(e -> {
-					steamB.setEnabled(false);
-					new Thread(() -> {
-						String running = SteamUpdate.steamRunning();
-						if (running.equals("unknown")) {
-							// (Inside Prism's Flatpak the launcher can't see whether Steam is running: the player says.)
-							int[] answer = {javax.swing.JOptionPane.CANCEL_OPTION};
-							try {
-								SwingUtilities.invokeAndWait(() -> answer[0] = javax.swing.JOptionPane.showConfirmDialog(f, "<html><div style='width:400px'>Steam has to be closed for this, or it undoes the change when it exits.<br><br>"
-										+ "On a Steam Deck: switch to Desktop Mode, quit Steam there (Steam menu, Exit), start this pack from Prism Launcher, and press this button.<br><br>Is Steam closed now?</div></html>",
-										"Update Steam shortcuts", javax.swing.JOptionPane.YES_NO_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE));
-							} catch (Exception ignored) {}
-							running = answer[0] == javax.swing.JOptionPane.YES_OPTION ? "no" : "asked";
-						}
-						Color col; String msg;
-						if (running.equals("yes")) { col = new Color(0xE9B949); msg = "Steam is running. Quit Steam (Steam menu, Exit), then press this again: Steam would undo the change when it closes. This window can stay open."; }
-						else if (running.equals("asked")) { col = new Color(0x8F98A0); msg = about; }
-						else try { col = new Color(0x8BD46E); msg = String.join("\n", SteamUpdate.run(dir)) + "\nStart Steam to see it."; }
-						catch (SteamUpdate.NeedsPermission ex) {
-							boolean copied = false;
-							try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(ex.getMessage()), null); copied = true; } catch (RuntimeException ignored) {}
-							col = new Color(0xE9B949);
-							msg = "Not updated yet: Prism Launcher's sandbox isn't allowed to see Steam's shortcut list on this device. Allow it once: open Konsole (in Desktop Mode) and run\n" + ex.getMessage()
-									+ "\n" + (copied ? "(The command is copied: paste it there.) " : "") + "Then close Prism Launcher, start the pack again and press this button.";
-						}
-						catch (IOException | RuntimeException ex) { col = new Color(0xFF7B72); msg = "Not updated: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage()); }
-						Color c2 = col; String m2 = msg;
-						SwingUtilities.invokeLater(() -> { say.accept(c2, m2); steamB.setEnabled(true); });
-					}, "steam-update").start();
-				});
-				JPanel steamRow = new JPanel(new BorderLayout(10, 0));
-				JPanel left = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); left.add(steamB);
-				steamRow.add(left, BorderLayout.WEST); steamRow.add(steamNote, BorderLayout.CENTER);
-				clientTab.add(steamRow, BorderLayout.SOUTH);
-			}
+			Runnable[] haloQuit = {() -> {}};   // (set once the Quit button exists)
+			if (SteamUpdate.available(dir)) clientTab.add(steamRow(dir, "pack", "Update " + NAME + "'s Steam config", f, () -> haloQuit[0].run()), BorderLayout.SOUTH);
 			tabs.addTab("Client updates", clientTab);
 			ServerControl control = new ServerControl(dir);
 			Runnable[] hold = {() -> {}};   // set below: stops the countdown once the player uses a server control
@@ -2017,6 +2090,7 @@ public final class LaunchPopup {
 			bottom.add(legend, BorderLayout.WEST);
 			// Beside Play: run the update again, or don't start the game.
 			JButton again = new PlayButton("Restart", YELLOW, INK, 14f), quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
+			haloQuit[0] = () -> ((PlayButton) quit).halo();
 			again.setToolTipText("Run the update again");
 			quit.setToolTipText("Don't start the game");
 			again.addActionListener(e -> { exitCode = RESTART; f.dispose(); });

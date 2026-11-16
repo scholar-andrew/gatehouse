@@ -1,4 +1,10 @@
 [
+ {"version": "1.12.0", "date": "2026-11-16", "notes": [
+  "The Steam button under Client updates is now Update (this pack)'s Steam config, and it only looks after this pack's own shortcut. It is grey while there's nothing to update; otherwise the line beside it lists what would change. It turns orange while Steam is running (quit Steam first). When it's done it starts Steam again and a ring pulses round Quit.",
+  "The Gatehouse launcher's own Steam shortcut has its own button on the launcher's main window: Update Gatehouse's Steam config.",
+  "For the owner: Gatekeeper now shows where each device is right now (in a game, in the launcher, or offline), in a Now column for launchers and for players.",
+  "For the owner: a new Updates Pulled tab in Gatekeeper lists each update a launcher fetched from the server machine (not from GitHub): which device and player, when, from which version to which, how many files and mods, and how big. Launchers report this from this version on."
+ ]},
  {"version": "1.11.0", "date": "2026-11-16", "notes": [
   "New names: the program on the server machine and its window are now both called Gatekeeper (they were Gatehouse Keeper and the control panel). In the launcher, Remote control panel is now Remote Gatekeeper, and Keeper control is Gatekeeper control.",
   "Start server now always ends with the server on. If MCSS isn't running, Gatekeeper starts MCSS first and then the server by itself, whether you pressed Start server in the launcher or the owner approved a request. Start server in the launcher is available while MCSS is closed.",

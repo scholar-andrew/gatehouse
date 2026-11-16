@@ -81,8 +81,42 @@ final class SteamUpdate {
 		NeedsPermission(String command) { super(command); }
 	}
 
-	/** Does it; returns what was done, a line each. */
-	static List<String> run(Path mc) throws IOException {
+	/** Does it for both shortcuts; returns what was done, a line each. */
+	static List<String> run(Path mc) throws IOException { return run(mc, "all", true); }
+
+	/** Which game folder holds the record of the Gatehouse launcher's own shortcut (setup files it with the pack it was
+	 *  run for): the first of these that has one, or null. */
+	static Path launcherHome(List<Path> gameFolders) {
+		for (Path mc : gameFolders) {
+			Object st = LaunchPopup.parseJson(LaunchPopup.readFile(mc.resolve("steam-target.json")));
+			if (ServerControl.asMap(st).get("targets") instanceof List<?> l) for (Object o : l) { String art = str(ServerControl.asMap(o).get("art")); if (art.equals("prism") || art.equals("launcher")) return mc; }
+		}
+		return null;
+	}
+
+	/** Starts Steam again after an update (it had to be closed). Windows: Steam's own program, as the registry names it.
+	 *  Linux: asks the desktop to open a steam: link, which starts Steam (through the Flatpak portal inside Prism's
+	 *  sandbox). True when something was started. */
+	static boolean startSteam() {
+		try {
+			if (System.getProperty("os.name", "").startsWith("Windows")) {
+				Process q = new ProcessBuilder("reg", "query", "HKCU\\Software\\Valve\\Steam", "/v", "SteamExe").redirectErrorStream(true).start();
+				String out = new String(q.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+				q.waitFor();
+				java.util.regex.Matcher m = java.util.regex.Pattern.compile("SteamExe\\s+REG_SZ\\s+(.+)").matcher(out);
+				if (!m.find()) return false;
+				Path exe = Path.of(m.group(1).trim());
+				if (!Files.isRegularFile(exe)) return false;
+				new ProcessBuilder(exe.toString()).directory(exe.getParent().toFile()).start();
+				return true;
+			}
+			return new ProcessBuilder("xdg-open", "steam://open/main").redirectErrorStream(true).start().waitFor(8, java.util.concurrent.TimeUnit.SECONDS);
+		} catch (IOException | InterruptedException | RuntimeException e) { return false; }
+	}
+
+	/** The update for one shortcut ("pack": this pack's own; "launcher": the Gatehouse launcher's) or "all". With apply
+	 *  false nothing is changed: the lines say what would be (none: it's all up to date). */
+	static List<String> run(Path mc, String which, boolean apply) throws IOException {
 		List<String> did = new ArrayList<>();
 		boolean windows = System.getProperty("os.name", "").startsWith("Windows");
 		Map<String, Object> st = ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(mc.resolve("steam-target.json"))));
@@ -119,6 +153,7 @@ final class SteamUpdate {
 			for (Object[] n : list) if (n[2] instanceof List<?>) { Object id = get(nodes(n[2]), "appid"); if (id instanceof Integer i && (i & 0xFFFFFFFFL) == want) entry = nodes(n[2]); }
 			if (entry == null) { did.add("A shortcut setup added (app " + want + ") isn't in Steam any more: left alone."); continue; }
 			boolean game = !str(t.get("art")).equals("prism") && !str(t.get("art")).equals("launcher");
+			if (!which.equals("all") && which.equals("pack") != game) continue;
 			String name = str(get(entry, "AppName")), exe = str(get(entry, "Exe")), opts = str(get(entry, "LaunchOptions")), newExe, newOpts, startDir;
 			if (windows) {
 				// Prism's program: what the shortcut runs now, or what it hands the launcher script already.
@@ -141,12 +176,17 @@ final class SteamUpdate {
 			String first = game ? (dash >= 0 ? name.substring(0, dash) : name) : LAUNCHER_NAME;
 			String newName = first + (kind != null ? " - " + kind : dash >= 0 ? name.substring(dash) : "");
 			if (!newExe.equals(exe) || !newOpts.equals(opts) || !newName.equals(name)) {
-				set(entry, "AppName", newName); set(entry, "Exe", newExe); set(entry, "StartDir", startDir); set(entry, "LaunchOptions", newOpts);
+				if (apply) { set(entry, "AppName", newName); set(entry, "Exe", newExe); set(entry, "StartDir", startDir); set(entry, "LaunchOptions", newOpts); }
 				changed++;
-				did.add(newName.equals(name) ? "\"" + name + "\" now starts through the Gatehouse launcher." : "\"" + name + "\" is now \"" + newName + "\"" + (game ? ", and starts through the Gatehouse launcher." : ": it opens the Gatehouse launcher."));
+				boolean how = !newExe.equals(exe) || !newOpts.equals(opts);
+				if (apply) did.add(newName.equals(name) ? "\"" + name + "\" now starts through the Gatehouse launcher." : "\"" + name + "\" is now \"" + newName + "\"" + (!how ? "." : game ? ", and starts through the Gatehouse launcher." : ": it opens the Gatehouse launcher."));
+				else {
+					if (!newName.equals(name)) did.add("Rename \"" + name + "\" to \"" + newName + "\"");
+					if (how) did.add(game ? "\"" + newName + "\" starts through the Gatehouse launcher" : "\"" + newName + "\" opens the Gatehouse launcher");
+				}
 			}
 			// Its controller layout is filed under the shortcut's name: for a renamed one, a folder under the new name.
-			if (!game) t.put("art", "launcher");
+			if (!game && !str(t.get("art")).equals("launcher")) { t.put("art", "launcher"); changed++; }
 			Path layouts = Path.of(str(t.get("controller"))).getParent();
 			if (layouts != null && !newName.equals(name)) t.put("controller", layouts.resolve(newName.toLowerCase(java.util.Locale.ROOT)).toString());
 			// The art and the layout, from the pack as it is on this device now.
@@ -154,31 +194,40 @@ final class SteamUpdate {
 			Path grid = Path.of(str(t.get("grid")));
 			int files = 0;
 			for (String[] a : new String[][] {{"cover.png", "p.png"}, {"hero.png", "_hero.png"}, {"logo.png", "_logo.png"}, {"icon.png", "_icon.png"}, {"wide.png", ".png"}}) {
-				Path src = mc.resolve(art).resolve(a[0]);
-				if (Files.isRegularFile(src)) { Files.createDirectories(grid); Files.copy(src, grid.resolve(want + a[1]), StandardCopyOption.REPLACE_EXISTING); files++; }
-			}
-			Path layout = mc.resolve("steam/controller_neptune.vdf"), dir = Path.of(str(t.get("controller")));
-			if (Files.isRegularFile(layout) && dir.getParent() != null && Files.isDirectory(dir.getParent())) {
-				Files.createDirectories(dir);
-				Path target = dir.resolve("controller_neptune.vdf");
-				Files.writeString(target, Files.readString(layout, StandardCharsets.UTF_8).replaceAll("\"url\"\\s*\"[^\"]*\"", java.util.regex.Matcher.quoteReplacement("\"url\"\t\t\"autosave://" + target.toString().replace("\\", "/") + "\"")), StandardCharsets.UTF_8);
-				Path set = dir.getParent().resolve("configset_controller_neptune.vdf");
-				String text = Files.isRegularFile(set) ? Files.readString(set, StandardCharsets.UTF_8) : "\"controller_config\"\n{\n}\n", key = dir.getFileName().toString();
-				if (!text.toLowerCase(java.util.Locale.ROOT).contains("\"" + key.toLowerCase(java.util.Locale.ROOT) + "\"") && text.lastIndexOf('}') >= 0) {
-					int end = text.lastIndexOf('}');
-					Files.writeString(set, text.substring(0, end) + "\t\"" + key + "\"\n\t{\n\t\t\"autosave\"\t\t\"1\"\n\t}\n" + text.substring(end), StandardCharsets.UTF_8);
-				}
+				Path src = mc.resolve(art).resolve(a[0]), dst = grid.resolve(want + a[1]);
+				if (!Files.isRegularFile(src) || (Files.isRegularFile(dst) && java.util.Arrays.equals(Files.readAllBytes(src), Files.readAllBytes(dst)))) continue;
+				if (apply) { Files.createDirectories(grid); Files.copy(src, dst, StandardCopyOption.REPLACE_EXISTING); }
 				files++;
 			}
-			did.add("\"" + newName + "\": art and controller layout put in place (" + files + " files).");
+			int artFiles = files;
+			Path layout = mc.resolve("steam/controller_neptune.vdf"), dir = Path.of(str(t.get("controller")));
+			if (Files.isRegularFile(layout) && dir.getParent() != null && Files.isDirectory(dir.getParent())) {
+				Path target = dir.resolve("controller_neptune.vdf");
+				String wantText = Files.readString(layout, StandardCharsets.UTF_8).replaceAll("\"url\"\\s*\"[^\"]*\"", java.util.regex.Matcher.quoteReplacement("\"url\"\t\t\"autosave://" + target.toString().replace("\\", "/") + "\""));
+				Path set = dir.getParent().resolve("configset_controller_neptune.vdf");
+				String text = Files.isRegularFile(set) ? Files.readString(set, StandardCharsets.UTF_8) : "\"controller_config\"\n{\n}\n", key = dir.getFileName().toString();
+				boolean listed = text.toLowerCase(java.util.Locale.ROOT).contains("\"" + key.toLowerCase(java.util.Locale.ROOT) + "\"") || text.lastIndexOf('}') < 0;
+				boolean same = Files.isRegularFile(target) && Files.readString(target, StandardCharsets.UTF_8).equals(wantText);
+				if (!same || !listed) {
+					if (apply) {
+						Files.createDirectories(dir);
+						Files.writeString(target, wantText, StandardCharsets.UTF_8);
+						if (!listed) { int end = text.lastIndexOf('}'); Files.writeString(set, text.substring(0, end) + "\t\"" + key + "\"\n\t{\n\t\t\"autosave\"\t\t\"1\"\n\t}\n" + text.substring(end), StandardCharsets.UTF_8); }
+					}
+					files++;
+				}
+			}
+			if (files > 0) did.add(apply ? "\"" + newName + "\": art and controller layout put in place (" + files + " file" + (files == 1 ? "" : "s") + ")."
+					: "\"" + newName + "\": " + (artFiles > 0 ? artFiles + " art file" + (artFiles == 1 ? "" : "s") : "") + (artFiles > 0 && files > artFiles ? " and " : "") + (files > artFiles ? "the controller layout" : "") + " to refresh");
 		}
+		if (!apply) return did;
 		if (changed > 0) {
 			Files.write(mc.resolve("shortcuts.vdf.bak-launcher"), before);   // (in the game folder: beside the list itself may not be writable)
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			write(out, root);
 			Files.write(vdf, out.toByteArray());
 			read(ByteBuffer.wrap(Files.readAllBytes(vdf)).order(ByteOrder.LITTLE_ENDIAN));   // (reads back cleanly, or this throws)
-		} else did.add(0, "The shortcuts themselves were already up to date.");
+		} else if (did.isEmpty()) did.add("Already up to date.");
 		// What each launch keeps up to date from now on (read by the pack's update): the same list, as it is now.
 		StringBuilder sb = new StringBuilder("{\"targets\": [");
 		Map<String, Object> pack = null;
