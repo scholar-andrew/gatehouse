@@ -1,3 +1,5 @@
+== 1.13.1 | 2026-11-16
+- Fixed: in the Gatehouse launcher's main window, a long status line (or a long name) pushed the Play button out past the right edge. A line that doesn't fit is now cut short with its full text shown on hover, and the buttons stay in view.
 == 1.13.0 | 2026-11-16
 - The Gatehouse launcher's main window now has three levels. First, the Gatekeepers this device knows (the one your packs came with, and any you add), each with whether it's answering. Open one to see the servers it looks after, each with whether it's on and whether its pack is installed here. Play takes you to that server's own launcher, as before.
 - Add Gatekeeper: connect the launcher to another Gatekeeper by pasting the address or pairing link its owner gave you, or by opening the pairing file they sent. The launcher remembers every Gatekeeper it's been connected to.
