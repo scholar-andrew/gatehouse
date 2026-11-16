@@ -7,7 +7,9 @@ Gatehouse gets a group of friends onto the same Minecraft server and keeps them 
   owner has allowed your device. Then it starts the game through [Prism Launcher](https://prismlauncher.org/).
 - **Gatekeeper**, on the machine that runs the servers. It lets the launchers its owner allows see, start and stop
   the servers, shows who asked for what, and has an Access Manager for deciding who may do which, per device or per
-  player, including each server's whitelist. It works with [MC Server Soft](https://www.mcserversoft.com/).
+  player, including each server's whitelist. On Windows it works with
+  [MC Server Soft](https://www.mcserversoft.com/); on Linux and SteamOS, where there is no MCSS, it runs the servers
+  itself.
 
 The two talk over the owner's private [Tailscale](https://tailscale.com/) network, so nothing is opened to the
 internet. GitHub is only a fallback for downloads.
@@ -23,22 +25,22 @@ doesn't work. Both programs carry the same steps inside them as a setup guide th
 | You want | Windows 10 or later | Linux, including Steam Deck / SteamOS |
 | --- | --- | --- |
 | **Gatehouse** (to play) | [gatehouse-install.zip](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-install.zip): unpack, run **Install Gatehouse.cmd**, choose Gatehouse | [gatehouse-install.sh](https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/gatehouse-install.sh): `bash gatehouse-install.sh` |
-| **Gatekeeper** (to host) | The same zip: choose Gatekeeper | Not usable for hosting yet (MC Server Soft is Windows only) |
+| **Gatekeeper** (to host) | The same zip: choose Gatekeeper | The same script: `bash gatehouse-install.sh --gatekeeper` |
 | **October Journey** (Gatehouse, the modpack and Steam shortcuts in one) | [GatehouseSetup.exe](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseSetup.exe) | [gatehouse-setup.sh](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-setup.sh) |
 
 The Gatehouse and Gatekeeper installers are plain scripts you can read first. They need no administrator rights,
 check each download against a published SHA-256, and have a dry run that shows what they would do.
 
-Current versions: **Gatehouse 2.9.0**, **Gatekeeper 2.5.0**. Each program lists its own changes (the Gatehouse
+Current versions: **Gatehouse 2.9.0**, **Gatekeeper 2.6.0**. Each program lists its own changes (the Gatehouse
 updates and Gatekeeper updates tabs), and both update themselves.
 
 | | Windows | Linux | SteamOS (Steam Deck) |
 | --- | --- | --- | --- |
 | Gatehouse | Yes | Yes | Yes |
-| Gatekeeper | Yes | Not usable for hosting yet | Not usable for hosting yet |
+| Gatekeeper | Yes, with MC Server Soft | Yes, running the servers itself (new, not yet run on a real machine) | Yes, running the servers itself (new, not yet run on a real Deck) |
 
-Gatekeeper installs and runs on Linux and SteamOS, but MC Server Soft is Windows only, and Gatekeeper starts, stops and reads servers through it, so on those systems it has no servers to
-look after yet. Details: [what works on which system](docs/guide.md#what-works-on-which-system).
+MC Server Soft is Windows only, so on Linux and SteamOS Gatekeeper starts and stops the Minecraft servers itself.
+Details: [what works on which system](docs/guide.md#what-works-on-which-system).
 
 ## October Journey
 

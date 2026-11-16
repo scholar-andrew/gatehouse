@@ -261,6 +261,10 @@ their next launch; nobody has to touch a device.
   `tools/build_popup.ps1`, written to the temporary folder and run with `-WithPack` / `--with-pack`: it takes out
   what is Gatehouse's own and leaves the instances), or `tell` (inside Prism's Flatpak: the command is shown). The word `confirm` has to be
   typed first. `OJ_UNINSTALL_DRY` shows the command instead of running it; `OJ_UNINSTALL_EXTRA` adds options to it.
+- **Two ways Gatekeeper runs servers.** `ServerHost` is the seam: `McssHost` (through MC Server Soft, Windows) and
+  `DirectHost` (Gatekeeper starts the server's own files and keeps its console; always on Linux and SteamOS, where
+  there is no MCSS). `docs/server.md` has the details. What a system or a host kind can't do stays listed, marked
+  "Not supported on <system>".
 - **The setup guides.** `mods-src/look/.../Wizard.java` is the page both programs show: steps down the left with a
   mark each (`ok`, `todo`, `warn`, `info`, `wait`), one step on the right with its text, buttons and Back / Next; the
   steps are asked for again every three seconds while it's showing, and it is redrawn only when something changed.

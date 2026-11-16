@@ -74,6 +74,7 @@ public final class HostHelper {
 		dir = Path.of(System.getenv().getOrDefault("OJ_HOST_DIR", own));
 		Files.createDirectories(dir);
 		cfg = Json.map(Json.parse(read(dir.resolve("host.json"))));
+		host = builtin() ? new DirectHost() : new McssHost();
 		String mode = args.length > 0 ? args[0] : "--panel";
 		startMinimized = java.util.Arrays.asList(args).contains("--minimized");
 		if (mode.equals("--uninstall-command")) {   // (testing: what Options > Uninstall would run; nothing is run)
@@ -103,6 +104,14 @@ public final class HostHelper {
 	static String notSupported() { return "Not supported on " + systemName(); }
 	/** One of two wordings: Windows', or Linux's and SteamOS's. */
 	static String say(String windows, String linux) { return WIN ? windows : linux; }
+	/** Does Gatekeeper run the Minecraft servers itself (DirectHost), with no MC Server Soft? Always on Linux and
+	 *  SteamOS, where there is no MCSS; on Windows when host.json "host" is "builtin". */
+	static boolean builtin() { return !WIN || setting("host", "mcss").equals("builtin"); }
+	/** The folder Gatekeeper's own servers are in, one folder each (host.json "servers_dir"). */
+	static String serversDir() { return setting("servers_dir", WIN ? "C:\\Minecraft\\servers" : System.getProperty("user.home", "") + "/minecraft-servers"); }
+	/** What is said where MCSS would be, on a Gatekeeper that runs the servers itself. */
+	static String noMcss() { return WIN ? "Not used here: this Gatekeeper runs the servers itself, without MC Server Soft" : notSupported() + ": MC Server Soft is Windows only, so this Gatekeeper runs the servers itself"; }
+	static String noMcssShort() { return WIN ? "not used here" : notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1); }
 	/** What MCSS's program file is called here. */
 	static String mcssFile() { return WIN ? "mcss.exe" : "mcss"; }
 	/** Is that program somewhere on the PATH? */
@@ -312,12 +321,25 @@ public final class HostHelper {
 		if (bind.isEmpty()) add.accept(new String[] {"Gatekeeper listens on the Tailscale address", "todo", "No address chosen yet.", "Servers tab: Server setup. It fills the address in when Tailscale is connected."});
 		else if (!ips.isEmpty() && !ips.contains(bind)) add.accept(new String[] {"Gatekeeper listens on the Tailscale address", "warn", "It listens on " + bind + ", but Tailscale now gives this machine " + ips.get(0) + ".", "Servers tab: Server setup, and save the new address. Paired launchers need the new pairing."});
 		else add.accept(new String[] {"Gatekeeper listens on the Tailscale address", remote != null ? "ok" : "todo", bind + ":" + port() + (remote != null ? "" : " (not answering yet)"), remote != null ? "" : "It keeps trying; Tailscale may still be starting."});
-		// ---- MCSS
+		// ---- the servers' host: MCSS, or Gatekeeper itself
 		String exe = setting("mcss_exe", "");
+		if (builtin()) {
+			if (!WIN) add.accept(new String[] {"MC Server Soft", "na", "MCSS is Windows only, so Gatekeeper runs the Minecraft servers itself here."});
+			Path all = Path.of(serversDir());
+			if (Files.isDirectory(all)) add.accept(new String[] {"The servers folder is found", "ok", all.toString()});
+			else add.accept(new String[] {"The servers folder is found", "todo", "There's no folder at " + all + ".", "Make that folder, and inside it one folder per server with the server's program in it (server.jar from minecraft.net/download/server, or what Fabric's or Forge's installer makes). Another place: Servers tab, Server setup."});
+			List<String> cant = new ArrayList<>();
+			for (Object o : servers()) { String why = DirectHost.blocker(Json.map(o)); if (!why.isEmpty()) cant.add(Json.str(Json.map(o).get("name")) + ": " + why); }
+			if (!servers().isEmpty()) {
+				if (cant.isEmpty()) add.accept(new String[] {"Each server can be started", "ok", "Each has its program, and Minecraft's EULA is accepted for it."});
+				else add.accept(new String[] {"Each server can be started", "todo", String.join(". ", cant) + ".", "Gatekeeper downloads nothing and accepts nothing for you: put the server's program in its folder, and accept the EULA yourself in its eula.txt. This line turns green by itself."});
+			}
+		} else {
 		if (exe.isEmpty() || !Files.isRegularFile(Path.of(exe))) add.accept(new String[] {"MCSS is found", "todo", exe.isEmpty() ? "Gatekeeper doesn't know where MCSS is." : "There's no file at " + exe + ".", "Install MC Server Soft (mcserversoft.com) if it isn't yet, make a server in it, then: Servers tab, Server setup."});
 		else add.accept(new String[] {"MCSS is found", "ok", exe});
 		if (host.hasAccess()) add.accept(new String[] {"Gatekeeper can use MCSS", "ok", "It has its own key for MCSS."});
 		else add.accept(new String[] {"Gatekeeper can use MCSS", "todo", "No key yet, so it can't start or stop servers or read their state.", "Open a server here, then Server Status: sign in to MCSS once. Gatekeeper makes its own key; your password isn't kept. (MCSS's web API has to be on: MCSS, Options, Web API.)"});
+		}
 		// ---- the servers
 		List<Object> servers = servers();
 		if (servers.isEmpty()) add.accept(new String[] {"Servers are chosen", "todo", "None yet.", "Servers tab: Server setup, and tick the servers players should see."});
@@ -470,6 +492,7 @@ public final class HostHelper {
 	 *  waits in the background until they're down (up to 3 minutes), then closes MCSS. Returns at once with what is
 	 *  happening; how it ended goes in the log. */
 	static String[] closeMcssFully(boolean force, String by) {
+		if (builtin()) return new String[] {"refused", noMcss()};
 		if (!host.running()) return new String[] {"ok", "MCSS isn't running"};
 		List<String> up = new ArrayList<>();
 		String keep = SERVER.get();
@@ -641,6 +664,7 @@ public final class HostHelper {
 	static String[] applyUpdate(long alsoWait) {
 		lookForNewer();
 		if (newestKeeper.isEmpty() || cmpVersion(newestKeeper, ownVersion()) <= 0) return new String[] {"ok", "This is already the newest Gatekeeper (" + ownVersion() + ")."};
+		if (builtin() && DirectHost.anyTracked()) return new String[] {"refused", "A Minecraft server that this Gatekeeper runs is on. Updating restarts Gatekeeper, and the server's console would be lost with it: stop the server first, then update."};
 		try {
 			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 			if (!Files.isRegularFile(jar)) return new String[] {"refused", "Gatekeeper isn't running from a file it can replace."};
@@ -807,6 +831,24 @@ public final class HostHelper {
 	 *  Tailscale addresses. */
 	static Map<String, Object> setupScan(String exe) {
 		String home = System.getProperty("user.home", "");
+		if (builtin()) {
+			// No MCSS: the servers are the folders in one folder (asked, else as set), each with a server's files in it.
+			String folder = exe.isEmpty() ? serversDir() : exe, trouble = "";
+			List<Object> have = new ArrayList<>();
+			List<Path> dirs = new ArrayList<>();
+			if (!Files.isDirectory(Path.of(folder))) trouble = "There's no folder at " + folder + " yet. Make it, and inside it one folder per server with the server's program in it (server.jar from minecraft.net/download/server, or what Fabric's or Forge's installer makes); or Browse to where your servers are.";
+			else try (java.util.stream.Stream<Path> s = Files.list(Path.of(folder))) { s.filter(p -> Files.isDirectory(p) && DirectHost.looksLikeServer(p)).sorted().forEach(dirs::add); }
+			catch (IOException e) { trouble = "That folder can't be read."; }
+			for (Path d : dirs) {
+				String port = "25565", name = d.getFileName().toString(), id = "";
+				for (String l : read(d.resolve("server.properties")).split("\\R")) if (l.startsWith("server-port=") && l.substring(12).trim().matches("\\d+")) port = l.substring(12).trim();
+				boolean tracked = false;
+				for (Object o : servers()) if (samePath(Json.str(Json.map(o).get("dir")), d)) { tracked = true; id = Json.str(Json.map(o).get("id")); if (!Json.str(Json.map(o).get("name")).isEmpty()) name = Json.str(Json.map(o).get("name")); }
+				have.add(m("name", name, "id", id, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", "", "tracked", tracked));
+			}
+			if (have.isEmpty() && trouble.isEmpty()) trouble = "No servers in that folder yet: each server is a folder of its own inside it, with the server's program (its jar) in it.";
+			return m("mcss_exe", folder, "servers", have, "problem", trouble, "addresses", tailscaleAddresses(), "bind", setting("bind", ""), "port", String.valueOf(port()), "host", "builtin");
+		}
 		if (exe.isEmpty()) exe = setting("mcss_exe", "");
 		if (exe.isEmpty() && !WIN) for (String d : new String[] {home + "/MCSS", home + "/mcss", home + "/Documents/MCSS", home + "/Desktop/MCSS", home + "/Downloads/MCSS", home + "/Minecraft/MCSS", "/opt/mcss", "/opt/MCSS"})
 			for (String n : new String[] {"mcss", "MCSS"}) if (exe.isEmpty() && Files.isRegularFile(Path.of(d, n))) exe = Path.of(d, n).toString();
@@ -842,6 +884,18 @@ public final class HostHelper {
 		} catch (IOException | RuntimeException ignored) {}
 		return m("mcss_exe", exe, "servers", found, "problem", problem, "addresses", addrs, "bind", setting("bind", ""), "port", String.valueOf(port()));
 	}
+	/** This machine's addresses on Tailscale's network (100.64.0.0/10). */
+	static List<Object> tailscaleAddresses() {
+		List<Object> addrs = new ArrayList<>();
+		try {
+			for (java.net.NetworkInterface ni : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces()))
+				for (java.net.InetAddress a : java.util.Collections.list(ni.getInetAddresses())) {
+					byte[] b = a.getAddress();
+					if (b.length == 4 && (b[0] & 0xFF) == 100 && (b[1] & 0xC0) == 64) addrs.add(a.getHostAddress());
+				}
+		} catch (IOException | RuntimeException ignored) {}
+		return addrs;
+	}
 	static boolean samePath(String a, Path b) {
 		try { return !a.isEmpty() && Path.of(a).toAbsolutePath().normalize().toString().equalsIgnoreCase(b.toAbsolutePath().normalize().toString()); } catch (RuntimeException e) { return false; }
 	}
@@ -850,7 +904,8 @@ public final class HostHelper {
 	 *  Servers it already had keep their place and their id (permissions are filed under them); new ones go after. */
 	static synchronized String[] setupSave(Map<String, Object> b) {
 		String exe = Json.str(b.get("mcss_exe")).trim(), bind = Json.str(b.get("bind")).trim();
-		if (!exe.isEmpty() && !Files.isRegularFile(Path.of(exe))) return new String[] {"refused", "There's no file at " + exe};
+		if (!exe.isEmpty() && builtin() && !Files.isDirectory(Path.of(exe))) return new String[] {"refused", "There's no folder at " + exe};
+		if (!exe.isEmpty() && !builtin() && !Files.isRegularFile(Path.of(exe))) return new String[] {"refused", "There's no file at " + exe};
 		if (!bind.isEmpty() && !bind.matches("\\d{1,3}(\\.\\d{1,3}){3}")) return new String[] {"refused", "The Tailscale address should look like 100.x.y.z"};
 		List<Object> picked = new ArrayList<>(), keep = new ArrayList<>();
 		for (Object o : Json.list(b.get("servers"))) if (Files.isDirectory(Path.of(Json.str(Json.map(o).get("dir"))))) picked.add(o);
@@ -877,7 +932,7 @@ public final class HostHelper {
 			added++;
 		}
 		boolean moved = !bind.isEmpty() && !bind.equals(setting("bind", ""));
-		if (!exe.isEmpty()) cfg.put("mcss_exe", exe);
+		if (!exe.isEmpty()) cfg.put(builtin() ? "servers_dir" : "mcss_exe", exe);
 		if (!bind.isEmpty()) cfg.put("bind", bind);
 		cfg.put("servers", keep);
 		try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
@@ -1908,7 +1963,7 @@ public final class HostHelper {
 								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir"))));
 					}
 				} finally { SERVER.set(keep); }
-				reply(x, 200, m("mcss_exe", setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list));
+				reply(x, 200, m("mcss_exe", builtin() ? serversDir() : setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list, "host", builtin() ? "builtin" : "mcss"));
 			} else if (path.equals("/admin/pulls")) {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
@@ -1937,30 +1992,38 @@ public final class HostHelper {
 		};
 		Map<String, Object> scan = setupScan("");
 		String exe = Json.str(scan.get("mcss_exe"));
-		boolean mcss = !exe.isEmpty() && Files.isRegularFile(Path.of(exe));
+		boolean mcss = builtin() ? Files.isDirectory(Path.of(serversDir())) : !exe.isEmpty() && Files.isRegularFile(Path.of(exe));
 		int inMcss = Json.list(scan.get("servers")).size();
-		boolean api = false;
-		if (mcss) try {
+		boolean api = builtin();
+		if (mcss && !builtin()) try {
 			HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + "/api/v2").openConnection();
 			c.setConnectTimeout(1500); c.setReadTimeout(2000);
 			c.getResponseCode(); api = true;   // (any answer at all: it is on)
 		} catch (IOException | RuntimeException off) { api = false; }
 		boolean ts = st.apply("Tailscale is installed", "todo").equals("ok"), tsOn = st.apply("Tailscale is connected", "wait").equals("ok");
 
-		add.apply(new Object[] {"welcome", "Welcome", "info", "This guide takes a machine from nothing to a Minecraft server your friends can join with the Gatehouse launcher.\n\nThree things are involved. Tailscale is a private network between this machine and the devices you let in, so nothing is opened to the internet. MC Server Soft (MCSS) runs the Minecraft servers. Gatekeeper, this program, sits between them: it lets the launchers you allow see, start and stop your servers.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""});
+		add.apply(new Object[] {"welcome", "Welcome", "info", "This guide takes a machine from nothing to a Minecraft server your friends can join with the Gatehouse launcher.\n\nThree things are involved. Tailscale is a private network between this machine and the devices you let in, so nothing is opened to the internet." + (builtin() ? " Gatekeeper, this program, runs the Minecraft servers itself on this machine, and stands between them and the launchers: " : " MC Server Soft (MCSS) runs the Minecraft servers. Gatekeeper, this program, sits between them: ") + "it lets the launchers you allow see, start and stop your servers.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""});
 		add.apply(new Object[] {"tailscale", "Install Tailscale", ts ? "ok" : "todo", "Tailscale makes the private network. Download it from its own site, install it, and sign in with an account (Google, Microsoft, GitHub and others work; it's free for personal use)." + (STEAMOS ? "\n\nTailscale doesn't officially support SteamOS: it can be installed (Desktop Mode, Konsole), but a SteamOS update can remove it, and then this step shows as not done again." : "") + "\n\nThis step is done when Tailscale is installed on this machine.", dt.apply("Tailscale is installed"),
 				"Open Tailscale's download page", say("open:https://tailscale.com/download", "open:https://tailscale.com/download/linux")});
 		add.apply(new Object[] {"tailscale_on", "Sign in to Tailscale", !ts ? "wait" : tsOn ? "ok" : "todo", say("Open Tailscale (its icon is by the clock), sign in, and make sure it says Connected.", "In a terminal, run: sudo tailscale up, and sign in on the page it gives.") + "\n\nThis step is done when this machine has a Tailscale address.", dt.apply("Tailscale is connected")});
 		add.apply(new Object[] {"tailscale_stay", "Keep this machine signed in", !tsOn ? "wait" : st.apply("This machine stays signed in to Tailscale", "todo"), "By default Tailscale signs a machine out after some months, and players would lose the server until you signed in again. For a server, turn that off: in Tailscale's admin page, under Machines, open this machine's \u2026 menu and choose Disable key expiry.\n\n" + say("In Tailscale's own menu by the clock, also turn on Run unattended (under Preferences), so players can reach the machine before anyone has signed in to Windows.", "Tailscale's service should also start with the machine, so players can reach it after a restart. Host setup shows whether it does; in a terminal: sudo systemctl enable --now tailscaled"), dt.apply("This machine stays signed in to Tailscale"),
 				"Open Tailscale's admin page", "open:https://login.tailscale.com/admin/machines"});
-		add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo", "MC Server Soft (MCSS) is the program that runs the Minecraft servers. Download it from its site and unpack it somewhere permanent, for example " + say("C:\\Minecraft\\MCSS", "an MCSS folder in your home folder (this machine needs MCSS's Linux build)") + ". It has no installer: the folder is the program.\n\nIf Gatekeeper doesn't find it by itself, use Server setup and Browse to " + mcssFile() + ".\n\nThis step is done when Gatekeeper knows where " + mcssFile() + " is.", mcss ? exe : "",
+		if (builtin()) add.apply(new Object[] {"mcss", "Install MC Server Soft", "na", "MC Server Soft is a Windows program, and Gatekeeper is set to do without it: on this machine Gatekeeper runs the Minecraft servers itself. There is nothing to install for this step.", noMcssShort().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
+		else add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo", "MC Server Soft (MCSS) is the program that runs the Minecraft servers. Download it from its site and unpack it somewhere permanent, for example " + say("C:\\Minecraft\\MCSS", "an MCSS folder in your home folder (this machine needs MCSS's Linux build)") + ". It has no installer: the folder is the program.\n\nIf Gatekeeper doesn't find it by itself, use Server setup and Browse to " + mcssFile() + ".\n\nThis step is done when Gatekeeper knows where " + mcssFile() + " is.", mcss ? exe : "",
 				"Open MCSS's site", "open:https://www.mcserversoft.com/", "Server setup\u2026", "setup"});
-		add.apply(new Object[] {"mcss_server", "Make a server in MCSS", !mcss ? "wait" : inMcss > 0 ? "ok" : "todo", "In MCSS: Add Server, give it a name, pick the server type and Minecraft version (Vanilla is the plain game; Fabric or Forge are for mods), and create it. Start it once in MCSS and accept Minecraft's EULA when asked, so its files are made, then stop it again.\n\nThis step is done when MCSS has at least one server.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server" : " servers") + " in MCSS" : ""});
-		add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo", "Gatekeeper talks to MCSS through MCSS's own web API, on this machine only. In MCSS: Options, then Web API (or Web Panel), switch it on, and leave the port at 25560. MCSS has to be running for this.\n\nThis step is done when MCSS answers on that port.", api ? "MCSS answers" : mcss ? "No answer on " + setting("mcss_panel", "http://127.0.0.1:25560").replaceFirst("^https?://", "") + " (is MCSS running?)" : ""});
+		if (builtin()) add.apply(new Object[] {"mcss_server", "Make a server", inMcss > 0 ? "ok" : "todo", "A server is a folder with the server's program in it. Gatekeeper looks for servers in " + serversDir() + ": make that folder, and inside it a folder for your server, named as you like.\n\nPut the server's program in it. For the plain game that is server.jar from Minecraft's own download page. For mods, run Fabric's or Forge's server installer into that folder instead.\n\nGatekeeper downloads nothing itself. This step is done when it finds at least one server folder; Server setup can look somewhere else.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server folder" : " server folders") + " in " + serversDir() : mcss ? "No server folders in " + serversDir() + " yet" : "There's no folder at " + serversDir() + " yet",
+				"Open Minecraft's server download page", "open:https://www.minecraft.net/download/server", "Server setup\u2026", "setup"});
+		else add.apply(new Object[] {"mcss_server", "Make a server in MCSS", !mcss ? "wait" : inMcss > 0 ? "ok" : "todo", "In MCSS: Add Server, give it a name, pick the server type and Minecraft version (Vanilla is the plain game; Fabric or Forge are for mods), and create it. Start it once in MCSS and accept Minecraft's EULA when asked, so its files are made, then stop it again.\n\nThis step is done when MCSS has at least one server.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server" : " servers") + " in MCSS" : ""});
+		if (builtin()) add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", "na", "Gatekeeper runs the servers itself on this machine, so there is no MCSS web API to turn on.", noMcssShort().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
+		else add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo", "Gatekeeper talks to MCSS through MCSS's own web API, on this machine only. In MCSS: Options, then Web API (or Web Panel), switch it on, and leave the port at 25560. MCSS has to be running for this.\n\nThis step is done when MCSS answers on that port.", api ? "MCSS answers" : mcss ? "No answer on " + setting("mcss_panel", "http://127.0.0.1:25560").replaceFirst("^https?://", "") + " (is MCSS running?)" : ""});
 		String addr = st.apply("Gatekeeper listens on the Tailscale address", "todo"), chosen = st.apply("Servers are chosen", "todo");
 		add.apply(new Object[] {"setup", "Choose the servers", inMcss == 0 || !tsOn ? "wait" : addr.equals("ok") && chosen.equals("ok") ? "ok" : "todo", "Server setup tells Gatekeeper where MCSS is, which address to listen on (this machine's Tailscale address, filled in for you), and which of MCSS's servers players should see: tick them and Save.\n\nThis step is done when Gatekeeper listens on the Tailscale address and at least one server is chosen.", dt.apply("Servers are chosen").isEmpty() ? dt.apply("Gatekeeper listens on the Tailscale address") : dt.apply("Servers are chosen"),
 				"Server setup\u2026", "setup"});
-		add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", !chosen.equals("ok") || !api ? "wait" : st.apply("Gatekeeper can use MCSS", "todo"), "Gatekeeper needs MCSS's permission to start and stop servers. Go to Servers, open one of your servers, and on its Server Status tab choose Sign in to MCSS. You sign in once with your MCSS web panel user; Gatekeeper then makes a key of its own and your password isn't kept.\n\nThis step is done when Gatekeeper has a key that MCSS accepts.", dt.apply("Gatekeeper can use MCSS"),
+		if (builtin()) {
+			add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", "na", "Gatekeeper runs the servers itself on this machine, so there is nothing to sign in to.", noMcssShort().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
+			add.apply(new Object[] {"eula", "Accept Minecraft's EULA", !chosen.equals("ok") ? "wait" : st.apply("Each server can be started", "todo"), "Minecraft's server won't run until you have accepted Minecraft's End User Licence Agreement, and that is yours to do: Gatekeeper never accepts it for you.\n\nRead it, then open the file eula.txt in the server's folder (make it if it isn't there) and put this line in it: eula=true\n\nThis step is done when every chosen server has its program and its EULA accepted.", dt.apply("Each server can be started"),
+					"Open Minecraft's EULA", "open:https://aka.ms/MinecraftEULA"});
+		} else add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", !chosen.equals("ok") || !api ? "wait" : st.apply("Gatekeeper can use MCSS", "todo"), "Gatekeeper needs MCSS's permission to start and stop servers. Go to Servers, open one of your servers, and on its Server Status tab choose Sign in to MCSS. You sign in once with your MCSS web panel user; Gatekeeper then makes a key of its own and your password isn't kept.\n\nThis step is done when Gatekeeper has a key that MCSS accepts.", dt.apply("Gatekeeper can use MCSS"),
 				"Go to Servers", "servers"});
 		if (have.containsKey("Each server has its own port") || have.containsKey("Gatekeeper has each server's current port")) {
 			String ports = st.apply("Each server has its own port", "ok"), moved = st.apply("Gatekeeper has each server's current port", "ok");
@@ -2070,7 +2133,8 @@ public final class HostHelper {
 			JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"), sleepB = new JButton("Allow machine wake/sleep"), adminB = new JButton("Allow Gatekeeper control"), forget = new JButton("Forget"), refreshB = new JButton("Refresh");
 			serverB.setToolTipText("Server control: the selected launcher may start and stop this Minecraft server (through Gatekeeper; it needs no MCSS account).");
-			mcssB.setToolTipText("MCSS control: the selected launcher may start and close MCSS itself. It includes server control.");
+			mcssB.setToolTipText(builtin() ? "MCSS control: " + noMcssShort() + ". Use Server control instead." : "MCSS control: the selected launcher may start and close MCSS itself. It includes server control.");
+			if (builtin()) { mcssB.setEnabled(false); mcssB.setText("MCSS control: " + noMcssShort()); }
 			sleepB.setToolTipText(sleepSupported() ? "Machine wake/sleep: the selected launcher may wake this machine and put it to sleep (sleep only while the Minecraft server is stopped)." : "Machine wake/sleep: " + notSupported().toLowerCase(java.util.Locale.ROOT).replace(systemName().toLowerCase(java.util.Locale.ROOT), systemName()) + ".");
 			if (!sleepSupported()) { sleepB.setEnabled(false); sleepB.setText("Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1)); }
 			forget.setToolTipText("Takes the selected launcher off this list, with everything it was allowed. It can introduce itself again later and starts with nothing.");
@@ -2084,6 +2148,7 @@ public final class HostHelper {
 			JButton signB = new JButton("Sign in to MCSS\u2026");
 			JPanel keyRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			keyRow.add(signB); keyRow.add(keyB); keyRow.add(keyState);
+			if (builtin()) { signB.setEnabled(false); keyB.setEnabled(false); signB.setText("Sign in to MCSS: " + noMcssShort()); keyB.setText("Set MCSS key: " + noMcssShort()); mcssRun.setEnabled(false); mcssRun.setText("Start MCSS: " + noMcssShort()); }
 			// For the selected launcher: an MCSS key of its own, made and handed over by Gatekeeper; and taking away
 			// whatever lets it control the server.
 			JButton revokeB = new JButton("Remove server access");
@@ -2256,7 +2321,8 @@ public final class HostHelper {
 				JButton browse = new JButton("Browse\u2026"), again = new JButton("Look again");
 				browse.addActionListener(ev -> {
 					javax.swing.JFileChooser fc = new javax.swing.JFileChooser(!exeF.getText().isBlank() ? exeF.getText() : WIN ? "C:\\" : System.getProperty("user.home", "/"));
-					if (WIN) fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("MCSS (mcss.exe)", "exe"));
+					if (builtin()) fc.setFileSelectionMode(javax.swing.JFileChooser.DIRECTORIES_ONLY);
+					else if (WIN) fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("MCSS (mcss.exe)", "exe"));
 					if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { exeF.setText(fc.getSelectedFile().getAbsolutePath()); scan.run(); }
 				});
 				again.addActionListener(ev -> scan.run());
@@ -2265,9 +2331,9 @@ public final class HostHelper {
 				JPanel exeRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); exeRow.add(exeF); exeRow.add(browse); exeRow.add(again);
 				JPanel addrRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 4, 0)); addrRow.add(addrF);
 				java.util.function.Function<String, JLabel> subHead = hs -> { JLabel l = new JLabel(hs); l.setFont(l.getFont().deriveFont(Font.BOLD)); l.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0)); return l; };
-				for (javax.swing.JComponent c : new javax.swing.JComponent[] {subHead.apply("MCSS on this machine (" + mcssFile() + ")"), exeRow,
+				for (javax.swing.JComponent c : new javax.swing.JComponent[] {subHead.apply(builtin() ? "The folder your Minecraft servers are in (one folder each)" : "MCSS on this machine (" + mcssFile() + ")"), exeRow,
 						subHead.apply("This machine's Tailscale address (launchers reach Gatekeeper on it)"), addrRow,
-						subHead.apply("Minecraft servers in MCSS (tick the ones Gatekeeper looks after)"), list, problem}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); }
+						subHead.apply(builtin() ? "Minecraft servers in that folder (tick the ones Gatekeeper looks after)" : "Minecraft servers in MCSS (tick the ones Gatekeeper looks after)"), list, problem}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); }
 				scan.run();
 				String shot = System.getenv("OJ_PANEL_PNG");
 				if (shot != null && !shot.isEmpty()) {   // (testing: a picture of the form instead of the dialog)
@@ -2290,7 +2356,7 @@ public final class HostHelper {
 			};
 			setupB.addActionListener(e -> setup.run());
 			section.accept("Gatekeeper", new javax.swing.JComponent[] {helperRow, setupRow});
-			section.accept("MCSS (the server software)", new javax.swing.JComponent[] {mcssRow, keyRow});
+			section.accept(builtin() ? "MCSS (the server software): " + noMcssShort() : "MCSS (the server software)", new javax.swing.JComponent[] {mcssRow, keyRow});
 			section.accept("Minecraft server", new javax.swing.JComponent[] {serverRow});
 			JPanel activity = new JPanel(new BorderLayout(0, 4));
 			JLabel actHead = new JLabel("Activity"); actHead.setFont(actHead.getFont().deriveFont(Font.BOLD, 14f));
@@ -2711,7 +2777,9 @@ public final class HostHelper {
 						String works = Json.str(r.get("key_works"));
 						keyState.setForeground(!hasKey ? new Color(0xE9B949) : !works.equals("yes") ? new Color(0xFF7B72) : new Color(0x8BD46E));
 						String as = Json.str(r.get("mcss_user"));
-						keyState.setText(works.equals("forbidden") ? "MCSS knows Gatekeeper's key, but it has no permission for this server: give it the server (view, start, stop) under API Keys in MCSS's panel."
+						if (builtin()) keyState.setForeground(new Color(0x8F98A0));
+						keyState.setText(builtin() ? "Nothing to sign in to: Gatekeeper runs the servers itself."
+								: works.equals("forbidden") ? "MCSS knows Gatekeeper's key, but it has no permission for this server: give it the server (view, start, stop) under API Keys in MCSS's panel."
 								: works.equals("unknown") ? "MCSS doesn't know Gatekeeper's key: set it again, or sign in."
 								: !hasKey ? "Gatekeeper isn't signed in to MCSS: server control won't work until it is."
 								: works.equals("no") ? (as.isEmpty() ? "Gatekeeper's MCSS key is set, but MCSS isn't answering with it (MCSS closed, or the key is wrong)." : "Signed in to MCSS as " + as + ", but MCSS isn't answering with it (MCSS closed, or sign in again).")
@@ -2772,15 +2840,16 @@ public final class HostHelper {
 						}
 						seqSeen[0] = seq;
 						mcssUp[0] = Boolean.TRUE.equals(r.get("mcss")); mcssClose[0] = Json.str(r.get("close"));
-						mcssRun.setText(!mcssUp[0] ? "Start MCSS" : mcssClose[0].equals("force") ? "Force close MCSS" : "Close MCSS");
+						mcssRun.setText(builtin() ? "Start MCSS: " + noMcssShort() : !mcssUp[0] ? "Start MCSS" : mcssClose[0].equals("force") ? "Force close MCSS" : "Close MCSS");
 						String mph = Json.str(r.get("mcss_phase")), sph = Json.str(r.get("server_phase"));
-						mcssRun.setEnabled(!mph.equals("starting") && !mph.equals("closing"));
+						mcssRun.setEnabled(!builtin() && !mph.equals("starting") && !mph.equals("closing"));
 						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Closes MCSS. A Minecraft server is running: it's stopped first (the world is saved), then MCSS closes." : "Starts MCSS on this machine, or closes it.");
 						state.setForeground(new Color(0x8BD46E));
 						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over Tailscale).");
 						boolean mBusy = mph.equals("starting") || mph.equals("closing"), sBusy = sph.equals("starting") || sph.equals("stopping");
 						mcssState.setForeground(mBusy ? new Color(0xE9B949) : Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0x8F98A0));
-						mcssState.setText(mph.equals("starting") ? "MCSS is starting\u2026" : mph.equals("closing") ? "MCSS is closing\u2026 (after the Minecraft server has stopped)" : Boolean.TRUE.equals(r.get("mcss")) ? "MCSS is running" : "MCSS isn't running");
+						if (builtin()) mcssState.setForeground(new Color(0x8F98A0));
+						mcssState.setText(builtin() ? noMcss() + "." : mph.equals("starting") ? "MCSS is starting\u2026" : mph.equals("closing") ? "MCSS is closing\u2026 (after the Minecraft server has stopped)" : Boolean.TRUE.equals(r.get("mcss")) ? "MCSS is running" : "MCSS isn't running");
 						serverUpNow[0] = sph.equals("online") || sph.equals("stopping");
 						serverState.setForeground(sBusy ? new Color(0xE9B949) : sph.equals("online") ? new Color(0x8BD46E) : new Color(0x8F98A0));
 						serverState.setText("The Minecraft server is " + phaseWords(sph));
@@ -2809,7 +2878,7 @@ public final class HostHelper {
 				boolean[] pp = r >= 0 && r < ids.size() ? perms.getOrDefault(ids.get(r), new boolean[4]) : new boolean[4];
 				adminB.setText(pp[3] ? "Remove Gatekeeper control" : "Allow Gatekeeper control");
 				serverB.setText(pp[2] ? "Remove server control" : "Allow server control");
-				mcssB.setText(pp[0] ? "Remove MCSS control" : "Allow MCSS control");
+				mcssB.setText(builtin() ? "MCSS control: " + noMcssShort() : pp[0] ? "Remove MCSS control" : "Allow MCSS control");
 				sleepB.setText(!sleepSupported() ? "Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1) : pp[1] ? "Remove PC sleep" : "Allow machine wake/sleep");
 			};
 			table.getSelectionModel().addListSelectionListener(e -> labels.run());
@@ -2836,7 +2905,7 @@ public final class HostHelper {
 			Runnable plabels = () -> {
 				int r = ptable.getSelectedRow();
 				boolean[] al = r >= 0 && r < pnames.size() ? pallow.getOrDefault(pnames.get(r), new boolean[4]) : new boolean[4];
-				for (int i = 0; i < 4; i++) pB[i].setText(i == 2 && !sleepSupported() ? "Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1) : (al[i] ? "Remove " : "Allow ") + pwords[i]);
+				for (int i = 0; i < 4; i++) pB[i].setText(i == 2 && !sleepSupported() ? "Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1) : i == 1 && builtin() ? "MCSS control: " + noMcssShort() : (al[i] ? "Remove " : "Allow ") + pwords[i]);
 			};
 			ptable.getSelectionModel().addListSelectionListener(e -> plabels.run());
 			pmodel.addTableModelListener(e -> SwingUtilities.invokeLater(plabels));
@@ -2877,16 +2946,17 @@ public final class HostHelper {
 			};
 			java.util.function.Consumer<Map<String, Object>> fillOverview = r -> {
 				overList.removeAll();
-				JLabel h1 = new JLabel("MCSS on this machine"); h1.setFont(h1.getFont().deriveFont(Font.BOLD, 14f)); h1.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0)); h1.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				JLabel h1 = new JLabel(builtin() ? "What runs the servers" : "MCSS on this machine"); h1.setFont(h1.getFont().deriveFont(Font.BOLD, 14f)); h1.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0)); h1.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 				overList.add(h1);
 				boolean up = Boolean.TRUE.equals(r.get("mcss"));
 				String exe = Json.str(r.get("mcss_exe"));
-				Object[] mr = overRow.apply(exe.isEmpty() ? "MCSS (not set up yet: Server setup, on a server's Status tab)" : exe, null);
+				Object[] mr = overRow.apply(builtin() ? "Gatekeeper itself, from " + exe : exe.isEmpty() ? "MCSS (not set up yet: Server setup, on a server's Status tab)" : exe, null);
 				String mph0 = Json.str(r.get("mcss_phase"));
 				((JLabel) mr[1]).setText((mph0.equals("starting") ? "Starting\u2026" : mph0.equals("closing") ? "Closing\u2026" : up ? "Running" : "Not running") + (Boolean.TRUE.equals(r.get("has_key")) ? "" : ". Gatekeeper isn't signed in to it yet."));
 				((JLabel) mr[1]).setForeground(up ? new Color(0x8BD46E) : new Color(0x8F98A0));
+				if (builtin()) { ((JLabel) mr[1]).setText("MC Server Soft: " + noMcssShort()); ((JLabel) mr[1]).setForeground(new Color(0x8F98A0)); }
 				overList.add((JPanel) mr[0]);
-				JLabel h2 = new JLabel("Servers in this MCSS"); h2.setFont(h2.getFont().deriveFont(Font.BOLD, 14f)); h2.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0)); h2.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				JLabel h2 = new JLabel(builtin() ? "Servers" : "Servers in this MCSS"); h2.setFont(h2.getFont().deriveFont(Font.BOLD, 14f)); h2.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0)); h2.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 				overList.add(h2);
 				List<Object> sv = Json.list(r.get("servers"));
 				if (sv.isEmpty()) { JLabel none = new JLabel("None yet. Gatekeeper opens Server setup for you; it's also on a server's Status tab."); none.setForeground(new Color(0x8F98A0)); overList.add(none); }
@@ -3009,6 +3079,7 @@ public final class HostHelper {
 			String[] pTips = {"Server control for this player: every confirmed device of theirs may start and stop this Minecraft server.", "MCSS control for this player: every confirmed device of theirs may start and close MCSS (it includes server control).",
 					"Machine wake/sleep for this player: every confirmed device of theirs may wake this machine and put it to sleep.", "Gatekeeper control for this player: their devices may manage the others' access from the launcher's Remote Gatekeeper tab."};
 			for (int i = 0; i < pB.length; i++) pB[i].setToolTipText(pTips[i]);
+			if (builtin()) { pB[1].setEnabled(false); pB[1].setToolTipText("MCSS control: " + noMcssShort() + ". Use Server control instead."); }
 			if (!sleepSupported()) { pB[2].setEnabled(false); pB[2].setToolTipText("Machine wake/sleep: " + notSupported().substring(0, 1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1) + "."); }
 			pKick.addActionListener(e -> shutOut.accept(true, "kick")); pSuspend.addActionListener(e -> shutOut.accept(true, "suspend")); pBlack.addActionListener(e -> shutOut.accept(true, "blacklist")); pLift.addActionListener(e -> shutOut.accept(true, ""));
 			pLift.setToolTipText("Lifts a suspension or blacklisting of the selected player");

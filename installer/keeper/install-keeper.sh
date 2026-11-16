@@ -15,7 +15,8 @@
 #   - starts it when you sign in, with no window: a systemd user service "gatehouse-keeper", restarted if it fails;
 #     or, on a system without systemd, an entry in ~/.config/autostart
 #   - adds "Gatekeeper" to the applications menu
-#   - starts Gatekeeper and opens its window, where Server setup ties it to MCSS and its servers
+#   - starts Gatekeeper and opens its window. On Linux and SteamOS Gatekeeper runs the Minecraft servers itself
+#     (MC Server Soft is Windows only): Server setup picks the folder your servers are in
 #
 # Not supported on Linux or SteamOS: adding Gatekeeper to your Steam library from here.
 # Not supported on SteamOS: putting the machine to sleep from a launcher (Gatekeeper says so where that would be).
@@ -173,6 +174,6 @@ sleep 3
 if [ "$NO_PANEL" != 1 ]; then (cd "$DIR" && nohup "$JAVA" -jar "$jar" --panel >/dev/null 2>&1 &); fi
 next=""
 [ "$update" = 1 ] || next="
-Gatekeeper is opening: its setup guide walks through Tailscale, MCSS and the servers Gatekeeper should look after."
+Gatekeeper is opening: its setup guide walks through Tailscale and the servers Gatekeeper should run."
 finish "Gatekeeper is $([ "$update" = 1 ] && echo updated || echo installed). $how$next
 To remove it later: bash \"$DIR/install-keeper.sh\" --uninstall" 0

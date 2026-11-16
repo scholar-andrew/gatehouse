@@ -105,10 +105,31 @@ is greyed out. Differences:
 Tested so far only from Windows: Gatekeeper told it is on Linux or SteamOS (`OJ_OS`), and the scripts in a scratch
 home without systemd. Not yet run on a real Linux machine or a Steam Deck.
 
-**It can't host there yet.** MC Server Soft is Windows only (its own site says so), and `McssHost` is the only
-`ServerHost` there is. On Linux and SteamOS Gatekeeper therefore installs, runs, pairs and manages access, but finds
-no MCSS and has no servers to start, stop or read. Hosting there needs a second `ServerHost` that runs the server
-files itself. Gatekeeper 2.5.0's own notes and setup guide wrongly speak of "MCSS's Linux build"; there is none.
+**Running the servers without MCSS (`DirectHost`).** MC Server Soft is Windows only (its own site says so), so
+on Linux and SteamOS Gatekeeper runs the Minecraft servers itself; on Windows `"host": "builtin"` in `host.json`
+chooses the same. `HostHelper.builtin()` decides, and `host` is then a `DirectHost` instead of a `McssHost` (both
+are `ServerHost`). What it does:
+
+- **Servers** are folders inside one folder (`servers_dir`; `~/minecraft-servers`, or `C:\Minecraft\servers`).
+  Server setup lists the ones that look like a server (a server jar, `run.sh` or `server.properties`).
+- **Starting** one runs, in its folder, the first of: the server's `"start"` in `host.json` (a whole command line);
+  `sh run.sh nogui` on Linux; `<java> -Xmx<memory> -jar <jar> nogui`, with the server's `"java"` / `"memory"`, else
+  `server_java` / `server_memory`, else Gatekeeper's own Java and 4G. The jar is `fabric-server*.jar`,
+  `quilt-server*.jar`, `server.jar`, a Paper/Purpur/Spigot/Forge jar, or the only jar there. It is refused, with the
+  reason, when there is no program or `eula.txt` doesn't say `eula=true`. Nothing is downloaded or accepted.
+- **Its console** is kept: output is read (the server is "on" once it prints `Done (...)! For help`; the last six
+  lines go in `host.log` if it ends unasked), and `stop`, `whitelist ...` and `kick ...` are typed into it.
+- **A server that outlives its Gatekeeper** (a crash) is recognised by `gatekeeper-server.pid` in its folder
+  (process id and start time) and shown as on, without a console: on Linux it is stopped with the ordinary request
+  to end (it saves and shuts down); on Windows Gatekeeper refuses and says to `/stop` it in the game. For the same
+  reason `applyUpdate` refuses while a server it started is on.
+- **MCSS's own things** stay listed, greyed and marked "not supported on Linux" (`noMcss()`): Start and Close MCSS,
+  Sign in, Set key, the MCSS control permission, and the guide's `mcss`, `mcss_api` and `mcss_key` steps (state
+  `na`). The guide gains `eula`. Launchers still show an MCSS line; its buttons answer with the same words.
+
+Tested with a stand-in for a Minecraft server (`FakeServer` in the test scratch folder): start, the Done line,
+console commands, stop, a failed start, and a Gatekeeper ending and a new one taking the server over. Not yet with
+a real Minecraft server, and not on real Linux.
 
 When it finishes Gatekeeper opens with **Server setup** (Status tab, any time later too): it finds MCSS
 (`mcss.exe`; Browse if it isn't in a usual place), lists the Minecraft servers in MCSS's `servers` folder (each has

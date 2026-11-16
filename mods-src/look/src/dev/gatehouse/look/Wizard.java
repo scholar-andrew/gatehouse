@@ -156,10 +156,12 @@ public final class Wizard extends JPanel {
 			body.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
 			JLabel title = new JLabel(s.title);
 			title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
-			JLabel mark = new JLabel(word(s.state).isEmpty() ? " " : "<html><span style='color:" + colour(s.state) + "'>● &nbsp;<b>" + word(s.state) + "</b></span>" + "</html>");
+			boolean na = s.state.equals("na");   // (this system can't do it: its detail is what is said in place of a state)
+			String says = na ? esc(s.detail.isEmpty() ? "Not supported here" : s.detail) : word(s.state);
+			JLabel mark = new JLabel(says.isEmpty() ? " " : "<html><span style='color:" + colour(s.state) + "'>● &nbsp;<b>" + says + "</b></span>" + "</html>");
 			mark.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
 			body.add(title); body.add(mark);
-			if (!s.detail.isEmpty()) { JLabel d = new JLabel("<html><div style='width:" + textWidth + "px; color:#8F98A0'>" + esc(s.detail) + "</div></html>"); d.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0)); body.add(d); }
+			if (!s.detail.isEmpty() && !na) { JLabel d = new JLabel("<html><div style='width:" + textWidth + "px; color:#8F98A0'>" + esc(s.detail) + "</div></html>"); d.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0)); body.add(d); }
 			java.net.URL art = artFrom == null ? null : artFrom.getResource("/wizard/" + s.key + ".png");
 			if (art != null) { JLabel pic = new JLabel(new ImageIcon(art)); pic.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0)); body.add(pic); }
 			JLabel text = new JLabel("<html><div style='width:" + textWidth + "px'>" + esc(s.text) + "</div></html>");

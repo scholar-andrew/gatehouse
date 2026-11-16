@@ -18,7 +18,7 @@ each step for you; this page is the same road, written out.
 | --- | --- | --- |
 | Who runs it | Each player, on the device they play on | The host, on the machine that runs the Minecraft servers |
 | What it does | Lists the servers you can join, installs and updates each server's mods, shows what changed, and starts the game | Lets the launchers you allow see, start and stop your servers, and decides who may do what |
-| Works with | [Prism Launcher](https://prismlauncher.org/), which runs Minecraft | [MC Server Soft](https://www.mcserversoft.com/) (MCSS), which runs the servers |
+| Works with | [Prism Launcher](https://prismlauncher.org/), which runs Minecraft | On Windows, [MC Server Soft](https://www.mcserversoft.com/) (MCSS), which runs the servers. On Linux and SteamOS, nothing else: Gatekeeper runs the servers itself |
 
 The two talk over [Tailscale](https://tailscale.com/), a private network between the host's machine and the devices
 the host lets in. Nothing is opened to the internet, and no router settings are changed.
@@ -109,10 +109,10 @@ Along the bottom: **Open Prism Launcher**, **Restart**, and **Quit**.
 
 ### What you need
 
-- A machine that stays on while people play, running **Windows 10 or later**. (Hosting on Linux or SteamOS doesn't
-  work yet: see [What works on which system](#what-works-on-which-system).)
+- A machine that stays on while people play: **Windows 10 or later**, **Linux**, or **SteamOS**.
 - **Java 17 or newer** (your Minecraft servers need Java too).
-- **MC Server Soft** (MCSS), which is Windows only.
+- On **Windows**: **MC Server Soft** (MCSS). It is Windows only.
+- On **Linux and SteamOS**: your Minecraft server's own files (its jar). Gatekeeper runs it itself.
 - A free **Tailscale** account.
 
 ### 1. Install Gatekeeper
@@ -123,9 +123,22 @@ unpack it, double-click **Install Gatehouse.cmd**, and choose **Gatekeeper** (or
 machine). Gatekeeper starts when you sign in to Windows, with no window, and **Gatekeeper** in the Start menu opens
 its window.
 
-**Linux and SteamOS.** Not usable for hosting yet. Gatekeeper itself installs and runs there
-(`bash gatehouse-install.sh --gatekeeper`), but it starts, stops and reads servers through MC Server Soft, and MCSS
-is Windows only. Until Gatekeeper can run servers without MCSS, host on Windows.
+**Linux and SteamOS.** On a Steam Deck, switch to Desktop Mode and open Konsole. Then:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/installer/gatehouse-install.sh
+```
+
+```bash
+bash gatehouse-install.sh --gatekeeper
+```
+
+It fetches Gatekeeper, checks it against its published checksum, and installs it for your user: a background
+service that starts when you sign in, and **Gatekeeper** in the applications menu. On SteamOS it uses the Java that
+Prism Launcher fetches, so install Prism Launcher from Discover and open it once first.
+
+> Gatekeeper on Linux and SteamOS is new and has not yet been run on a real Linux machine or Steam Deck. See
+> [What works on which system](#what-works-on-which-system).
 
 ### 2. Follow the setup guide
 
@@ -133,7 +146,7 @@ Gatekeeper's window opens on its **setup guide** the first time. As in Gatehouse
 and ticks by itself. It's always under **Options** (the wheel at the top right), and the **Host setup** tab shows the
 same checks all at once.
 
-The steps:
+The steps on Windows (Linux and SteamOS differ in steps 4 to 8: see [below](#on-linux-and-steamos-the-servers)):
 
 1. **Install Tailscale** from [tailscale.com/download](https://tailscale.com/download).
 2. **Sign in to Tailscale** and make sure it says Connected.
@@ -156,6 +169,31 @@ The steps:
     not the rest of your network.
 12. **Invite a player.** **Share pairing** gives you a link and a small file. Send either to the player.
 
+### On Linux and SteamOS: the servers
+
+There is no MCSS on Linux, so Gatekeeper runs the servers itself. Steps 4 to 8 above become these (the MCSS steps
+stay in the guide, greyed and marked "Not supported on Linux"):
+
+1. **Make a server.** Make a folder called `minecraft-servers` in your home folder, and inside it one folder per
+   server, named as you like. Put the server's program in it: `server.jar` from
+   [Minecraft's server download page](https://www.minecraft.net/download/server) for the plain game, or run Fabric's
+   or Forge's server installer into that folder for mods. Gatekeeper downloads nothing itself.
+2. **Choose the servers.** **Server setup** lists the server folders it found (Browse if yours are somewhere else).
+   Tick them and Save.
+3. **Accept Minecraft's EULA.** Read [the EULA](https://aka.ms/MinecraftEULA), then put the line `eula=true` in a
+   file called `eula.txt` in the server's folder. Gatekeeper never accepts it for you, and doesn't start a server
+   without it.
+
+Gatekeeper then starts a server with the Java it runs on itself and 4 GB of memory. To change that for a server,
+add `"java"` or `"memory"` (for example `"6G"`) to that server's entry in `host.json` in Gatekeeper's folder; a
+`"start"` entry replaces the whole command. A folder with a `run.sh` (Forge, NeoForge) is started with that.
+
+Two things to know:
+
+- **Update Gatekeeper with the servers off.** A server's console belongs to the Gatekeeper that started it, so
+  Gatekeeper won't update itself while one is on: stop it, update, start it again.
+- **The server's console is in Gatekeeper, not in a window.** Its output is in the server's own `logs/latest.log`.
+
 ### 3. Let players in
 
 When a player adds your Gatekeeper, their launcher appears in a server's **Access Manager**. A new launcher can do
@@ -165,7 +203,7 @@ nothing until you allow it. You decide per device or per player:
 | --- | --- |
 | Whitelist | Join the Minecraft server |
 | Server control | Start and stop that server |
-| MCSS control | Start and close MCSS itself (includes server control) |
+| MCSS control | Start and close MCSS itself (includes server control). Windows with MCSS only |
 | Machine wake/sleep | Wake this machine and put it to sleep |
 | Gatekeeper control | Manage other launchers' access from their own launcher |
 
@@ -204,14 +242,15 @@ The install scripts do the same from outside: `-Uninstall` on Windows, `--uninst
 
 **Gatehouse** runs on Windows and on Linux, including the Steam Deck.
 
-**Gatekeeper** is for Windows. The program also installs and runs on Linux and SteamOS, but it starts, stops and
-reads Minecraft servers through MC Server Soft, which is Windows only, so on those systems it has no servers to look
-after yet. What a system can't do is still listed in Gatekeeper where it would be, marked "Not supported on SteamOS"
-or "Not supported on Linux".
+**Gatekeeper** runs on Windows, Linux and SteamOS. On Windows it works through MC Server Soft. MCSS is Windows
+only, so on Linux and SteamOS Gatekeeper runs the servers itself. What a system can't do is still listed in
+Gatekeeper where it would be, marked "Not supported on SteamOS" or "Not supported on Linux".
 
 | | Windows | Linux | SteamOS |
 | --- | --- | --- | --- |
-| Seeing, starting and stopping servers | Yes | Not yet (needs MCSS) | Not yet (needs MCSS) |
+| Seeing, starting and stopping servers | Yes, through MCSS | Yes, Gatekeeper runs them | Yes, Gatekeeper runs them |
+| MCSS's own controls (Start MCSS, Sign in, MCSS control) | Yes | Not supported | Not supported |
+| Updating while a server is on | Yes | Stop the server first | Stop the server first |
 | Access Manager, Host setup, setup guide | Yes | Yes | Yes |
 | Starts when you sign in | Yes | Yes | Yes |
 | Updates itself | Yes | Yes | Yes |
@@ -224,7 +263,8 @@ shows when that has happened.
 
 **How far each has been tested.** Windows 10 is where both programs are used day to day. Gatehouse is used on a
 Steam Deck. Gatekeeper on Linux and SteamOS has so far only been tested from Windows with stand-ins: the install
-script and its background service have not been tried on a real machine. More detail, with
+script, its background service and running a real Minecraft server (only a stand-in so far) have not been tried on
+a real machine. More detail, with
 hardware: [INSTALL.md: Tested on](../INSTALL.md#tested-on).
 
 ## When something doesn't work
@@ -234,7 +274,7 @@ hardware: [INSTALL.md: Tested on](../INSTALL.md#tested-on).
 | A Gatekeeper says it isn't answering | Press **Connect**: it shows which step is missing (Tailscale, the invite, or the host's machine being off or asleep). |
 | **Update needed** instead of Play | Your Gatehouse or the host's Gatekeeper is out of date. The line under the heading says which; update that one. |
 | No Play, and a **Request** button instead | You aren't on the whitelist, the server is off and you may not start it, or you've been suspended. Press the button to ask the host. |
-| The server won't start from a launcher | In Gatekeeper, check **Host setup**: MCSS has to be found, its web API on, and Gatekeeper signed in to MCSS. |
+| The server won't start from a launcher | In Gatekeeper, check **Host setup**. Windows: MCSS has to be found, its web API on, and Gatekeeper signed in to MCSS. Linux and SteamOS: the server's folder needs its program and `eula=true`; if it starts and stops again, Gatekeeper's log has the last thing it said (often the wrong Java version or too little memory). |
 | A new player's launcher never appears in Access Manager | Their device has to reach your machine over Tailscale. Check they accepted your invite, and on Windows that the firewall lets Java in on private networks. |
 | Everything looked right and stopped working months later | Tailscale signed the machine out. Sign in again, and turn off key expiry for it (step 3 for hosts). |
 
