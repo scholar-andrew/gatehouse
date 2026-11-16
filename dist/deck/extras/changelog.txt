@@ -1,3 +1,7 @@
+== 1.16.0 | 2026-11-16
+- The launcher can be driven with a controller: the Steam Deck's own controls, a Steam Controller, or any pad Steam presents as a gamepad. The left stick and the d-pad move the selection between buttons, tabs and lists (an outline shows where you are). A presses the selected button. B and Select jump to the button that goes up a level (Menu, or Gatekeepers). Y jumps to Restart, Start jumps to Quit. The right trigger is a left click where the pointer is; the right trackpad still moves the pointer. The left trigger does nothing.
+- On a row of tabs, left and right change the tab. In a list, up and down move the row. Questions the launcher asks can be answered the same way.
+- The arrow keys on a keyboard move the selection too, when a button or a row of tabs is selected.
 == 1.15.0 | 2026-11-16
 - Fixed: with two servers on one machine, turning one on made both read as on. Gatekeeper now asks MCSS about each server by itself (two servers can share a port, so a port that answers proved nothing).
 - In-between states: while a server is coming up or going down it reads Starting or Shutting down everywhere, and MCSS reads Starting or Closing, until it has actually happened. Buttons wait meanwhile.
