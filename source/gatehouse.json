@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.2.1",
+ "version": "2.3.0",
  "changes": [
+  {"version": "2.3.0", "date": "2026-11-16", "notes": [
+   "Steam Deck: no special controller layout while Gatehouse is what's open. The pack's layout (back grips, trackpad as mouse) is for the game. Gatehouse's own Steam shortcut no longer gets it, so Steam's plain layout applies there; the update takes the pack's layout off that shortcut if it's still as the pack left it (shows after Steam restarts, or after switching back to Game Mode).",
+   "When you press Play, Gatehouse asks Steam to use the layout of the pack's shortcut for the game, and to go back to its own choice when the game is over. Opened from a pack's own shortcut, it asks for the plain one while a Gatehouse window is up.",
+   "This part is new and couldn't be tried against Steam before release. If Steam doesn't take the request, nothing else changes: the layout of the shortcut you started from stays in use. What was asked is noted in steam-input.log, beside Prism Launcher's instances folder."
+  ]},
   {"version": "2.2.1", "date": "2026-11-16", "notes": [
    "Fixed: going from Launch to Play took a long time when there was nothing to update. The checklist could take the previous launch's result for this one's, show everything ticked, and then wait unseen for the real update to finish.",
    "With nothing to update, the update itself is now much shorter: the launcher already compares the pack's files with what's installed, and when everything matches the installer program isn't run at all. (As a safety net it still runs in full once a week, and whenever a file is missing or left over.)",

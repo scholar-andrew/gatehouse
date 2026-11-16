@@ -304,7 +304,8 @@ final class SteamUpdate {
 			}
 			int artFiles = files;
 			Path layout = mc.resolve("steam/controller_neptune.vdf"), dir = Path.of(str(t.get("controller")));
-			if (Files.isRegularFile(layout) && dir.getParent() != null && Files.isDirectory(dir.getParent())) {
+			// (Gatehouse's own shortcut gets no layout: its windows are driven with Steam's plain one; see SteamInput)
+			if (!"launcher".equals(str(t.get("art"))) && Files.isRegularFile(layout) && dir.getParent() != null && Files.isDirectory(dir.getParent())) {
 				Path target = dir.resolve("controller_neptune.vdf");
 				String wantText = Files.readString(layout, StandardCharsets.UTF_8).replaceAll("\"url\"\\s*\"[^\"]*\"", java.util.regex.Matcher.quoteReplacement("\"url\"\t\t\"autosave://" + target.toString().replace("\\", "/") + "\""));
 				Path set = dir.getParent().resolve("configset_controller_neptune.vdf");

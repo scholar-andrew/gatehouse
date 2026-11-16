@@ -845,6 +845,8 @@ final class Home {
 			timer.start();
 			java.awt.Rectangle from = cameBack; cameBack = null;
 			if (from != null) LaunchPopup.place(f, from); else f.setLocationRelativeTo(null);
+			// (on a Steam Deck: no special controller layout while this window is what's open)
+			new Thread(() -> SteamInput.force(SteamInput.launcherId(instances)), "steam-input").start();
 			f.setVisible(true);
 			LaunchPopup.bringForwardOnce(f);
 			SwingUtilities.invokeLater(() -> Nav.home(f));

@@ -320,6 +320,11 @@ Inventory Profiles Next's own settings (Auto Refill, **Also Show Icons in the Ho
 new install and never changes it back.
 
 ## Controllers
+
+On a Steam Deck the pack's layout (R4 jump, L4 crouch, trackpad as mouse) is for the game. While the Gatehouse
+launcher is what's open, Steam's plain layout applies: Gatehouse's own Steam shortcut gets no layout from the pack,
+and Gatehouse asks Steam to switch to the pack's layout when you press Play and back afterwards. A layout you made
+yourself for Gatehouse's shortcut is left alone.
 - **Linux on a Steam Deck:** the Deck's controls get the pack's layout (R4 jump, L4 crouch, trackpad as mouse). In a
   text box, Steam's keyboard opens by itself and chat moves up above it.
 - **Windows with a Steam Controller:** press **Steam + X** in a text box for Steam's keyboard; chat moves up above it. Press

@@ -369,6 +369,18 @@ for t in targets:
              (art + "/wide.png", os.path.join(g, a + ".png")), ("steam/controller_neptune.vdf", os.path.join(t["controller"], "controller_neptune.vdf"))]
     for src, dst in items:
         if not (want_ctrl if src.endswith(".vdf") else want_art): continue
+        if src.endswith(".vdf") and t.get("art") == "launcher":
+            # Gatehouse's own shortcut gets no layout from the pack (its windows are driven with Steam's plain one).
+            # One this put there earlier is taken off again, while it is still as this left it.
+            sp_ = os.path.join(here, src)
+            if os.path.exists(dst) and os.path.exists(sp_):
+                ours = hashlib.sha256(re.sub(r'"url"\s*"[^"]*"', '"url"\t\t"autosave://%s"' % dst, open(sp_, "rb").read().decode("utf-8"), count=1).encode("utf-8")).hexdigest()
+                have = hashlib.sha256(open(dst, "rb").read()).hexdigest()
+                if have == ours or have == state.get(dst):
+                    os.remove(dst)
+                    if os.path.exists(dst + ".before-pack"): shutil.move(dst + ".before-pack", dst)
+                    state.pop(dst, None); changed.append("Gatehouse's shortcut: the pack's controller layout taken off")
+            continue
         sp_ = os.path.join(here, src)
         if not os.path.exists(sp_): continue
         data = open(sp_, "rb").read()
@@ -385,7 +397,7 @@ for t in targets:
         open(dst, "wb").write(data); state[dst] = new; changed.append(os.path.basename(src))
     cs = os.path.join(os.path.dirname(t["controller"]), "configset_controller_neptune.vdf"); key = os.path.basename(t["controller"])
     txt = open(cs).read() if os.path.exists(cs) else '"controller_config"\n{\n}\n'
-    if want_ctrl and ('"%s"' % key.lower()) not in txt.lower():
+    if want_ctrl and t.get("art") != "launcher" and ('"%s"' % key.lower()) not in txt.lower():
         e = txt.rindex("}"); open(cs, "w").write(txt[:e] + '\t"%s"\n\t{\n\t\t"autosave"\t\t"1"\n\t}\n' % key + txt[e:]); changed.append("controller list")
 json.dump(state, open(sp, "w"), indent=1)
 if changed:

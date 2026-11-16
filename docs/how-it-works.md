@@ -221,6 +221,15 @@ their next launch; nobody has to touch a device.
   script also looks only for the first source that answers; the others are asked if the update from it fails.
   `Home.startSync` empties the status file before starting the script, so the checklist can't read the last run's
   `done`.
+- **Controller layout by what's open (Steam Deck).** Steam uses one layout per shortcut for as long as it runs, and
+  a non-Steam program can't tell Steam it's in a menu. So the pack's layout is no longer put on Gatehouse's own
+  shortcut (`art: launcher` in `steam-target.json`): `pack-sync` and the Update Steam shortcuts button skip it, and
+  `pack-sync` removes one it installed earlier while it is unchanged. `SteamInput` then asks Steam, by opening
+  `steam://forceinputappid/<shortcut's app id>` with `xdg-open`: Gatehouse's shortcut while a Gatehouse window is
+  open, the pack's shortcut around `LaunchPopup.startGame`, and `0` (Steam decides) when Prism is done and when
+  Gatehouse closes. Only on a Steam Deck and only when started by Steam (its environment variables are there). Each
+  request and how `xdg-open` ended is appended to `steam-input.log` beside the instances folder.
+  `OJ_STEAM_INPUT_TEST=<file>` makes it apply anywhere and writes the addresses to that file instead.
 - **One window to the eye.** The main window and a server's launcher are two programs: the second is started by
   Prism Launcher (the pack's update, before the game). On Launch the main window writes where it is to
   `gatehouse-window.txt` in the game folder and stays up; the pack's first window (the checklist, else the launcher)
