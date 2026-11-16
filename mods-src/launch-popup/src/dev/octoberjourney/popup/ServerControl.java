@@ -53,6 +53,8 @@ final class ServerControl {
 	/** What became of this launcher's last request for the server to be turned on, as Gatekeeper says: "asked",
 	 *  "denied" (the owner dismissed it), or empty. */
 	volatile String requestStatus = "";
+	/** What MCSS is doing, as Gatekeeper last said: "running", "starting", "closing", "off" (or empty: not told). */
+	volatile String mcssPhase = "";
 	/** Whether this launcher is shut out, as Gatekeeper says (remembered, so it holds while the server machine can't be
 	 *  asked): "blacklist" (told nothing about the machine, MCSS or the server), "suspend" (may not start the game or
 	 *  use any control), or empty. Scope "machine" (this device) or "user" (the player, on every device). */
@@ -356,6 +358,22 @@ final class ServerControl {
 		// signed in, then still answers.
 		boolean pc = panel || (hasHelper() && answers(helperHostPort(), 2000));
 		String ping = game ? slp[0] : "", players = game ? slp[1] + " of " + slp[2] : "";
+		// Gatekeeper knows what this one server is doing (MCSS tells it), including while it's starting or shutting
+		// down. The game port alone can't say: two servers on one machine may share it.
+		if (hasHelper() && pc && !ban.equals("blacklist")) try {
+			Map<String, Object> ph = helper("GET", "/v1/phase", null);
+			if ("200".equals(str(ph.get("_code")))) {
+				mcssPhase = str(ph.get("mcss_phase"));
+				switch (str(ph.get("phase"))) {
+					case "online": return new String[] {"ok", "Online", "online", ping, players};
+					case "starting": return new String[] {"warn", "Starting\u2026", "starting", "", ""};
+					case "stopping": return new String[] {"warn", "Shutting down\u2026", "stopping", "", ""};
+					case "off": return new String[] {"off", "The server machine is awake, but the Minecraft server is off" + (canControlServer() ? ": press Start server" : ""), "off", "", ""};
+					case "nomcss": return new String[] {"off", mcssPhase.equals("starting") ? "MCSS is starting\u2026" : "The server machine is awake, but MCSS isn't running" + (viaHelper() ? ": Start server starts it too" : ""), "nomcss", "", ""};
+					default: break;
+				}
+			}
+		} catch (IOException | RuntimeException ignored) {}
 		if (viaHelper() && pc) {
 			String[] r = phase(statusCode(), ping, players);
 			if (r != null) return r;

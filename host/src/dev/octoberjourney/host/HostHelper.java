@@ -130,11 +130,115 @@ public final class HostHelper {
 
 	// ------------------------------------------------------------------ MCSS
 
+	/** Is the server being looked at up, coming up or going down? (Sleeping the machine and closing MCSS wait for it.) */
 	static boolean minecraftRunning() {
-		String hp = serverSetting("minecraft", "minecraft", "127.0.0.1:25565");
-		int c = hp.lastIndexOf(':');
-		try (Socket s = new Socket()) { s.connect(new InetSocketAddress(hp.substring(0, c), Integer.parseInt(hp.substring(c + 1))), 1500); return true; }
-		catch (IOException | RuntimeException e) { return false; }
+		String p = serverPhase();
+		return p.equals("online") || p.equals("starting") || p.equals("stopping");
+	}
+
+	/** Something Gatekeeper set going and is waiting to see finish: "starting" or "stopping" for a server (under its
+	 *  key + "|server"), "starting" or "closing" for MCSS (under "mcss"), each good until a time. */
+	static final Map<String, String> awaited = new java.util.concurrent.ConcurrentHashMap<>();
+	static final Map<String, Long> awaitedUntil = new java.util.concurrent.ConcurrentHashMap<>();
+	static void expect(String key, String what, long ms) { awaited.put(key, what); awaitedUntil.put(key, System.currentTimeMillis() + ms); phaseSeen.clear(); }
+	static String expected(String key) {
+		Long u = awaitedUntil.get(key);
+		if (u == null) return "";
+		if (System.currentTimeMillis() > u) { awaited.remove(key); awaitedUntil.remove(key); return ""; }
+		return awaited.getOrDefault(key, "");
+	}
+	static void met(String key) { awaited.remove(key); awaitedUntil.remove(key); }
+	static final Map<String, Object[]> phaseSeen = new java.util.concurrent.ConcurrentHashMap<>();   // (each server's last reading, kept a second or two)
+
+	/** What the server being looked at is doing: "online", "starting", "stopping", "off" (MCSS is running, it isn't) or
+	 *  "nomcss" (MCSS isn't running). MCSS says, for that one server (two servers can share a port, so a port that
+	 *  answers proves nothing about which one it is). Where MCSS can't be asked (Gatekeeper not signed in), the server's
+	 *  own world lock says whether it's running. Between Gatekeeper asking for a start or stop and MCSS showing it, it
+	 *  reads as starting or stopping. */
+	static String serverPhase() {
+		String key = serverKey();
+		Object[] c = phaseSeen.get(key);
+		if (c != null && System.currentTimeMillis() - (Long) c[0] < 1500) return (String) c[1];
+		String e = expected(key + "|server"), p;
+		if (!host.running()) p = e.equals("starting") ? "starting" : "nomcss";
+		else {
+			int st = host.hasAccess() ? host.serverStatus() : -1;
+			if (st == 1) p = e.equals("stopping") ? "stopping" : "online";
+			else if (st == 2 || st == 3) p = "starting";
+			else if (st == 4) p = "stopping";
+			else if (st == 0) p = e.equals("starting") ? "starting" : "off";
+			else p = worldInUse() ? (e.equals("stopping") ? "stopping" : "online") : e.equals("starting") ? "starting" : "off";
+		}
+		if ((p.equals("online") && e.equals("starting")) || ((p.equals("off") || p.equals("nomcss")) && e.equals("stopping"))) met(key + "|server");
+		phaseSeen.put(key, new Object[] {System.currentTimeMillis(), p});
+		return p;
+	}
+	/** Is the server's world open right now? A running server holds a lock on session.lock in its world folder. */
+	static boolean worldInUse() {
+		String level = "world";
+		for (String l : read(serverDir().resolve("server.properties")).split("\\R")) if (l.startsWith("level-name=") && !l.substring(11).isBlank()) level = l.substring(11).trim();
+		Path lock = serverDir().resolve(level).resolve("session.lock");
+		if (!Files.isRegularFile(lock)) return false;
+		try (java.nio.channels.FileChannel ch = java.nio.channels.FileChannel.open(lock, java.nio.file.StandardOpenOption.WRITE); java.nio.channels.FileLock fl = ch.tryLock()) { return fl == null; }
+		catch (IOException | java.nio.channels.OverlappingFileLockException ex) { return true; }
+	}
+	/** What MCSS itself is doing: "running", "starting" (opened, not answering Gatekeeper yet), "closing" or "off". */
+	static String mcssPhase() {
+		boolean up = host.running();
+		String e = expected("mcss");
+		if (e.equals("closing")) { if (!up) { met("mcss"); return "off"; } return "closing"; }
+		if (e.equals("starting")) { if (up && (!host.hasAccess() || host.serverStatus() >= 0)) { met("mcss"); return "running"; } return "starting"; }
+		return up ? "running" : "off";
+	}
+	/** The words for a phase, for a status line. */
+	static String phaseWords(String p) {
+		switch (p) {
+			case "online": return "running";
+			case "starting": return "starting\u2026";
+			case "stopping": return "shutting down\u2026";
+			case "nomcss": return "off (MCSS isn't running)";
+			default: return "off";
+		}
+	}
+
+	/** Closes MCSS, whatever it takes: with a Minecraft server running it stops each one first (the world is saved),
+	 *  waits in the background until they're down (up to 3 minutes), then closes MCSS. Returns at once with what is
+	 *  happening; how it ended goes in the log. */
+	static String[] closeMcssFully(boolean force, String by) {
+		if (!host.running()) return new String[] {"ok", "MCSS isn't running"};
+		List<String> up = new ArrayList<>();
+		String keep = SERVER.get();
+		try {
+			List<Object> l = servers();
+			for (int i = 0; i < Math.max(1, l.size()); i++) {
+				String id = l.isEmpty() ? "" : Json.str(Json.map(l.get(i)).get("id"));
+				SERVER.set(id);
+				if (minecraftRunning()) up.add(id);
+			}
+			if (up.isEmpty()) { expect("mcss", "closing", 60_000); String[] r = host.close(force); if (!r[0].equals("ok")) met("mcss"); return r; }
+			if (host.closeMode().equals("force") && !force) return host.close(false);   // (it says why it needs the force close)
+			if (!host.hasAccess()) return new String[] {"refused", "A Minecraft server is running and Gatekeeper isn't signed in to MCSS, so it can't stop it safely first: stop the server in MCSS, then close it"};
+			for (String id : up) { SERVER.set(id); host.serverAction(false); expect(serverKey() + "|server", "stopping", 200_000); }
+		} finally { SERVER.set(keep); }
+		expect("mcss", "closing", 260_000);
+		Thread t = new Thread(() -> {
+			try {
+				boolean down = false;
+				for (int i = 0; i < 180 && !down; i++) {
+					Thread.sleep(1000);
+					down = true;
+					for (String id : up) { SERVER.set(id); String p = serverPhase(); if (p.equals("online") || p.equals("starting") || p.equals("stopping")) down = false; }
+				}
+				if (!down) { met("mcss"); log("close MCSS (asked by " + by + "): the Minecraft server didn't stop within 3 minutes, so MCSS was left open"); return; }
+				Thread.sleep(1500);
+				String[] r = host.close(force);
+				if (!r[0].equals("ok")) met("mcss");
+				log("close MCSS (asked by " + by + "), after stopping the Minecraft server: " + r[1]);
+			} catch (InterruptedException ignored) {}
+		}, "close-mcss");
+		t.setDaemon(true);
+		t.start();
+		return new String[] {"ok", "The Minecraft server is running: it's being stopped first (the world is saved), then MCSS closes. A minute or so in all."};
 	}
 
 	// ------------------------------------------------------------------ Gatekeeper
@@ -282,10 +386,13 @@ public final class HostHelper {
 			int st = host.serverStatus();
 			if (st == 1) return new String[] {"ok", "The server is already on"};
 			if (st == 3) return new String[] {"ok", "The server is already starting"};
-			return host.serverAction(true);
+			String[] r = host.serverAction(true);
+			if (r[0].equals("ok")) expect(serverKey() + "|server", "starting", 240_000);
+			return r;
 		}
 		String[] s = host.start();
 		if (!s[0].equals("ok")) return s;
+		expect("mcss", "starting", 120_000); expect(serverKey() + "|server", "starting", 300_000);
 		String which = SERVER.get();
 		Thread t = new Thread(() -> {
 			SERVER.set(which);
@@ -388,6 +495,11 @@ public final class HostHelper {
 				else reply(x, 403, m("error", "this launcher is blacklisted"));
 				return;
 			}
+			if (path.equals("/v1/phase") && x.getRequestMethod().equals("GET")) {
+				// What this server and MCSS are doing right now, for any launcher Gatekeeper knows (not a blacklisted one).
+				reply(x, 200, m("phase", serverPhase(), "mcss_phase", mcssPhase()));
+				return;
+			}
 			if (path.equals("/v1/catalog") && x.getRequestMethod().equals("GET")) {
 				// What this Gatekeeper looks after, for a launcher's menu: its own name, and each Minecraft server with the
 				// address to join, whether it's on right now, and where its pack's profile is (for a launcher to install it).
@@ -400,7 +512,7 @@ public final class HostHelper {
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", setting("bind", "") + ":" + (port.isEmpty() ? "25565" : port),
-								"online", minecraftRunning(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
+								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
 								"kind", facts[0], "minecraft_version", facts[1]));
 					}
 				} finally { SERVER.set(keep); }
@@ -536,6 +648,7 @@ public final class HostHelper {
 				else if (path.equals("/v1/server/log") && x.getRequestMethod().equals("GET")) reply(x, 200, m("lines", serverLog(80)));
 				else if ((path.equals("/v1/server/start") || path.equals("/v1/server/stop")) && x.getRequestMethod().equals("POST")) {
 					String[] r = path.endsWith("start") ? startServerFully(who(d)) : host.serverAction(false);
+					if (path.endsWith("stop") && r[0].equals("ok")) expect(serverKey() + "|server", "stopping", 200_000);
 					log((path.endsWith("start") ? "start" : "stop") + " the Minecraft server asked by " + who(d) + ": " + r[1]);
 					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else reply(x, 404, m("error", "no such call"));
@@ -550,8 +663,8 @@ public final class HostHelper {
 			}
 			if (!granted) { reply(x, 403, m("state", "pending", "error", "not allowed yet: the owner allows this device in Gatekeeper")); return; }
 			String[] r;
-			if (path.equals("/v1/mcss/start") && x.getRequestMethod().equals("POST")) r = host.start();
-			else if (path.equals("/v1/mcss/close") && x.getRequestMethod().equals("POST")) r = host.close("true".equals(Json.str(body(x).get("force"))));
+			if (path.equals("/v1/mcss/start") && x.getRequestMethod().equals("POST")) { boolean was = host.running(); r = host.start(); if (!was && r[0].equals("ok")) expect("mcss", "starting", 120_000); }
+			else if (path.equals("/v1/mcss/close") && x.getRequestMethod().equals("POST")) r = closeMcssFully("true".equals(Json.str(body(x).get("force"))), who(d));
 			else { reply(x, 404, m("error", "no such call")); return; }
 			log((path.endsWith("start") ? "start" : "close") + " MCSS asked by " + who(d) + ": " + r[1]);
 			reply(x, 200, m("result", r[0], "message", r[1], "mcss", host.running()));
@@ -1110,7 +1223,7 @@ public final class HostHelper {
 				synchronized (HostHelper.class) { asked = new ArrayList<>(requests); seq = requestSeq; }
 				List<Object> names = new ArrayList<>();
 				for (Object o : servers()) names.add(m("id", Json.str(Json.map(o).get("id")), "name", Json.str(Json.map(o).get("name"))));
-				reply(x, 200, m("servers", names, "server_id", Json.str(server().get("id")), "requests", asked, "request_seq", seq, "devices", devs, "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(), "port", port(), "bind", setting("bind", ""),
+				reply(x, 200, m("servers", names, "server_id", Json.str(server().get("id")), "requests", asked, "request_seq", seq, "devices", devs, "mcss", host.running(), "minecraft", minecraftRunning(), "server_phase", serverPhase(), "mcss_phase", mcssPhase(), "close", host.closeMode(), "port", port(), "bind", setting("bind", ""),
 						"has_key", host.hasAccess(), "key_works", !host.hasAccess() ? "" : host.accessState(), "mcss_user", host.user()));
 			} else if (path.equals("/admin/revoke")) {
 				// Revoke: everything that lets it control the server is taken away.
@@ -1123,7 +1236,9 @@ public final class HostHelper {
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/mcss/start") || path.equals("/admin/mcss/close")) {
 				// MCSS itself, from the panel on this PC: the same start and close the launchers ask for.
-				String[] r = path.endsWith("start") ? host.start() : host.close("true".equals(Json.str(body(x).get("force"))));
+				boolean wasUp = host.running();
+				String[] r = path.endsWith("start") ? host.start() : closeMcssFully("true".equals(Json.str(body(x).get("force"))), "the owner");
+				if (path.endsWith("start") && !wasUp && r[0].equals("ok")) expect("mcss", "starting", 120_000);
 				log((path.endsWith("start") ? "start" : "close") + " MCSS from Gatekeeper: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/ban")) {
@@ -1180,6 +1295,7 @@ public final class HostHelper {
 				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/server/stop")) {
 				String[] r = host.serverAction(false);
+				if (r[0].equals("ok")) expect(serverKey() + "|server", "stopping", 200_000);
 				log("stop the Minecraft server from Gatekeeper: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/server/start")) {
@@ -1229,12 +1345,12 @@ public final class HostHelper {
 					for (Object o : servers()) {
 						Map<String, Object> s = Json.map(o);
 						SERVER.set(Json.str(s.get("id")));
-						boolean on = minecraftRunning();
-						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "running", on, "players", on ? onlineBy.getOrDefault(serverKey(), Map.of()).size() : 0,
+						boolean on = serverPhase().equals("online");
+						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "running", on, "phase", serverPhase(), "players", on ? onlineBy.getOrDefault(serverKey(), Map.of()).size() : 0,
 								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir"))));
 					}
 				} finally { SERVER.set(keep); }
-				reply(x, 200, m("mcss_exe", setting("mcss_exe", ""), "mcss", host.running(), "has_key", host.hasAccess(), "servers", list));
+				reply(x, 200, m("mcss_exe", setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list));
 			} else if (path.equals("/admin/pulls")) {
 				List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
 				java.util.Collections.reverse(all);
@@ -1712,16 +1828,19 @@ public final class HostHelper {
 						seqSeen[0] = seq;
 						mcssUp[0] = Boolean.TRUE.equals(r.get("mcss")); mcssClose[0] = Json.str(r.get("close"));
 						mcssRun.setText(!mcssUp[0] ? "Start MCSS" : mcssClose[0].equals("force") ? "Force close MCSS" : "Close MCSS");
-						mcssRun.setEnabled(!mcssUp[0] || !Boolean.TRUE.equals(r.get("minecraft")));
-						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Stop the Minecraft server first" : "Starts MCSS on this machine, or closes it (only once the Minecraft server is stopped).");
+						String mph = Json.str(r.get("mcss_phase")), sph = Json.str(r.get("server_phase"));
+						mcssRun.setEnabled(!mph.equals("starting") && !mph.equals("closing"));
+						mcssRun.setToolTipText(mcssUp[0] && Boolean.TRUE.equals(r.get("minecraft")) ? "Closes MCSS. A Minecraft server is running: it's stopped first (the world is saved), then MCSS closes." : "Starts MCSS on this machine, or closes it.");
 						state.setForeground(new Color(0x8BD46E));
 						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over Tailscale).");
-						mcssState.setForeground(Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0x8F98A0));
-						mcssState.setText(Boolean.TRUE.equals(r.get("mcss")) ? "MCSS is running" : "MCSS isn't running");
-						serverUpNow[0] = Boolean.TRUE.equals(r.get("minecraft"));
-						serverState.setForeground(serverUpNow[0] ? new Color(0x8BD46E) : new Color(0x8F98A0));
-						serverState.setText(serverUpNow[0] ? "The Minecraft server is running" : "The Minecraft server is off");
+						boolean mBusy = mph.equals("starting") || mph.equals("closing"), sBusy = sph.equals("starting") || sph.equals("stopping");
+						mcssState.setForeground(mBusy ? new Color(0xE9B949) : Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0x8F98A0));
+						mcssState.setText(mph.equals("starting") ? "MCSS is starting\u2026" : mph.equals("closing") ? "MCSS is closing\u2026 (after the Minecraft server has stopped)" : Boolean.TRUE.equals(r.get("mcss")) ? "MCSS is running" : "MCSS isn't running");
+						serverUpNow[0] = sph.equals("online") || sph.equals("stopping");
+						serverState.setForeground(sBusy ? new Color(0xE9B949) : sph.equals("online") ? new Color(0x8BD46E) : new Color(0x8F98A0));
+						serverState.setText("The Minecraft server is " + phaseWords(sph));
 						serverRun.setText(serverUpNow[0] ? "Stop server" : "Start server");
+						serverRun.setEnabled(!sBusy);
 						StringBuilder sb = new StringBuilder();
 						for (Object l : lg) sb.append(l).append('\n');
 						if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
@@ -1818,7 +1937,8 @@ public final class HostHelper {
 				boolean up = Boolean.TRUE.equals(r.get("mcss"));
 				String exe = Json.str(r.get("mcss_exe"));
 				Object[] mr = overRow.apply(exe.isEmpty() ? "MCSS (not set up yet: Server setup, on a server's Status tab)" : exe, null);
-				((JLabel) mr[1]).setText((up ? "Running" : "Not running") + (Boolean.TRUE.equals(r.get("has_key")) ? "" : ". Gatekeeper isn't signed in to it yet."));
+				String mph0 = Json.str(r.get("mcss_phase"));
+				((JLabel) mr[1]).setText((mph0.equals("starting") ? "Starting\u2026" : mph0.equals("closing") ? "Closing\u2026" : up ? "Running" : "Not running") + (Boolean.TRUE.equals(r.get("has_key")) ? "" : ". Gatekeeper isn't signed in to it yet."));
 				((JLabel) mr[1]).setForeground(up ? new Color(0x8BD46E) : new Color(0x8F98A0));
 				overList.add((JPanel) mr[0]);
 				JLabel h2 = new JLabel("Servers in this MCSS"); h2.setFont(h2.getFont().deriveFont(Font.BOLD, 14f)); h2.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0)); h2.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
@@ -1830,9 +1950,10 @@ public final class HostHelper {
 					boolean on = Boolean.TRUE.equals(s.get("running"));
 					Object[] sr = overRow.apply(Json.str(s.get("name")), "Open");
 					String players = Json.str(s.get("players")).replaceAll("\\.0$", "");
-					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + "   \u00b7   " + Json.str(s.get("dir")));
-					((JLabel) sr[1]).setForeground(on ? new Color(0x8BD46E) : new Color(0x8F98A0));
-					((JButton) sr[2]).setToolTipText("Access Manager, Status and Updates Pulled for this server");
+					String ph = Json.str(s.get("phase"));
+					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + "   \u00b7   " + Json.str(s.get("dir")));
+					((JLabel) sr[1]).setForeground(on ? new Color(0x8BD46E) : ph.equals("starting") || ph.equals("stopping") ? new Color(0xE9B949) : new Color(0x8F98A0));
+					((JButton) sr[2]).setToolTipText("Access Manager, Server Status and Updates Pulled for this server");
 					String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
 					((JButton) sr[2]).addActionListener(ev -> { panelServer = id; inServer[0] = true; head.setText("Gatekeeper \u2013 " + nm); backB.setVisible(true); levels.show(stack, "server"); refresh.run(); });
 					overList.add((JPanel) sr[0]); overList.add(javax.swing.Box.createVerticalStrut(8));

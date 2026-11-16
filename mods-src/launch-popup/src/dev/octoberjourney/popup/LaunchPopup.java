@@ -1123,7 +1123,7 @@ public final class LaunchPopup {
 		mcss.setIconTextGap(8);
 		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS"), pcSleep = new JButton("Sleep server machine");
 		mStart.setToolTipText("Starts MCSS (the program that runs the Minecraft server) on the server machine");
-		mClose.setToolTipText("Closes MCSS on the server machine. Only once the Minecraft server is stopped.");
+		mClose.setToolTipText("Closes MCSS on the server machine. If the Minecraft server is running it is stopped first (the world is saved), then MCSS closes.");
 		pcSleep.setToolTipText("Puts the server machine to sleep. Only while the Minecraft server is stopped; Wake brings it back.");
 		boolean[] forceMode = {false};
 		mStart.setEnabled(false); mClose.setEnabled(false); pcSleep.setEnabled(false);
@@ -1142,6 +1142,8 @@ public final class LaunchPopup {
 				game = "true".equals(s(r.get("minecraft")));
 				// How MCSS is, whatever this device may do about it (only a blacklisted launcher isn't told).
 				if (c.ban.equals("blacklist")) { text = "Not shown: this launcher is blacklisted"; state = "off"; }
+				else if (c.mcssPhase.equals("starting")) { text = "MCSS is starting\u2026"; state = "warn"; }
+				else if (c.mcssPhase.equals("closing")) { text = "MCSS is closing\u2026 (after the Minecraft server has stopped)"; state = "warn"; }
 				else { text = running ? "MCSS is running" : "MCSS isn't running"; state = running ? "ok" : "off"; }
 			} catch (IOException | RuntimeException e) { state = "off"; text = "Gatekeeper isn't answering (the server machine may be asleep or signed out)"; }
 			String st = state, tx = text, md = mode; boolean g = granted, run = running, sl = sleepOk, gm = game;

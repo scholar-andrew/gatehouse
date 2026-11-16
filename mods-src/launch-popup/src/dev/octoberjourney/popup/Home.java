@@ -306,7 +306,8 @@ final class Home {
 								String profile = str(s.get("profile"));
 								String kind = str(s.get("kind")), version = str(s.get("minecraft_version"));
 								boolean plain = profile.isEmpty() && kind.equals("vanilla");
-								set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + (version.isEmpty() ? "" : ", Minecraft " + version) + (r[1] != null ? ""
+								String phase = str(s.get("phase"));
+								set.accept((JLabel) r[0], new String[] {on ? "ok" : phase.equals("starting") || phase.equals("stopping") ? "warn" : "off", (on ? "Online" : phase.equals("starting") ? "Starting\u2026" : phase.equals("stopping") ? "Shutting down\u2026" : "Off") + (version.isEmpty() ? "" : ", Minecraft " + version) + (r[1] != null ? ""
 										: plain ? (version.isEmpty() ? ". A plain server, but its version isn't known yet (it has to have been started once)." : ". A plain server: Install sets up a connection to it on this device.")
 										: profile.isEmpty() ? ". It has mods, and its pack isn't published for launchers to install: ask the owner." : ". Install sets its pack up on this device.")});
 								JButton ib = (JButton) r[5];
