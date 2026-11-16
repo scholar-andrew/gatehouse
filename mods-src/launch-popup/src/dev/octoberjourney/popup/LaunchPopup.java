@@ -121,6 +121,7 @@ public final class LaunchPopup {
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
 				case "request" -> System.out.println("request: " + c.requestServer());
+				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
 				case "admin-devices" -> System.out.println("admin devices: " + c.helper("GET", "/v1/admin/devices", null));
 				case "admin-perm" -> System.out.println("admin perm: " + c.helper("POST", "/v1/admin/perm", "{\"id\":\"" + args[3] + "\",\"perm\":\"" + args[4] + "\",\"value\":" + args[5] + "}"));
 				case "admin-forget" -> System.out.println("admin forget: " + c.helper("POST", "/v1/admin/forget", "{\"id\":\"" + args[3] + "\"}"));
@@ -589,7 +590,7 @@ public final class LaunchPopup {
 		else if (!somethingHappened && serverNews) headline = NAME + playing + ": server changes";
 		else headline = NAME + playing + (somethingHappened ? "" : ": no updates");
 		String sub;
-		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing + " as installed.";
+		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing + " as installed. The Connection tab says what's wrong.";
 		else if (status.equals("failed")) sub = "Starting with the mods already installed. Details are in pack-sync.log in the game folder.";
 		else if (updated || somethingHappened) sub = "Here's what this launch checked and changed.";
 		else if (serverNews) sub = "Nothing new for this device; the Server updates tab shows what changed on the server.";
@@ -1305,6 +1306,12 @@ public final class LaunchPopup {
 			if (control.configured()) serverTab.add(liveLine, BorderLayout.NORTH);
 			serverTab.add(scroller(serverRows, big || serverNews), BorderLayout.CENTER);
 			tabs.addTab(serverNews ? "Server updates (new)" : "Server updates", serverTab);
+			// Connection: whether this device can reach the server machine, and what to do when it can't. Always the last
+			// tab; the server tabs go in before it.
+			JPanel connectionTab = new JPanel(new BorderLayout());
+			connectionTab.setBorder(BorderFactory.createLineBorder(new Color(0xD5D8DD)));
+			connectionTab.add(Connection.panel(dir, control, f, System.getenv("OJ_POPUP_PNG") == null), BorderLayout.CENTER);
+			tabs.addTab("Connection", connectionTab);
 			// Play only works while the server is online (checked every few seconds; with no server set up for the pack
 			// there's nothing to wait for).
 			boolean[] serverLive = {!control.configured()};
@@ -1348,11 +1355,11 @@ public final class LaunchPopup {
 				// server machine is asleep (to wake it), and they come and go as the owner allows or removes it.
 				syncTabs[0] = () -> {
 					boolean want = control.showServerTabs(), have = tabs.indexOfComponent(serverTabs[0]) >= 0;
-					if (want && !have) { tabs.addTab("Server controls", serverTabs[0]); tabs.addTab("Server config", serverTabs[1]); }
-					else if (!want && have) { if (tabs.getSelectedIndex() >= 2) tabs.setSelectedIndex(0); tabs.remove(serverTabs[0]); tabs.remove(serverTabs[1]); }
+					if (want && !have) { int at = tabs.indexOfComponent(connectionTab); tabs.insertTab("Server controls", null, serverTabs[0], null, at); tabs.insertTab("Server config", null, serverTabs[1], null, at + 1); }
+					else if (!want && have) { if (tabs.getSelectedComponent() == serverTabs[0] || tabs.getSelectedComponent() == serverTabs[1]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[0]); tabs.remove(serverTabs[1]); }
 					// Manage launchers: only for a device the owner allowed Keeper control (in the control panel on the server machine).
 					boolean wantM = want && control.permAdmin, haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
-					if (wantM && !haveM) tabs.addTab("Remote control panel", serverTabs[2]);
+					if (wantM && !haveM) tabs.insertTab("Remote control panel", null, serverTabs[2], null, tabs.indexOfComponent(connectionTab));
 					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == serverTabs[2]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); }
 				};
 				syncTabs[0].run();
@@ -1463,7 +1470,7 @@ public final class LaunchPopup {
 						p.validate();
 						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
-						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (i == 2 ? "-controls.png" : i == 3 ? "-config.png" : "-manage.png")));
+						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + (tabs.getTitleAt(i).startsWith("Server controls") ? "-controls.png" : tabs.getTitleAt(i).startsWith("Server config") ? "-config.png" : tabs.getTitleAt(i).startsWith("Remote") ? "-manage.png" : "-connection.png")));
 					}
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);

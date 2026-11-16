@@ -161,6 +161,14 @@ tabs inside:
 
 Keeper control itself is only given on the server PC.
 
+The last tab, **Connection**, is for when something doesn't connect. It checks in order: the internet, Tailscale on
+this device (installed, signed in, switched on), whether the server machine is in the Tailscale network this device is
+signed in to, whether the server machine answers, where updates come from, Gatehouse Keeper, and the Minecraft server.
+The top line names the first thing to fix, and each failed line says what to do. **Open Tailscale** (Windows) and
+**Get Tailscale** open the app or its download page; **Copy details** copies the result to send to the owner. It
+only looks: it installs nothing and changes no settings. On Linux and the Steam Deck it can't ask Tailscale itself
+(Prism runs in a sandbox), so it tells from the network whether Tailscale is connected.
+
 The window stays open while the server wakes or starts: nothing closes it but you.
 
 Nothing starts the game by itself: there are no countdowns. The window waits until you press **Play** (or Enter or
