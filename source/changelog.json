@@ -1,4 +1,7 @@
 [
+ {"version": "1.9.16", "date": "2026-11-15", "notes": [
+  "The launcher no longer stays on top of every other window. It still comes to the front when it opens; after that, whatever you switch to covers it like any other window."
+ ]},
  {"version": "1.9.15", "date": "2026-11-15", "notes": [
   "New Connection tab: it checks, step by step, whether this device can reach the server machine (internet, Tailscale on this device, the server machine in your Tailscale network, the pack, Gatehouse Keeper, the Minecraft server) and says what to do about the first thing that's wrong. Buttons open Tailscale or its download page, and Copy details gives you the result to send to the owner."
  ]},

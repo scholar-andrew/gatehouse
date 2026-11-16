@@ -89,6 +89,18 @@ public final class LaunchPopup {
 		if (!n.isEmpty()) NAME = n;
 	}
 
+	/** Brings the window to the front when it opens (it's started by Prism Launcher, behind whose window it could
+	 *  otherwise open), without keeping it above other windows afterwards: it is on top for a moment only, so anything
+	 *  the player switches to covers it like any other window. */
+	static void bringForwardOnce(JFrame f) {
+		f.setAlwaysOnTop(true);
+		f.toFront();
+		f.requestFocus();
+		Timer t = new Timer(600, e -> f.setAlwaysOnTop(false));
+		t.setRepeats(false);
+		t.start();
+	}
+
 	static volatile JFrame reuse;
 	/** The question before a download (how big the update is; Download or Skip this time): being asked now, and the
 	 *  size that was skipped, if it was. */
@@ -224,8 +236,7 @@ public final class LaunchPopup {
 			f.setContentPane(p);
 			f.pack();
 			f.setLocationRelativeTo(null);
-			f.setAlwaysOnTop(true);
-			if (System.getenv("OJ_POPUP_PNG") == null) f.setVisible(true);   // (testing: pictures only)
+			if (System.getenv("OJ_POPUP_PNG") == null) { f.setVisible(true); bringForwardOnce(f); }   // (testing: pictures only)
 			reuse = f;
 		});
 		String png = System.getenv("OJ_POPUP_PNG");
@@ -1489,9 +1500,8 @@ public final class LaunchPopup {
 				return;
 			}
 			f.setLocationRelativeTo(null);
-			f.setAlwaysOnTop(true);
 			f.setVisible(true);
-			f.toFront();
+			bringForwardOnce(f);
 			play.requestFocusInWindow();
 			timer.start();
 		});
