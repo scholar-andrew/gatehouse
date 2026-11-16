@@ -13,12 +13,27 @@ function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -F
 # packwiz-installer's record of the installed files as it was before this launch's update (packwiz-before.json; "{}" on
 # a first install), which the pop-up compares with the record afterwards to list the mods added, removed and updated.
 $statusFile = Join-Path $here 'pack-sync-status.txt'
+# Run by the Gatehouse launcher instead of Prism (GATEHOUSE_EMBED=1): its own window is the checklist, so no window is
+# opened from here; the question about the download is asked there; and at the end, instead of waiting for Play, this
+# leaves "pack-sync-fresh.txt" (when, and how it went) and ends. Gatehouse then has Prism start the instance, which
+# runs this script again in the usual way: finding that note less than three minutes old, it updates nothing a second
+# time and goes straight to the launcher window, with what the first run found.
+$embed = [bool]$env:GATEHOUSE_EMBED
+$freshFile = Join-Path $here 'pack-sync-fresh.txt'
+$fresh = $null
+if (-not $embed -and (Test-Path $freshFile)) {
+    try { $ff = "$(Get-Content $freshFile -Raw)".Trim() -split '\|'; $age = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() - [long]$ff[0]; if ($age -ge 0 -and $age -lt 180 -and $ff[1]) { $fresh = $ff[1] } } catch { }
+}
+Remove-Item $freshFile -Force -ErrorAction SilentlyContinue
+if (-not $fresh) {
 Set-Content -Path $statusFile -Value $null -Encoding utf8
 Remove-Item (Join-Path $here 'pack-sync-news.txt') -ErrorAction SilentlyContinue   # (what syncs before this one wrote)
+}
 function Status($state, $what, $detail = '') { Add-Content -Path $statusFile -Value "check|$state|$what|$detail" -Encoding utf8 }
 function News($text) { Add-Content -Path $statusFile -Value "note|$text" -Encoding utf8 }
 $pwRecord = Join-Path $here 'packwiz.json'
-if (Test-Path $pwRecord) { Copy-Item $pwRecord (Join-Path $here 'packwiz-before.json') -Force } else { Set-Content (Join-Path $here 'packwiz-before.json') '{}' -Encoding ascii }
+if ($fresh) { }   # (the records are the first run's: kept)
+elseif (Test-Path $pwRecord) { Copy-Item $pwRecord (Join-Path $here 'packwiz-before.json') -Force } else { Set-Content (Join-Path $here 'packwiz-before.json') '{}' -Encoding ascii }
 # The pop-up (extras/launch-popup.jar, a small Java window): started first thing as a checklist of this script's steps,
 # ticked off as their "check" lines arrive in pack-sync-status.txt, then (after "done|<status>") the summary in the same
 # window: what changed, patch notes, the Server tab, and Play, Restart (run this again) or Quit (cancel the launch).
@@ -34,6 +49,7 @@ function RunJar {
     if (Test-Path $runJar) { $runJar } else { $popupJar }
 }
 function StartProgress {
+    if ($embed) { return }   # (the Gatehouse window is the checklist)
     if (-not $java -or -not (Test-Path $popupJar)) { return }
     $w = Join-Path (Split-Path $java -Parent) 'javaw.exe'; if (-not (Test-Path -LiteralPath $w)) { $w = $java }
     try { $script:popup = Start-Process -FilePath $w -ArgumentList @('-jar', "`"$(RunJar)`"", '--progress', "`"$here`"") -PassThru; $null = $script:popup.Handle }
@@ -41,6 +57,11 @@ function StartProgress {
 }
 function StopProgress { if ($script:popup -and -not $script:popup.HasExited) { try { $script:popup.Kill() } catch { } } }
 function ShowPopup($status) {
+    if ($embed) {
+        Add-Content -Path $statusFile -Value "done|$status" -Encoding utf8
+        Set-Content -Path $freshFile -Value ("{0}|{1}" -f [DateTimeOffset]::UtcNow.ToUnixTimeSeconds(), $status) -Encoding ascii
+        return 0
+    }
     $p = $script:popup
     if ($p -and -not $p.HasExited) { Add-Content -Path $statusFile -Value "done|$status" -Encoding utf8 }
     elseif ($p -and $p.ExitCode -eq 10) { return 10 }   # quit while the update ran
@@ -183,6 +204,7 @@ foreach ($c in @($env:INST_JAVA) + @(Get-ChildItem (Join-Path $here '..\..\..\ja
     if (Test-Path -LiteralPath $c -PathType Leaf) { $java = $c; break }
 }
 if (-not $java -and (Get-Command java -ErrorAction SilentlyContinue)) { $java = (Get-Command java).Source }
+if ($fresh) { Note "updated a moment ago in the Gatehouse window ($fresh): straight to the launcher"; AfterPopup (ShowPopup $fresh); exit 0 }
 StartProgress
 $variant = 'main'
 $sources = @(Get-Content (Join-Path $here 'pack-sources.txt') | Where-Object { $_ -and -not $_.Trim().StartsWith('#') } | ForEach-Object { $_.Trim().TrimEnd('/') })
@@ -247,17 +269,19 @@ $answerFile = Join-Path $here 'pack-sync-answer.txt'
 Remove-Item $answerFile, "$popupJar.new" -Force -ErrorAction SilentlyContinue
 $skip = $false; $skipSize = ''
 foreach ($round in 1, 2) {
-    if (-not ($script:popup -and -not $script:popup.HasExited)) { break }
-    if ($round -eq 1) { Add-Content -Path $statusFile -Value ('ask|' + ($urls[0] -replace '/pack\.toml$', '') + '|self-update') -Encoding utf8 }
+    if (-not $embed -and -not ($script:popup -and -not $script:popup.HasExited)) { break }
+    # (Gatehouse's window updates Gatehouse itself, in its own time: no "self-update" for it)
+    if ($round -eq 1) { Add-Content -Path $statusFile -Value ('ask|' + ($urls[0] -replace '/pack\.toml$', '') + $(if ($embed) { '' } else { '|self-update' })) -Encoding utf8 }
     $asked = Get-Date; $answer = ''
-    while (-not $script:popup.HasExited) {
+    while ($embed -or -not $script:popup.HasExited) {
         $answer = if (Test-Path $answerFile) { "$(Get-Content $answerFile -Raw -ErrorAction SilentlyContinue)".Trim() } else { '' }
         if ($answer -and $answer -ne 'wait') { break }
         if (-not $answer -and ((Get-Date) - $asked).TotalSeconds -gt 30) { Note 'the launcher gave no answer about the update size; updating'; break }
         Start-Sleep -Milliseconds 200
     }
-    if ($script:popup.HasExited -and $script:popup.ExitCode -eq 10) { AfterPopup 10 }
-    if ($round -eq 1 -and $script:popup.HasExited -and $script:popup.ExitCode -eq 12 -and (Test-Path "$popupJar.new")) {
+    if ($embed) { if ($answer -eq 'quit') { Note 'launch cancelled in the Gatehouse window (Quit)'; exit 10 } }
+    elseif ($script:popup.HasExited -and $script:popup.ExitCode -eq 10) { AfterPopup 10 }
+    if (-not $embed -and $round -eq 1 -and $script:popup.HasExited -and $script:popup.ExitCode -eq 12 -and (Test-Path "$popupJar.new")) {
         try { Move-Item "$popupJar.new" $popupJar -Force; Note 'the launcher updated itself; opening the new one' }
         catch { Note "couldn't swap in the new launcher: $($_.Exception.Message)" }
         Remove-Item $answerFile -Force -ErrorAction SilentlyContinue

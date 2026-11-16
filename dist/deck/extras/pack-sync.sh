@@ -16,10 +16,27 @@ note() { echo "$(date '+%Y-%m-%d %H:%M:%S')  $*" >> "$here/pack-sync.log"; echo 
 # each: "check|<ok, updated, off, warn or failed>|<what>|<detail>", "switch|<on or off>|<mod>" or "note|<text>". And
 # packwiz-installer's record of the installed files as it was before this launch's update (packwiz-before.json; "{}" on
 # a first install), which the pop-up compares with the record afterwards to list the mods added, removed and updated.
-: > "$here/pack-sync-status.txt"
-rm -f "$here/pack-sync-news.txt"   # (what syncs before this one wrote)
+# Run by the Gatehouse launcher instead of Prism (GATEHOUSE_EMBED=1): its own window is the checklist, so no window is
+# opened from here; the question about the download is asked there; and at the end, instead of waiting for Play, this
+# leaves "pack-sync-fresh.txt" (when, and how it went) and ends. Gatehouse then has Prism start the instance, which
+# runs this script again in the usual way: finding that note less than three minutes old, it updates nothing a second
+# time and goes straight to the launcher window, with what the first run found.
+embed="${GATEHOUSE_EMBED:-}"
+fresh=""
+if [ -z "$embed" ] && [ -f "$here/pack-sync-fresh.txt" ]; then
+  IFS='|' read -r fresh_when fresh_what < "$here/pack-sync-fresh.txt" || true
+  fresh_what="${fresh_what%%$'\r'}"
+  case "$fresh_when" in ''|*[!0-9]*) fresh_when=0 ;; esac
+  fresh_age=$(( $(date +%s) - fresh_when ))
+  if [ "$fresh_age" -ge 0 ] && [ "$fresh_age" -lt 180 ] && [ -n "$fresh_what" ]; then fresh="$fresh_what"; fi
+fi
+rm -f "$here/pack-sync-fresh.txt"
 status() { echo "check|$1|$2|${3:-}" >> "$here/pack-sync-status.txt"; }
-if [ -f "$here/packwiz.json" ]; then cp -f "$here/packwiz.json" "$here/packwiz-before.json"; else echo "{}" > "$here/packwiz-before.json"; fi
+if [ -z "$fresh" ]; then   # (otherwise the status and the records are the first run's: kept)
+  : > "$here/pack-sync-status.txt"
+  rm -f "$here/pack-sync-news.txt"   # (what syncs before this one wrote)
+  if [ -f "$here/packwiz.json" ]; then cp -f "$here/packwiz.json" "$here/packwiz-before.json"; else echo "{}" > "$here/packwiz-before.json"; fi
+fi
 # The pop-up (extras/launch-popup.jar, a small Java window): started first thing as a checklist of this script's steps,
 # ticked off as their "check" lines arrive in pack-sync-status.txt, then (after "done|<status>") the summary in the same
 # window: what changed, patch notes, the Server tab, and Play, Restart (run this again) or Quit (cancel the launch).
@@ -29,12 +46,18 @@ popup_pid=""
 # is locked and the update has to be able to replace extras/launch-popup.jar while the launcher's window is open.
 run_jar() { cp -f "$here/extras/launch-popup.jar" "$here/launcher-run.jar" 2>/dev/null; if [ -f "$here/launcher-run.jar" ]; then echo "$here/launcher-run.jar"; else echo "$here/extras/launch-popup.jar"; fi; }
 start_progress() {
+  [ -n "$embed" ] && return 0   # (the Gatehouse window is the checklist)
   [ -n "$java_bin" ] && [ -f "$here/extras/launch-popup.jar" ] || return 0
   "$java_bin" -jar "$(run_jar)" --progress "$here" >> "$here/pack-sync-popup.log" 2>&1 &
   popup_pid=$!
 }
 stop_progress() { [ -n "$popup_pid" ] && kill "$popup_pid" 2>/dev/null; popup_pid=""; }
 popup() {  # popup ok|offline|failed; returns the player's choice
+  if [ -n "$embed" ]; then
+    echo "done|$1" >> "$here/pack-sync-status.txt"
+    echo "$(date +%s)|$1" > "$here/pack-sync-fresh.txt"
+    return 0
+  fi
   if [ -n "$popup_pid" ] && kill -0 "$popup_pid" 2>/dev/null; then
     echo "done|$1" >> "$here/pack-sync-status.txt"
   else
@@ -159,6 +182,7 @@ for c in "${INST_JAVA:-}" "$here"/../../../java/*/bin/java; do
   if [ -f "$c" ] && [ -x "$c" ]; then java_bin="$c"; break; fi
 done
 [ -n "$java_bin" ] || java_bin="$(command -v java || true)"
+if [ -n "$fresh" ]; then note "updated a moment ago in the Gatehouse window ($fresh): straight to the launcher"; popup "$fresh"; after_popup $?; exit 0; fi
 start_progress
 # Which sources answer, in order, each given 5 seconds. If none does (after sleep or at startup the network can still be
 # coming up), one more round after 5 seconds.
@@ -190,16 +214,21 @@ fi
 rm -f "$here/pack-sync-answer.txt" "$here/extras/launch-popup.jar.new"
 skip=0; skip_size=""
 for round in 1 2; do
-  [ -n "$popup_pid" ] && kill -0 "$popup_pid" 2>/dev/null || break
-  [ "$round" = 1 ] && echo "ask|${urls[0]%/pack.toml}|self-update" >> "$here/pack-sync-status.txt"
+  if [ -z "$embed" ]; then [ -n "$popup_pid" ] && kill -0 "$popup_pid" 2>/dev/null || break; fi
+  # (Gatehouse's window updates Gatehouse itself, in its own time: no "self-update" for it)
+  if [ "$round" = 1 ]; then
+    if [ -n "$embed" ]; then echo "ask|${urls[0]%/pack.toml}" >> "$here/pack-sync-status.txt"; else echo "ask|${urls[0]%/pack.toml}|self-update" >> "$here/pack-sync-status.txt"; fi
+  fi
   asked=$SECONDS; answer=""
-  while kill -0 "$popup_pid" 2>/dev/null; do
+  while [ -n "$embed" ] || kill -0 "$popup_pid" 2>/dev/null; do
     answer="$(tr -d '\r\n' < "$here/pack-sync-answer.txt" 2>/dev/null || true)"
     if [ -n "$answer" ] && [ "$answer" != wait ]; then break; fi
     if [ -z "$answer" ] && [ $((SECONDS - asked)) -gt 30 ]; then note "the launcher gave no answer about the update size; updating"; break; fi
     sleep 0.2
   done
-  if ! kill -0 "$popup_pid" 2>/dev/null; then
+  if [ -n "$embed" ]; then
+    if [ "$answer" = quit ]; then note "launch cancelled in the Gatehouse window (Quit)"; exit 10; fi
+  elif ! kill -0 "$popup_pid" 2>/dev/null; then
     wait "$popup_pid"; c=$?; popup_pid=""
     [ "$c" = 10 ] && after_popup 10
     if [ "$round" = 1 ] && [ "$c" = 12 ] && [ -f "$here/extras/launch-popup.jar.new" ]; then
