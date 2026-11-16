@@ -114,10 +114,12 @@ safe; it updates your setup without duplicating anything.
    Beside **Servers** is **Connections**: the server machine, MCSS and each server, each with what it's doing right
    now (including Starting and Shutting down) and the buttons your device is allowed: **Wake** or **Sleep**, **Start
    MCSS** or **Close MCSS**, **Start server** or **Stop server**. Stopping and closing ask first.
-3. **The server's own launcher.** Play starts that pack: its update runs first and the window described below
-   appears. Its **Menu** button comes back here without starting the game.
+3. **The server's own launcher.** **Launch** beside a server starts that pack: its update runs first and the window
+   described below appears, where **Play** starts the game. Its **Gatehouse** button comes back here without starting
+   the game.
 
-Along the bottom are **Open Prism Launcher** (accounts, other instances, settings), **Quit**, and the launcher's own
+Along the bottom are **Open Prism Launcher** (accounts, other instances, settings), **Restart** (opens the launcher
+again from the start, looking for a newer Gatehouse), **Quit**, and the launcher's own
 Steam config button.
 
 The two shortcuts differ in one thing. A pack's own Steam shortcut (**October Journey - ...**) goes straight into the
@@ -150,7 +152,7 @@ layout).
 | --- | --- |
 | Left stick, d-pad | Move the selection to the nearest button, tab, box or list that way. An outline shows it. |
 | A | Presses the selected button (ticks a box, opens a drop-down). |
-| B, Select | Jump to the button that goes up a level: **Menu** in a server's launcher, **Gatekeepers** in the list of servers, Cancel in a question. |
+| B, Select | Jump to the button that goes up a level: **Gatehouse** in a server's launcher, **Gatekeepers** in the list of servers, Cancel in a question. |
 | Y | Jumps to **Restart**. |
 | Start | Jumps to **Quit**. |
 | Right trigger | A left click where the pointer is. |

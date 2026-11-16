@@ -20,7 +20,7 @@ import javax.swing.text.JTextComponent;
 /** Driving the launcher's windows with a controller (Pad reads it):
  *    left stick, d-pad   move the selection to the nearest button, tab, box or list in that direction
  *    A                   presses the selected button (ticks a box, opens a drop-down)
- *    B, Select           select the button that goes up a level (Menu, Gatekeepers; Cancel in a question)
+ *    B, Select           select the button that goes up a level (Gatehouse, Gatekeepers; Cancel in a question)
  *    Y                   selects Restart
  *    Start               selects Quit
  *    right trigger       a left mouse click where the pointer is (the right trackpad moves it, in the Steam layout)

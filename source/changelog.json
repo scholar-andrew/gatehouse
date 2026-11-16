@@ -1,4 +1,7 @@
 [
+ {"version": "1.17.1", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack itself. The launcher did (Gatehouse 2.0.1): the Menu button here is now called Gatehouse. The rest is on the Gatehouse updates tab on its main window."
+ ]},
  {"version": "1.17.0", "date": "2026-11-16", "notes": [
   "Notes now come from four separate places. This tab (Client updates) is only about the pack: the game on your device. Server updates is about the server. Gatehouse, the launcher, keeps its own notes on a Gatehouse updates tab on its main window. Each Gatekeeper keeps its own on a Gatekeeper updates tab beside its servers.",
   "Gatehouse updates itself when you open it directly, with no server lined up, and brings its Gatehouse updates tab to the front when it has. A server's own window shows neither Gatehouse's nor Gatekeeper's notes."

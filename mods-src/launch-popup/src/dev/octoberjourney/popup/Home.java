@@ -166,6 +166,7 @@ final class Home {
 			boolean[] openPrism = {false};
 			String[] again = {null};
 			window(instances, home, packs, openAt, chosen, openPrism, again);
+			if ("\u0000restart".equals(again[0])) { openAt = null; continue; }   // (Restart: the main window again, from the top)
 			if ("\u0000relaunch".equals(again[0])) System.exit(LaunchPopup.RELAUNCH);   // (a newer Gatehouse is in place: the shortcut's script opens it)
 			if (again[0] != null) { openAt = again[0]; continue; }
 			if (chosen[0] != null) LaunchPopup.startGame(prismCmd, chosen[0], false);
@@ -302,7 +303,7 @@ final class Home {
 				backB.setVisible(true);
 				Map<String, Object[]> rows = new LinkedHashMap<>();   // server id -> {state label, pack or null, Play button, name label}
 				java.util.function.BiConsumer<String, String[]> add = (id, pack) -> {
-					LaunchPopup.PlayButton go = new LaunchPopup.PlayButton("Play");
+					LaunchPopup.PlayButton go = new LaunchPopup.PlayButton("Launch");   // (not "Play": it opens the server's launcher, which has Play)
 					go.setToolTipText("Updates this pack, then shows its window before the game starts");
 					JLabel missing = new JLabel("Not installed on this device");
 					missing.setForeground(new Color(0x8F98A0));
@@ -384,7 +385,7 @@ final class Home {
 											SwingUtilities.invokeLater(() -> {
 												if (w == null) { ib.setEnabled(true); sub.setText("Couldn't read the pack's profile: " + pr); return; }
 												int ok = JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Install <b>" + LaunchPopup.esc(w[1]) + "</b> on this device?<br><br>It makes a Prism Launcher instance (\"" + LaunchPopup.esc(w[0]) + "\") and downloads its setup files from<br>"
-														+ LaunchPopup.esc(w[2]) + "<br><br>The mods download the first time you press Play. No Steam shortcut is added; Prism Launcher has to be installed already.</div></html>", "Install", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
+														+ LaunchPopup.esc(w[2]) + "<br><br>The mods download the first time you press Launch. No Steam shortcut is added; Prism Launcher has to be installed already.</div></html>", "Install", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE);
 												if (ok != JOptionPane.OK_OPTION) { ib.setEnabled(true); sub.setText("Pick a server to play. The pack updates first, as always."); return; }
 												new Thread(() -> {
 													String err = null;
@@ -540,6 +541,12 @@ final class Home {
 			prismB.setToolTipText("Prism Launcher itself: accounts, other instances, settings");
 			quit.setToolTipText("Closes the launcher");
 			prismB.addActionListener(ev -> { openPrism[0] = true; f.dispose(); });
+			// Restart: the main window again from the top (what's installed is read again, the Gatekeepers are asked again,
+			// and a newer Gatehouse is looked for again).
+			JButton restartB = new LaunchPopup.PlayButton("Restart", LaunchPopup.YELLOW, LaunchPopup.INK, 14f);
+			restartB.setToolTipText("Opens the launcher again from the start, looking for a newer Gatehouse");
+			restartB.addActionListener(ev -> { again[0] = "\u0000restart"; f.dispose(); });
+			Nav.tag(restartB, "restart");
 			Nav.tag(quit, "quit");
 			Nav.start();
 			quit.addActionListener(ev -> f.dispose());
@@ -574,7 +581,7 @@ final class Home {
 				}, "add-gatekeeper").start();
 			});
 			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
-			right.add(prismB); right.add(quit);
+			right.add(prismB); right.add(restartB); right.add(quit);
 			JPanel left = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
 			left.add(addB);
 			JPanel bottom = new JPanel(new BorderLayout());

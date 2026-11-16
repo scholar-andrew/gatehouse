@@ -2027,7 +2027,7 @@ public final class LaunchPopup {
 			// Menu: back to the Gatehouse launcher's own window (the Gatekeepers and their servers), without starting the
 			// game. It leaves a note the menu looks for when it's the one that started this pack; started some other way
 			// (from Prism Launcher), the menu is opened here.
-			JButton menu = new PlayButton("Menu", SLATE, Color.WHITE, 14f);
+			JButton menu = new PlayButton("Gatehouse", SLATE, Color.WHITE, 14f);
 			menu.setToolTipText("Back to the Gatehouse launcher's menu (your Gatekeepers and their servers), without starting the game");
 			menu.addActionListener(e -> {
 				try { Files.writeString(dir.resolve("back-to-menu"), "1", StandardCharsets.UTF_8); } catch (IOException ignored) {}

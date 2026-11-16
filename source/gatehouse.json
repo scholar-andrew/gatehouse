@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.0.0",
+ "version": "2.0.1",
  "changes": [
+  {"version": "2.0.1", "date": "2026-11-16", "notes": [
+   "The main window has a Restart button beside Quit: it opens the launcher again from the start and looks for a newer Gatehouse.",
+   "In a server's launcher, the Menu button is now called Gatehouse. It still comes back to the main window without starting the game.",
+   "In the list of servers, the button beside a server is now Launch instead of Play: it opens that server's launcher, where Play starts the game."
+  ]},
   {"version": "2.0.0", "date": "2026-11-16", "notes": [
    "Gatehouse now has its own version and its own notes, here. Until now its changes were listed with each pack's, so a server's Client updates tab was mostly about the launcher. From now on that tab is only about the pack; changes to Gatehouse are on this tab, and changes to Gatekeeper are on a Gatekeeper updates tab beside a Gatekeeper's servers.",
    "Gatehouse updates itself when you open it directly, with no server lined up: it checks where your packs get their updates, fetches a newer launcher if there is one, and reopens. This tab comes to the front when that has happened.",
