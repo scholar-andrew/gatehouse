@@ -41,7 +41,7 @@ static class Uninstall
     // Which pack this removes comes from the profile setup saved beside this program (gatehouse-profile.json: the
     // pack's name, its instance, its two shortcut names, its servers, and the name it is filed under). Without that
     // file it is an install from before setup saved one, which was always October Journey: the values below.
-    static string[] ShortcutName = { "Minecraft (Prism Launcher)", "October Journey" };
+    static string[] ShortcutName = { "Minecraft (Prism Launcher)", "October Journey", "Gatehouse Minecraft Launcher" };
     static string InstanceId = "october-journey", Pack = "October Journey";
     static string Key = "OctoberJourney", SetupFile = "OctoberJourneySetup.exe", UninstallFile = "OctoberJourneyUninstall.exe", MarkerFile = "OctoberJourney.txt";
     static readonly List<string> ServerNames = new List<string>(), ServerAddresses = new List<string>();
@@ -71,7 +71,8 @@ static class Uninstall
         if (!File.Exists(pf)) { ServerNames.Add("October Journey"); ServerAddresses.Add("100.91.134.102:25565"); return; }
         var p = (Dictionary<string, object>)new JavaScriptSerializer().DeserializeObject(File.ReadAllText(pf));
         Pack = (string)p["pack_name"]; InstanceId = (string)p["instance_id"]; Key = (string)p["key"];
-        ShortcutName = new[] { (string)p["shortcut_name"], (string)p["game_shortcut_name"] };
+        // (and the launcher shortcut under both names it has had: an install set up before it was the Gatehouse launcher may still have Prism's)
+        ShortcutName = new[] { (string)p["shortcut_name"], (string)p["game_shortcut_name"], "Gatehouse Minecraft Launcher", "Minecraft (Prism Launcher)" };
         foreach (Dictionary<string, object> s in (object[])p["servers"]) { ServerNames.Add((string)s["name"]); ServerAddresses.Add((string)s["address"]); }
         if (Key != "OctoberJourney") { SetupFile = "GatehouseSetup.exe"; UninstallFile = "GatehouseUninstall.exe"; MarkerFile = "Gatehouse.txt"; }
     }
@@ -444,7 +445,8 @@ static class Shortcuts
         {
             var e = (List<Node>)n.Value;
             string name = Field(e, "AppName") ?? "", exe = Field(e, "Exe") ?? "", opts = Field(e, "LaunchOptions") ?? "";
-            bool prism = exe.IndexOf("prismlauncher", StringComparison.OrdinalIgnoreCase) >= 0 || opts.IndexOf("org.prismlauncher.PrismLauncher", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool prism = exe.IndexOf("prismlauncher", StringComparison.OrdinalIgnoreCase) >= 0 || opts.IndexOf("org.prismlauncher.PrismLauncher", StringComparison.OrdinalIgnoreCase) >= 0
+                || opts.IndexOf("gatehouse-launcher", StringComparison.OrdinalIgnoreCase) >= 0;   // (the Gatehouse launcher's shortcuts run a script, not Prism itself)
             if (prism && namePrefixes.Any(p => name.StartsWith(p, StringComparison.Ordinal)))
             {
                 var id = e.FirstOrDefault(x => string.Equals(x.Key, "appid", StringComparison.OrdinalIgnoreCase));

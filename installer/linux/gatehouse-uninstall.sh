@@ -95,8 +95,11 @@ work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 cat > "$work/lib.py" <<'PY'
 import json, os, re, shutil, struct
 _P = json.load(open(os.environ["GH_PROFILE"])) if os.environ.get("GH_PROFILE") else None   # (the saved profile, if any)
-PREFIX = (_P["shortcut_name"], _P["game_shortcut_name"]) if _P else ("Minecraft (Prism Launcher)", "October Journey")  # setup's two shortcuts, each " - <device>"
-if os.environ.get("GH_KEEP_PRISM_SHORTCUT") == "1": PREFIX = PREFIX[1:]
+# Setup's two shortcuts, each " - <device>": the pack's own, and the launcher's (under the names it has had: the
+# Gatehouse launcher, and Prism Launcher's from installs set up before that). The launcher's stays when another pack
+# is installed here too.
+PREFIX = (_P["game_shortcut_name"] if _P else "October Journey",)
+if os.environ.get("GH_KEEP_PRISM_SHORTCUT") != "1": PREFIX += ((_P["shortcut_name"],) if _P else ()) + ("Gatehouse Minecraft Launcher", "Minecraft (Prism Launcher)")
 DEFAULT_SERVERS = _P["servers"] if _P else [{"name": "October Journey", "address": "100.91.134.102:25565"}]
 APP = "org.prismlauncher.PrismLauncher"
 def rmap(b, i):

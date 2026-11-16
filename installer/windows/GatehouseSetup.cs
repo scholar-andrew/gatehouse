@@ -12,9 +12,10 @@
 //   server       the October Journey server in the instance's server list
 //   game         a Steam shortcut "October Journey - <this computer>" that starts the game and joins the server
 //                (Prism's --launch and --server; the pack update and launch pop-up still run first)
-//   shortcut     a Steam shortcut "Minecraft (Prism Launcher) - <this computer>" that opens Prism Launcher
+//   shortcut     a Steam shortcut "Gatehouse Minecraft Launcher - <kind of device>" that opens the Gatehouse launcher
+//                (the packs installed here, whether each server is online, Play, and a button for Prism Launcher)
 //                (Steam must be closed for either shortcut; it asks)
-//   art          Steam library art: October Journey's for its shortcut, Prism Launcher's logo for Prism's
+//   art          Steam library art: October Journey's for its shortcut, Gatehouse's for the launcher's
 //   controller   the Steam Deck controller layout for both shortcuts
 //   updates      keep the server entry, art and layout up to date on each launch (pack-options.json)
 //   uninstaller  save the uninstaller to %LOCALAPPDATA%\OctoberJourney and list it in Settings > Apps
@@ -125,8 +126,8 @@ static class Setup
             opts.Add("prism", "Prism Launcher", prism != null ? "Already installed." : "The game launcher, from Prism's official GitHub release (checked against its SHA-256).", true, prism == null);
             opts.Add("server", Pack + " server", "Adds the server to the game's server list.", true, true);
             opts.Add("game", Pack + " shortcut", steam == null ? "Steam isn't installed." : "\"" + gameName + "\" in your Steam library: updates the pack, then starts the game and joins the server. Steam has to be closed for this.", steam != null, steam != null, "prism");
-            opts.Add("shortcut", "Prism Launcher shortcut", steam == null ? "Steam isn't installed." : "\"" + prismName + "\" in your Steam library: opens Prism Launcher. Steam has to be closed for this.", steam != null, steam != null, "prism");
-            opts.Add("art", "Steam library art", Pack + "'s own art for its shortcut, and Prism Launcher's logo for Prism's.", steam != null, steam != null, "game|shortcut");
+            opts.Add("shortcut", "Gatehouse launcher shortcut", steam == null ? "Steam isn't installed." : "\"" + prismName + "\" in your Steam library: opens the Gatehouse launcher, which lists your packs with whether each server is online, and has a button for Prism Launcher. Steam has to be closed for this.", steam != null, steam != null, "prism");
+            opts.Add("art", "Steam library art", Pack + "'s own art for its shortcut, and Gatehouse's for the launcher's.", steam != null, steam != null, "game|shortcut");
             opts.Add("controller", "Steam Deck controller layout", "The pack's layout (R4 jump, L4 crouch, trackpad mouse) for both shortcuts on Steam Deck controls.", steam != null, steam != null, "game|shortcut");
             opts.Add("updates", "Keep these up to date when you play", "Each launch brings the server entry, art and controller layouts up to date with the pack. Changes you make yourself are kept.", true, true, "server|art|controller");
             opts.Add("uninstaller", "Save the uninstaller", "Listed in Settings > Apps, to remove " + Pack + " later.", true, true);
@@ -177,6 +178,10 @@ static class Setup
             WriteInstanceCfg(Path.Combine(inst, "instance.cfg"), (string)cfg["instance_name"]);
             File.WriteAllBytes(Path.Combine(mc, "pack-sync.ps1"), Bytes(repo + "/clients/pack-sync.ps1"));
             File.WriteAllBytes(Path.Combine(mc, "launch-wrapper.exe"), Bytes(repo + "/clients/launch-wrapper.exe"));
+            // What the Steam shortcuts run (the pack keeps it up to date in extras; fetched here so the shortcuts work
+            // before the pack's first update has brought its own copy).
+            Directory.CreateDirectory(Path.Combine(mc, "extras"));
+            File.WriteAllBytes(Path.Combine(mc, "extras", "gatehouse-launcher.ps1"), Bytes(repo + "/clients/gatehouse-launcher.ps1"));
             var jar = Bytes(repo + "/clients/packwiz-installer-bootstrap.jar");
             if (!Sha256(jar).Equals((string)cfg["bootstrap_sha256"], StringComparison.OrdinalIgnoreCase)) throw new Exception("packwiz-installer-bootstrap.jar does not match its checksum");
             File.WriteAllBytes(Path.Combine(mc, "packwiz-installer-bootstrap.jar"), jar);
@@ -221,12 +226,17 @@ static class Setup
                 {
                     if (!opts.On(game ? "game" : "shortcut")) continue;
                     string name = game ? gameName : prismName;
-                    uint appid = Shortcuts.Upsert(Path.Combine(cfgDir, "shortcuts.vdf"), name, prism, game ? "--launch " + instId + " --server " + server : "", Path.Combine(grid, "{0}_icon.png"), game, instId);
+                    // Both run the Gatehouse launcher (extras\gatehouse-launcher.ps1, a plain script, through Windows'
+                    // own PowerShell with no window): the pack's shortcut with -Play, which starts the game through
+                    // Prism (--launch and --server) after the pack's update; the launcher's without, which opens its window.
+                    string powershell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
+                    string run = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + Path.Combine(mc, "extras", "gatehouse-launcher.ps1") + "\" -Prism \"" + prism + "\"" + (game ? " -Play " + instId : "");
+                    uint appid = Shortcuts.Upsert(Path.Combine(cfgDir, "shortcuts.vdf"), name, powershell, run, Path.Combine(grid, "{0}_icon.png"), game, instId);
                     Say("Steam shortcut: " + name + " (app " + appid + ")");
-                    object art = game ? cfg["art"] : (cfg.ContainsKey("art_prism") ? cfg["art_prism"] : null);
-                    if (opts.On("art")) { if (art != null) Art(grid, repo, appid, (Dictionary<string, object>)art); else Say("Prism Launcher art skipped: not in setup's settings yet."); }
+                    object art = game ? cfg["art"] : (cfg.ContainsKey("art_launcher") ? cfg["art_launcher"] : cfg.ContainsKey("art_prism") ? cfg["art_prism"] : null);
+                    if (opts.On("art")) { if (art != null) Art(grid, repo, appid, (Dictionary<string, object>)art); else Say("Launcher art skipped: not in setup's settings yet."); }
                     if (opts.On("controller")) Controller(steam, acct, name.ToLowerInvariant(), repo);
-                    var t = new Dictionary<string, object> { { "grid", grid }, { "appid", appid }, { "controller", Path.Combine(layouts, name.ToLowerInvariant()) }, { "art", game ? "pack" : "prism" } };
+                    var t = new Dictionary<string, object> { { "grid", grid }, { "appid", appid }, { "controller", Path.Combine(layouts, name.ToLowerInvariant()) }, { "art", game ? "pack" : "launcher" } };
                     targets.Add(t);
                     if (game) gameTarget = t;
                     if (play == null) play = name;
@@ -551,11 +561,13 @@ static class Shortcuts
     static string Text(List<Node> e, string key) { var n = Get(e, key); return n == null ? "" : (n.Value as string) ?? ""; }
     static bool IsGame(List<Node> e, string instId, string name)
     {
-        return Text(e, "LaunchOptions").IndexOf("--launch " + instId, StringComparison.OrdinalIgnoreCase) >= 0 || Text(e, "AppName") == name;
+        return Text(e, "LaunchOptions").IndexOf("--launch " + instId, StringComparison.OrdinalIgnoreCase) >= 0 || Text(e, "LaunchOptions").IndexOf("-Play " + instId, StringComparison.OrdinalIgnoreCase) >= 0 || Text(e, "AppName") == name;
     }
     static bool IsPrism(List<Node> e, string name)
     {
-        return (Text(e, "Exe").IndexOf("prismlauncher.exe", StringComparison.OrdinalIgnoreCase) >= 0 && Text(e, "LaunchOptions").IndexOf("--launch", StringComparison.OrdinalIgnoreCase) < 0) || Text(e, "AppName") == name;
+        string lo = Text(e, "LaunchOptions");
+        return (Text(e, "Exe").IndexOf("prismlauncher.exe", StringComparison.OrdinalIgnoreCase) >= 0 && lo.IndexOf("--launch", StringComparison.OrdinalIgnoreCase) < 0)
+            || (lo.IndexOf("gatehouse-launcher.ps1", StringComparison.OrdinalIgnoreCase) >= 0 && lo.IndexOf(" -Play ", StringComparison.OrdinalIgnoreCase) < 0) || Text(e, "AppName") == name;
     }
 
     // Which of the two shortcuts are there: { Prism Launcher, October Journey }.

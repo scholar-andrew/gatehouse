@@ -4,9 +4,9 @@
   "pack_name": "October Journey",
   "instance_id": "october-journey",
   "instance_name": "October Journey 26.3 (Fabric)",
-  "shortcut_name": "Minecraft (Prism Launcher)",
+  "shortcut_name": "Gatehouse Minecraft Launcher",
   "game_shortcut_name": "October Journey",
-  "_shortcuts": "Each followed by \" - <kind of device>\" (PC, Laptop, Steam Deck, ROG; older installs used the computer's name). shortcut_name opens Prism Launcher; game_shortcut_name starts the instance and joins the first server (Prism's --launch and --server).",
+  "_shortcuts": "Each followed by \" - <kind of device>\" (PC, Laptop, Steam Deck, ROG; older installs used the computer's name). shortcut_name opens the Gatehouse launcher (installs made before pack 1.10.0 have \"Minecraft (Prism Launcher)\", which opens Prism itself, until setup is run again); game_shortcut_name starts the instance and joins the first server (through the Gatehouse launcher: Prism's --launch and --server).",
   "repo_raw": "https://raw.githubusercontent.com/scholar-andrew/gatehouse/main",
   "_pack_sources": "Tried in order; each device keeps its own list the same as this one.",
   "pack_sources": [
@@ -59,6 +59,14 @@
     "logo": "installer/art/logo.png",
     "icon": "installer/art/icon.png",
     "wide": "installer/art/wide.png"
+  },
+  "art_launcher": {
+    "_source": "Original artwork made for the Gatehouse Minecraft Launcher shortcut (tools/make_launcher_art.ps1); stored in this repo, paths relative to repo_raw.",
+    "cover": "installer/art-launcher/cover.png",
+    "hero": "installer/art-launcher/hero.png",
+    "logo": "installer/art-launcher/logo.png",
+    "icon": "installer/art-launcher/icon.png",
+    "wide": "installer/art-launcher/wide.png"
   },
   "art_prism": {
     "_source": "Prism Launcher's logo on a plain background (tools/make_prism_art.ps1), for the shortcut that opens Prism; licence in installer/art-prism/NOTICE.md.",

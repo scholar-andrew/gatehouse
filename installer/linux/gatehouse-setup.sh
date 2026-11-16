@@ -14,9 +14,10 @@
 #   server       the October Journey server in the instance's server list
 #   game         a Steam shortcut "October Journey - <this device>" that starts the game and joins the server (Prism's
 #                --launch and --server; the pack update and launch pop-up still run first)
-#   shortcut     a Steam shortcut "Minecraft (Prism Launcher) - <this device>" that opens Prism Launcher
+#   shortcut     a Steam shortcut "Gatehouse Minecraft Launcher - <kind of device>" that opens the Gatehouse launcher
+#                (the packs installed here, whether each server is online, Play, and a button for Prism Launcher)
 #                (Steam must be closed for either shortcut; it asks)
-#   art          Steam library art: October Journey's for its shortcut, Prism Launcher's logo for Prism's
+#   art          Steam library art: October Journey's for its shortcut, Gatehouse's for the launcher's
 #   controller   the Steam Deck controller layout for both shortcuts
 #   updates      keep the server entry, art and layout up to date on each launch (pack-options.json); also lets Prism's
 #                Flatpak write the two Steam folders that needs
@@ -129,8 +130,8 @@ try:
     for _, _, e in next(x for x in root if x[1].lower() == "shortcuts")[2]:
         f = {k.lower(): v for _, k, v in e}
         lo, an = f.get("launchoptions", ""), f.get("appname", "")
-        if ("--launch " + inst_id) in lo or an == game_name: found[1] = 1
-        elif (app in lo and "--launch" not in lo) or an == prism_name: found[0] = 1
+        if ("--launch " + inst_id) in lo or ("--play " + inst_id) in lo or an == game_name: found[1] = 1
+        elif (app in lo and "--launch" not in lo and "--play" not in lo) or an == prism_name: found[0] = 1
 except Exception:
     pass
 print(int(pack), found[0], found[1])
@@ -162,7 +163,7 @@ if [ -d "$STEAM_ROOT" ] && [ "$C_prism" = 1 ]; then
   choose shortcut "Add a Prism Launcher Steam shortcut, which opens the launcher? (Steam has to be closed)" y
 else C_game=0; C_shortcut=0; [ -d "$STEAM_ROOT" ] || echo "  Steam isn't installed: no Steam shortcuts."; fi
 if [ "$C_game$C_shortcut" != 00 ]; then
-  choose art "Add the Steam library art ($PACK's, and Prism Launcher's logo for its shortcut)?" y
+  choose art "Add the Steam library art ($PACK's, and Gatehouse's for the launcher shortcut)?" y
   choose controller "Add the Steam Deck controller layout to the shortcuts?" y
 else C_art=0; C_controller=0; fi
 if [ "$C_server" = 1 ] || [ "$C_art" = 1 ] || [ "$C_controller" = 1 ]; then
@@ -287,8 +288,15 @@ if not add_only:
 
 if want_shortcut or want_game:
     # 2. The Steam shortcuts (binary shortcuts.vdf): "October Journey - <device>" starts the game and joins the server
-    # (Prism's --launch and --server; the pack update and pop-up still run first); "Minecraft (Prism Launcher) - <device>"
-    # opens Prism Launcher.
+    # (through the Gatehouse launcher: Prism's --launch and --server; the pack update still runs first, and its window
+    # is skipped when there's nothing to show and the server is online); "Gatehouse Minecraft Launcher - <device>" opens
+    # the Gatehouse launcher window. Both run extras/gatehouse-launcher.sh inside Prism's Flatpak; it's fetched here so
+    # the shortcuts work before the pack's first update has brought its own copy.
+    launcher_sh = os.path.join(mc, "extras", "gatehouse-launcher.sh")
+    try:
+        os.makedirs(os.path.dirname(launcher_sh), exist_ok=True)
+        open(launcher_sh, "wb").write(get(repo + "/clients/gatehouse-launcher.sh")); os.chmod(launcher_sh, 0o755)
+    except Exception as e: say("Gatehouse launcher script not fetched (%s): the pack's first update brings it." % e)
     login = os.path.join(steam, "config", "loginusers.vdf")
     users = re.findall(r'"(7656\d{13})"\s*\{(.*?)\}', open(login).read(), re.S) if os.path.exists(login) else []
     if not users: sys.exit("could not find your Steam account; sign in to Steam once, quit it, and run setup again")
@@ -341,16 +349,17 @@ if want_shortcut or want_game:
         f = field(e, k)
         if f: f[0], f[2] = t, v
         else: e.append([t, k, v])
-    def is_game(e, name): return ("--launch " + inst_id) in text(e, "LaunchOptions") or text(e, "AppName") == name
+    def is_game(e, name):
+        lo = text(e, "LaunchOptions"); return ("--launch " + inst_id) in lo or ("--play " + inst_id) in lo or text(e, "AppName") == name
     def is_prism(e, name):
-        lo = text(e, "LaunchOptions"); return (app in lo and "--launch" not in lo) or text(e, "AppName") == name
+        lo = text(e, "LaunchOptions"); return (app in lo and "--launch" not in lo and "--play" not in lo) or text(e, "AppName") == name
     grid = os.path.join(cdir, "grid"); os.makedirs(grid, exist_ok=True)
     root_l = os.path.join(steam, "steamapps", "common", "Steam Controller Configs", acct, "config")
     targets, game_target, play, made = [], None, None, []
     for kind in ("game", "prism"):
         if not (want_game if kind == "game" else want_shortcut): continue
         name = names[kind]
-        opts = "run " + app + (" --launch %s --server %s" % (inst_id, cfg["servers"][0]["address"]) if kind == "game" else "")
+        opts = 'run --command=bash %s "%s"' % (app, launcher_sh) + (" --play " + inst_id if kind == "game" else "")
         entry = None
         for _, _, e in sc:
             if (is_game(e, name) if kind == "game" else (not is_game(e, "\0") and is_prism(e, name))): entry = e; break
@@ -372,8 +381,8 @@ if want_shortcut or want_game:
     for kind, name, old, appid in made:
         say("Steam shortcut: %s (app %d)" % (name, appid))
         if want_art:
-            # 3. Library art: the pack's own for October Journey, Prism Launcher's logo for Prism's.
-            art = cfg["art"] if kind == "game" else cfg.get("art_prism")
+            # 3. Library art: the pack's own for its shortcut, Gatehouse's for the launcher's.
+            art = cfg["art"] if kind == "game" else (cfg.get("art_launcher") or cfg.get("art_prism"))
             try:
                 if not art: raise ValueError("not in setup's settings yet")
                 for key, fn in (("cover", "%dp.png"), ("hero", "%d_hero.png"), ("logo", "%d_logo.png"), ("icon", "%d_icon.png"), ("wide", "%d.png")):
@@ -400,7 +409,7 @@ if want_shortcut or want_game:
                 say("Steam Deck controller layout added.")
             except Exception as e:
                 say("controller layout skipped: %s" % e)
-        t = {"grid": grid, "appid": appid, "controller": os.path.join(root_l, name.lower()), "art": "pack" if kind == "game" else "prism"}
+        t = {"grid": grid, "appid": appid, "controller": os.path.join(root_l, name.lower()), "art": "pack" if kind == "game" else "launcher"}
         targets.append(t)
         if kind == "game": game_target = t
         play = play or name

@@ -106,7 +106,7 @@ def build(variant: str, meta: dict, mods: list) -> None:
     # Steam extras, applied by the sync after the mods: the library art and the Steam Deck controller layout.
     # Prism Launcher's logo art goes to the shortcut that opens Prism; the pack's own to the one that starts the game.
     arts = ("cover.png", "hero.png", "logo.png", "icon.png", "wide.png")
-    for src_rel, rel in [("installer/art/" + n, "steam/art/" + n) for n in arts] + [("installer/art-prism/" + n, "steam/art-prism/" + n) for n in arts] + [("installer/steam/controller_neptune.vdf", "steam/controller_neptune.vdf")]:
+    for src_rel, rel in [("installer/art/" + n, "steam/art/" + n) for n in arts] + [("installer/art-prism/" + n, "steam/art-prism/" + n) for n in arts] + [("installer/art-launcher/" + n, "steam/art-launcher/" + n) for n in arts] + [("installer/steam/controller_neptune.vdf", "steam/controller_neptune.vdf")]:
         # (a profile's own art, profiles/<id>/art/, when it has it; otherwise the shared files)
         own = os.path.join(PDIR, "art", os.path.basename(src_rel)) if PROFILE and src_rel.startswith("installer/art/") else None
         data = open(own if own and os.path.isfile(own) else os.path.join(ROOT, src_rel), "rb").read()
@@ -173,7 +173,8 @@ def build(variant: str, meta: dict, mods: list) -> None:
     entries.append((rel, sha256(data), False))
     # The sync scripts themselves: each run swaps in the pack's copy for the next launch.
     # (and the launch wrappers, which each run copies beside itself: see clients/launch-wrapper.sh)
-    for n in ("pack-sync.ps1", "pack-sync.sh", "launch-wrapper.sh", "launch-wrapper.exe"):
+    # (and what the Gatehouse Steam shortcuts run: they point at these copies in extras/)
+    for n in ("pack-sync.ps1", "pack-sync.sh", "launch-wrapper.sh", "launch-wrapper.exe", "gatehouse-launcher.ps1", "gatehouse-launcher.sh"):
         data = open(os.path.join(ROOT, "clients", n), "rb").read()
         rel = "extras/" + n
         os.makedirs(os.path.join(out, "extras"), exist_ok=True)
@@ -303,7 +304,7 @@ def write_mod_list(meta: dict, mods: list, server: dict) -> None:
         f.write("\n".join(lines) + "\n")
 
 
-TOOL_KEYS = ("shortcut_name", "repo_raw", "prism_windows", "prism_flatpak", "bootstrap_sha256", "art", "art_prism", "uninstall_windows", "uninstall_linux")
+TOOL_KEYS = ("shortcut_name", "repo_raw", "prism_windows", "prism_flatpak", "bootstrap_sha256", "art", "art_prism", "art_launcher", "uninstall_windows", "uninstall_linux")
 
 
 def write_profile_config() -> None:
