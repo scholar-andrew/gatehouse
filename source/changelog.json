@@ -1,4 +1,7 @@
 [
+ {"version": "1.10.1", "date": "2026-11-15", "notes": [
+  "New button under Client updates, on devices where setup added Steam shortcuts: Update Steam shortcuts. It brings this device's Steam shortcuts up to date with the pack without running setup again: the pack's shortcut starts through the Gatehouse launcher, the Prism Launcher shortcut becomes Gatehouse Minecraft Launcher with its own art, and the art and controller layout of both are put in place again. Steam has to be closed for it (on Windows the launcher checks; on a Steam Deck use Desktop Mode with Steam quit, starting the pack from Prism Launcher). Steam's shortcut list is backed up first."
+ ]},
  {"version": "1.10.0", "date": "2026-11-15", "notes": [
   "New look: the launcher (and the Keeper's control panel) are dark, in the manner of Steam, with larger buttons and tabs that suit a Steam Deck.",
   "The Gatehouse launcher can now open on its own: it lists the packs you have installed, shows whether each server is online, and has Play and a button for Prism Launcher. New installs get a Gatehouse Minecraft Launcher shortcut in Steam, with its own art, in place of the Prism Launcher one. To get it on a device that's already set up, run setup again.",

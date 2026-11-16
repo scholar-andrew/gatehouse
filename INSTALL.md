@@ -132,6 +132,14 @@ shows the owner's reason, if they gave one.
 The window is laid out for a Steam Deck's display (1280 x 800): it never opens bigger than the screen, its tabs
 scroll, and you can resize it.
 
+Under the list, on a device where setup added Steam shortcuts, is **Update Steam shortcuts**. It brings them up to date
+with the pack without running setup again: the pack's shortcut starts through the Gatehouse launcher (its name stays),
+the shortcut that opened Prism Launcher becomes **Gatehouse Minecraft Launcher - ...** with Gatehouse's art and the
+controller layout under its new name, and the art and layout of both are put in place again. It changes Steam's
+`shortcuts.vdf` (backed up beside itself as `shortcuts.vdf.bak-launcher`), so Steam has to be closed: on Windows the
+launcher checks and tells you to quit Steam first; inside Prism's Flatpak on Linux it can't see Steam, so it asks. On a
+Steam Deck that means Desktop Mode with Steam quit, starting the pack from Prism Launcher.
+
 A second tab, **Server updates**, starts with a live line saying whether the server answers right now (with ping and
 players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed
 there since you last played, with notes. When something on the server is new, the button reads **Next: server

@@ -134,6 +134,7 @@ public final class LaunchPopup {
 				case "mcss-start" -> System.out.println("mcss start: " + c.mcssStart());
 				case "mcss-close" -> System.out.println("mcss close: " + c.mcssClose(false));
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
+				case "steam-update" -> { System.out.println("Steam running: " + SteamUpdate.steamRunning()); for (String l : SteamUpdate.run(Path.of(args[1]))) System.out.println(l); }
 				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
 				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
@@ -1797,7 +1798,47 @@ public final class LaunchPopup {
 			javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
 			tabs.setFont(tabs.getFont().deriveFont(Font.BOLD, 13f));
 			List<Component> deviceRows = rows.isEmpty() ? List.of(text("Nothing to report.")) : rows;
-			tabs.addTab("Client updates", scroller(deviceRows, big || serverNews));
+			// Under the list, where setup added Steam shortcuts: a button that brings them up to date with the pack (they
+			// start through the Gatehouse launcher, the launcher's own name and art, the controller layout), without
+			// running setup again. Steam has to be closed: it writes its shortcut list itself when it exits.
+			JPanel clientTab = new JPanel(new BorderLayout(0, 6));
+			clientTab.add(scroller(deviceRows, big || serverNews), BorderLayout.CENTER);
+			if (SteamUpdate.available(dir)) {
+				JButton steamB = new JButton("Update Steam shortcuts");
+				steamB.setToolTipText("Brings this device's Steam shortcuts, art and controller layout up to date with the pack");
+				String about = "Brings this device's Steam shortcuts up to date with the pack: its art and controller layout, and how they start. Steam has to be closed.";
+				JLabel steamNote = new JLabel("<html><div style='width:520px'>" + esc(about) + "</div></html>");
+				steamNote.setForeground(new Color(0x8F98A0));
+				java.util.function.BiConsumer<Color, String> say = (col, msg) -> { steamNote.setForeground(col); steamNote.setText("<html><div style='width:520px'>" + esc(msg).replace("\n", "<br>") + "</div></html>"); };
+				steamB.addActionListener(e -> {
+					steamB.setEnabled(false);
+					new Thread(() -> {
+						String running = SteamUpdate.steamRunning();
+						if (running.equals("unknown")) {
+							// (Inside Prism's Flatpak the launcher can't see whether Steam is running: the player says.)
+							int[] answer = {javax.swing.JOptionPane.CANCEL_OPTION};
+							try {
+								SwingUtilities.invokeAndWait(() -> answer[0] = javax.swing.JOptionPane.showConfirmDialog(f, "<html><div style='width:400px'>Steam has to be closed for this, or it undoes the change when it exits.<br><br>"
+										+ "On a Steam Deck: switch to Desktop Mode, quit Steam there (Steam menu, Exit), start this pack from Prism Launcher, and press this button.<br><br>Is Steam closed now?</div></html>",
+										"Update Steam shortcuts", javax.swing.JOptionPane.YES_NO_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE));
+							} catch (Exception ignored) {}
+							running = answer[0] == javax.swing.JOptionPane.YES_OPTION ? "no" : "asked";
+						}
+						Color col; String msg;
+						if (running.equals("yes")) { col = new Color(0xE9B949); msg = "Steam is running. Quit Steam (Steam menu, Exit), then press this again: Steam would undo the change when it closes. This window can stay open."; }
+						else if (running.equals("asked")) { col = new Color(0x8F98A0); msg = about; }
+						else try { col = new Color(0x8BD46E); msg = String.join("\n", SteamUpdate.run(dir)) + "\nStart Steam to see it."; }
+						catch (IOException | RuntimeException ex) { col = new Color(0xFF7B72); msg = "Not updated: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage()); }
+						Color c2 = col; String m2 = msg;
+						SwingUtilities.invokeLater(() -> { say.accept(c2, m2); steamB.setEnabled(true); });
+					}, "steam-update").start();
+				});
+				JPanel steamRow = new JPanel(new BorderLayout(10, 0));
+				JPanel left = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0)); left.add(steamB);
+				steamRow.add(left, BorderLayout.WEST); steamRow.add(steamNote, BorderLayout.CENTER);
+				clientTab.add(steamRow, BorderLayout.SOUTH);
+			}
+			tabs.addTab("Client updates", clientTab);
 			ServerControl control = new ServerControl(dir);
 			Runnable[] hold = {() -> {}};   // set below: stops the countdown once the player uses a server control
 			// The Server tab: a live line on top (whether the server answers right now; the rest of the tab is the last
