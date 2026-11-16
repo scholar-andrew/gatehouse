@@ -51,6 +51,13 @@ final class Connection {
 
 	static List<Check> run(Path dir, ServerControl c) {
 		List<Check> out = new ArrayList<>();
+		if (c.ban.equals("blacklist")) {
+			// Blacklisted: nothing about the server machine, its addresses or the pack's source is checked or shown.
+			boolean net = ServerControl.answers("github.com:443", 4000);
+			out.add(net ? new Check("ok", "Internet", "Working", "") : new Check("failed", "Internet", "This device isn't reaching the internet", "Connect this device to the internet (Wi-Fi or cable), then press Check again."));
+			out.add(new Check("warn", "Server", "Not shown: this launcher is blacklisted", "The Play button can ask the owner to let you back."));
+			return out;
+		}
 		List<String> sources = new ArrayList<>();
 		try { for (String l : Files.readAllLines(dir.resolve("pack-sources.txt"), StandardCharsets.UTF_8)) { l = l.strip(); if (!l.isEmpty() && !l.startsWith("#")) sources.add(l.replaceAll("/+$", "")); } }
 		catch (IOException ignored) {}

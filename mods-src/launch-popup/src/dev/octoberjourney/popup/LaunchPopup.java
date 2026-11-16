@@ -604,8 +604,12 @@ public final class LaunchPopup {
 		private boolean flashOn;
 		private Timer flashing;
 		PlayButton(String text) { this(text, BLUE, Color.WHITE, 15f); }
-		/** Flashes red, half a second on and half off, for five seconds: a request was denied. */
-		void flash() {
+		private Color flashColor = QUIT_RED;
+		/** Flashes, half a second on and half off, for five seconds: red, a request was denied. */
+		void flash() { flash(QUIT_RED); }
+		/** The same in another colour (green: the owner said yes). */
+		void flash(Color c) {
+			flashColor = c;
 			if (flashing != null) flashing.stop();
 			int[] n = {0};
 			flashing = new Timer(500, e -> { flashOn = n[0] % 2 == 0; n[0]++; if (n[0] > 10) { flashOn = false; ((Timer) e.getSource()).stop(); } repaint(); });
@@ -625,7 +629,7 @@ public final class LaunchPopup {
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 			boolean on = isEnabled();
-			Color fill = flashOn ? QUIT_RED : !on ? new Color(0x2B3A4B) : getModel().isPressed() ? base.darker() : getModel().isRollover() ? shade(base, 1.12f) : base;
+			Color fill = flashOn ? flashColor : !on ? new Color(0x2B3A4B) : getModel().isPressed() ? base.darker() : getModel().isRollover() ? shade(base, 1.12f) : base;
 			g2.setColor(fill);
 			g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
 			if (on && isFocusOwner()) { g2.setColor(new Color(255, 255, 255, 170)); g2.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 6, 6); }
@@ -990,14 +994,14 @@ public final class LaunchPopup {
 					case "online" -> game = "Online";
 					case "starting", "stopping" -> game = s[1];
 					case "off" -> game = "Off" + (c.canControlServer() ? ": Start server starts it" : "");
-					case "nomcss" -> game = "Off: MCSS isn't running (start it above)";
+					case "nomcss" -> game = c.viaHelper() ? "Off: MCSS isn't running (Start server starts MCSS too)" : "Off: MCSS isn't running (start it above)";
 					case "asleep" -> game = "Off: the server machine is asleep or off";
 					default -> game = s[1];
 				}
 				status.setIcon(dot(phase.equals("nomcss") || asleep ? GRAY : colour(s[0])));
 				status.setText(wrap(game));
 				// Start only when the server is off (and MCSS running); Stop only while it runs; neither mid-change.
-				start.setEnabled(c.canControlServer() && phase.equals("off"));
+				start.setEnabled(c.canControlServer() && (phase.equals("off") || (phase.equals("nomcss") && c.viaHelper())));
 				stop.setEnabled(c.canControlServer() && phase.equals("online"));
 				// Wake only while the PC isn't answering at all (neither the game server nor the panel): asleep or off.
 				wake.setEnabled(c.canWake() && phase.equals("asleep") && (c.permSleep || !c.hasHelper()) && c.ban.isEmpty());
@@ -1979,12 +1983,18 @@ public final class LaunchPopup {
 			// doesn't start until the owner says so. Granted: a chime. Denied: the button flashes red, with the reason.
 			long[] requestWait = {0};
 			String[] requestNote = {""}, noteFor = {""}, asked = {""};
+			long[] startingUntil = {0};   // (the owner said yes to Request server: "Server starting" until it's on, at most 6 minutes)
 			java.util.function.Supplier<String> mode = () -> !serverShown[0] ? "next" : control.ban.equals("blacklist") ? "unblacklist" : control.ban.equals("suspend") ? "unsuspend"
 					: control.hasHelper() && control.whitelisted.equals("no") ? "whitelist" : !serverLive[0] && control.hasHelper() ? "server" : "play";
 			Runnable label = () -> {
 				if (!asked[0].isEmpty()) {
 					String answer = control.reqStates.getOrDefault(asked[0], "");
-					if (answer.equals("granted")) { chime(); requestNote[0] = asked[0].equals("server") ? "The owner is turning the server on." : "Granted by the owner."; asked[0] = ""; requestWait[0] = 0; }
+					if (answer.equals("granted")) {
+						chime();
+						if (asked[0].equals("server")) { requestNote[0] = "The owner said yes: the server is starting. Play lights up when it's ready."; startingUntil[0] = System.currentTimeMillis() + 360_000; play.flash(GREEN); }
+						else requestNote[0] = "Granted by the owner.";
+						asked[0] = ""; requestWait[0] = 0;
+					}
 					else if (answer.equals("denied")) {
 						String why = control.reqReasons.getOrDefault(asked[0], "");
 						requestNote[0] = "Request denied by the owner" + (why.isEmpty() ? ". You can ask again." : ": " + why);
@@ -1993,10 +2003,13 @@ public final class LaunchPopup {
 					}
 				}
 				String m = mode.get();
+				// (The server the owner agreed to start has come up: a second chime, and the button is Play.)
+				if (startingUntil[0] > 0 && serverLive[0]) { startingUntil[0] = 0; requestNote[0] = ""; chime(); }
+				boolean starting = m.equals("server") && System.currentTimeMillis() < startingUntil[0];
 				play.setText(switch (m) { case "next" -> "Next: server updates"; case "unblacklist" -> "Request unblacklist"; case "unsuspend" -> "Request unsuspend";
-					case "whitelist" -> "Request whitelist"; case "server" -> "Request server"; default -> "Play"; });
+					case "whitelist" -> "Request whitelist"; case "server" -> starting ? "Server starting" : "Request server"; default -> "Play"; });
 				// "Next" only turns the page, so it always works; Play waits for the server; a request, one a minute.
-				play.setEnabled(m.equals("next") || (m.equals("play") ? serverLive[0] : System.currentTimeMillis() >= requestWait[0]));
+				play.setEnabled(m.equals("next") || (m.equals("play") ? serverLive[0] : !starting && System.currentTimeMillis() >= requestWait[0]));
 				String who = control.banScope.equals("user") ? "Your account" + (control.player().isEmpty() ? "" : " (" + control.player() + ")") : "This device";
 				String reason = control.banReason.isEmpty() ? "." : ": " + control.banReason + (control.banReason.matches(".*[.!?]$") ? "" : ".");
 				String why = switch (m) {

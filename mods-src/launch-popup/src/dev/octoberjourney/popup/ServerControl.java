@@ -463,13 +463,28 @@ final class ServerControl {
 		return r;
 	}
 
+	/** This device's operating system, as the Gatekeeper lists it: "Windows 10", "macOS", or for Linux the system's own
+	 *  name with "(linux)" after it, like "SteamOS (linux)". (Inside a Flatpak the system's own name is in
+	 *  /run/host/os-release; /etc/os-release there is the Flatpak runtime's.) */
+	static String systemName() {
+		String os = System.getProperty("os.name", "");
+		if (os.startsWith("Windows")) return os;
+		if (os.startsWith("Mac")) return "macOS";
+		for (String f : new String[] {"/run/host/os-release", "/etc/os-release"}) {
+			try {
+				for (String l : Files.readAllLines(Path.of(f), StandardCharsets.UTF_8)) if (l.startsWith("NAME=")) {
+					String n = l.substring(5).trim().replaceAll("^\"|\"$", "");
+					if (!n.isEmpty()) return n.toLowerCase(java.util.Locale.ROOT).contains("linux") ? n : n + " (linux)";
+				}
+			} catch (IOException | RuntimeException ignored) {}
+		}
+		return os.isEmpty() ? "Unknown" : os.equalsIgnoreCase("Linux") ? "Linux" : os + " (linux)";
+	}
+
 	/** Introduces this launcher (it then shows in the owner's control panel, waiting until allowed). Returns its state. */
 	String hello() throws IOException {
-		String name = "", os = System.getProperty("os.name", "");
+		String name = "", os = systemName();
 		try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
-		if (new java.io.File("/sys/devices/virtual/dmi/id/product_name").exists()) {
-			try { String p = Files.readString(Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); if (p.equals("Jupiter") || p.equals("Galileo")) os = "Steam Deck"; } catch (IOException ignored) {}
-		}
 		return str(helper("POST", "/v1/hello", "{\"id\":\"" + jsonEsc(deviceId) + "\",\"token\":\"" + jsonEsc(deviceToken)
 				+ "\",\"name\":\"" + jsonEsc(name) + "\",\"os\":\"" + jsonEsc(os) + "\"}").get("state"));
 	}
