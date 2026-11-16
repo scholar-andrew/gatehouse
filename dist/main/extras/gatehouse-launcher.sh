@@ -28,12 +28,18 @@ main() {
   done
   [ -n "$java" ] || java="$(command -v java)"
   [ -n "$java" ] || prism_instead "$@"
-  "$java" -jar "$jar" --home "$instances" --prism "$prism" "$@"; code=$?
-  # 12: it fetched a newer copy of itself. Open that one (once: it's told not to look again).
-  if [ "$code" = 12 ]; then
+  # The launcher ends with 12 when a newer copy of itself is in place (it updated itself): the newest is then opened
+  # in its place, each time that happens (GATEHOUSE_RELAUNCH tells the launcher that this script does that).
+  export GATEHOUSE_RELAUNCH=loop
+  round=0
+  while :; do
+    "$java" -jar "$jar" --home "$instances" --prism "$prism" "$@"; code=$?
+    [ "$code" = 12 ] || exit "$code"
+    round=$((round + 1)); [ "$round" -lt 8 ] || exit 0
     jar="$(ls -t "$instances"/*/minecraft/extras/launch-popup.jar 2>/dev/null | head -1)"
-    GATEHOUSE_UPDATED=1 exec "$java" -jar "$jar" --home "$instances" --prism "$prism" "$@"
-  fi
-  exit "$code"
+    [ -n "$jar" ] || exit 0
+    export GATEHOUSE_UPDATED=1
+    set --   # (a server named with --play was for the first time round)
+  done
 }
 main "$@"; exit

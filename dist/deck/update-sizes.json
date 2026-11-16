@@ -1,6 +1,6 @@
 {
- "version": "1.23.0",
- "gatehouse": "2.6.0",
+ "version": "1.23.1",
+ "gatehouse": "2.6.1",
  "files": {
   "config/fabric_loader_dependencies.json": {
    "hash": "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280",
@@ -12,20 +12,20 @@
    "preserve": true
   },
   "extras/changelog.txt": {
-   "hash": "cf8d05d868d5d9da0b293061fc5689bde66ede1aa6e475e06d0b430e1327b418",
-   "size": 30210
+   "hash": "01234b0df05ba4b9ee65a1dd772cedbf9dd9c8dad2bd1d2cd96d59c794e22394",
+   "size": 30432
   },
   "extras/gatehouse-launcher.ps1": {
-   "hash": "fd2312752a05c5c8917fb01c55377baf1c3b0dcf208553fe0a8f92dbab999209",
-   "size": 3964
+   "hash": "a24620ecc278db0cd3aad251b729aec2147a5409f22d9c5b6bfd8edc7a3019f3",
+   "size": 4763
   },
   "extras/gatehouse-launcher.sh": {
-   "hash": "d34c1866ddf84e4701025206921c2eaf3f7b059b410539f19d9a05237276fe11",
-   "size": 2379
+   "hash": "2809e1f7becbb7e746c490d9f5a8b96be99a9ccdc3f6d48c9219414418b85a04",
+   "size": 2662
   },
   "extras/launch-popup.jar": {
-   "hash": "d724b6968d2e0110dd51cb7d0dbdb8a439d991bcb7a68575d5c6a9e098d8dcdc",
-   "size": 204263
+   "hash": "6e2d85ff22acbab83af3e7c3ade2f03103134554f4dae67e50e199f6d7c21d55",
+   "size": 206054
   },
   "extras/launch-wrapper.exe": {
    "hash": "9bbfa275255fe81a9f5103ef3fefbd802fcd0030f8c103daa287673c54d6b8e5",
