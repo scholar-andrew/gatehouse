@@ -38,4 +38,13 @@ $run = Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run.jar'
 try { Copy-Item $jar $run -Force } catch { $run = $jar }
 $launcherArgs = @('-jar', "`"$run`"", '--home', "`"$Instances`"", '--prism', "`"$Prism`"")
 if ($Play) { $launcherArgs += @('--play', $Play) }
-Start-Process -Wait $java -ArgumentList $launcherArgs
+$p = Start-Process -Wait -PassThru $java -ArgumentList $launcherArgs
+# 12: it fetched a newer copy of itself. Open that one (once: it's told not to look again).
+if ($p.ExitCode -eq 12) {
+    $jar = Get-ChildItem $Instances -Directory -ErrorAction SilentlyContinue | ForEach-Object { Join-Path $_.FullName 'minecraft\extras\launch-popup.jar' } |
+        Where-Object { Test-Path $_ } | Sort-Object { (Get-Item $_).LastWriteTime } -Descending | Select-Object -First 1
+    try { Copy-Item $jar $run -Force } catch { $run = $jar }
+    $launcherArgs[1] = "`"$run`""
+    $env:GATEHOUSE_UPDATED = '1'
+    Start-Process -Wait $java -ArgumentList $launcherArgs
+}

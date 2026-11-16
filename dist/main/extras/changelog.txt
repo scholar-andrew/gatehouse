@@ -1,3 +1,6 @@
+== 1.17.0 | 2026-11-16
+- Notes now come from four separate places. This tab (Client updates) is only about the pack: the game on your device. Server updates is about the server. Gatehouse, the launcher, keeps its own notes on a Gatehouse updates tab on its main window. Each Gatekeeper keeps its own on a Gatekeeper updates tab beside its servers.
+- Gatehouse updates itself when you open it directly, with no server lined up, and brings its Gatehouse updates tab to the front when it has. A server's own window shows neither Gatehouse's nor Gatekeeper's notes.
 == 1.16.0 | 2026-11-16
 - The launcher can be driven with a controller: the Steam Deck's own controls, a Steam Controller, or any pad Steam presents as a gamepad. The left stick and the d-pad move the selection between buttons, tabs and lists (an outline shows where you are). A presses the selected button. B and Select jump to the button that goes up a level (Menu, or Gatekeepers). Y jumps to Restart, Start jumps to Quit. The right trigger is a left click where the pointer is; the right trackpad still moves the pointer. The left trigger does nothing.
 - On a row of tabs, left and right change the tab. In a list, up and down move the row. Questions the launcher asks can be answered the same way.
