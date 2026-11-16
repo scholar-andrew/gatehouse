@@ -1,3 +1,5 @@
+== 1.9.15 | 2026-11-15
+- New Connection tab: it checks, step by step, whether this device can reach the server machine (internet, Tailscale on this device, the server machine in your Tailscale network, the pack, Gatehouse Keeper, the Minecraft server) and says what to do about the first thing that's wrong. Buttons open Tailscale or its download page, and Copy details gives you the result to send to the owner.
 == 1.9.14 | 2026-11-15
 - Nothing you'll notice: the pack's old address on GitHub is no longer in the list of places updates are fetched from.
 == 1.9.13 | 2026-11-15
