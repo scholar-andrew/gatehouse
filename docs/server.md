@@ -246,6 +246,13 @@ Gatekeeper looks every five minutes at the pack server on its own machine if the
   is told `blocked` for itself.
 - Nothing reachable to compare with: nothing is blocked. `host.json` `require_current: false` turns the blocking off.
 
+### The setup guide
+
+Options also has **Open the setup guide**: the steps from a machine with nothing on it to a server friends can join,
+one at a time, each with what to do, buttons for it, and a mark for whether it's done (it looks again every few
+seconds). It opens by itself the first time the window is opened on a machine that still has steps to do. Host
+setup remains the list of everything at once.
+
 ### Options and uninstalling
 
 The settings wheel at the top right opens Options: the version, where Gatekeeper runs from and where its settings

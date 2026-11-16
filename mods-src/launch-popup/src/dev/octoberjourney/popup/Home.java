@@ -455,6 +455,14 @@ final class Home {
 			optLine.accept("About", true);
 			optLine.accept(LaunchPopup.TOOL + " " + Notes.version(Notes.own()) + ". " + (byItself ? "Installed by itself, in " + Notes.app(instances) + "." : "It came with a pack installed in Prism Launcher on this device.")
 					+ " " + packs.size() + (packs.size() == 1 ? " server is" : " servers are") + " installed here.", false);
+			optLine.accept("Setup guide", true);
+			optLine.accept("The steps from a device with nothing set up to playing on a server, each with a check for whether it's done.", false);
+			JButton guideB = new JButton("Open the setup guide");
+			JPanel guideRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
+			guideRow.add(guideB); guideRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+			options.add(guideRow);
+			Runnable[] openGuide = {null};
+			guideB.addActionListener(ev -> { if (openGuide[0] != null) openGuide[0].run(); });
 			optLine.accept("Uninstall", true);
 			String[] planNow = uninstallPlan(instances, false);
 			optLine.accept(planNow[1], false);
@@ -980,6 +988,46 @@ final class Home {
 					});
 				}, "add-gatekeeper").start();
 			});
+			// ---- the setup guide: the steps from nothing to playing, one at a time, each looked at every few seconds
+			dev.gatehouse.look.Wizard[] guide = {null};
+			Runnable leaveGuide = () -> { guide[0].stop(); showKeepers[0].run(); };
+			guide[0] = new dev.gatehouse.look.Wizard(() -> {
+				List<dev.gatehouse.look.Wizard.Step> steps = new ArrayList<>();
+				boolean win = System.getProperty("os.name", "").startsWith("Windows");
+				boolean prismOk = Files.exists(Path.of("/.flatpak-info")) || Files.isRegularFile(Path.of(prismFor)) || (!win && !prismFor.contains("/"));
+				boolean account = false;
+				try { account = ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(instances.toAbsolutePath().getParent().resolve("accounts.json")))).get("accounts") instanceof List<?> l && !l.isEmpty(); } catch (RuntimeException ignored) {}
+				List<String[]> known = savedKeepers(home);
+				boolean reach = false;
+				for (String[] k : known) if (Connect.reaches(k[0])) { reach = true; break; }
+				int have = installed(instances).size();
+				steps.add(new dev.gatehouse.look.Wizard.Step("welcome", "Welcome", "info", "This guide takes a device from nothing set up to playing on a friend's Minecraft server.\n\nA server's owner runs a program called Gatekeeper on their machine. " + LaunchPopup.TOOL + ", this launcher, connects to it: it shows that owner's servers, installs what each needs, keeps it up to date, and starts the game through Prism Launcher.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""));
+				steps.add(new dev.gatehouse.look.Wizard.Step("prism", "Prism Launcher", prismOk ? "ok" : "todo", "Prism Launcher is the program that actually runs Minecraft; " + LaunchPopup.TOOL + " tells it what to start. Install it from its own site, then press Restart below so " + LaunchPopup.TOOL + " finds it.\n\nThis step is done when Prism Launcher is found on this device.", prismOk ? "" : "Not found where it's usually installed")
+						.action("Open Prism Launcher's download page", "open:https://prismlauncher.org/download/"));
+				steps.add(new dev.gatehouse.look.Wizard.Step("account", "Your Minecraft account", !prismOk ? "wait" : account ? "ok" : "todo", "You need your own copy of Minecraft: Java Edition, and to sign in to it once in Prism Launcher. Open Prism, click the account picker at the top right, choose Manage Accounts, then Add Microsoft, and sign in with the Microsoft account that owns the game.\n\nThis step is done when Prism Launcher has an account.", account ? "" : "Prism has no account yet")
+						.action("Open Prism Launcher", "prism"));
+				steps.add(new dev.gatehouse.look.Wizard.Step("gatekeeper", "Add the owner's Gatekeeper", known.isEmpty() ? "todo" : "ok", "Ask the server's owner for their pairing: a link that starts with gatehouse://, a small .gatekeeper file, or just an address. Press Add Gatekeeper and paste the link, or open the file.\n\nThis step is done when a Gatekeeper is on your list.", known.isEmpty() ? "" : known.size() + (known.size() == 1 ? " Gatekeeper" : " Gatekeepers") + " on your list")
+						.action("Add Gatekeeper\u2026", "add"));
+				steps.add(new dev.gatehouse.look.Wizard.Step("connect", "Connect to it", known.isEmpty() ? "wait" : reach ? "ok" : "todo", "A Gatekeeper is reached over Tailscale, a private network between the owner's machine and the devices they let in. Connect walks through it: installing Tailscale and signing in with your own account, accepting the owner's invite, and reaching their machine. If all of that is done and it still can't be reached, the owner's machine may be asleep or off.\n\nThis step is done when the Gatekeeper answers.", reach ? "" : known.isEmpty() ? "" : "It isn't answering yet")
+						.action("Connect\u2026", "connect"));
+				steps.add(new dev.gatehouse.look.Wizard.Step("install", "Install a server", !reach && have == 0 ? "wait" : have > 0 ? "ok" : "todo", "Close this guide and open the Gatekeeper on your list: it shows the owner's servers. Press Install beside one. " + LaunchPopup.TOOL + " sets it up in Prism Launcher; the game and any mods download the first time you start it.\n\nThe owner decides what your device may do. Until they allow it you can still install and look, and they see your device waiting in their Gatekeeper.\n\nThis step is done when a server is installed here.", have > 0 ? have + (have == 1 ? " server" : " servers") + " installed" : "")
+						.action("Show my Gatekeepers", "keepers"));
+				steps.add(new dev.gatehouse.look.Wizard.Step("play", "Play", "info", "Press Launch beside a server. Its update runs, then its page shows Play.\n\nThe button changes with what's in the way, and says what to do: Request whitelist asks the owner to add you to the server's whitelist; Request server asks them to turn the server on; Update needed means " + LaunchPopup.TOOL + " or the owner's Gatekeeper has to be updated first.\n\nThat's everything. This guide stays in Options.", ""));
+				return steps;
+			}, id -> {
+				if (id.startsWith("open:")) Connection.open(id.substring(5));
+				else if (id.equals("prism")) { try { new ProcessBuilder(prismFor).start(); } catch (IOException ignored) {} }
+				else if (id.equals("add")) addB.doClick();
+				else if (id.equals("keepers")) leaveGuide.run();
+				else if (id.equals("connect")) {
+					List<String[]> known = savedKeepers(home);
+					if (known.isEmpty()) return;
+					String[] k = known.get(0);
+					Connect.show(f, k[0], k[1], k.length > 2 ? k[2] : "", client(home, k[0], packs)::hello);
+				}
+			}, leaveGuide, LaunchPopup.class);
+			deck.add(guide[0], "wizard");
+			openGuide[0] = () -> { head.setText("Setup guide"); sub.setText("From nothing set up to playing, a step at a time."); backB.setVisible(true); cards.show(deck, "wizard"); guide[0].open(); };
 			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
 			right.add(prismB); right.add(restartB); right.add(quit);
 			JPanel left = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
@@ -997,6 +1045,7 @@ final class Home {
 			f.setContentPane(p);
 			if (openAt != null && (openAt.isEmpty() ? hasLoose : true)) showServers.accept(openAt);
 			else { showKeepers[0].run(); if (fresh && !seenVersion.isEmpty()) level1.setSelectedIndex(1); }
+			if (openAt == null && shot == null && keepers.isEmpty() && packs.isEmpty()) openGuide[0].run();   // (nothing here yet: the guide)
 			// Opened directly (not on the way back from a server): look for a newer Gatehouse; with one in place, close
 			// and let the shortcut's script open it. (GATEHOUSE_UPDATED: just reopened for that, so not again.)
 			// It asks first: the line under the heading says a newer one is there (which, and how big), with Update
@@ -1050,6 +1099,10 @@ final class Home {
 			LaunchPopup.fit(f, false);
 			if (shot != null && !shot.isEmpty()) {   // (testing: pictures instead of the window: <file>, and <file>-servers.png for the first Gatekeeper)
 				try {
+					cards.show(deck, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); f.validate();
+					java.awt.image.BufferedImage wi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+					java.awt.Graphics2D wg = wi.createGraphics(); p.paint(wg); wg.dispose();
+					javax.imageio.ImageIO.write(wi, "png", new java.io.File(shot.replaceAll("\\.png$", "") + "-wizard.png"));
 					gear.doClick(0);
 					f.validate();
 					java.awt.image.BufferedImage oi2 = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);

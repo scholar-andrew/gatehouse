@@ -259,6 +259,19 @@ their next launch; nobody has to touch a device.
   with a pack on Windows: the `UninstallString` under `HKCU\...\Uninstall\Gatehouse*` or `OctoberJourney`), or `tell`
   (inside Prism's Flatpak, or nothing on record: the command or the place is shown). The word `confirm` has to be
   typed first. `OJ_UNINSTALL_DRY` shows the command instead of running it; `OJ_UNINSTALL_EXTRA` adds options to it.
+- **The setup guides.** `mods-src/look/.../Wizard.java` is the page both programs show: steps down the left with a
+  mark each (`ok`, `todo`, `warn`, `info`, `wait`), one step on the right with its text, buttons and Back / Next; the
+  steps are asked for again every three seconds while it's showing, and it is redrawn only when something changed.
+  Gatehouse builds its steps in `Home` (Prism found, an account in Prism's `accounts.json`, a Gatekeeper on the
+  list, one that answers, a server installed); Gatekeeper's come from the running Gatekeeper (`GET /admin/wizard`,
+  `wizardSteps`: Host setup's checks, plus MCSS found, a server in it, and its web API answering). Both open it from
+  Options; Gatehouse also when nothing is set up yet, Gatekeeper the first time its window opens with steps still to
+  do (`setup-guide-shown.txt`). **Pictures:** put `<step key>.png` in `source/wizard/gatehouse/` or
+  `source/wizard/gatekeeper/`; the builds put them inside the programs, and a step that has one shows it above its
+  text. Step keys: Gatehouse `welcome`, `prism`, `account`, `gatekeeper`, `connect`, `install`, `play`; Gatekeeper
+  `welcome`, `tailscale`, `tailscale_on`, `tailscale_stay`, `mcss`, `mcss_server`, `mcss_api`, `setup`, `mcss_key`,
+  `ports`, `whitelist`, `invite`, `pairing`, `done`. `OJ_WIZARD_STEP=<key>` picks the step for the test pictures
+  (`-wizard.png`).
 - **Connect to this Gatekeeper.** `Connect.java`: the steps between having a pairing and the Gatekeeper answering,
   looked at every 2.5 seconds: a Tailscale address on this device (an interface address in 100.64.0.0/10, which also
   works inside Prism's Flatpak), the Gatekeeper's port reachable, and its answer to this device's introduction.

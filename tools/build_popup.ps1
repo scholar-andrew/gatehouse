@@ -21,6 +21,9 @@ $files22 = @(Get-ChildItem (Join-Path $root 'mods-src\launch-popup\src22') -Recu
 if ($LASTEXITCODE) { throw 'javac (Java 22 part) failed' }
 # Gatehouse's own version and notes go inside it (source\gatehouse.json), apart from any pack's.
 Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $out 'classes\gatehouse-notes.json')
+# Pictures for the setup guide's steps, when there are any: source\wizard\gatehouse\<step key>.png
+$art = Join-Path $root 'source\wizard\gatehouse'
+if (Test-Path $art) { New-Item -ItemType Directory -Force (Join-Path $out 'classes\wizard') | Out-Null; Copy-Item (Join-Path $art '*.png') (Join-Path $out 'classes\wizard') }
 # (so that Java doesn't warn about that reader calling into Windows)
 Set-Content -Path (Join-Path $out 'manifest.txt') -Value 'Enable-Native-Access: ALL-UNNAMED' -Encoding ascii
 $jar = Join-Path $root 'source\files\launch-popup.jar'

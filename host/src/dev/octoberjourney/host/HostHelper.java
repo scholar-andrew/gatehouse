@@ -1693,6 +1693,8 @@ public final class HostHelper {
 				scan.put("share_link", setting("tailscale_share_link", ""));   // (for the pairing)
 				scan.put("name", setting("name", ""));
 				reply(x, 200, scan);
+			} else if (path.equals("/admin/wizard")) {
+				reply(x, 200, m("steps", wizardSteps()));
 			} else if (path.equals("/admin/update")) {
 				if (x.getRequestMethod().equals("POST")) {
 					long pid = 0; try { pid = (long) Double.parseDouble(Json.str(body(x).get("panel_pid"))); } catch (NumberFormatException ignored) {}
@@ -1774,6 +1776,66 @@ public final class HostHelper {
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
+	}
+
+	/** The setup guide's steps for a machine that starts with nothing, in the order to do them, each with how it stands
+	 *  now (from the same looks as Host setup, and a few more: is MCSS there, has it a server, does its web API
+	 *  answer). Each: key, title, state (ok, todo, warn, info, wait), text, detail, actions ([label, what to do]). */
+	static List<Object> wizardSteps() {
+		Map<String, Map<String, Object>> have = new LinkedHashMap<>();
+		for (Object o : Json.list(checklist().get("steps"))) have.put(Json.str(Json.map(o).get("title")), Json.map(o));
+		java.util.function.BiFunction<String, String, String> st = (title, missing) -> have.containsKey(title) ? Json.str(have.get(title).get("state")) : missing;
+		java.util.function.Function<String, String> dt = title -> have.containsKey(title) ? Json.str(have.get(title).get("detail")) : "";
+		List<Object> out = new ArrayList<>();
+		java.util.function.Function<Object[], Map<String, Object>> add = s -> {
+			List<Object> acts = new ArrayList<>();
+			for (int i = 5; i + 1 < s.length; i += 2) acts.add(List.of(s[i], s[i + 1]));
+			Map<String, Object> step = m("key", s[0], "title", s[1], "state", s[2], "text", s[3], "detail", s[4], "actions", acts);
+			out.add(step);
+			return step;
+		};
+		Map<String, Object> scan = setupScan("");
+		String exe = Json.str(scan.get("mcss_exe"));
+		boolean mcss = !exe.isEmpty() && Files.isRegularFile(Path.of(exe));
+		int inMcss = Json.list(scan.get("servers")).size();
+		boolean api = false;
+		if (mcss) try {
+			HttpURLConnection c = (HttpURLConnection) new URL(setting("mcss_panel", "http://127.0.0.1:25560") + "/api/v2").openConnection();
+			c.setConnectTimeout(1500); c.setReadTimeout(2000);
+			c.getResponseCode(); api = true;   // (any answer at all: it is on)
+		} catch (IOException | RuntimeException off) { api = false; }
+		boolean ts = st.apply("Tailscale is installed", "todo").equals("ok"), tsOn = st.apply("Tailscale is connected", "wait").equals("ok");
+
+		add.apply(new Object[] {"welcome", "Welcome", "info", "This guide takes a machine from nothing to a Minecraft server your friends can join with the Gatehouse launcher.\n\nThree things are involved. Tailscale is a private network between this machine and the devices you let in, so nothing is opened to the internet. MC Server Soft (MCSS) runs the Minecraft servers. Gatekeeper, this program, sits between them: it lets the launchers you allow see, start and stop your servers.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""});
+		add.apply(new Object[] {"tailscale", "Install Tailscale", ts ? "ok" : "todo", "Tailscale makes the private network. Download it from its own site, install it, and sign in with an account (Google, Microsoft, GitHub and others work; it's free for personal use).\n\nThis step is done when Tailscale is installed on this machine.", dt.apply("Tailscale is installed"),
+				"Open Tailscale's download page", "open:https://tailscale.com/download"});
+		add.apply(new Object[] {"tailscale_on", "Sign in to Tailscale", !ts ? "wait" : tsOn ? "ok" : "todo", "Open Tailscale (its icon is by the clock), sign in, and make sure it says Connected.\n\nThis step is done when this machine has a Tailscale address.", dt.apply("Tailscale is connected")});
+		add.apply(new Object[] {"tailscale_stay", "Keep this machine signed in", !tsOn ? "wait" : st.apply("This machine stays signed in to Tailscale", "todo"), "By default Tailscale signs a machine out after some months, and players would lose the server until you signed in again. For a server, turn that off: in Tailscale's admin page, under Machines, open this machine's \u2026 menu and choose Disable key expiry.\n\nIn Tailscale's own menu by the clock, also turn on Run unattended (under Preferences), so players can reach the machine before anyone has signed in to Windows.", dt.apply("This machine stays signed in to Tailscale"),
+				"Open Tailscale's admin page", "open:https://login.tailscale.com/admin/machines"});
+		add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo", "MC Server Soft (MCSS) is the program that runs the Minecraft servers. Download it from its site and unpack it somewhere permanent, for example C:\\Minecraft\\MCSS. It has no installer: the folder is the program.\n\nIf Gatekeeper doesn't find it by itself, use Server setup and Browse to mcss.exe.\n\nThis step is done when Gatekeeper knows where mcss.exe is.", mcss ? exe : "",
+				"Open MCSS's site", "open:https://www.mcserversoft.com/", "Server setup\u2026", "setup"});
+		add.apply(new Object[] {"mcss_server", "Make a server in MCSS", !mcss ? "wait" : inMcss > 0 ? "ok" : "todo", "In MCSS: Add Server, give it a name, pick the server type and Minecraft version (Vanilla is the plain game; Fabric or Forge are for mods), and create it. Start it once in MCSS and accept Minecraft's EULA when asked, so its files are made, then stop it again.\n\nThis step is done when MCSS has at least one server.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server" : " servers") + " in MCSS" : ""});
+		add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo", "Gatekeeper talks to MCSS through MCSS's own web API, on this machine only. In MCSS: Options, then Web API (or Web Panel), switch it on, and leave the port at 25560. MCSS has to be running for this.\n\nThis step is done when MCSS answers on that port.", api ? "MCSS answers" : mcss ? "No answer on " + setting("mcss_panel", "http://127.0.0.1:25560").replaceFirst("^https?://", "") + " (is MCSS running?)" : ""});
+		String addr = st.apply("Gatekeeper listens on the Tailscale address", "todo"), chosen = st.apply("Servers are chosen", "todo");
+		add.apply(new Object[] {"setup", "Choose the servers", inMcss == 0 || !tsOn ? "wait" : addr.equals("ok") && chosen.equals("ok") ? "ok" : "todo", "Server setup tells Gatekeeper where MCSS is, which address to listen on (this machine's Tailscale address, filled in for you), and which of MCSS's servers players should see: tick them and Save.\n\nThis step is done when Gatekeeper listens on the Tailscale address and at least one server is chosen.", dt.apply("Servers are chosen").isEmpty() ? dt.apply("Gatekeeper listens on the Tailscale address") : dt.apply("Servers are chosen"),
+				"Server setup\u2026", "setup"});
+		add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", !chosen.equals("ok") || !api ? "wait" : st.apply("Gatekeeper can use MCSS", "todo"), "Gatekeeper needs MCSS's permission to start and stop servers. Go to Servers, open one of your servers, and on its Server Status tab choose Sign in to MCSS. You sign in once with your MCSS web panel user; Gatekeeper then makes a key of its own and your password isn't kept.\n\nThis step is done when Gatekeeper has a key that MCSS accepts.", dt.apply("Gatekeeper can use MCSS"),
+				"Go to Servers", "servers"});
+		if (have.containsKey("Each server has its own port") || have.containsKey("Gatekeeper has each server's current port")) {
+			String ports = st.apply("Each server has its own port", "ok"), moved = st.apply("Gatekeeper has each server's current port", "ok");
+			add.apply(new Object[] {"ports", "Give each server its own port", ports.equals("ok") && moved.equals("ok") ? "ok" : "warn", (have.containsKey("Each server has its own port") && !ports.equals("ok") ? Json.str(have.get("Each server has its own port").get("how")) + "\n\n" : "") + (!moved.equals("ok") ? Json.str(have.get("Gatekeeper has each server's current port").get("how")) + "\n\n" : "") + "Two servers on one machine can't both use the same port at once. This step is done when every chosen server has a port of its own and Gatekeeper knows it.",
+					!ports.equals("ok") ? dt.apply("Each server has its own port") : dt.apply("Gatekeeper has each server's current port"), "Server setup\u2026", "setup"});
+		}
+		add.apply(new Object[] {"whitelist", "Turn the whitelist on", !chosen.equals("ok") ? "wait" : st.apply("Only whitelisted players can join", "todo"), "With the whitelist on, only players you have allowed can join a server, even if someone else gets onto your Tailscale network. Gatekeeper adds a player to it when you allow them in Access Manager.\n\nHost setup has a button that turns it on for you. This step is done when every chosen server has its whitelist on.", dt.apply("Only whitelisted players can join"),
+				"Go to Host setup", "hostsetup"});
+		add.apply(new Object[] {"invite", "Make an invite for players", !tsOn ? "wait" : st.apply("Players have a way into Tailscale", "todo"), "A player's device has to be able to reach this machine over Tailscale. Share just this machine with them: in Tailscale's admin page, under Machines, open this machine's \u2026 menu, choose Share, and make a reusable invite link. That gives access to this one machine, not the rest of your network.\n\nPaste the link into Host setup (Tailscale invite link for players) and Save. It then travels with the pairing you hand out.\n\nThis step is done when an invite link is saved.", dt.apply("Players have a way into Tailscale"),
+				"Open Tailscale's admin page", "open:https://login.tailscale.com/admin/machines", "Go to Host setup", "hostsetup"});
+		add.apply(new Object[] {"pairing", "Invite a player", !addr.equals("ok") ? "wait" : st.apply("A launcher has reached this Gatekeeper", "todo"), "Share pairing gives you a link and a small file. Send either to a player. In their Gatehouse launcher they press Add Gatekeeper and paste it; Gatehouse then walks them through Tailscale and your invite.\n\nA new launcher can do nothing until you allow it: it appears under Servers, in a server's Access Manager, where you choose what it may do and whitelist the player.\n\nThis step is done when a launcher has reached this Gatekeeper. If one can't, Windows Firewall has to allow Java for Gatekeeper on private networks.", dt.apply("A launcher has reached this Gatekeeper"),
+				"Share pairing\u2026", "pairing"});
+		boolean all = true;
+		for (Object o : out) { String s = Json.str(Json.map(o).get("state")); if (s.equals("todo") || s.equals("wait")) all = false; }
+		add.apply(new Object[] {"done", all ? "All set" : "Finishing", "info", all ? "Everything a server needs is in place. Players you have paired and allowed can start the server from Gatehouse and play.\n\nGatekeeper keeps itself up to date (it says so at the top of Servers when a newer one is out), and Host setup keeps watching these same things. This guide stays in Options." : "Some steps above aren't done yet: the ones marked in red. You can finish them in any order that their own text allows, and this guide stays in Options.", ""});
+		return out;
 	}
 
 	/** What Options > Uninstall runs: Gatekeeper's own install script (carried inside this program, written out beside
@@ -2365,6 +2427,12 @@ public final class HostHelper {
 			options.add(optBack);
 			optLine.accept("About", true);
 			optLine.accept("Gatekeeper " + Json.str(notesInside("gatekeeper").get("version")) + ", running from " + keeperDir + ". Its settings, its list of launchers and its log are in " + dir + ".", false);
+			optLine.accept("Setup guide", true);
+			optLine.accept("The steps from a machine with nothing on it to a server your friends can join, each with a check for whether it's done.", false);
+			JButton guideB = new JButton("Open the setup guide");
+			JPanel guideRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
+			guideRow.add(guideB); guideRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(guideRow);
 			optLine.accept("Uninstall", true);
 			optLine.accept("Removes Gatekeeper from this machine: it is stopped, and its start-up task, its Start menu shortcut and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
 			javax.swing.JCheckBox forgetSettings = new javax.swing.JCheckBox("Also remove its settings: who is allowed to do what, its key for MCSS, and its log");
@@ -2399,6 +2467,39 @@ public final class HostHelper {
 			String[] optionsFrom = {"overview", "Gatekeeper"};
 			gear.addActionListener(ev -> { optionsFrom[0] = backB.isVisible() ? "server" : "overview"; optionsFrom[1] = head.getText(); head.setText("Gatekeeper \u2013 Options"); pickRow.setVisible(false); levels.show(stack, "options"); });
 			optBack.addActionListener(ev -> { head.setText(optionsFrom[1]); pickRow.setVisible(true); levels.show(stack, optionsFrom[0]); });
+			// ---- the setup guide: the steps one at a time, asked of the running Gatekeeper, with buttons that do them
+			dev.gatehouse.look.Wizard[] guide = {null};
+			Runnable leaveGuide = () -> { guide[0].stop(); head.setText("Gatekeeper"); pickRow.setVisible(true); backB.setVisible(false); levels.show(stack, "overview"); };
+			guide[0] = new dev.gatehouse.look.Wizard(() -> {
+				List<dev.gatehouse.look.Wizard.Step> steps = new ArrayList<>();
+				try {
+					for (Object o : Json.list(Json.map(Json.parse(call("GET", "/admin/wizard", null))).get("steps"))) {
+						Map<String, Object> s = Json.map(o);
+						dev.gatehouse.look.Wizard.Step step = new dev.gatehouse.look.Wizard.Step(Json.str(s.get("key")), Json.str(s.get("title")), Json.str(s.get("state")), Json.str(s.get("text")), Json.str(s.get("detail")));
+						for (Object a : Json.list(s.get("actions"))) step.action(Json.str(Json.list(a).get(0)), Json.str(Json.list(a).get(1)));
+						steps.add(step);
+					}
+				} catch (Exception ex) { throw new RuntimeException(ex); }
+				return steps;
+			}, id -> {
+				if (id.startsWith("open:")) { try { java.awt.Desktop.getDesktop().browse(java.net.URI.create(id.substring(5))); } catch (Exception ignored) {} }
+				else if (id.equals("setup")) setupB.doClick();
+				else if (id.equals("pairing")) pairB.doClick();
+				else if (id.equals("hostsetup")) { leaveGuide.run(); firstTabs.setSelectedIndex(3); }
+				else if (id.equals("servers")) { leaveGuide.run(); firstTabs.setSelectedIndex(0); }
+			}, leaveGuide, HostHelper.class);
+			stack.add(guide[0], "wizard");
+			Runnable openGuide = () -> { head.setText("Gatekeeper \u2013 Setup guide"); pickRow.setVisible(false); levels.show(stack, "wizard"); guide[0].open(); };
+			guideB.addActionListener(ev -> openGuide.run());
+			// (the first time Gatekeeper's window is opened on a machine that still has steps to do, it opens on the guide)
+			if (System.getenv("OJ_PANEL_PNG") == null && !Files.exists(dir.resolve("setup-guide-shown.txt"))) new Thread(() -> {
+				try {
+					boolean open = false;
+					for (Object o : Json.list(Json.map(Json.parse(call("GET", "/admin/wizard", null))).get("steps"))) if (Json.str(Json.map(o).get("state")).equals("todo")) open = true;
+					Files.writeString(dir.resolve("setup-guide-shown.txt"), "The setup guide was shown once by itself; it stays in Options.\r\n", StandardCharsets.UTF_8);
+					if (open) SwingUtilities.invokeLater(openGuide);
+				} catch (Exception ignored) {}
+			}, "guide").start();
 			Runnable refresh = () -> new Thread(() -> {
 				try {
 					Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/devices", null)));
@@ -2848,6 +2949,11 @@ public final class HostHelper {
 						java.awt.Graphics2D gg2 = gi2.createGraphics(); p.paint(gg2); gg2.dispose();
 						javax.imageio.ImageIO.write(gi2, "png", new java.io.File(shot + "-options.png"));
 						optBack.doClick(0);
+						levels.show(stack, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); p.validate();
+						java.awt.image.BufferedImage wi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D wg = wi.createGraphics(); p.paint(wg); wg.dispose();
+						javax.imageio.ImageIO.write(wi, "png", new java.io.File(shot + "-wizard.png"));
+						levels.show(stack, "overview");
 						firstTabs.setSelectedIndex(0);
 					} catch (IOException ex) { ex.printStackTrace(); }
 					inServer[0] = true; backB.setVisible(true); levels.show(stack, "server");

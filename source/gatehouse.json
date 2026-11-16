@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.8.0",
+ "version": "2.9.0",
  "changes": [
+  {"version": "2.9.0", "date": "2026-11-16", "notes": [
+   "A setup guide: the steps from a device with nothing set up to playing on a server, one at a time. Prism Launcher, your Minecraft account, adding the owner's Gatekeeper, connecting to it, installing a server, and playing. Each step says what to do, has a button for it where there is one, and shows whether it's done; the guide looks again every few seconds, so a step ticks by itself.",
+   "The guide opens by itself on a device that has no Gatekeeper and no server yet, and is always in Options (the wheel at the top right).",
+   "The steps can carry pictures; none are included yet."
+  ]},
   {"version": "2.8.0", "date": "2026-11-16", "notes": [
    "A settings wheel at the top right of the main window opens Options: which Gatehouse this is and how it got here, and Uninstall.",
    "Uninstall asks you to type confirm first. A Gatehouse installed by itself is removed there and then by its own uninstall script (its files, its menu entry, its Steam shortcut if Steam is closed), with a tick box for also removing what it remembers; you're shown what the script did, and Gatehouse closes. One that came with a pack is removed with that pack: Options opens the pack's own uninstaller where Windows has it on record, and otherwise says where to find it.",

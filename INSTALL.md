@@ -177,6 +177,13 @@ window first.
 
 Both programs use the same dark look, sized for a Steam Deck's screen.
 
+### The setup guide
+
+On a device with nothing set up yet, Gatehouse opens on its **setup guide**: Prism Launcher, your Minecraft account,
+adding the owner's Gatekeeper, connecting to it, installing a server, and playing, one step at a time. Each step says
+what to do and shows whether it's done, and ticks by itself once it is. It's always in Options (the wheel at the
+top right of the main window). Gatekeeper has one of its own for the machine that runs the servers.
+
 ### Connecting to a Gatekeeper for the first time
 
 A Gatekeeper is reached over Tailscale, a private network between its owner's machine and the devices they let in.
