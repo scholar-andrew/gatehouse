@@ -309,7 +309,7 @@ sp = os.path.join(here, "steam-applied.json")
 state = json.load(open(sp, encoding="utf-8-sig")) if os.path.exists(sp) else {}
 changed = []
 for t in targets:
-    g, a, art = t["grid"], str(t["appid"]), "steam/art-prism" if t.get("art") == "prism" else "steam/art"
+    g, a, art = t["grid"], str(t["appid"]), "steam/art-prism" if t.get("art") == "prism" else "steam/art-launcher" if t.get("art") == "launcher" else "steam/art"
     items = [(art + "/cover.png", os.path.join(g, a + "p.png")), (art + "/hero.png", os.path.join(g, a + "_hero.png")),
              (art + "/logo.png", os.path.join(g, a + "_logo.png")), (art + "/icon.png", os.path.join(g, a + "_icon.png")),
              (art + "/wide.png", os.path.join(g, a + ".png")), ("steam/controller_neptune.vdf", os.path.join(t["controller"], "controller_neptune.vdf"))]

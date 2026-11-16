@@ -339,7 +339,7 @@ if ((Test-Path $target) -and ($opt.steam_art -or $opt.steam_controller)) {
         function Get-PackHash([byte[]]$b) { -join ($sha.ComputeHash($b) | ForEach-Object { $_.ToString('x2') }) }
         $changed = @()
         foreach ($tg in $targets) {
-            $artDir = if ($tg.art -eq 'prism') { 'steam/art-prism' } else { 'steam/art' }
+            $artDir = if ($tg.art -eq 'prism') { 'steam/art-prism' } elseif ($tg.art -eq 'launcher') { 'steam/art-launcher' } else { 'steam/art' }
             $items = @(
                 @("$artDir/cover.png", (Join-Path $tg.grid "$($tg.appid)p.png")),
                 @("$artDir/hero.png", (Join-Path $tg.grid "$($tg.appid)_hero.png")),

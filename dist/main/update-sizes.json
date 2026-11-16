@@ -1,5 +1,5 @@
 {
- "version": "1.9.18",
+ "version": "1.10.0",
  "files": {
   "config/fabric_loader_dependencies.json": {
    "hash": "5e4c8594ea5e096f9e36b188c58798d5c02758cd4dabebfc2bcb2a0bb122f280",
@@ -11,12 +11,20 @@
    "preserve": true
   },
   "extras/changelog.txt": {
-   "hash": "790794be31a1ab0285165ef191b777134b076a5018f248e21a7706f2cf8a5266",
-   "size": 15963
+   "hash": "b434d27c97535576e44b61987dfcca64360efc0e93bd5a63048d99dcad4b360e",
+   "size": 17210
+  },
+  "extras/gatehouse-launcher.ps1": {
+   "hash": "f506868159ce982d801e29ef21903ac6af696f6ecaf633a0840edd50ad45e00b",
+   "size": 3319
+  },
+  "extras/gatehouse-launcher.sh": {
+   "hash": "273005b44908532838f6a17d169adb51251ec8a36a4dcdf0ecd7acb1273386d0",
+   "size": 2052
   },
   "extras/launch-popup.jar": {
-   "hash": "043a79e5ad73e95fe0debf5460ed107982dc8051096dfd4f558176c82009a3c1",
-   "size": 93678
+   "hash": "17933d00a8da3abc90762ebaf045d066e8ae786a001e68bd788c0ce9ff0d4887",
+   "size": 110353
   },
   "extras/launch-wrapper.exe": {
    "hash": "9bbfa275255fe81a9f5103ef3fefbd802fcd0030f8c103daa287673c54d6b8e5",
@@ -35,12 +43,12 @@
    "size": 4184
   },
   "extras/pack-sync.ps1": {
-   "hash": "16b9b7625030aa8c9717fedd8f918c9310927b98bb9ce49c4d31932540be2448",
-   "size": 36402
+   "hash": "fe19d23bada7cc5454fbaf2e292a10fe49598d59626cbd2567d23ac2cb770a28",
+   "size": 36459
   },
   "extras/pack-sync.sh": {
-   "hash": "45b366a4d085e9cfb9778712f6f10c62991efcaa624c0a171b37296c0ae3c7ad",
-   "size": 28386
+   "hash": "0070b4f0927cbfb23496c76dffbe6aec7ba37c1bc79192f0cbc4aa44e4d1e647",
+   "size": 28442
   },
   "extras/profile.json": {
    "hash": "4214efed9ad7d663769c8fd1f30194c71d40b151446a0b2b2904cde4ecf1bfcb",
@@ -173,6 +181,26 @@
   "mods/yacl.pw.toml": {
    "hash": "0387806c977cf558993d7a2cec8e694f7e055f06ce3e8c430170217ceab43f97",
    "size": 1125377
+  },
+  "steam/art-launcher/cover.png": {
+   "hash": "99b9a8cec8fcb0f41e8c6742de0b158cd23c143162de0e52c29b30d5e4ea86ea",
+   "size": 63549
+  },
+  "steam/art-launcher/hero.png": {
+   "hash": "0f28346f47a768500c13c71b031590272f205917bf889ff0ca4c1d3ce9e345e0",
+   "size": 102367
+  },
+  "steam/art-launcher/icon.png": {
+   "hash": "1ac1edbe3a9eb4b398926bed2cc3b862ace9e740130edaff037c49735365b269",
+   "size": 28223
+  },
+  "steam/art-launcher/logo.png": {
+   "hash": "f2c06e2d5489ec06b3b0b526da9a190ae8fc33b12ce2a2577d27dd12b79244e9",
+   "size": 20052
+  },
+  "steam/art-launcher/wide.png": {
+   "hash": "1d267e76f612644051557c950a67917ad6d9803130bdee082ae49c00fe639ef7",
+   "size": 55228
   },
   "steam/art-prism/cover.png": {
    "hash": "4a8f8e84606c4d4ee00a223323805a88f9bc87f9e690f045da40f4bc3266de2e",

@@ -1,3 +1,9 @@
+== 1.10.0 | 2026-11-15
+- New look: the launcher (and the Keeper's control panel) are dark, in the manner of Steam, with larger buttons and tabs that suit a Steam Deck.
+- The Gatehouse launcher can now open on its own: it lists the packs you have installed, shows whether each server is online, and has Play and a button for Prism Launcher. New installs get a Gatehouse Minecraft Launcher shortcut in Steam, with its own art, in place of the Prism Launcher one. To get it on a device that's already set up, run setup again.
+- Starting from the Gatehouse launcher or from a pack's Steam shortcut (after setup has been run again) goes straight into the game when there's nothing new to show and the server is online. After an update, with server news, with the server off, or if you can't join, the usual window appears first.
+- Server config has a new Gatehouse Keeper section: it shows which Keeper this launcher talks to, and can pair with another one by its address (the owner copies it from the control panel).
+- For server owners: Gatehouse Keeper has its own installer (gatehouse-keeper.zip on the releases page, a script you can read), and its control panel has Server setup, which finds MCSS and its servers and picks the Tailscale address.
 == 1.9.18 | 2026-11-15
 - Fixed: on a Steam Deck the launcher opened taller than the screen, so Play (and Restart and Quit) were below the bottom edge and couldn't be pressed. The window is now laid out for the Deck's display (1280 x 800): it opens no taller than fits, its tabs scroll, and it never opens bigger than the screen. You can still resize it.
 - Client updates now starts with This build: the version installed on this device and how big it is (total size, number of files, and the mods' share).
