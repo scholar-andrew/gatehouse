@@ -94,9 +94,23 @@ safe; it updates your setup without duplicating anything.
 
 ### The Gatehouse launcher
 
-**Gatehouse Minecraft Launcher** in your Steam library opens a window listing the packs you have installed, each with
-whether its server is online right now and a **Play** button, plus **Open Prism Launcher** (accounts, other instances,
-settings) and **Quit**. Play starts that pack: its update runs first, as always.
+**Gatehouse Minecraft Launcher** in your Steam library opens the launcher's own window. It has three levels:
+
+1. **Gatekeepers.** Each Gatekeeper this device knows: the one your packs came with, and any you add. Each says
+   whether it's answering and how many servers it has. **Add Gatekeeper...** connects to another one: paste the address
+   or pairing link its owner gave you, or open the pairing file they sent (your device has to be in their Tailscale
+   network, and that owner still decides what your device may do). **Remove** forgets one that has no pack installed
+   here. The list is kept in a `gatehouse` folder beside Prism's instances.
+2. **Servers.** **Open** shows the servers that Gatekeeper looks after, each with whether it's on. One whose pack is
+   on this device has **Play**. One that isn't has **Install**, which sets its pack up in Prism Launcher from the
+   address the Gatekeeper gives (it asks first, naming where the files come from; the mods download on the first
+   Play; no Steam shortcut is added, and Prism Launcher has to be installed already). **Gatekeepers** at the top right
+   goes back.
+3. **The server's own launcher.** Play starts that pack: its update runs first and the window described below
+   appears. Its **Menu** button comes back here without starting the game.
+
+Along the bottom are **Open Prism Launcher** (accounts, other instances, settings), **Quit**, and the launcher's own
+Steam config button.
 
 The two shortcuts differ in one thing. A pack's own Steam shortcut (**October Journey - ...**) goes straight into the
 game whenever it can: the update went through, the server is online, and you may join. News it would have shown is

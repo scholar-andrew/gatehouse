@@ -118,6 +118,18 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   much of it came from this machine; mods the pack only lists come from Modrinth). Kept in `pulls.json` beside
   `host.json` (the latest 1000) and shown newest first, with totals. It is what launchers report, not a measurement
   on this machine.
+- **The window's three levels.** It opens on **MCSS on this machine** (its program and whether it's running) and
+  **Servers in this MCSS** (each with whether it's on, how many are playing, its port and folder; `GET
+  /admin/overview`). **Open** goes into one server's pages (Access Manager, Status, Updates Pulled); **Servers** at
+  the top right comes back. One MCSS per machine for now.
+- **The catalog.** A launcher's menu asks `GET /v1/catalog` for this Gatekeeper's name (`name` in `host.json`, else
+  the computer's name) and its servers: id, name, the address to join, whether it's on, and `profile`, the address
+  of that server's pack profile (a `config.json`, docs/profiles.md; `profile` on the server in `host.json`, filled in
+  from this repository by `tools/install_host.ps1`). A launcher can install a pack from that. A blacklisted launcher
+  gets nothing.
+- **Share pairing** (Status tab): the address, a pairing link (`gatehouse://pair/<address>?name=<name>`, to paste
+  into a launcher's Add Gatekeeper) and a pairing file (`<name>.gatekeeper`, the same two things as JSON, to send).
+  None of them grants anything: the launcher still introduces itself and waits in Access Manager.
 - **Three states.** Each permission (machine wake and sleep, MCSS, Minecraft server) is `allowed`, `none` (not
   allowed: nobody decided) or `denied`, for a launcher (`devices.json`) or a player (`players.json`; `deny` holds the
   denials). A player's setting goes to all their confirmed launchers, except a launcher that is itself denied that
