@@ -123,13 +123,17 @@ final class Home {
 
 	/** This device's line to one Gatekeeper: a small folder of its own (so the launcher's usual code can talk to it),
 	 *  given the id and secret an installed pack already uses for that Gatekeeper when there is one. */
-	private static ServerControl client(Path home, String url, List<String[]> packs) {
+	static ServerControl client(Path home, String url, List<String[]> packs) {
 		Path dir = home.resolve("keepers").resolve(shown(url).replaceAll("[^A-Za-z0-9.-]", "_"));
 		try {
 			Files.createDirectories(dir.resolve("extras"));
 			Files.writeString(dir.resolve("extras/server-control.json"), "{\"helper_url\": \"" + ServerControl.jsonEsc(url) + "\"}\n", StandardCharsets.UTF_8);
-			if (!Files.isRegularFile(dir.resolve("server-access.json"))) for (String[] p : packs) if (p[4].equals(url)) {
+			// (which Gatekeeper a pack belongs to is read from the pack itself, not from the list: after Remove its packs
+			// are listed under Other packs, and adding the Gatekeeper again must find the same id, or the owner would
+			// see this device as a new one with nothing allowed)
+			if (!Files.isRegularFile(dir.resolve("server-access.json"))) for (String[] p : packs) {
 				ServerControl sc = new ServerControl(Path.of(p[3]));
+				if (!norm(sc.helperUrl).equals(url)) continue;
 				if (sc.deviceId != null && !sc.deviceId.isEmpty() && sc.deviceToken != null && sc.deviceToken.length() >= 32) {
 					Files.writeString(dir.resolve("server-access.json"), "{\"device_id\": \"" + ServerControl.jsonEsc(sc.deviceId) + "\", \"device_token\": \"" + ServerControl.jsonEsc(sc.deviceToken) + "\"}\n", StandardCharsets.UTF_8);
 					break;

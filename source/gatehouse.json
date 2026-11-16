@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.6.1",
+ "version": "2.6.2",
  "changes": [
+  {"version": "2.6.2", "date": "2026-11-16", "notes": [
+   "Fixed: removing a Gatekeeper and adding it again made this device look like a new one to its owner (a second entry in their Access Manager, with nothing allowed). When a pack from that Gatekeeper is installed, adding it again now picks up the same identity, so everything the owner had allowed still applies."
+  ]},
   {"version": "2.6.1", "date": "2026-11-16", "notes": [
    "Fixed: after Gatehouse updated itself it didn't always open again. Three causes, all dealt with. The shortcut's script reopened it only once, so a second update in the same sitting just closed it; it now reopens it every time. On Windows the script waited for everything Gatehouse had started, so with Prism Launcher still open the new Gatehouse didn't appear until Prism was closed; it now waits for Gatehouse alone. And the copy Gatehouse runs from could still be locked for a moment; it now tries again, under a second name if need be.",
    "Gatehouse never updates backwards. A source that is behind (GitHub's copy can lag by some minutes) used to be offered as an update because it was different; now only a newer version is.",
