@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.20.1",
+ "version": "3.20.2",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.20.2", "date": "2026-11-17", "notes": [
+   "Chat: each room's card has a small castle on the corner of its picture: blue for a Gatekeeper's room, yellow for a server's."
+  ]},
   {"version": "3.20.1", "date": "2026-11-17", "notes": [
    "Gatekeeper's castle is blue, in the window and in its taskbar icon (the icon used to be yellow); Gatehouse's is yellow-orange, so the two are told apart at a glance.",
    "Fixed for small screens such as the Steam Deck's: the panel beside the server cards wraps its words inside its own scroll bar instead of cutting them off; the Web panel and Pack pages scroll instead of running off the bottom; the Access Manager's and Tasks' tables scroll sideways when there isn't room for their column headings, instead of cutting them short."

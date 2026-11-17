@@ -1,4 +1,7 @@
 [
+ {"version": "1.53.2", "date": "2026-11-17", "notes": [
+  "In chat, a small castle on each room shows whether it is a Gatekeeper's room (blue) or a server's (yellow) (Gatehouse 3.20.2). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.53.1", "date": "2026-11-17", "notes": [
   "Gatehouse's castle is yellow-orange now, and pages fit the Steam Deck's screen better (Gatehouse 3.20.1). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

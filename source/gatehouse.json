@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.20.1",
+ "version": "3.20.2",
  "changes": [
+  {"version": "3.20.2", "date": "2026-11-17", "notes": [
+   "Chat: each room's card has a small castle on the corner of its picture: blue for a Gatekeeper's room, yellow for a server's."
+  ]},
   {"version": "3.20.1", "date": "2026-11-17", "notes": [
    "Gatehouse's castle is yellow-orange, at the top left of its windows and in its window and taskbar icon; Gatekeeper's is blue.",
    "Fixed: the panel beside the server cards cut its words off at the right, under its own scroll bar. It wraps them now.",

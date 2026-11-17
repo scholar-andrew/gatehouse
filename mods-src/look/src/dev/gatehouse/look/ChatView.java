@@ -291,6 +291,9 @@ public final class ChatView extends JPanel {
 				g.drawString(in, x + s / 2f - g.getFontMetrics().stringWidth(in) / 2f, y + s / 2f + 5.5f);
 			}
 			g.setClip(clip);
+			// (on its corner: a blue castle for a Gatekeeper's room, a yellow one for a server's)
+			boolean keeperRoom = room.key().equals("gatekeeper") || room.key().endsWith("|gatekeeper");
+			GameShell.castle(g, x - 3, y - 3, 17, keeperRoom ? GameShell.ACC : GameShell.GATEHOUSE);
 			int tx = x + s + 10, room2 = w - tx - 8;
 			long n = room.last() > seen(room.key()) && !(sel && onScreen.getAsBoolean()) ? Math.max(1, room.last() - seen(room.key())) : 0;
 			if (n > 0) room2 -= 26;

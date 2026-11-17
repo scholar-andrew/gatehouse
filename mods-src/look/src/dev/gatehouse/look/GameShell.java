@@ -416,6 +416,21 @@ public final class GameShell extends JPanel {
 	 *  middle), never narrower than the program's mark and name. */
 	private int side() { int least = items.isEmpty() ? 205 : 255; return Math.max(least, Math.min(least + 25, (getWidth() - bar.getPreferredSize().width) / 2)); }
 
+	/** The castle mark, small, for a badge: w wide (it is 5/6 as tall), its top left at x, y; with a dark edge so it
+	 *  shows on any picture. Gatehouse's is GATEHOUSE yellow, Gatekeeper's the ACC blue. */
+	public static void castle(Graphics2D g0, double x, double y, double w, Color fill) {
+		Graphics2D g = (Graphics2D) g0.create();
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+		Path2D gate = new Path2D.Double();
+		gate.moveTo(24, 48); gate.lineTo(24, 18); gate.lineTo(29, 18); gate.lineTo(29, 22); gate.lineTo(33, 22); gate.lineTo(33, 18); gate.lineTo(38, 18); gate.lineTo(38, 27);
+		gate.lineTo(46, 27); gate.lineTo(46, 18); gate.lineTo(51, 18); gate.lineTo(51, 22); gate.lineTo(55, 22); gate.lineTo(55, 18); gate.lineTo(60, 18); gate.lineTo(60, 48);
+		gate.lineTo(48, 48); gate.lineTo(48, 40); gate.curveTo(48, 32, 36, 32, 36, 40); gate.lineTo(36, 48); gate.closePath();
+		g.translate(x, y); g.scale(w / 36.0, w / 36.0); g.translate(-24, -18);
+		g.setColor(new Color(0, 0, 0, 170)); g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)); g.draw(gate);
+		g.setColor(fill); g.fill(gate);
+		g.dispose();
+	}
+
 	/** The page: whatever the window shows between the two bars. */
 	public void body(JComponent page) { middle.removeAll(); middle.add(page, BorderLayout.CENTER); middle.revalidate(); }
 	/** Which section is lit in the top bar ("" for none: a page that belongs to no section). */
