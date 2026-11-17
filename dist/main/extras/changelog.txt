@@ -1,3 +1,5 @@
+== 1.30.0 | 2026-11-16
+- Nothing changed in the pack itself. The Gatehouse launcher's Connections tab no longer shows MCSS as running on a server machine that has none (Gatehouse 2.9.1, with Gatekeeper 2.7.2).
 == 1.29.1 | 2026-11-16
 - Nothing changed in the pack itself, or in the Gatehouse launcher. Gatekeeper's Manage button now opens the server it belongs to (Gatekeeper 2.7.1).
 == 1.29.0 | 2026-11-16
