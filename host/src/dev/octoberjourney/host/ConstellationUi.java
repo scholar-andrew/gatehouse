@@ -139,6 +139,10 @@ final class ConstellationUi {
 		historyB.setToolTipText("Every server a Gatekeeper of this constellation has made or looked after, and which Gatekeeper that was: kept after a server is gone, and handed to a Gatekeeper that joins later");
 		historyB.addActionListener(e -> PackUi.history(p));
 		buttons.add(historyB);
+		JButton systemsB = new JButton("Systems…");
+		systemsB.setToolTipText("<html>Every machine this one knows of, and how it stands with each: a neighbor (in a constellation with this one now),<br>remembered (kept by you, also after the constellation is left), or unknown. A neighbor can be remembered from here.</html>");
+		systemsB.addActionListener(e -> PackUi.systems(p));
+		buttons.add(systemsB);
 		JPanel joinRow = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave); joinRow.add(leadUpdates); joinRow.add(leadManage); joinRow.add(leadOpen);
 		JPanel bottom = new JPanel();
 		bottom.setLayout(new javax.swing.BoxLayout(bottom, javax.swing.BoxLayout.Y_AXIS));

@@ -71,6 +71,11 @@ final class Invites {
 		if (mode.equals("public") || letIn(d, s)) return true;
 		return invited.equals("host") || (invited.equals("player") && mode.equals("shareable"));
 	}
+	/** Is this launcher on the server by the owner's doing or by invite (not merely because the server is public)? */
+	static boolean belongs(Map<String, Object> d, Map<String, Object> s) {
+		if (d == null || d.isEmpty() || !banOf(d)[0].isEmpty()) return false;
+		return letIn(d, s) || !Json.str(d.get("invited:" + Json.str(s.get("id")))).isEmpty();
+	}
 	/** May this launcher invite others to the server? */
 	static boolean mayInvite(Map<String, Object> d, Map<String, Object> s) {
 		if (!mayHave(d, s)) return false;

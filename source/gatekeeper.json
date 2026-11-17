@@ -1,8 +1,16 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.17.0",
+ "version": "3.18.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.18.0", "date": "2026-11-17", "notes": [
+   "Fixed: a server that MC Server Soft runs had no way to its Pack page, because that page was only inside Manage, which such a server doesn't have. Every server on the Servers page now has a Pack button of its own, beside Open: its pack and mods, its pictures for Steam, who it is for, and invites.",
+   "Systems, on the Constellation tab. A system is what one machine has of the program: its Gatehouse, its Gatekeeper, or both. A Gatekeeper and the launcher linked to it on the same machine are now listed as one system.",
+   "Each other system is a neighbor (in a constellation with this one now), remembered, or unknown (a launcher that introduced itself here and has been let in nowhere).",
+   "Remember keeps a neighbor in the list after the constellation is left, with its name and its Gatekeeper's address. Only a neighbor can be remembered; Forget works any time.",
+   "Remembering is one-sided. Each side decides for itself, each is shown when the other remembers it, and it gives the other nothing: no permission, no whitelist, no pack.",
+   "A launcher that isn't part of this constellation isn't told which systems are in it."
+  ]},
   {"version": "3.17.0", "date": "2026-11-17", "notes": [
    "Who a server is for. Each server's Pack tab has a new setting: private, shareable or public. It covers the server and its pack, and is changed at this Gatekeeper's own window only.",
    "Every server is private unless you change it. Private: this machine's launcher, a launcher with Gatekeeper or MCSS control, one allowed to start and stop that server, one playing as someone on its whitelist, and anyone you invite yourself.",

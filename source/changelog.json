@@ -1,4 +1,7 @@
 [
+ {"version": "1.51.0", "date": "2026-11-17", "notes": [
+  "In the launcher: a Systems list on the Constellation page shows the other machines you share a constellation with, and lets you remember them (Gatehouse 3.18.0). For hosts: every server has a Pack button, also ones MC Server Soft runs. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.50.0", "date": "2026-11-17", "notes": [
   "In the launcher: servers can be private, shareable or public, and a shareable or public one has an Invite button that makes a link to send someone (Gatehouse 3.17.0). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

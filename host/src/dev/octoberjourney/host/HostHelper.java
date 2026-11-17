@@ -1225,6 +1225,7 @@ public final class HostHelper {
 			if (path.equals("/v1/icon") && x.getRequestMethod().equals("GET")) { Icons.serve(x); return; }
 			if (path.equals("/v1/history") && x.getRequestMethod().equals("POST")) { History.take(x, who(d), d); return; }
 			if ((path.equals("/v1/invite") || path.equals("/v1/invite/accept")) && x.getRequestMethod().equals("POST")) { Invites.launcher(x, path, id, d, devs); return; }
+			if ((path.equals("/v1/systems") || path.equals("/v1/systems/remember")) && x.getRequestMethod().equals("POST")) { Systems.launcher(x, path, id, d, devs); return; }
 			if (path.equals("/v1/chat/rooms") || (path.equals("/v1/chat") && x.getRequestMethod().equals("POST"))) { Chat.launcher(x, path, id, d); return; }
 			if (path.equals("/v1/share") || path.equals("/v1/share/list")) { Share.launcher(x, path, id, d); return; }
 			if (path.startsWith("/v1/manage/")) { Manage.serve(x, path, d); return; }
@@ -2176,7 +2177,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x, path) && !Packs.admin(x, path) && !History.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x, path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
@@ -3436,6 +3437,14 @@ public final class HostHelper {
 								try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2 + "</div></html>", "Remove from Gatekeeper", JOptionPane.PLAIN_MESSAGE); }); } catch (Exception ignored) {}
 							}, "remove-gone").start();
 						});
+					}
+					// Pack: for every server, whoever runs it (Manage is only for the ones Gatekeeper runs itself, and a
+					// server's pack, who it is for and its invites have nothing to do with who runs it).
+					if (!Boolean.TRUE.equals(s.get("gone"))) {
+						JButton packB = new JButton("Pack…");
+						packB.setToolTipText("<html>What players' launchers install for this server: its pack and the mods in it, its pictures for Steam,<br>who the server is for (private, shareable or public), and invites</html>");
+						packB.addActionListener(ev -> PackUi.pack(f, id, nm));
+						((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(packB);
 					}
 					((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(manageB);
 					overList.add((JPanel) sr[0]); overList.add(javax.swing.Box.createVerticalStrut(8));

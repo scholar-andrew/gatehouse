@@ -1492,6 +1492,12 @@ final class Home {
 			updTop.add(updating, BorderLayout.CENTER); updTop.add(checkRow, BorderLayout.SOUTH);
 			JPanel constPage = new JPanel(new BorderLayout(0, 8));
 			constPage.add(updTop, BorderLayout.NORTH); constPage.add(news, BorderLayout.CENTER);
+			// Systems: the other machines in this one's constellations, and the ones it remembers
+			JButton systemsB = new JButton("Systems…");
+			systemsB.setToolTipText("<html>The other machines in a constellation with this one (neighbors), and the ones you chose to remember.<br>A neighbor can be remembered from here; it then stays listed after the constellation is left.</html>");
+			systemsB.addActionListener(ev -> SystemsBox.show(f, home, keepers, packs));
+			JPanel systemsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4)); systemsRow.setOpaque(false); systemsRow.add(systemsB);
+			constPage.add(systemsRow, BorderLayout.SOUTH);
 			deck.add(dev.gatehouse.look.GameShell.sheet(constPage), "constellation");
 			// What this device may do on each server it has installed, from what its Gatekeeper last said.
 			Runnable people = () -> {

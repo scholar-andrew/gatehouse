@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.17.0",
+ "version": "3.18.0",
  "changes": [
+  {"version": "3.18.0", "date": "2026-11-17", "notes": [
+   "Systems, on the Constellation page: the other machines in a constellation with this one (neighbors), and the ones you chose to remember. Pick a neighbor and press Remember to keep it listed after the constellation is left.",
+   "When this machine also has a Gatekeeper that this launcher is linked to, the two are one system, and what it remembers is kept by that Gatekeeper.",
+   "Remembering gives the other system nothing, and each side decides for itself."
+  ]},
   {"version": "3.17.0", "date": "2026-11-17", "notes": [
    "Invite: on a server its owner made shareable or public, a new Invite button makes a link to send someone. It lasts seven days. It lets their Gatehouse install the server's pack and join; it doesn't put them on the whitelist or give them any control.",
    "Add Gatekeeper now also takes an invite: paste the link someone sent you, and the server is listed with Install.",

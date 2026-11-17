@@ -289,6 +289,7 @@ final class AutoUpdate {
 				try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
 				try {
 					talkToLead();
+					Systems.sync();   // (who else is in the constellation this Gatekeeper joined)
 					History.sync();   // (the history of servers: kept in step with this Gatekeeper's servers, and shared with the Gatekeeper it joined)
 					String mode = mode(), tag = mode + " update: ";
 					if (mode.equals("normal")) { gatherSince = 0; status = ""; launchersWaiting = false; continue; }

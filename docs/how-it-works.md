@@ -188,6 +188,28 @@ window only; `"visibility"` on the server in `host.json`; private when nothing i
   counts. Eight wrong codes from one launcher lock it out of invites for an hour. *Take back invites* clears a
   server's codes and the launchers that came in by one.
 
+## Systems: neighbors, remembered, unknown
+A system is what one machine has of the program: its Gatehouse, its Gatekeeper, or both (`Systems.java` in
+Gatekeeper, `SystemsBox.java` in the launcher; *Systems* on Gatekeeper's Constellation tab and on the launcher's
+Constellation page).
+
+- **One id for a machine.** A Gatekeeper's is the id it signs the history of servers with. The launcher linked to the
+  Gatekeeper on its machine takes that id on (`system-local.json` in its folder) and gives it wherever it reports,
+  so the two are listed as one system. A machine with only a launcher goes by the launcher's install id.
+- **Neighbor:** in a constellation with this system now. For a Gatekeeper: launchers it has let in somewhere,
+  Gatekeepers that joined and were allowed in with the systems on their side, and what the Gatekeeper it joined
+  counts as its constellation. For a launcher: what each Gatekeeper it is connected to tells it.
+- **Remembered:** kept by the owner, which can only be done while the system is a neighbor; it stays listed, with
+  its name and its Gatekeeper's address, after the constellation is left. One-sided: each side decides for itself,
+  each is shown that the other remembers it, and it gives the other nothing.
+- **Unknown:** a launcher that introduced itself to a Gatekeeper and has been let in nowhere.
+- **Where it is kept.** `systems.json` beside Gatekeeper's settings (`remembered`, `remembered_by`). A launcher on a
+  machine with no Gatekeeper keeps its own `systems.json`; one that has a Gatekeeper beside it asks that Gatekeeper
+  (`POST /v1/systems/remember`, which only this machine's own launcher may call).
+- **How it travels.** `POST /v1/systems` from a launcher or a Gatekeeper that joined says what it is, what it
+  remembers and the systems on its side, and is answered with the systems of the constellation; only for one that
+  is in it. A Gatekeeper asks the one it joined every half minute.
+
 ## The history of servers
 `history.json` beside Gatekeeper's settings holds a line for each server it made, started or stopped looking after,
 and each new pack version, with the Gatekeeper's name and address (`History.java`; *History of servers* on the

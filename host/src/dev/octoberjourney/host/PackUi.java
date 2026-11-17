@@ -53,6 +53,13 @@ final class PackUi {
 		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? new byte[0] : in.readAllBytes(); }
 	}
 
+	/** A server's pack in a window of its own: for any server, also one MC Server Soft runs (which has no Manage window). */
+	static void pack(javax.swing.JFrame f, String id, String name) {
+		javax.swing.JDialog d = new javax.swing.JDialog(f, name + ": pack", false);
+		d.setContentPane(tab(d, "?server=" + id));
+		d.pack(); d.setLocationRelativeTo(f); d.setVisible(true);
+	}
+
 	/** The Pack tab of one server. q: "?server=<id>". */
 	static JPanel tab(java.awt.Component owner, String q) {
 		JPanel p = new JPanel(new BorderLayout(0, 8));
@@ -272,6 +279,49 @@ final class PackUi {
 	}
 	private static final Map<DefaultTableModel, java.util.List<String>> rowHand = new java.util.WeakHashMap<>();
 	static String shotTo;   // (testing: a picture of the list instead of the dialog)
+
+	/** Systems: every machine this one knows of, how it stands with each, and Remember / Forget. */
+	static void systems(java.awt.Component over) {
+		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands", "Its Gatekeeper's address", "Seen through"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+		JTable table = new JTable(tm);
+		table.setRowHeight(24);
+		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+		int[] wide = {170, 90, 170, 250, 170, 130};
+		for (int i = 0; i < wide.length; i++) table.getColumnModel().getColumn(i).setPreferredWidth(wide[i]);
+		java.util.List<Map<String, Object>> shown = new java.util.ArrayList<>();
+		JLabel said = new JLabel(" ");
+		JButton keep = new JButton("Remember"), forget = new JButton("Forget");
+		keep.setToolTipText("Keeps the chosen system in this list after the constellation is left. Only a neighbor can be remembered. It gives that system nothing.");
+		forget.setToolTipText("Stops remembering the chosen system");
+		Runnable pick = () -> { int i = table.getSelectedRow(); Map<String, Object> r = i >= 0 && i < shown.size() ? shown.get(i) : null; keep.setEnabled(r != null && ServerTools.yes(r.get("neighbor")) && !ServerTools.yes(r.get("remembered"))); forget.setEnabled(r != null && ServerTools.yes(r.get("remembered"))); };
+		table.getSelectionModel().addListSelectionListener(e -> pick.run());
+		java.util.function.Consumer<Map<String, Object>> show = r -> {
+			int was = table.getSelectedRow();
+			String wasId = was >= 0 && was < shown.size() ? Json.str(shown.get(was).get("id")) : "";
+			tm.setRowCount(0); shown.clear();
+			for (Object o : Json.list(r.get("systems"))) {
+				Map<String, Object> s = Json.map(o);
+				shown.add(s);
+				boolean house = ServerTools.yes(s.get("gatehouse")), keeper = ServerTools.yes(s.get("gatekeeper"));
+				tm.addRow(new Object[] {Json.str(s.get("name")), Json.str(s.get("device")), house && keeper ? "Gatehouse and Gatekeeper" : keeper ? "Gatekeeper" : "Gatehouse", Json.str(s.get("status")), Json.str(s.get("address")), Json.str(s.get("via"))});
+				if (!wasId.isEmpty() && wasId.equals(Json.str(s.get("id")))) table.setRowSelectionInterval(tm.getRowCount() - 1, tm.getRowCount() - 1);
+			}
+			pick.run();
+		};
+		Runnable load = () -> ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/systems", null); SwingUtilities.invokeLater(() -> show.accept(r)); });
+		java.util.function.Consumer<Boolean> act = forgetIt -> { int i = table.getSelectedRow(); if (i < 0 || i >= shown.size()) return; String id = Json.str(shown.get(i).get("id")); ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/systems/remember", m("id", id, "forget", forgetIt)); SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said, r); load.run(); }); }); };
+		keep.addActionListener(e -> act.accept(false));
+		forget.addActionListener(e -> act.accept(true));
+		JScrollPane sp = new JScrollPane(table); sp.setPreferredSize(new java.awt.Dimension(980, 340));
+		JPanel lp = new JPanel(new BorderLayout(0, 6));
+		lp.add(ServerToolsUi.note(ServerToolsUi.wrap("A system is what one machine has of the program: its Gatehouse, its Gatekeeper, or both. A neighbor is in a constellation with this system now. A remembered one is kept by you, also after the constellation is left: choose a neighbor and press Remember. Each side decides for itself, and it gives the other nothing. Unknown: a launcher that introduced itself here and has been let in nowhere.", 940)), BorderLayout.NORTH);
+		lp.add(sp, BorderLayout.CENTER);
+		JPanel foot = new JPanel(new BorderLayout()); foot.add(line(keep, forget), BorderLayout.WEST); foot.add(said, BorderLayout.CENTER);
+		lp.add(foot, BorderLayout.SOUTH);
+		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/systems", null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) {} t.dispose(); return; }
+		load.run();
+		javax.swing.JOptionPane.showMessageDialog(over, lp, "Systems", javax.swing.JOptionPane.PLAIN_MESSAGE);
+	}
 
 	static String whatSays(String what) {
 		return switch (what) { case "made" -> "Made"; case "found" -> "Looked after from here on"; case "pack" -> "Pack built"; case "removed" -> "No longer looked after"; default -> what; };

@@ -387,7 +387,7 @@ final class ServerToolsUi {
 			JFrame t2 = new JFrame(); JTabbedPane tabs = manageTabs(t2, id, false); t2.setContentPane(tabs); t2.pack(); Thread.sleep(1500);
 			String[] names = {"console", "settings", "game", "backups", "tasks", "pack"};
 			for (int i = 0; i < tabs.getTabCount() && i < names.length; i++) { tabs.setSelectedIndex(i); t2.validate(); paint(t2, prefix + "-manage-" + names[i] + ".png"); }
-			PackUi.shotTo = prefix + "-manage-mods.png"; PackUi.mods(t2, "?server=" + id, s -> {}); PackUi.shotTo = null;
+			PackUi.shotTo = prefix + "-manage-mods.png"; PackUi.mods(t2, "?server=" + id, s -> {}); PackUi.shotTo = prefix + "-systems.png"; PackUi.systems(t2); PackUi.shotTo = null;
 			t2.dispose();
 		} catch (Exception e) { e.printStackTrace(); }
 	}

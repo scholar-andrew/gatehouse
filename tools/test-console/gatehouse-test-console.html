@@ -1,0 +1,527 @@
+<title>Gatehouse Test Console</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: the launcher's own shape. A top bar of sections (the every-update pass, then one per update), a strip of
+   filters, a column of cards (one check each), and a bottom strip that counts. One dark look, the program's colours. */
+:root {
+  color-scheme: dark;
+  --bg0: #0D141D; --bg1: #1B2838; --deep: #141D29; --card: #22344A; --card-hi: #2B4563; --raised: #2A475E; --line: #2F4860;
+  --text: #E6EEF5; --dim: #8F98A0; --acc: #66C0F4; --good: #8BD46E; --warn: #E9B949; --bad: #FF7B72; --on: #3FB950; --off: #445262; --cant: #9AA7C7;
+  --ui: "Segoe UI", system-ui, -apple-system, "Noto Sans", Arial, sans-serif;
+}
+body { min-height: 100vh; background-color: var(--bg0); background-image: linear-gradient(180deg, var(--bg1), var(--bg0) 900px); background-repeat: no-repeat; color: var(--text); font-family: var(--ui); font-size: 15px; line-height: 1.45; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--deep); }
+.wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1060px; margin-inline: auto; }
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--deep); border-bottom: 1px solid var(--line); }
+.bar { display: flex; align-items: center; gap: 18px; padding-block: 10px; flex-wrap: wrap; }
+.brand { font-weight: 800; letter-spacing: .22em; font-size: 14px; white-space: nowrap; }
+.brand small { display: block; font-weight: 600; letter-spacing: .12em; font-size: 10.5px; color: var(--dim); }
+.tabs { display: flex; gap: 2px; flex-wrap: wrap; min-width: 0; }
+.tab { background: none; border: 0; color: var(--dim); font: 700 13px var(--ui); letter-spacing: .14em; padding: 8px 12px 9px; cursor: pointer; border-bottom: 3px solid transparent; text-transform: uppercase; }
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { color: #fff; border-bottom-color: var(--acc); }
+.tab .n { display: inline-block; margin-left: 6px; font-size: 11px; letter-spacing: 0; color: var(--bg0); background: var(--warn); border-radius: 9px; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.tab .n[data-zero] { background: var(--off); color: var(--text); }
+.filters { display: flex; gap: 8px 18px; flex-wrap: wrap; align-items: center; padding-block: 12px 4px; }
+.group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.group > span { color: var(--dim); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin-right: 2px; }
+.chip { background: var(--deep); border: 1px solid var(--line); color: var(--dim); font: 600 13px var(--ui); border-radius: 15px; padding: 4px 12px; cursor: pointer; }
+.chip:hover { color: var(--text); border-color: var(--raised); }
+.chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--raised); color: #fff; border-color: var(--acc); }
+.headrow { display: flex; gap: 10px 16px; align-items: flex-end; flex-wrap: wrap; margin: 14px 0 12px; }
+.headrow > div { flex: 1 1 320px; min-width: 0; }
+h2 { font-size: 22px; font-weight: 700; margin: 0 0 2px; text-wrap: balance; }
+.sub { color: var(--dim); margin: 0; max-width: 70ch; }
+.btn { background: var(--raised); border: 1px solid var(--line); color: #fff; font: 700 14px var(--ui); padding: 9px 14px; border-radius: 8px; cursor: pointer; }
+.btn:hover { background: #3D6C8E; }
+.btn.quiet { background: var(--deep); color: var(--dim); font-weight: 600; }
+.btn.quiet:hover { color: var(--text); background: var(--deep); border-color: var(--raised); }
+.list { display: block; padding-bottom: 120px; }
+.list > * { margin-bottom: 10px; }
+.card { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--off); border-radius: 12px; padding: 14px 16px; display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: flex-start; }
+.card > .main { flex: 1 1 300px; min-width: 0; }
+.card > .side { flex: 0 0 auto; margin-left: auto; }
+.card[data-state="works"] { border-left-color: var(--good); }
+.card[data-state="broken"] { border-left-color: var(--bad); }
+.card[data-state="unintended"] { border-left-color: var(--warn); }
+.card[data-state="tested"] { border-left-color: var(--acc); }
+.card[data-state="cant"] { border-left-color: var(--cant); }
+.card:focus-within { background: var(--card-hi); }
+.card > .full { flex: 0 0 100%; min-width: 0; box-sizing: border-box; }
+.title { font-size: 16.5px; font-weight: 700; margin: 0; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 6px; }
+.tag { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--acc); background: var(--deep); border-radius: 4px; padding: 2px 7px; }
+.tag.ver { color: var(--dim); }
+.tag.every { color: var(--good); }
+.tag.own { color: var(--warn); }
+.tag.regress { color: var(--bg0); background: var(--bad); }
+.steps { margin: 0; color: #C9D6E2; max-width: 68ch; white-space: pre-line; }
+.first { margin: 6px 0 0; font-size: 13.5px; color: var(--warn); }
+.first button { background: none; border: 0; color: var(--acc); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
+.reply { background: #1C3550; border: 1px solid var(--acc); border-radius: 8px; padding: 8px 11px; font-size: 14px; }
+.reply b { color: var(--acc); letter-spacing: .08em; font-size: 12px; text-transform: uppercase; margin-right: 6px; }
+.past { font-size: 13px; color: var(--dim); }
+.side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); background: none; border: 0; padding: 4px; border-radius: 16px; font-family: var(--ui); }
+.switch i { width: 46px; height: 26px; border-radius: 13px; background: var(--off); position: relative; transition: background .15s; flex: none; }
+.switch i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch[aria-checked="true"] { color: #fff; }
+.switch[aria-checked="true"] i { background: var(--on); }
+.switch[aria-checked="true"] i::after { left: 23px; }
+.devs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.devs > span { color: var(--dim); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; margin-right: 2px; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; background: var(--off); }
+.dot[data-s="works"] { background: var(--good); } .dot[data-s="broken"] { background: var(--bad); } .dot[data-s="unintended"] { background: var(--warn); } .dot[data-s="tested"] { background: var(--acc); } .dot[data-s="cant"] { background: var(--cant); }
+.outcome { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.seg { flex: 1 1 140px; background: var(--deep); border: 1px solid var(--line); color: var(--dim); font: 700 14px var(--ui); padding: 9px 10px; border-radius: 8px; cursor: pointer; }
+.seg:hover { color: var(--text); border-color: var(--raised); }
+.seg[aria-checked="true"][data-v="works"] { background: #21452A; border-color: var(--good); color: var(--good); }
+.seg[aria-checked="true"][data-v="broken"] { background: #4A2424; border-color: var(--bad); color: var(--bad); }
+.seg[aria-checked="true"][data-v="unintended"] { background: #473A17; border-color: var(--warn); color: var(--warn); }
+.seg[aria-checked="true"][data-v="cant"] { background: #2C3350; border-color: var(--cant); color: var(--cant); }
+.note { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.note label, .form label { font-size: 13px; color: var(--acc); font-weight: 600; }
+.note label.plain { color: var(--dim); }
+textarea, input[type="text"], select { background: var(--deep); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font: 14.5px/1.4 var(--ui); width: 100%; box-sizing: border-box; }
+textarea { min-height: 44px; resize: vertical; }
+textarea:focus, input[type="text"]:focus, select:focus { border-color: var(--acc); outline: none; }
+.shots { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.shot { position: relative; }
+.shot img { height: 72px; width: auto; max-width: 150px; border-radius: 6px; border: 1px solid var(--line); display: block; }
+.shot button { position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: var(--deep); color: var(--text); font: 700 12px var(--ui); cursor: pointer; line-height: 1; }
+.meta { font-size: 12px; color: var(--dim); min-height: 16px; }
+.form { background: var(--card-hi); border: 1px solid var(--acc); border-radius: 12px; padding: 14px 16px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px 14px; }
+.form > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.form .full { grid-column: 1 / -1; }
+.form .row { flex-direction: row; gap: 8px; flex-wrap: wrap; }
+.grp { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--text); font: 700 13px var(--ui); letter-spacing: .14em; text-transform: uppercase; padding: 14px 2px 8px; cursor: pointer; text-align: left; }
+.grp:hover { color: #fff; }
+.grp .n { font-size: 12px; letter-spacing: 0; border-radius: 9px; padding: 0 7px; background: var(--off); color: var(--text); font-variant-numeric: tabular-nums; }
+.grp[data-g="todo"] .n { background: var(--warn); color: var(--bg0); }
+.grp[data-g="bad"] .n { background: var(--bad); color: var(--bg0); }
+.grp[data-g="good"] .n { background: var(--good); color: var(--bg0); }
+.grp[data-g="cant"] .n { background: var(--cant); color: var(--bg0); }
+.grp .fold { margin-left: auto; color: var(--dim); font-size: 12px; letter-spacing: .08em; }
+.empty { border: 1px dashed var(--line); border-radius: 12px; padding: 26px 18px; color: var(--dim); text-align: center; }
+footer { position: fixed; inset: auto 0 0; background: rgba(20, 29, 41, .96); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.strip { display: flex; gap: 6px 20px; flex-wrap: wrap; align-items: center; padding-block: 9px; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.strip b { font-weight: 700; }
+.strip .say { margin-left: auto; color: var(--dim); }
+button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+@media (max-width: 620px) { .form { grid-template-columns: minmax(0, 1fr); } .card > .main { flex-basis: 100%; } .card > .side { margin-left: 0; align-items: flex-start; } .strip .say { margin-left: 0; width: 100%; } }
+.oops { border: 1px solid var(--bad); color: var(--bad); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; white-space: pre-wrap; }
+@media (prefers-reduced-motion: reduce) { .switch i, .switch i::after { transition: none; } }
+</style>
+
+<header><div class="wrap bar">
+  <div class="brand">GATEHOUSE<small>TEST CONSOLE</small></div>
+  <div class="tabs" id="tabs" role="tablist" aria-label="Sections"></div>
+</div></header>
+
+<main class="wrap">
+  <div class="filters">
+    <div class="group" id="devices" aria-label="Device"><span>Device</span></div>
+    <div class="group" id="shows" aria-label="Show"><span>Show</span></div>
+  </div>
+  <div class="headrow">
+    <div><h2 id="head">Everything to test</h2><p class="sub" id="sub"></p></div>
+    <button class="btn" type="button" id="report">Something else went wrong</button>
+  </div>
+  <div class="list" id="list">
+    <form class="form" id="form" hidden>
+      <div><label for="f-title">What went wrong, in a few words</label><input type="text" id="f-title" maxlength="140" placeholder="The Play button did nothing"></div>
+      <div><label for="f-device">On which device</label><select id="f-device"></select></div>
+      <div class="full"><label for="f-note">What happened, and what you expected</label><textarea id="f-note" rows="3" maxlength="4000"></textarea></div>
+      <div class="full row"><button class="btn" type="submit">Add it</button><button class="btn quiet" type="button" id="f-cancel">Cancel</button></div>
+    </form>
+    <div class="empty" id="empty">Loading the checks…</div>
+  </div>
+</main>
+
+<footer><div class="wrap strip" id="strip"></div></footer>
+
+<script>
+(function () {
+  var OUT = [["works", "Works"], ["broken", "Doesn't work"], ["unintended", "Doesn't work as intended"], ["cant", "Can't test"]];
+  var SAYS = { works: "Works", broken: "Doesn't work", unintended: "Doesn't work as intended", cant: "Couldn't test", tested: "Tested, no verdict", untested: "Not tested" };
+  var DEVICES = ["PC", "Steam Deck", "Laptop", "Phone"];
+  var items = {}, results = {}, cards = {}, sel = {}, db = null, assets = null, loaded = false, current = "";
+  var view = { ver: "smoke", device: "all", show: "all" };
+  try { var kept = JSON.parse(localStorage.getItem("gh-test-view") || "null"); if (kept && typeof kept === "object") { view.ver = kept.ver || "smoke"; view.device = kept.device || "all"; view.show = kept.show || "all"; } } catch (e) {}
+  function keep() { try { localStorage.setItem("gh-test-view", JSON.stringify(view)); } catch (e) {} }
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function slug(s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-"); }
+  function verNum(v) { return String(v).split(".").map(function (n) { return ("0000" + (parseInt(n, 10) || 0)).slice(-4); }).join("."); }
+  function live() { return Object.keys(items).map(function (k) { return items[k]; }).filter(function (i) { return !i.retired; }); }
+
+  // A check that is tried with every update starts again, untested, with each version; the others keep one answer.
+  // A check for "any device" keeps an answer for each device.
+  function round(item) { return item.every ? (current || "now") : "once"; }
+  function devicesOf(item) { return item.device === "Any device" || !item.device ? DEVICES : [item.device]; }
+  function key(item, dev) { return item.id + "__" + round(item) + "__" + slug(dev); }
+  function res(item, dev) { return results[key(item, dev)] || { tested: false, outcome: "", note: "", shots: [] }; }
+  function one(r) { return !r.tested ? "untested" : r.outcome || "tested"; }
+  function stateOf(item) {
+    var s = devicesOf(item).map(function (d) { return one(res(item, d)); });
+    if (s.indexOf("broken") >= 0) return "broken";
+    if (s.indexOf("unintended") >= 0) return "unintended";
+    if (s.every(function (x) { return x === "untested"; })) return "untested";
+    if (s.indexOf("tested") >= 0) return "tested";
+    return s.indexOf("works") >= 0 ? "works" : "cant";
+  }
+  function chosen(item) {
+    var ds = devicesOf(item);
+    if (ds.length === 1) return ds[0];
+    if (view.device !== "all" && ds.indexOf(view.device) >= 0 && !sel[item.id + "|pinned"]) return view.device;
+    return sel[item.id] && ds.indexOf(sel[item.id]) >= 0 ? sel[item.id] : ds[0];
+  }
+  /** What earlier versions' answers were, for a check tried with every update: [[version, [[device, state]]]] newest first. */
+  function past(item) {
+    if (!item.every) return [];
+    var by = {};
+    Object.keys(results).forEach(function (k) { var r = results[k]; if (r.item === item.id && r.round && r.round !== round(item) && r.round !== "once" && r.tested) (by[r.round] = by[r.round] || []).push([r.device || "", one(r)]); });
+    return Object.keys(by).sort(function (a, b) { return verNum(b) > verNum(a) ? 1 : -1; }).map(function (v) { return [v, by[v]]; });
+  }
+  function regressed(item) {
+    var p = past(item);
+    if (!p.length) return "";
+    var bad = devicesOf(item).some(function (d) { var now = one(res(item, d)); return (now === "broken" || now === "unintended") && p[0][1].some(function (x) { return x[0] === d && x[1] === "works"; }); });
+    return bad ? p[0][0] : "";
+  }
+
+  // ---- where a card sits. A check waits under "To test" until it has a verdict, then moves to the group for that
+  // verdict. A card that still wants words (a problem, or a check that asks something) stays where it is until you
+  // go on to something else, so it doesn't jump away from under the text box.
+  var GROUPS = [["todo", "To test"], ["bad", "Tested: doesn't work"], ["cant", "Tested: couldn't be tested"], ["good", "Tested: works"]];
+  var folded = { good: true }, heads = {}, held = null, heldGroup = null;
+  try { var kf = JSON.parse(localStorage.getItem("gh-test-fold") || "null"); if (kf && typeof kf === "object") folded = kf; } catch (e) {}
+  function groupOf(item) {
+    var st = stateOf(item), ds = devicesOf(item);
+    if (view.device !== "all" && ds.length > 1 && ds.indexOf(view.device) >= 0) st = one(res(item, view.device));
+    return st === "works" ? "good" : st === "broken" || st === "unintended" ? "bad" : st === "cant" ? "cant" : "todo";
+  }
+  function groupName(g) { for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i][0] === g) return GROUPS[i][1]; return g; }
+  function head(g) {
+    if (heads[g]) return heads[g];
+    var b = el("button", "grp"); b.type = "button"; b.dataset.g = g; b.id = "grp-" + g;
+    b.appendChild(el("span", null, groupName(g))); b.appendChild(el("span", "n", "0")); b.appendChild(el("span", "fold", ""));
+    b.addEventListener("click", function () { folded[g] = !folded[g]; try { localStorage.setItem("gh-test-fold", JSON.stringify(folded)); } catch (e) {} render(); });
+    return heads[g] = b;
+  }
+  function letGo(ev) {
+    if (!held || !cards[held]) { held = null; return; }
+    if (ev && ev.target && cards[held].root.contains(ev.target)) return;
+    held = null; heldGroup = null; render();
+  }
+  document.addEventListener("click", letGo);
+  document.addEventListener("focusin", letGo);
+
+  // ---- saving: one write at a time for each answer, and only when something changed
+  var chain = {}, timers = {}, pending = {}, saidTimer = null;
+  function say(text, bad) { var s = $("say"); if (!s) return; s.textContent = text; s.style.color = bad ? "var(--bad)" : ""; clearTimeout(saidTimer); if (!bad) saidTimer = setTimeout(function () { if ($("say")) $("say").textContent = "Saved as you go"; }, 2500); }
+  function save(item, dev) {
+    var k = key(item, dev);
+    clearTimeout(timers[k]); delete timers[k];
+    if (!db) { say("Not saved: sign in to claude.ai to keep your answers", true); return; }
+    var r = res(item, dev), doc = { item: item.id, round: round(item), device: dev, tested: !!r.tested, outcome: r.tested ? (r.outcome || "") : "", note: r.note || "", shots: r.shots || [], at: new Date().toISOString(), title: item.title || "" };
+    say("Saving…");
+    pending[k] = (pending[k] || 0) + 1;
+    chain[k] = (chain[k] || Promise.resolve()).then(function () { return db.doc("results/" + k).set(doc); }).then(function () { pending[k]--; say("Saved"); }, function (e) { pending[k]--; say("Not saved: " + ((e && e.message) || "the store didn't answer"), true); });
+  }
+  function change(item, dev, patch) {
+    var before = held === item.id ? heldGroup : groupOf(item);
+    var r = Object.assign({}, res(item, dev), patch);
+    if (!r.tested) r.outcome = "";
+    results[key(item, dev)] = r;
+    var after = groupOf(item);
+    if (after !== before) {
+      // (works, and nothing more is asked: it goes straight away. Anything else waits for you to finish with the card.)
+      if (after === "good" && !item.ask && !(r.note || "").length) { held = null; heldGroup = null; say("Moved to " + groupName(after)); }
+      else { held = item.id; heldGroup = before; }
+    } else if (held === item.id && after === heldGroup) { held = null; heldGroup = null; }
+    render();
+    save(item, dev);
+  }
+
+  // ---- one card for each check, made once and then kept in step
+  function make(item) {
+    var id = item.id, c = el("article", "card"), k = { root: c, item: item };
+    c.id = "card-" + id;
+    var left = el("div", "main");
+    left.appendChild(el("h3", "title", item.title));
+    k.tags = el("div", "tags"); left.appendChild(k.tags);
+    left.appendChild(el("p", "steps", item.steps || ""));
+    k.first = el("p", "first"); left.appendChild(k.first);
+    var side = el("div", "side");
+    k.sw = el("button", "switch"); k.sw.type = "button"; k.sw.setAttribute("role", "switch"); k.sw.id = "sw-" + id;
+    k.swText = el("span", null, "Not tested"); k.sw.appendChild(k.swText); k.sw.appendChild(el("i"));
+    k.sw.addEventListener("click", function () { var d = chosen(items[id]); change(items[id], d, { tested: !res(items[id], d).tested }); });
+    side.appendChild(k.sw);
+    k.reply = el("div", "reply full");
+    k.devs = el("div", "devs full"); k.devs.setAttribute("role", "tablist"); k.devs.setAttribute("aria-label", "Device");
+    k.out = el("div", "outcome full"); k.out.setAttribute("role", "radiogroup"); k.out.setAttribute("aria-label", "How it went");
+    OUT.forEach(function (o) {
+      var b = el("button", "seg", o[1]); b.type = "button"; b.dataset.v = o[0]; b.setAttribute("role", "radio"); b.id = "o-" + id + "-" + o[0];
+      b.addEventListener("click", function () { var d = chosen(items[id]); change(items[id], d, { tested: true, outcome: res(items[id], d).outcome === o[0] ? "" : o[0] }); });
+      k.out.appendChild(b);
+    });
+    k.note = el("div", "note full");
+    k.lab = el("label", item.ask ? null : "plain", item.ask || "Anything worth knowing? (optional)");
+    k.ta = el("textarea"); k.ta.id = "n-" + id; k.lab.htmlFor = k.ta.id; k.ta.rows = 2; k.ta.maxLength = 4000;
+    k.ta.placeholder = item.ask ? "Type your answer here" : "What happened, and what you expected";
+    k.ta.addEventListener("input", function () {
+      var it = items[id], d = k.taFor || chosen(it), kk = key(it, d);
+      results[kk] = Object.assign({}, res(it, d), { note: k.ta.value });
+      clearTimeout(timers[kk]); timers[kk] = setTimeout(function () { save(it, d); }, 900);
+    });
+    k.ta.addEventListener("paste", function (ev) { var fs = ev.clipboardData && ev.clipboardData.files; if (assets && fs && fs.length && /^image\//.test(fs[0].type)) { ev.preventDefault(); addShot(id, fs[0]); } });
+    k.note.appendChild(k.lab); k.note.appendChild(k.ta);
+    k.shots = el("div", "shots full");
+    k.pick = el("input"); k.pick.type = "file"; k.pick.accept = "image/*"; k.pick.hidden = true; k.pick.id = "f-" + id;
+    k.pick.addEventListener("change", function () { if (k.pick.files && k.pick.files[0]) addShot(id, k.pick.files[0]); k.pick.value = ""; });
+    k.past = el("div", "past full");
+    k.meta = el("div", "meta full");
+    [left, side, k.reply, k.devs, k.out, k.note, k.shots, k.pick, k.past, k.meta].forEach(function (n) { c.appendChild(n); });
+    cards[id] = k;
+    return c;
+  }
+  function addShot(id, file) {
+    var item = items[id], d = chosen(item);
+    if (!assets) { say("Pictures can't be added in this view", true); return; }
+    if ((res(item, d).shots || []).length >= 4) { say("Four pictures is the most for one answer", true); return; }
+    if (file.size > 15 * 1024 * 1024) { say("That picture is too big (15 MB at most)", true); return; }
+    say("Adding the picture…");
+    assets.upload(file).then(function (a) { change(item, d, { shots: (res(item, d).shots || []).concat([a.id]) }); }, function (e) { say("The picture wasn't added: " + ((e && e.message) || "it was refused"), true); });
+  }
+  function paint(id) {
+    var k = cards[id], item = items[id];
+    if (!k || !item) return;
+    var ds = devicesOf(item), d = chosen(item), r = res(item, d), st = stateOf(item);
+    k.root.dataset.state = st;
+    // tags
+    k.tags.textContent = "";
+    k.tags.appendChild(el("span", "tag", item.device || "Any device"));
+    if (item.every) k.tags.appendChild(el("span", "tag every", "Every update"));
+    else k.tags.appendChild(el("span", "tag ver", item.version ? "Gatehouse " + item.version : "Earlier"));
+    if (item.custom) k.tags.appendChild(el("span", "tag own", "Reported by you"));
+    var rg = regressed(item);
+    if (rg) k.tags.appendChild(el("span", "tag regress", "Worked in " + rg));
+    // the check to do first
+    var need = item.needs && items[item.needs] && !items[item.needs].retired ? items[item.needs] : null, needOk = need && stateOf(need) === "works";
+    k.first.hidden = !need || needOk;
+    if (need && !needOk) {
+      k.first.textContent = "Do this one first: ";
+      var go = el("button", null, need.title); go.type = "button";
+      go.addEventListener("click", function () { view.ver = "all"; view.show = "all"; view.device = "all"; keep(); render(); var t = $("card-" + need.id); if (t) { t.scrollIntoView({ block: "center" }); cards[need.id].sw.focus(); } });
+      k.first.appendChild(go);
+      k.first.appendChild(document.createTextNode(stateOf(need) === "untested" ? ". It hasn't been tested yet, so this one may fail for that reason alone." : ". It hasn't worked yet, so this one may fail for that reason alone."));
+    }
+    k.root.style.opacity = need && !needOk && st === "untested" ? ".72" : "";
+    // what Claude said back
+    k.reply.hidden = !item.reply;
+    if (item.reply) { k.reply.textContent = ""; k.reply.appendChild(el("b", null, "Claude")); k.reply.appendChild(document.createTextNode(String(item.reply))); }
+    // devices
+    k.devs.hidden = ds.length < 2;
+    if (ds.length > 1) {
+      k.devs.textContent = ""; k.devs.appendChild(el("span", null, "Tested on"));
+      ds.forEach(function (dev) {
+        var b = el("button", "chip"); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", dev === d ? "true" : "false");
+        var dot = el("span", "dot"); dot.dataset.s = one(res(item, dev)); b.appendChild(dot); b.appendChild(document.createTextNode(dev));
+        b.title = SAYS[one(res(item, dev))];
+        b.addEventListener("click", function () { flush(id); sel[id] = dev; sel[id + "|pinned"] = true; paint(id); });
+        k.devs.appendChild(b);
+      });
+    }
+    // the answer for the chosen device
+    k.sw.setAttribute("aria-checked", r.tested ? "true" : "false");
+    k.swText.textContent = (r.tested ? "Tested" : "Not tested") + (ds.length > 1 ? " on " + d : "");
+    Array.prototype.forEach.call(k.out.children, function (b) { b.setAttribute("aria-checked", r.outcome === b.dataset.v ? "true" : "false"); });
+    var open = r.tested || !!item.ask || (r.note || "").length > 0 || (r.shots || []).length > 0;
+    k.note.hidden = !open;
+    if (document.activeElement !== k.ta || k.taFor !== d) { if (k.ta.value !== (r.note || "")) k.ta.value = r.note || ""; k.taFor = d; }
+    k.shots.hidden = !open || (!assets && !(r.shots || []).length);
+    k.shots.textContent = "";
+    (r.shots || []).forEach(function (sid) {
+      var w = el("div", "shot"), img = el("img"); img.src = "/_blob/" + sid; img.alt = "A picture you added"; img.loading = "lazy"; w.appendChild(img);
+      var x = el("button", null, "×"); x.type = "button"; x.title = "Remove this picture"; x.setAttribute("aria-label", "Remove this picture");
+      x.addEventListener("click", function () { change(item, d, { shots: (res(item, d).shots || []).filter(function (s) { return s !== sid; }) }); if (assets) assets.delete(sid).catch(function () {}); });
+      w.appendChild(x); k.shots.appendChild(w);
+    });
+    if (assets && (r.shots || []).length < 4) { var add = el("button", "btn quiet", "Add a picture"); add.type = "button"; add.title = "A screenshot or photo of what you saw. You can also paste one into the text box."; add.addEventListener("click", function () { k.pick.click(); }); k.shots.appendChild(add); }
+    // earlier versions
+    var p = past(item);
+    k.past.hidden = !p.length;
+    if (p.length) k.past.textContent = "Before: " + p.slice(0, 3).map(function (v) { return v[0] + ": " + v[1].map(function (x) { return SAYS[x[1]] + (ds.length > 1 ? " on " + x[0] : ""); }).join(", "); }).join("  ·  ");
+    k.meta.textContent = r.at ? "Last changed " + new Date(r.at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+  }
+  function flush(id) { var k = cards[id], it = items[id]; if (!k || !it || !k.taFor) return; var kk = key(it, k.taFor); if (timers[kk]) save(it, k.taFor); }
+  function paintAll() { Object.keys(cards).forEach(function (id) { if (!cards[id].root.hidden) paint(id); }); }
+
+  function wanted(item) {
+    var st = stateOf(item), ds = devicesOf(item);
+    if (view.ver === "smoke" ? !item.every : view.ver !== "all" && (item.every || (item.version || "earlier") !== view.ver)) return false;
+    if (view.device !== "all" && ds.indexOf(view.device) < 0) return false;
+    if (view.device !== "all" && ds.length > 1) st = one(res(item, view.device));
+    if (view.show === "todo" && st !== "untested") return false;
+    if (view.show === "problems" && st !== "broken" && st !== "unintended") return false;
+    if (view.show === "asks" && !item.ask) return false;
+    return true;
+  }
+  function chips(holder, list, k) {
+    Array.prototype.slice.call(holder.querySelectorAll("button")).forEach(function (b) { b.remove(); });
+    list.forEach(function (o) {
+      var b = el("button", k === "ver" ? "tab" : "chip", o[1]); b.type = "button";
+      if (k === "ver") { b.setAttribute("role", "tab"); b.setAttribute("aria-selected", view.ver === o[0] ? "true" : "false"); if (o[2] != null) { var n = el("span", "n", String(o[2])); if (!o[2]) n.dataset.zero = "1"; n.title = o[2] + " not tested yet"; b.appendChild(n); } }
+      else b.setAttribute("aria-pressed", view[k] === o[0] ? "true" : "false");
+      b.addEventListener("click", function () { view[k] = o[0]; if (k === "device") Object.keys(sel).forEach(function (s) { if (/\|pinned$/.test(s)) delete sel[s]; }); keep(); render(); });
+      holder.appendChild(b);
+    });
+  }
+  function tabs() {
+    var all = live(), vers = [];
+    all.forEach(function (i) { if (i.every) return; var v = i.version || "earlier"; if (vers.indexOf(v) < 0) vers.push(v); });
+    vers.sort(function (a, b) { return a === "earlier" ? 1 : b === "earlier" ? -1 : verNum(b) > verNum(a) ? 1 : -1; });
+    if (view.ver !== "all" && view.ver !== "smoke" && vers.indexOf(view.ver) < 0) view.ver = "all";
+    function left(f) { return all.filter(function (i) { return f(i) && stateOf(i) === "untested"; }).length; }
+    chips($("tabs"), [["smoke", "Every update", left(function (i) { return i.every; })], ["all", "All", left(function () { return true; })]].concat(vers.map(function (v) { return [v, v === "earlier" ? "Earlier" : v, left(function (i) { return !i.every && (i.version || "earlier") === v; })]; })), "ver");
+  }
+  function counts() {
+    var c = { untested: 0, works: 0, broken: 0, unintended: 0, tested: 0, cant: 0 };
+    live().forEach(function (i) { c[stateOf(i)]++; });
+    var s = $("strip"), was = $("say") ? $("say").textContent : "Saved as you go", wasColor = $("say") ? $("say").style.color : "";
+    s.textContent = "";
+    [["untested", "not tested"], ["works", "work"], ["broken", "don't work"], ["unintended", "not as intended"], ["cant", "couldn't be tested"], ["tested", "tested, no verdict yet"]].forEach(function (p) {
+      if ((p[0] === "tested" || p[0] === "cant") && !c[p[0]]) return;
+      var d = el("span"), dot = el("span", "dot"); dot.dataset.s = p[0]; d.appendChild(dot); d.appendChild(el("b", null, String(c[p[0]]))); d.appendChild(document.createTextNode(" " + p[1])); s.appendChild(d);
+    });
+    var sy = el("span", "say", was); sy.id = "say"; sy.style.color = wasColor; s.appendChild(sy);
+  }
+  function render() {
+    var all = live().sort(function (a, b) { return ((b.custom ? 1 : 0) - (a.custom ? 1 : 0)) || (verNum(b.version || "0") > verNum(a.version || "0") ? 1 : verNum(b.version || "0") < verNum(a.version || "0") ? -1 : 0) || ((a.order || 0) - (b.order || 0)); });
+    tabs();
+    var devs = DEVICES.filter(function (d) { return all.some(function (i) { return devicesOf(i).indexOf(d) >= 0; }); });
+    if (view.device !== "all" && devs.indexOf(view.device) < 0) view.device = "all";
+    chips($("devices"), [["all", "All"]].concat(devs.map(function (d) { return [d, d]; })), "device");
+    chips($("shows"), [["all", "Everything"], ["todo", "Not tested"], ["problems", "Problems"], ["asks", "Needs an answer"]], "show");
+    $("head").textContent = view.ver === "smoke" ? "Every update" + (current ? ": Gatehouse " + current : "") : view.ver === "all" ? "Everything to test" : view.ver === "earlier" ? "From earlier updates" : "New in Gatehouse " + view.ver;
+    $("sub").textContent = view.ver === "smoke" ? "The short pass to try each time something updates. These start again as untested with every new version, and keep what you answered before."
+        : "Switch a check to Tested once you have tried it, then say how it went. It saves as you go, and Claude reads it when you ask for the results to be collected.";
+    var list = $("list"), shown = 0, by = {}, seq = [], focused = document.activeElement && document.activeElement.id;
+    all.forEach(function (item) {
+      if (!cards[item.id]) { try { make(item); } catch (err) { oops("making " + item.id, err); return; } }
+      var k = cards[item.id], show = wanted(item) || document.activeElement === k.ta || held === item.id;
+      if (!show) { k.root.hidden = true; return; }
+      var g = held === item.id && heldGroup ? heldGroup : groupOf(item);
+      (by[g] = by[g] || []).push(item);
+      shown++;
+    });
+    GROUPS.forEach(function (G) {
+      var g = G[0], its = by[g] || [], h = head(g), open = !folded[g];
+      h.hidden = !its.length;
+      if (!its.length) return;
+      h.children[1].textContent = String(its.length);
+      h.children[2].textContent = open ? "Hide" : "Show";
+      h.setAttribute("aria-expanded", open ? "true" : "false");
+      seq.push(h);
+      its.forEach(function (item) {
+        var k = cards[item.id], vis = open || held === item.id || document.activeElement === k.ta;
+        k.root.hidden = !vis;
+        if (!vis) return;
+        seq.push(k.root);
+        try { paint(item.id); } catch (err) { oops("drawing " + item.id, err); }
+      });
+    });
+    // (put in order only when the order changed, so a card being typed in isn't lifted out and put back)
+    var now = Array.prototype.filter.call(list.children, function (n) { return seq.indexOf(n) >= 0; });
+    if (now.length !== seq.length || now.some(function (n, i) { return n !== seq[i]; })) {
+      seq.forEach(function (n) { list.appendChild(n); });
+      if (focused && (!document.activeElement || document.activeElement.id !== focused)) { var f = $(focused); if (f && !f.hidden && f.offsetParent) { try { f.focus({ preventScroll: true }); } catch (e) {} } }
+    }
+    Object.keys(cards).forEach(function (id) { if (!items[id] || items[id].retired) { cards[id].root.remove(); delete cards[id]; } });
+    var e = $("empty");
+    e.hidden = shown > 0;
+    if (!shown) { list.appendChild(e); e.textContent = !loaded ? "Loading the checks…" : !all.length ? "No checks yet. Claude adds them here with each update." : "Nothing matches these filters."; }
+    counts();
+    report(shown);
+  }
+  // What this device's browser actually drew, kept where Claude can read it (meta/diag): for finding out why a
+  // screen is empty on one device and not another. Written once the checks are in, and again if something breaks.
+  var problems = [], reported = "";
+  function oops(where, err) {
+    var line = where + ": " + ((err && (err.stack || err.message)) || err);
+    if (problems.length < 6 && problems.indexOf(line) < 0) problems.push(line);
+    var box = $("oops");
+    if (!box) { box = el("div", "oops"); box.id = "oops"; var l = $("list"); l.parentNode.insertBefore(box, l); }
+    box.textContent = "Part of this page couldn't be drawn. Claude can read the details when you ask it to look. " + problems.join(" | ");
+    report(-1);
+  }
+  function report(shown) {
+    if (!db || !loaded) return;
+    try {
+      var cs = document.querySelectorAll(".card"), vis = 0, first = null;
+      Array.prototype.forEach.call(cs, function (c) { var r = c.getBoundingClientRect(); if (!c.hidden && r.height > 4) { vis++; if (!first) first = { top: Math.round(r.top), height: Math.round(r.height), width: Math.round(r.width) }; } });
+      var d = { at: new Date().toISOString(), agent: navigator.userAgent, width: window.innerWidth, height: window.innerHeight, section: view.ver, device: view.device, show: view.show, checks: live().length, wanted: shown, cards_in_page: cs.length, cards_with_height: vis, first: first, list_height: Math.round($("list").getBoundingClientRect().height), problems: problems };
+      var sig = [d.width, d.section, d.device, d.show, d.checks, d.wanted, d.cards_in_page, d.cards_with_height, problems.length].join("|");
+      if (sig === reported) return;
+      reported = sig;
+      db.doc("meta/diag-" + (d.width < 700 ? "phone" : "wide")).set(d).catch(function () {});
+    } catch (e) {}
+  }
+  window.addEventListener("error", function (ev) { oops("script", ev.error || ev.message); });
+
+  // ---- something that isn't on the list
+  var form = $("form");
+  DEVICES.forEach(function (d) { var o = el("option", null, d); o.value = d; $("f-device").appendChild(o); });
+  $("report").addEventListener("click", function () { form.hidden = false; if (view.device !== "all") $("f-device").value = view.device; $("list").insertBefore(form, $("list").firstChild); $("f-title").focus(); });
+  $("f-cancel").addEventListener("click", function () { form.hidden = true; });
+  form.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var title = $("f-title").value.trim(), dev = $("f-device").value, note = $("f-note").value.trim();
+    if (!title) { $("f-title").focus(); return; }
+    if (!db) { say("Not saved: sign in to claude.ai to keep your answers", true); return; }
+    var id = "own-" + Date.now().toString(36), item = { order: 0, version: current || "", device: dev, title: title, steps: "Something you ran into that wasn't on the list.", ask: "", custom: true, added: new Date().toISOString() };
+    say("Saving…");
+    db.doc("items/" + id).set(item).then(function () {
+      item.id = id; items[id] = item;
+      results[key(item, dev)] = { tested: true, outcome: "broken", note: note, shots: [] };
+      save(item, dev);
+      $("f-title").value = ""; $("f-note").value = ""; form.hidden = true;
+      view.ver = "all"; view.show = "all"; keep(); render();
+      var t = $("card-" + id); if (t) t.scrollIntoView({ block: "center" });
+    }, function (e) { say("Not saved: " + ((e && e.message) || "the store didn't answer"), true); });
+  });
+
+  function start(d) {
+    db = d;
+    if (!db) { loaded = true; $("empty").textContent = "This console keeps its checks and your answers in your claude.ai account. Open it signed in to see them."; counts(); return; }
+    var timer = setTimeout(function () { if (!loaded) $("empty").textContent = "The checks are taking a while to load. Check your connection; they will appear here when they arrive."; }, 10000);
+    db.doc("meta/current").onSnapshot(function (snap) { var v = (snap.exists && snap.data() || {}).version || ""; if (v !== current) { current = String(v); render(); } }, function () {});
+    db.collection("items").onSnapshot(function (snap) {
+      clearTimeout(timer); loaded = true;
+      var next = {};
+      // (a copy: what the store hands back can't be written on, and each check has to carry its own id)
+      snap.docs.forEach(function (doc) { next[doc.id] = Object.assign({}, doc.data() || {}, { id: doc.id }); });
+      // (a check whose words changed is made again)
+      Object.keys(next).forEach(function (id) { var a = items[id], b = next[id]; if (a && cards[id] && (a.title !== b.title || a.steps !== b.steps || a.ask !== b.ask) && document.activeElement !== cards[id].ta) { cards[id].root.remove(); delete cards[id]; } });
+      items = next; render();
+    }, function (e) { clearTimeout(timer); loaded = true; $("empty").textContent = "The checks couldn't be loaded: " + ((e && e.message) || "the store didn't answer") + "."; });
+    db.collection("results").onSnapshot(function (snap) {
+      var seen = {};
+      snap.docs.forEach(function (doc) {
+        seen[doc.id] = true;
+        if (timers[doc.id] || pending[doc.id]) return;   // (a change made here is on its way: not written over)
+        results[doc.id] = Object.assign({ tested: false, outcome: "", note: "", shots: [] }, doc.data() || {});
+      });
+      // (an answer Claude cleared so it can be tested again)
+      Object.keys(results).forEach(function (k) { if (!seen[k] && !timers[k] && !pending[k]) delete results[k]; });
+      render();
+    }, function () {});
+  }
+  render();
+  if (window.claude && window.claude.use) {
+    window.claude.use("db").then(start, function () { start(null); });
+    window.claude.use("assets").then(function (a) { assets = a || null; if (assets) paintAll(); }, function () {});
+  } else start(null);
+})();
+</script>
