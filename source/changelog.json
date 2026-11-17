@@ -1,4 +1,7 @@
 [
+ {"version": "1.37.1", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack or in how the program works: a test update, for watching a constellation update together (Gatehouse 3.4.1)."
+ ]},
  {"version": "1.37.0", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself. In constellation mode every client shows who the group is waiting for during an update, as a row of coloured pips (Gatehouse 3.4.0)."
  ]},

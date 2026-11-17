@@ -1,7 +1,10 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.4.0",
+ "version": "3.4.1",
  "changes": [
+  {"version": "3.4.1", "date": "2026-11-16", "notes": [
+   "A test update: nothing changed. It is here so that a constellation updating together can be watched on real devices, with the pips that 3.4.0 added."
+  ]},
   {"version": "3.4.0", "date": "2026-11-16", "notes": [
    "In constellation mode, while an update is being gathered, every client shows who the constellation is waiting for: a row of pips, one for each client being taken along, with a line beside it such as \"Waiting for 2 of 6 others\". Green is ready, amber hasn't seen the update yet (or, for a Gatekeeper, one of its launchers hasn't), red is a Gatekeeper with a server of its own still on. Gatekeepers are squares and launchers circles, and a client's own pip has a white ring.",
    "Gatekeeper shows the pips at the bottom of its first screen and on the Constellation tab; pointing at them lists who is who. A Gatekeeper that joined another's constellation passes that Gatekeeper's picture on to its own launchers, with itself and its launchers in it, so every client in the constellation sees the same thing.",
