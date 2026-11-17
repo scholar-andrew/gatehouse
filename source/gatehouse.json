@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.20.3",
+ "version": "3.21.0",
  "changes": [
+  {"version": "3.21.0", "date": "2026-11-17", "notes": [
+   "Updates: a red dot on UPDATES, and on the tab inside it, when there are notes you haven't read yet. Versions you haven't seen sit in a blue box with a red dot by their number; they stay boxed while you read and are plain the next time.",
+   "Downloads show how far along they are: a bar with how much of how big and the time left, while Gatehouse or Gatekeeper downloads a newer version, and a count of files while a server's pack updates before Play.",
+   "Shortcuts: Gatehouse and Gatekeeper make or mend their own Start menu shortcut when they start, pointing at where they are now, with their castle (yellow Gatehouse, blue Gatekeeper) instead of Java's cup. A shortcut on the desktop is mended too.",
+   "Linux and SteamOS: the windows go by Gatehouse and Gatekeeper, with their castles, in the taskbar and the menu, and the processes are named so in the system monitor (the background part as \"Gatekeeper (bg)\"). Windows waits until updates are signed."
+  ]},
   {"version": "3.20.3", "date": "2026-11-17", "notes": [
    "Gatekeeper: fixed a lock-up where Gatekeeper kept running but stopped answering (its window showed nothing and it stopped updating). Two of its parts could each wait on the other forever while a newer version was being handed over.",
    "Update log: a device with two copies of Gatehouse open (an old one beside its updated copy) no longer makes the log flip between their two versions every few seconds."

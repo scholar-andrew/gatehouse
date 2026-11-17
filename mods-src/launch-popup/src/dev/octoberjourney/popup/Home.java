@@ -258,6 +258,7 @@ final class Home {
 		for (int i = 2; i + 1 < args.length; i += 2) { if (args[i].equals("--prism")) prism = args[i + 1]; else if (args[i].equals("--play")) play = args[i + 1]; }
 		String prismCmd = prism;
 		prismFor = prism;
+		if (System.getenv("OJ_HOME_DRY") == null) dev.gatehouse.Shortcuts.ensure(false, prism);   // (R16: Gatehouse's shortcut, with its castle)
 		String openAt = null;   // (a Gatekeeper to open on: the one whose server's Menu button brought us back)
 		while (true) {
 			PackInstall.refreshPlain(instances);
@@ -598,6 +599,8 @@ final class Home {
 			JPanel ownUpdateButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
 			ownUpdateButtons.add(ownUpdateLater); ownUpdateButtons.add(ownUpdateGo);
 			ownUpdate.add(ownUpdateText, BorderLayout.CENTER); ownUpdate.add(ownUpdateButtons, BorderLayout.EAST);
+			dev.gatehouse.look.Download.Bar ownUpdateBar = new dev.gatehouse.look.Download.Bar();   // (R14: how far the fetch has come)
+			ownUpdate.add(ownUpdateBar, BorderLayout.SOUTH);
 			ownUpdate.setVisible(false);
 			// (in constellation mode, while a Gatekeeper is gathering an update: a pip for every client it is taking along)
 			dev.gatehouse.look.Pips gatherPips = new dev.gatehouse.look.Pips();
@@ -639,17 +642,38 @@ final class Home {
 			}
 			// Gatehouse's own notes, newest on top: always there to read, and in front when Gatehouse has just updated.
 			Map<String, Object> own = Notes.own();
-			String seenFile = "gatehouse-version-seen.txt", ownVersion = Notes.version(own), seenVersion = LaunchPopup.readFile(home.resolve(seenFile)).trim();
-			boolean fresh = !ownVersion.isEmpty() && !ownVersion.equals(seenVersion);
-			news.addTab(fresh && !seenVersion.isEmpty() ? "Gatehouse updates (new)" : "Gatehouse updates", Notes.panel(own, "Gatehouse", "No notes came with this copy of Gatehouse."));
-			Runnable seenNow = () -> {
-				if (ownVersion.isEmpty()) return;
-				try { Files.createDirectories(home); Files.writeString(home.resolve(seenFile), ownVersion + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) {}
-				news.setTitleAt(0, "Gatehouse updates");
+			// (R17, R18: versions not seen yet are boxed in blue with a red dot, and UPDATES and the tab get a red dot. What
+			// was seen is noted once the person has looked; the boxes are drawn with what was seen before, so they stay
+			// while they read and are gone the next time Updates is opened.)
+			Path ownSeenFile = home.resolve("gatehouse-version-seen.txt");
+			String ownVersion = Notes.version(own);
+			String[] ownShown = {dev.gatehouse.look.NotesView.seenOrNow(ownSeenFile, own)};
+			boolean[] ownNew = {dev.gatehouse.look.NotesView.unseen(own, ownShown[0])}, keeperNew = {false};
+			JPanel ownNotes = new JPanel(new BorderLayout());
+			Runnable drawOwn = () -> {
+				ownNotes.removeAll();
+				ownNotes.add(dev.gatehouse.look.NotesView.build(own, ownVersion.isEmpty() ? "" : "Gatehouse " + ownVersion + " is what's running.", ownShown[0], "No notes came with this copy of Gatehouse."), BorderLayout.CENTER);
+				ownNotes.revalidate(); ownNotes.repaint();
 			};
+			drawOwn.run();
+			news.addTab(dev.gatehouse.look.NotesView.tabTitle("Gatehouse updates", ownNew[0]), ownNotes);
 			// A Gatekeeper's own notes, asked of it: the third tab beside its servers.
 			JPanel keeperNotes = new JPanel(new BorderLayout());
 			news.addTab("Gatekeeper updates", keeperNotes);
+			// (the open Gatekeeper's notes and what was seen of them there: its address -> {notes, seen when drawn})
+			Object[] keeperShown = {null, "", null};   // {notes, seen when drawn, the file it is kept in}
+			Runnable[] updatesDot = {() -> {}};
+			Runnable seenNow = () -> {
+				int at = news.getSelectedIndex();
+				if (at == 0 && ownNew[0]) { dev.gatehouse.look.NotesView.markSeen(ownSeenFile, own); ownNew[0] = false; news.setTitleAt(0, "Gatehouse updates"); }
+				if (at == 1 && keeperNew[0] && keeperShown[0] != null) { @SuppressWarnings("unchecked") Map<String, Object> kn = (Map<String, Object>) keeperShown[0]; dev.gatehouse.look.NotesView.markSeen((Path) keeperShown[2], kn); keeperNew[0] = false; news.setTitleAt(1, "Gatekeeper updates"); }
+				updatesDot[0].run();
+			};
+			// (opening Updates again: what was seen since is drawn plain now)
+			Runnable redrawSeen = () -> {
+				String s = dev.gatehouse.look.NotesView.seen(ownSeenFile);
+				if (!s.equals(ownShown[0]) && !ownNew[0]) { ownShown[0] = s; drawOwn.run(); }
+			};
 			// ---- Options (the wheel at the top right): which Gatehouse this is, where it lives, and removing it.
 			JPanel options = new JPanel();
 			options.setLayout(new javax.swing.BoxLayout(options, javax.swing.BoxLayout.Y_AXIS));
@@ -962,7 +986,16 @@ final class Home {
 						Map<String, Object> got = r;
 						Runnable ui = () -> {
 							keeperNotes.removeAll();
-							if (got != null && "200".equals(str(got.get("_code")))) keeperNotes.add(Notes.panel(got, "Gatekeeper", "This Gatekeeper sent no notes."), BorderLayout.CENTER);
+							if (got != null && "200".equals(str(got.get("_code")))) {
+								Path kf = home.resolve("keeper-notes-seen").resolve(Integer.toHexString(url.hashCode()) + ".txt");
+								String ks = dev.gatehouse.look.NotesView.seenOrNow(kf, got), kv = dev.gatehouse.look.NotesView.newest(got);
+								keeperShown[0] = got; keeperShown[1] = ks; keeperShown[2] = kf;
+								keeperNew[0] = dev.gatehouse.look.NotesView.unseen(got, ks);
+								news.setTitleAt(1, dev.gatehouse.look.NotesView.tabTitle("Gatekeeper updates", keeperNew[0]));
+								keeperNotes.add(dev.gatehouse.look.NotesView.build(got, kv.isEmpty() ? "" : "This Gatekeeper is " + kv + ".", ks, "This Gatekeeper sent no notes."), BorderLayout.CENTER);
+								updatesDot[0].run();
+								if ("UPDATES".equals(shell[0] == null ? "" : shell[0].lit())) seenNow.run();
+							}
 							else { JLabel no = new JLabel(got == null ? "This Gatekeeper isn't answering, so its notes can't be shown." : "This Gatekeeper is from before it kept notes of its own (before Gatekeeper 2.0.0)."); no.setForeground(new Color(0x8F98A0)); no.setBorder(BorderFactory.createEmptyBorder(10, 12, 0, 0)); keeperNotes.add(no, BorderLayout.NORTH); }
 							keeperNotes.revalidate(); keeperNotes.repaint();
 						};
@@ -1585,8 +1618,9 @@ final class Home {
 						head.setText("Updates");
 						sub.setText("How this launcher updates, and what changed in it, in its servers' packs and in its Gatekeepers.");
 						backB.setVisible(false); keeperChips.setVisible(false);
+						redrawSeen.run();
 						cards.show(deck, "constellation"); shell[0].light("UPDATES");
-						if (news.getSelectedIndex() == 0) seenNow.run();
+						seenNow.run();
 					}
 					case "ACCESS" -> {
 						head.setText("What this device may do");
@@ -1608,8 +1642,10 @@ final class Home {
 				}
 				SwingUtilities.invokeLater(() -> Nav.home(f));
 			};
-			news.addChangeListener(ev -> { if (news.getSelectedIndex() == 0 && "UPDATES".equals(shell[0].lit())) seenNow.run(); });
+			news.addChangeListener(ev -> { if (shell[0] != null && "UPDATES".equals(shell[0].lit())) seenNow.run(); });
 			shell[0] = new dev.gatehouse.look.GameShell(LaunchPopup.TOOL, new String[] {"SERVERS", "CHAT", "UPDATES"}, pickSection);
+			updatesDot[0] = () -> { if (shell[0] != null) shell[0].badge("UPDATES", ownUpdate.isVisible() ? 1 : ownNew[0] || keeperNew[0] ? -1 : 0); };
+			updatesDot[0].run();
 			// The menu down the left: the pages that are about this device and its setup rather than playing.
 			shell[0].menu("Servers", "gatekeepers", "Gatekeepers", () -> showKeepers[0].run());
 			shell[0].menu("Servers", "machine", "The host's machine", () -> pickSection.accept("MACHINE"));
@@ -1666,7 +1702,7 @@ final class Home {
 			String pretend = System.getenv("OJ_GATEHOUSE_NEWER");
 			String[][] offered = {null};
 			String[] declined = {""};
-			ownUpdateLater.addActionListener(ev -> { if (offered[0] != null) declined[0] = offered[0][1]; ownUpdate.setVisible(false); f.validate(); LaunchPopup.iconUpdate = false; LaunchPopup.icons(); });
+			ownUpdateLater.addActionListener(ev -> { if (offered[0] != null) declined[0] = offered[0][1]; ownUpdate.setVisible(false); f.validate(); LaunchPopup.iconUpdate = false; LaunchPopup.icons(); updatesDot[0].run(); });
 			ownUpdateGo.addActionListener(ev -> {
 				String[] found = offered[0];
 				String how = updateHow;
@@ -1674,6 +1710,11 @@ final class Home {
 				if (found == null) return;
 				ownUpdateGo.setEnabled(false); ownUpdateLater.setEnabled(false);
 				ownUpdateText.setText("Fetching the newer " + LaunchPopup.TOOL + "\u2026");
+				String lead = "Downloading " + LaunchPopup.TOOL + (found[4].isEmpty() ? "" : " " + found[4]) + ":";
+				Notes.FETCHING.done = 0; Notes.FETCHING.total = 0;
+				try { Notes.FETCHING.total = Long.parseLong(found[3]); } catch (NumberFormatException ignored) {}
+				javax.swing.Timer barT = new javax.swing.Timer(150, e2 -> ownUpdateBar.show(lead, Notes.FETCHING));
+				barT.start(); ownUpdateBar.show(lead, Notes.FETCHING);
 				new Thread(() -> {
 					boolean ok = Notes.fetch(found);
 					// One program: the Gatekeeper on this same machine, if there is one, is updated by the same press.
@@ -1681,6 +1722,7 @@ final class Home {
 					// its own update; one that isn't has its file replaced, where this launcher can reach it.
 					if (ok && shot == null) dev.gatehouse.Main.pairUpdate(Path.of(found[2]).resolve("extras/launch-popup.jar"), found[1], how);
 					SwingUtilities.invokeLater(() -> {
+						barT.stop(); ownUpdateBar.done();
 						if (ok) { again[0] = "\u0000relaunch"; f.dispose(); return; }
 						ownUpdateText.setText("<html>Couldn't fetch it just now. Nothing was changed; it will be offered again.</html>");
 						offered[0] = null;
@@ -1702,7 +1744,7 @@ final class Home {
 					ownUpdateText.setText("<html><b>A " + LaunchPopup.TOOL + " update is ready" + (found[4].isEmpty() || found[4].equals(have) ? "" : ": " + LaunchPopup.esc(found[4])) + ".</b> You have " + LaunchPopup.esc(have) + "." + (bytes > 0 ? " " + Math.max(1, Math.round(bytes / 1024.0)) + " KB to download." : "") + "</html>");
 					ownUpdateGo.setEnabled(true); ownUpdateLater.setEnabled(true); ownUpdateLater.setText("Later");
 					ownUpdate.setVisible(true);
-					shell[0].badge("UPDATES", 1);
+					updatesDot[0].run();
 					LaunchPopup.iconUpdate = true; LaunchPopup.icons();
 					f.validate();
 					if (shot == null) { LaunchPopup.chime(); Nav.land(ownUpdateGo); }

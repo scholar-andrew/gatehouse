@@ -257,6 +257,8 @@ public final class LaunchPopup {
 	static boolean gone(java.awt.Window f, Component c) { return !f.isDisplayable() || SwingUtilities.getWindowAncestor(c) != f; }
 	/** The line under the checklist's heading, for the caller to say what happens next. */
 	static volatile JLabel progressSub;
+	/** R14: the pack's files as they download, under the checklist ("12 of 28 files"). */
+	static final dev.gatehouse.look.Download.Bar packBar = new dev.gatehouse.look.Download.Bar();
 
 	/** The checklist itself, until the sync says it's done. Returns how it went ("ok", "offline", "failed"), or null
 	 *  when the player quit. "into": show it in that window (the main Gatehouse window, which then runs the sync
@@ -294,7 +296,9 @@ public final class LaunchPopup {
 				rows[i].setPreferredSize(new Dimension(560, 26));
 				list.add(rows[i]);
 			}
-			p.add(list, BorderLayout.CENTER);
+			JPanel listAndBar = new JPanel(new BorderLayout(0, 8)); listAndBar.setOpaque(false);
+			listAndBar.add(list, BorderLayout.CENTER); listAndBar.add(packBar, BorderLayout.SOUTH);
+			p.add(listAndBar, BorderLayout.CENTER);
 			JButton quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
 			quit.addActionListener(e -> { if (into != null) { embedQuit = true; return; } exitCode = QUIT; f.dispose(); });
 			JPanel bottom = new JPanel(new BorderLayout());
@@ -372,7 +376,10 @@ public final class LaunchPopup {
 				int running = -1;
 				for (int i = 0; i < STEPS.length; i++) if (!got.containsKey(STEPS[i])) { running = i; break; }
 				int r = running, k = tick++;
+				java.util.regex.Matcher fm = java.util.regex.Pattern.compile("\\((\\d+)/(\\d+)\\)").matcher(last);
+				long[] files = r == 1 && !asking && fm.find() ? new long[] {Long.parseLong(fm.group(1)), Long.parseLong(fm.group(2))} : null;
 				SwingUtilities.invokeLater(() -> {
+					if (files != null && files[1] > 0) packBar.count("Downloading the pack: " + files[0] + " of " + files[1] + " files", files[0], files[1]); else packBar.done();
 					for (int i = 0; i < STEPS.length; i++) {
 						String[] g = got.get(STEPS[i]);
 						if (g != null) { rows[i].setIcon(mark(g[0])); rows[i].setText(html(STEPS[i], g[1])); }
@@ -592,6 +599,14 @@ public final class LaunchPopup {
 	}
 
 	private static String fetch(String url) throws IOException { return new String(fetchBytes(url), StandardCharsets.UTF_8); }
+
+	/** As fetchBytes, noting how far along it is in "st" (R14: the bar while Gatehouse fetches a newer Gatehouse). */
+	static byte[] fetchBytes(String url, dev.gatehouse.look.Download.State st) throws IOException {
+		java.net.URLConnection c = java.net.URI.create(url).toURL().openConnection();
+		c.setConnectTimeout(5000);
+		c.setReadTimeout(10000);
+		try (java.io.InputStream in = c.getInputStream()) { return dev.gatehouse.look.Download.read(in, c.getContentLengthLong(), st); }
+	}
 
 	static byte[] fetchBytes(String url) throws IOException {
 		java.net.URLConnection c = java.net.URI.create(url).toURL().openConnection();

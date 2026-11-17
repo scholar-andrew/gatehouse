@@ -119,7 +119,7 @@ final class Peer {
 				boolean theirs = !lead().isEmpty() && at.startsWith(lead().replaceAll("/+$", ""));
 				if (!theirs && !raise(v)) { try { Thread.sleep(12_000); } catch (InterruptedException e) { return; } fetching = false; lookForNewer(); return; }
 				if (!theirs) hand("this Gatekeeper", v);   // (and whoever asks here meanwhile is told it is in hand)
-				byte[] b = fetchBytes(at + "/oj-host.jar");
+				byte[] b = fetchProgram(at + "/oj-host.jar", v);
 				if (sha256(b).equalsIgnoreCase(sha)) store(b, sha, "fetched from " + UpdateLog.where(at));
 			} catch (IOException | RuntimeException notNow) { /* at its next look */ }
 			finally { fetching = false; }

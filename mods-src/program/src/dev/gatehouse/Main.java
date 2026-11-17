@@ -62,6 +62,7 @@ public final class Main {
 		System.setProperty("sun.java2d.d3d", "false");
 		System.setProperty("sun.java2d.opengl", "false");
 		System.setProperty("sun.java2d.noddraw", "true");
+		Shortcuts.name(args);   // (Linux: the name the windows and this process go by, before any window is made)
 		String first = args.length > 0 ? args[0] : "";
 		if (first.equals("--choose")) { choose(null); return; }
 		if (first.equals("--start")) {

@@ -652,6 +652,15 @@ public final class HostHelper {
 		if (c.getResponseCode() != 200) throw new IOException("answered " + c.getResponseCode());
 		try (InputStream in = c.getInputStream()) { return in.readAllBytes(); }
 	}
+	/** R14: a newer Gatekeeper being downloaded, how far along (the window shows it as a bar under Update Gatekeeper). */
+	static final dev.gatehouse.look.Download.State FETCHING = new dev.gatehouse.look.Download.State();
+	static byte[] fetchProgram(String url, String version) throws IOException {
+		HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+		c.setConnectTimeout(4000); c.setReadTimeout(20000);
+		if (c.getResponseCode() != 200) throw new IOException("answered " + c.getResponseCode());
+		FETCHING.what = version;
+		try (InputStream in = c.getInputStream()) { return dev.gatehouse.look.Download.read(in, c.getContentLengthLong(), FETCHING); }
+	}
 	static String sha256(byte[] b) {
 		try { StringBuilder sb = new StringBuilder(); for (byte x : java.security.MessageDigest.getInstance("SHA-256").digest(b)) sb.append(String.format("%02x", x)); return sb.toString(); }
 		catch (java.security.NoSuchAlgorithmException e) { return ""; }
@@ -798,7 +807,7 @@ public final class HostHelper {
 			byte[] b = Peer.heldBytes(newestKeeperSha);   // (the copy already here: fetched when it was first seen, or handed over)
 			// (where the file this Gatekeeper is about to become really came from: for the update log)
 			String cameFrom = b == null ? newestKeeperAt : Peer.heldFrom();
-			if (b == null) b = fetchBytes(newestKeeperAt + "/oj-host.jar");
+			if (b == null) b = fetchProgram(newestKeeperAt + "/oj-host.jar", newestKeeper);
 			if (!sha256(b).equalsIgnoreCase(newestKeeperSha)) return new String[] {"failed", "What was fetched doesn't match what was published (its checksum differs). Nothing was changed."};
 			Path fresh = jar.resolveSibling("oj-host.jar.new");
 			Files.write(fresh, b);
@@ -909,6 +918,7 @@ public final class HostHelper {
 
 	static void serve() throws Exception {
 		log("helper starting (port " + port() + ")");
+		if (!WIN) dev.gatehouse.Shortcuts.ensure(true, null);   // (Linux: the menu entries' icons and window names, at sign-in)
 		Device.start();   // (what kind of machine this is, for the picture launchers show)
 		Thread newer = new Thread(() -> { while (true) { try { lookForNewer(); } catch (RuntimeException ignored) {} try { Thread.sleep(300_000); } catch (InterruptedException e) { return; } } }, "newer");
 		newer.setDaemon(true); newer.start();
@@ -2115,7 +2125,8 @@ public final class HostHelper {
 				} else {
 					String uq = x.getRequestURI().getQuery();
 					if (uq != null && (uq.equals("1") || uq.startsWith("1&"))) lookForNewer();   // (?1: look now)
-					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", AutoUpdate.newer(), "blocking", outdated(), "needs", newestNeeds, "gatehouse", newestHouse, "from", newestKeeperAt, "reached", lookReached, "waiting", updateWaiting));
+					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", AutoUpdate.newer(), "blocking", outdated(), "needs", newestNeeds, "gatehouse", newestHouse, "from", newestKeeperAt, "reached", lookReached, "waiting", updateWaiting,
+							"fetching", FETCHING.active ? m("version", FETCHING.what, "done", FETCHING.done, "total", FETCHING.total, "started", FETCHING.started) : m()));
 				}
 			} else if (path.equals("/admin/whitelist/on")) {
 				String[] r = whitelistOn();
@@ -2344,6 +2355,7 @@ public final class HostHelper {
 	}
 
 	static void panel() throws Exception {
+		if (farUrl == null) dev.gatehouse.Shortcuts.ensure(true, null);   // (R16: Gatekeeper's shortcut, with its castle)
 		if (System.getenv("OJ_PANEL_PNG") == null && farUrl == null) {
 			// One window: when one is already open, that one is brought to the front and this one isn't opened.
 			boolean running = true;
@@ -2728,6 +2740,20 @@ public final class HostHelper {
 			JButton ownUpdateGo = new JButton("Update Gatekeeper");
 			ownUpdateGo.setToolTipText("Fetches the newer Gatekeeper, checks it, and restarts Gatekeeper as it (a few seconds). Running Minecraft servers aren't touched.");
 			ownUpdate.add(ownUpdateText, BorderLayout.CENTER); ownUpdate.add(ownUpdateGo, BorderLayout.EAST);
+			dev.gatehouse.look.Download.Bar ownUpdateBar = new dev.gatehouse.look.Download.Bar();   // (R14: a newer Gatekeeper downloading)
+			ownUpdate.add(ownUpdateBar, BorderLayout.SOUTH);
+			dev.gatehouse.look.Download.State seenFetch = new dev.gatehouse.look.Download.State();
+			// (asked every second while the window is open and the running Gatekeeper is downloading a newer one)
+			if (System.getenv("OJ_PANEL_PNG") == null) new Timer(1000, ev -> { if (f.isDisplayable() && (ownUpdate.isVisible() || ownUpdateBar.isVisible())) new Thread(() -> {
+				try {
+					Map<String, Object> fe = Json.map(Json.map(Json.parse(call("GET", "/admin/update", null))).get("fetching"));
+					SwingUtilities.invokeLater(() -> {
+						if (fe.isEmpty()) { ownUpdateBar.done(); return; }
+						try { seenFetch.done = (long) Double.parseDouble(Json.str(fe.get("done"))); seenFetch.total = (long) Double.parseDouble(Json.str(fe.get("total"))); seenFetch.started = (long) Double.parseDouble(Json.str(fe.get("started"))); } catch (RuntimeException ignored) {}
+						ownUpdateBar.show("Downloading Gatekeeper " + Json.str(fe.get("version")) + ":", seenFetch);
+					});
+				} catch (Exception ignored) {}
+			}, "fetching").start(); }).start();
 			ownUpdate.setVisible(false);
 			JPanel serversTab = new JPanel(new BorderLayout());
 			serversTab.add(ownUpdate, BorderLayout.NORTH); serversTab.add(overview, BorderLayout.CENTER);
@@ -2928,30 +2954,20 @@ public final class HostHelper {
 			new javax.swing.Timer(5000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else if (firstTabs.getSelectedIndex() == 3 && hostSetup.isShowing()) loadSteps.run(); }).start();
 			if (System.getenv("OJ_PANEL_PNG") == null) loadSteps.run();   // (so the tab's title says what's left to do)
 			else try { fillSteps.accept(Json.map(Json.parse(call("GET", "/admin/checklist", null)))); } catch (Exception ignored) {}
-			// A program's notes as a scrolling list, newest on top.
+			// A program's notes as a scrolling list, newest on top; versions not seen here yet are boxed in blue with a red
+			// dot (R18), drawn with what had been seen before, so they stay while read and are plain the next time.
+			java.nio.file.Path[] notesSeenAt = {dir.resolve("notes-seen-gatekeeper.txt"), dir.resolve("notes-seen-gatehouse.txt")};
+			String[] notesShown = {dev.gatehouse.look.NotesView.seenOrNow(notesSeenAt[0], notesInside("gatekeeper")), dev.gatehouse.look.NotesView.seenOrNow(notesSeenAt[1], notesInside("gatehouse"))};
+			@SuppressWarnings("unchecked") Map<String, Object>[] notesHeld = new Map[] {notesInside("gatekeeper"), notesInside("gatehouse")};
+			boolean[] notesNew = {dev.gatehouse.look.NotesView.unseen(notesHeld[0], notesShown[0]), dev.gatehouse.look.NotesView.unseen(notesHeld[1], notesShown[1])};
 			java.util.function.BiConsumer<JPanel, Object[]> fillNotes = (panel, what) -> {
 				Map<String, Object> notes = Json.map(what[0]);
-				JPanel list = new JPanel();
-				list.setLayout(new javax.swing.BoxLayout(list, javax.swing.BoxLayout.Y_AXIS));
-				list.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
-				String v = Json.str(notes.get("version"));
-				JLabel now = new JLabel(v.isEmpty() ? "No notes to show." : what[1] + " " + v + (Json.str(notes.get("_from")).isEmpty() ? " is what's running here." : " is the newest (from " + Json.str(notes.get("_from")) + ")."));
-				now.setForeground(new Color(0x8F98A0)); now.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-				list.add(now);
-				for (Object o : Json.list(notes.get("changes"))) {
-					Map<String, Object> ch = Json.map(o);
-					JLabel h = new JLabel(Json.str(ch.get("version")) + (Json.str(ch.get("date")).isEmpty() ? "" : " (" + Json.str(ch.get("date")) + ")"));
-					h.setFont(h.getFont().deriveFont(Font.BOLD, 14f)); h.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); h.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-					list.add(h);
-					for (Object n : Json.list(ch.get("notes"))) {
-						JLabel l = new JLabel("<html><div style='width:820px'>\u2022 " + String.valueOf(n).replace("&", "&amp;").replace("<", "&lt;") + "</div></html>");
-						l.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 0)); l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-						list.add(l);
-					}
-				}
-				JPanel top2 = new JPanel(new BorderLayout()); top2.add(list, BorderLayout.NORTH);
-				JScrollPane sp = new JScrollPane(top2); sp.setBorder(null); sp.getVerticalScrollBar().setUnitIncrement(16);
-				panel.removeAll(); panel.add(sp, BorderLayout.CENTER); panel.revalidate(); panel.repaint();
+				int which = what[1].equals("Gatekeeper") ? 0 : 1;
+				notesHeld[which] = notes;
+				notesNew[which] = dev.gatehouse.look.NotesView.unseen(notes, dev.gatehouse.look.NotesView.seen(notesSeenAt[which]));
+				String v = dev.gatehouse.look.NotesView.newest(notes);
+				String notesTop = v.isEmpty() ? "" : what[1] + " " + v + (Json.str(notes.get("_from")).isEmpty() ? " is what's running here." : " is the newest (from " + Json.str(notes.get("_from")) + ").");
+				panel.removeAll(); panel.add(dev.gatehouse.look.NotesView.build(notes, notesTop, notesShown[which], "No notes to show."), BorderLayout.CENTER); panel.revalidate(); panel.repaint();
 			};
 			fillNotes.accept(ownNotes, new Object[] {notesInside("gatekeeper"), "Gatekeeper"});
 			fillNotes.accept(launcherNotes, new Object[] {notesInside("gatehouse"), "Gatehouse"});
@@ -3764,7 +3780,7 @@ public final class HostHelper {
 			shell.afterMenu(() -> dev.octoberjourney.popup.Nav.home(f));
 			ChatUi.unread = n -> SwingUtilities.invokeLater(() -> shell.badge("CHAT", n));   // (rooms with messages not read here)
 			shell.body(p);
-			String[] subShown = {null};
+			String[] subShown = {null}, wasLit = {""};
 			Runnable sync = () -> {
 				boolean aside = optionsScroll.isVisible() || guide[0].isVisible();
 				int at = firstTabs.getSelectedIndex();
@@ -3775,18 +3791,28 @@ public final class HostHelper {
 				if (!aside && !inServer[0]) { String hd = at == 0 ? "Gatekeeper" : at == 6 ? "Chat" : at == 1 || at == 2 ? "Updates" : at == 3 ? "Host setup" : at == 4 ? "Web panel" : "Constellation"; if (!hd.equals(head.getText())) head.setText(hd); }
 				if (!item.isEmpty()) { if (!item.equals(shell.menuLit())) shell.menuLight(item); }
 				else if (!lit.equals(shell.lit())) shell.light(lit);
+				// (R17, R18: notes not seen yet put a red dot on UPDATES and on their page; looking at the page marks them
+				// seen, and coming back to Updates later draws them plain)
+				if (lit.equals("UPDATES") && !wasLit[0].equals("UPDATES") && !aside) for (int w = 0; w < 2; w++) {
+					String s = dev.gatehouse.look.NotesView.seen(notesSeenAt[w]);
+					if (!notesNew[w] && !s.equals(notesShown[w])) { notesShown[w] = s; fillNotes.accept(w == 0 ? ownNotes : launcherNotes, new Object[] {notesHeld[w], w == 0 ? "Gatekeeper" : "Gatehouse"}); }
+				}
+				wasLit[0] = aside ? "" : lit;
+				if (lit.equals("UPDATES") && !aside && (at == 1 || at == 2) && notesNew[at - 1]) { dev.gatehouse.look.NotesView.markSeen(notesSeenAt[at - 1], notesHeld[at - 1]); notesNew[at - 1] = false; subShown[0] = null; }
+				shell.badge("UPDATES", notesNew[0] || notesNew[1] ? -1 : 0);
 				// (what is waiting: launchers' requests, setup steps still to do)
 				shell.menuBadge("players", reqRow.isVisible() ? reqRow.getComponentCount() : 0);
 				java.util.regex.Matcher todoM = java.util.regex.Pattern.compile("\\((\\d+) to do\\)").matcher(firstTabs.getTitleAt(3));
 				shell.menuBadge("machine", todoM.find() ? Integer.parseInt(todoM.group(1)) : 0);
-				String want = aside || inServer[0] ? "" : lit + at;
+				String want = aside || inServer[0] ? "" : lit + at + notesNew[0] + notesNew[1];
 				if (want.equals(subShown[0])) return;
 				subShown[0] = want;
 				subRow.removeAll();
 				String[][] pages = want.isEmpty() ? new String[0][] : lit.equals("UPDATES") ? new String[][] {{"What's new in Gatekeeper", "1"}, {"What's new in Gatehouse", "2"}, {"Update log\u2026", "log"}} : new String[0][];
 				for (String[] pg : pages) {
 					boolean here = pg[1].equals(String.valueOf(at));
-					JButton b = new JButton((here ? "\u25cf  " : "") + pg[0]);
+					boolean dot = (pg[1].equals("1") && notesNew[0]) || (pg[1].equals("2") && notesNew[1]);
+					JButton b = new JButton(dot ? "<html>" + (here ? "\u25cf&nbsp;&nbsp;" : "") + pg[0] + " <font color='#E5484D'>\u25CF</font></html>" : (here ? "\u25cf  " : "") + pg[0]);
 					if (here) b.setFont(b.getFont().deriveFont(Font.BOLD));
 					if (pg[1].equals("log")) {
 						b.setToolTipText("Every update of every client in this constellation: when, from which version to which, how, and its system");

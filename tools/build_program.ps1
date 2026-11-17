@@ -49,7 +49,7 @@ foreach ($half in 'gatehouse', 'gatekeeper') {
     if (Test-Path $art) { New-Item -ItemType Directory -Force (Join-Path $classes "wizard\$half") | Out-Null; Copy-Item (Join-Path $art '*.png') (Join-Path $classes "wizard\$half") }
 }
 # (so that Java doesn't warn about the controller reader calling into Windows)
-Set-Content -Path (Join-Path $out 'manifest.txt') -Value 'Enable-Native-Access: ALL-UNNAMED' -Encoding ascii
+Set-Content -Path (Join-Path $out 'manifest.txt') -Value @('Enable-Native-Access: ALL-UNNAMED', 'Add-Opens: java.desktop/sun.awt.X11') -Encoding ascii
 $jar = Join-Path $out 'gatehouse.jar'
 & (Join-Path $jdk 'jar.exe') --create --file $jar --main-class dev.gatehouse.Main --manifest (Join-Path $out 'manifest.txt') -C $classes .
 if ($LASTEXITCODE) { throw 'jar failed' }

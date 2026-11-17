@@ -198,9 +198,11 @@ final class Notes {
 	}
 
 	/** The fetching half: {where the pack is served, the hash wanted, the pack folder here to put it in, ...} from newer(). */
+	/** How far the fetch of a newer Gatehouse has come (for the bar under its offer). */
+	static final dev.gatehouse.look.Download.State FETCHING = new dev.gatehouse.look.Download.State();
 	static boolean fetch(String[] found) {
 		try {
-			byte[] jar = LaunchPopup.fetchBytes(found[0] + "/extras/launch-popup.jar");
+			byte[] jar = LaunchPopup.fetchBytes(found[0] + "/extras/launch-popup.jar", FETCHING);
 			if (!found[1].equals(LaunchPopup.sha256(jar))) return false;
 			Path dst = Path.of(found[2]).resolve("extras/launch-popup.jar"), tmp = Path.of(found[2]).resolve("extras/launch-popup.jar.part");
 			Files.write(tmp, jar);

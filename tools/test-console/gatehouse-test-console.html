@@ -1,4 +1,4 @@
-<title>Gatehouse Test Console</title>
+<title>Gatehouse Workshop</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
 /* Layout: the launcher's own shape. A top bar of sections (the every-update pass, then one per update), a strip of
@@ -20,6 +20,11 @@ header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; backg
 .tab { background: none; border: 0; color: var(--dim); font: 700 13px var(--ui); letter-spacing: .14em; padding: 8px 12px 9px; cursor: pointer; border-bottom: 3px solid transparent; text-transform: uppercase; }
 .tab:hover { color: var(--text); }
 .tab[aria-selected="true"] { color: #fff; border-bottom-color: var(--acc); }
+.unread { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #E5484D; margin-left: 6px; vertical-align: 2px; box-shadow: 0 0 0 2px rgba(229, 72, 77, .25); }
+.chime { background: none; border: 1px solid var(--line); color: var(--text); border-radius: 8px; padding: 3px 8px; font-size: 15px; cursor: pointer; margin-left: 6px; }
+.chime[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+.newreply { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #FF8A8E; }
+.rcard.fresh { box-shadow: 0 0 0 2px #E5484D inset; }
 .tab .n { display: inline-block; margin-left: 6px; font-size: 11px; letter-spacing: 0; color: var(--bg0); background: var(--warn); border-radius: 9px; padding: 0 6px; font-variant-numeric: tabular-nums; }
 .tab .n[data-zero] { background: var(--off); color: var(--text); }
 .filters { display: flex; gap: 8px 18px; flex-wrap: wrap; align-items: center; padding-block: 12px 4px; }
@@ -176,10 +181,11 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
 </style>
 
 <header><div class="wrap bar">
-  <div class="brand">GATEHOUSE<small>TEST CONSOLE</small></div>
-  <div class="modes" role="tablist" aria-label="Parts of the console">
+  <div class="brand">GATEHOUSE<small>WORKSHOP</small></div>
+  <div class="modes" role="tablist" aria-label="Parts of the workshop">
     <button class="mode" type="button" role="tab" id="m-tests">Tests</button>
-    <button class="mode" type="button" role="tab" id="m-req">Requests<span class="n" id="m-req-n" hidden></span></button>
+    <button class="mode" type="button" role="tab" id="m-req">Requests<span class="n" id="m-req-n" hidden></span><span class="unread" id="m-req-new" hidden title="A reply from Claude you haven't read"></span></button>
+    <button class="chime" type="button" id="chime" aria-pressed="true" title="Chime when Claude replies">&#128276;</button>
   </div>
   <div class="tabs" id="tabs" role="tablist" aria-label="Sections"></div>
 </div></header>
@@ -649,7 +655,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   var drafts = [];   // (attachments on the new request, before it is added)
   function size(n) { return n < 1024 ? n + " bytes" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
   function upload(file, done) {
-    if (!assets) { say("Attachments can't be added in this view: open the console in claude.ai, signed in", true); return; }
+    if (!assets) { say("Attachments can't be added in this view: open the workshop in claude.ai, signed in", true); return; }
     if (file.size > 20 * 1024 * 1024) { say(file.name + " is too big (20 MB at most)", true); return; }
     say("Attaching " + (file.name || "the picture") + "…");
     assets.upload(file).then(function (a) { done({ id: a.id, name: file.name || "pasted picture.png", type: a.contentType || file.type || "", size: a.sizeBytes || file.size || 0 }); say("Attached"); },
@@ -711,6 +717,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     var top = el("div", "rtop"), main = el("div", "main"), side = el("div", "side");
     var h3 = el("h3", "title"); var rb = el("span", "ref", r.ref || "R?"); rb.title = "Request " + r.ref + ": click to copy its number"; rb.addEventListener("click", function () { copyRef(r.ref); }); h3.appendChild(rb); h3.appendChild(document.createTextNode(r.title || "(no title)"));
     main.appendChild(h3);
+    if (unreadIn(r)) { c.classList.add("fresh"); var nr = el("span", "newreply"); nr.appendChild(el("span", "unread")); nr.appendChild(document.createTextNode("New reply from Claude")); main.appendChild(nr); watchRead(c, r); }
     var tags = el("div", "tags"); var ct = el("span", "cat", word(CATS, r.category)); ct.dataset.cat = r.category || "other"; tags.appendChild(ct);
     var st = el("span", "status", r.status === "added" && r.added_in ? "Added in " + r.added_in : word(STATUSES, r.status || "new")); st.dataset.s = r.status || "new"; tags.appendChild(st);
     main.appendChild(tags);
@@ -808,6 +815,89 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     Array.prototype.slice.call(holder.querySelectorAll("button")).forEach(function (b) { b.remove(); });
     list.forEach(function (o) { var b = el("button", "chip", o[1]); b.type = "button"; b.setAttribute("aria-pressed", rview[k] === o[0] ? "true" : "false"); b.addEventListener("click", function () { rview[k] = o[0]; rkeep(); rrender(); }); holder.appendChild(b); });
   }
+  // ---- replies from Claude not read yet (R19). What has been read is kept for the person (their own place in the
+  // store, so it follows them between devices; this browser's storage when there isn't one): for each request, how
+  // many of Claude's posts they have seen. A reply counts as read once its request has been on screen for a moment.
+  var seenReplies = null, seenDoc = null, chimeOn = true, chimedFor = {}, owedChime = false;
+  try { chimeOn = localStorage.getItem("gh-chime") !== "off"; } catch (e) {}
+  function claudeCount(r) { return (Array.isArray(r.thread) ? r.thread : []).filter(function (p) { return p && p.who === "claude"; }).length; }
+  function unreadIn(r) { return seenReplies !== null && claudeCount(r) > (seenReplies[r.id] || 0); }
+  function unreadList() { return Object.keys(reqs).map(function (k) { return reqs[k]; }).filter(unreadIn); }
+  function saveSeen() {
+    try { localStorage.setItem("gh-seen-replies", JSON.stringify(seenReplies)); } catch (e) {}
+    if (seenDoc) seenDoc.set({ replies: seenReplies, at: new Date().toISOString() }).catch(function () {});
+  }
+  var readObs = ("IntersectionObserver" in window) ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) {
+      var id = e.target.dataset.rid; if (!id) return;
+      // (timed per card: a redraw replaces the card, and the old one leaving mustn't stop the new one's count)
+      var c = e.target;
+      if (e.isIntersecting && !document.hidden) { if (!c._rt) c._rt = setTimeout(function () { c._rt = null; if (c.isConnected) markRead(id); }, 1500); }
+      else { clearTimeout(c._rt); c._rt = null; }
+    });
+  }, { threshold: 0.4 }) : null;
+  function watchRead(card, r) { card.dataset.rid = r.id; if (readObs) readObs.observe(card); card.addEventListener("pointerdown", function () { markRead(r.id); }); }
+  function markRead(id) {
+    var r = reqs[id]; if (!r || seenReplies === null) return;
+    var n = claudeCount(r); if ((seenReplies[id] || 0) >= n) return;
+    seenReplies[id] = n; saveSeen();
+    var c = $("req-" + id); if (c) { c.classList.remove("fresh"); var nr = c.querySelector(".newreply"); if (nr) nr.remove(); }
+    showUnread();
+  }
+  function showUnread() {
+    var n = unreadList().length;
+    $("m-req-new").hidden = !n;
+    document.title = (n ? "(" + n + ") " : "") + "Gatehouse Workshop";
+  }
+  // the chime: two soft notes. A browser plays no sound until the page has been clicked or tapped once, so a chime
+  // that can't play yet is owed, and plays at the first click.
+  var actx = null;
+  function chime() {
+    if (!chimeOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state !== "running") { owedChime = true; actx.resume().then(function () { if (actx.state === "running" && owedChime) { owedChime = false; notes(); } }, function () {}); return; }
+      notes();
+    } catch (e) { owedChime = true; }
+  }
+  function notes() {
+    var t0 = actx.currentTime + 0.02;
+    [[880, 0], [1318.5, 0.16]].forEach(function (nt) {
+      var o = actx.createOscillator(), g = actx.createGain(); o.type = "sine"; o.frequency.value = nt[0];
+      g.gain.setValueAtTime(0.0001, t0 + nt[1]); g.gain.exponentialRampToValueAtTime(0.18, t0 + nt[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + nt[1] + 0.6);
+      o.connect(g); g.connect(actx.destination); o.start(t0 + nt[1]); o.stop(t0 + nt[1] + 0.65);
+    });
+  }
+  function payOwed() { if (!owedChime) return; owedChime = false; try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume().then(notes, function () {}); } catch (e) {} }
+  document.addEventListener("pointerdown", payOwed, true);
+  document.addEventListener("keydown", payOwed, true);
+  $("chime").setAttribute("aria-pressed", chimeOn ? "true" : "false");
+  $("chime").addEventListener("click", function () { chimeOn = !chimeOn; try { localStorage.setItem("gh-chime", chimeOn ? "on" : "off"); } catch (e) {} $("chime").setAttribute("aria-pressed", chimeOn ? "true" : "false"); $("chime").title = chimeOn ? "Chime when Claude replies (on)" : "Chime when Claude replies (off)"; if (!chimeOn) owedChime = false; });
+  // (called each time the requests or what was read arrive: a reply not chimed for yet, chimes once)
+  function checkUnread() {
+    if (seenReplies === null || !rloaded) return;
+    var fresh = unreadList().filter(function (r) { var k = r.id + ":" + claudeCount(r); if (chimedFor[k]) return false; chimedFor[k] = true; return true; });
+    showUnread();
+    if (fresh.length) chime();
+  }
+  function startSeen(user) {
+    var local = null; try { local = JSON.parse(localStorage.getItem("gh-seen-replies") || "null"); } catch (e) {}
+    var done = false, give = setTimeout(function () { have(local || allRead()); }, 6000);
+    function allRead() { var v = {}; Object.keys(reqs).forEach(function (k) { v[k] = claudeCount(reqs[k]); }); return v; }
+    function have(v) { if (done) return; done = true; clearTimeout(give); seenReplies = Object.assign({}, v); saveSeen(); rrender(); checkUnread(); }
+    if (!db || !user || !user.id) { have(local || allRead()); return; }
+    Promise.resolve(user.id()).then(function (id) {
+      if (!id) { have(local || allRead()); return; }
+      seenDoc = db.collection("data/users/" + id).doc("seen");
+      seenDoc.get().then(function (s) {
+        var v = (s && s.exists && s.data() && s.data().replies) || null;
+        // (the first time: what this browser had, or, with nothing at all, everything up to now counts as read, so
+        // opening the workshop for the first time doesn't chime for every old reply)
+        have(v || local || allRead());
+      }, function () { have(local || allRead()); });
+    }, function () { have(local || allRead()); });
+  }
+
   function rrender() {
     var all = Object.keys(reqs).map(function (k) { return reqs[k]; });
     var open = all.filter(function (r) { return !closed(r); });
@@ -882,7 +972,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
 
   function start(d) {
     db = d;
-    if (!db) { loaded = true; $("empty").textContent = "This console keeps its checks and your answers in your claude.ai account. Open it signed in to see them."; counts(); return; }
+    if (!db) { loaded = true; $("empty").textContent = "The workshop keeps its checks and your answers in your claude.ai account. Open it signed in to see them."; counts(); return; }
     var timer = setTimeout(function () { if (!loaded) $("empty").textContent = "The checks are taking a while to load. Check your connection; they will appear here when they arrive."; }, 10000);
     db.doc("meta/current").onSnapshot(function (snap) { var v = (snap.exists && snap.data() || {}).version || ""; if (v !== current) { current = String(v); render(); } }, function () {});
     db.collection("items").onSnapshot(function (snap) {
@@ -900,6 +990,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       // (copies: what the store hands back can't be written on)
       snap.docs.forEach(function (doc) { next[doc.id] = Object.assign({}, doc.data() || {}, { id: doc.id }); });
       reqs = next;
+      checkUnread();
       if (mode() === "requests" && document.activeElement && /^re-|^ra-|^rd-|^rt-|^r-title$|^r-desc$/.test(document.activeElement.id || "")) { rcounts(); var mn = $("m-req-n"); return; }   // (not redrawn under the words being typed)
       rrender();
     }, function (e) { rloaded = true; $("rempty").textContent = "The requests couldn't be loaded: " + ((e && e.message) || "the store didn't answer") + "."; });
@@ -916,10 +1007,14 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     }, function () {});
   }
   mode(modeNow);
-  if (!db) { $("rempty").textContent = "Requests are kept in your claude.ai account. Open the console signed in to see them."; }
+  if (!db) { $("rempty").textContent = "Requests are kept in your claude.ai account. Open the workshop signed in to see them."; }
   if (window.claude && window.claude.use) {
-    window.claude.use("db").then(start, function () { start(null); });
+    window.claude.use("db").then(function (d) {
+      start(d);
+      // (what was read waits for the requests, so the first time can count them all as read)
+      var tries = 0; (function wait() { if (rloaded || !d || ++tries > 40) { window.claude.use("user").then(startSeen, function () { startSeen(null); }); } else setTimeout(wait, 250); })();
+    }, function () { start(null); startSeen(null); });
     window.claude.use("assets").then(function (a) { assets = a || null; if (assets) { paintAll(); if (mode() === "requests") rrender(); } }, function () {});
-  } else start(null);
+  } else { start(null); startSeen(null); }
 })();
 </script>
