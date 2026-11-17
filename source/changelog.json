@@ -1,4 +1,7 @@
 [
+ {"version": "1.35.4", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack or in how the program works: a test update, for trying out updating (Gatehouse 3.2.4)."
+ ]},
  {"version": "1.35.3", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself. Automatic updating no longer stalls when a launcher is connected to two Gatekeepers (Gatehouse 3.2.3)."
  ]},

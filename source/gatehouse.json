@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.2.3",
+ "version": "3.2.4",
  "changes": [
+  {"version": "3.2.4", "date": "2026-11-16", "notes": [
+   "A test update: nothing changed. It is here so that updating itself can be tried, automatic updating in particular (Options, Updating)."
+  ]},
   {"version": "3.2.3", "date": "2026-11-16", "notes": [
    "Nothing changed in the launcher itself. Automatic updating with two Gatekeepers in your list: this launcher updates with whichever of them goes first, and the second no longer waits up to ten minutes for it before updating too (fixed in Gatekeeper)."
   ]},
