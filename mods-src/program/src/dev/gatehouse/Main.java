@@ -205,11 +205,13 @@ public final class Main {
 	}
 	/** The Play half has just updated itself by its owner's press: the Gatekeeper on this same machine is told to
 	 *  update too (it waits for servers it runs itself to be off). Returns what it said, or "" when there is none here. */
-	public static String tellKeeperToUpdate() {
+	public static String tellKeeperToUpdate() { return tellKeeperToUpdate("normal"); }
+	/** how: this launcher's own way of updating just now (normal: Update was pressed; auto; constellation: on the go). */
+	public static String tellKeeperToUpdate(String how) {
 		if (System.getenv("OJ_HOME_DRY") != null) return "";
 		int door = keeperDoor();
 		if (door <= 0) return "";
-		java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(askKeeper(door, "POST", "/admin/update", "{\"with_play\":true}"));
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(askKeeper(door, "POST", "/admin/update", "{\"with_play\":true,\"how\":\"" + (how.equals("auto") || how.equals("constellation") ? how : "normal") + "\"}"));
 		return m.find() ? m.group(1).replace("\\\"", "\"").replace("\\\\", "\\") : "asked";
 	}
 	/** The Play half has just fetched a newer program file: the Host half on this same machine gets that same file, so
@@ -220,7 +222,8 @@ public final class Main {
 	 *      kept beside it as oj-host.jar.old). Windows only: elsewhere a launcher can't be sure it isn't running, and
 	 *      inside a sandbox it can't see the folder at all.
 	 *  Returns what happened, in a few words ("" for nothing). */
-	public static String pairUpdate(Path jar, String sha) {
+	public static String pairUpdate(Path jar, String sha) { return pairUpdate(jar, sha, "normal"); }
+	public static String pairUpdate(Path jar, String sha, String how) {
 		if (System.getenv("OJ_HOME_DRY") != null && System.getenv("OJ_KEEPER_DIR") == null) return "";
 		try {
 			int door = keeperDoor();
@@ -232,7 +235,7 @@ public final class Main {
 				c.setFixedLengthStreamingMode(b.length);
 				try (java.io.OutputStream o = c.getOutputStream()) { o.write(b); }
 				c.getResponseCode();
-				String said = tellKeeperToUpdate();
+				String said = tellKeeperToUpdate(how);
 				return said.isEmpty() ? "handed to the Gatekeeper on this machine" : said;
 			}
 			Path dir = keeperDir();

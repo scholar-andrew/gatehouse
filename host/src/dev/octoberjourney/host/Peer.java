@@ -61,6 +61,8 @@ final class Peer {
 		return meta;
 	}
 	static String heldVersion() { return Json.str(held().get("version")); }
+	/** Where the held file came from, for the update log: the place it was fetched from, or who handed it over. */
+	static String heldFrom() { String f = Json.str(held().get("from")); return f.startsWith("fetched from ") ? f.substring("fetched from ".length()) : f.isEmpty() ? "" : "a copy " + f; }
 
 	/** The held file, if it is the one with this checksum (checked again as it is read). */
 	static byte[] heldBytes(String sha) {

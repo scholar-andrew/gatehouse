@@ -145,7 +145,7 @@ const views = {
     if (current !== 'updates' || !r.entries) { if (r.message) say(r); return; }
     const t = el('table');
     t.appendChild(el('tr', '', null, ['When', 'Client', 'Kind', 'Player', 'System', 'From', 'To', 'How', 'Fetched from', 'Through'].map(h => el('th', '', h))));
-    r.entries.forEach(e => t.appendChild(el('tr', '', null, [e.when, e.client, e.kind, e.player, e.system + (e.info ? ' (' + e.info + ')' : ''), e.from, e.to, e.how, e.source || 'not said', e.via].map(x => el('td', '', x || '')))));
+    r.entries.forEach(e => t.appendChild(el('tr', '', null, [e.when, e.client, e.kind, e.player, e.system + (e.info ? ' (' + e.info + ')' : ''), e.from, e.to, e.how, e.source || 'not said', e.via || (e.also ? '(also heard through ' + e.also + ')' : '')].map(x => el('td', '', x || '')))));
     const v = el('div', 'card sheet scroll', null, [t]);
     if (!r.entries.length) v.appendChild(el('p', 'note', 'No updates recorded yet. A line is added each time a client of this constellation goes from one version to another.'));
     v.appendChild(el('p', 'note', r.total + ' recorded in all; the newest ' + r.entries.length + ' are shown.'));

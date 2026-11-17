@@ -1,7 +1,16 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.12.0",
+ "version": "3.12.1",
  "changes": [
+  {"version": "3.12.1", "date": "2026-11-17", "notes": [
+   "Fixes to the update log. Nothing else changed: how updates happen is as it was.",
+   "A Gatekeeper that updated on its constellation's go, on a machine that also has the launcher, was written down as \"normal (Update pressed in the launcher on this machine)\". The launcher there does tell Gatekeeper to update, but because the constellation said go, not because anyone pressed anything. The launcher now says how its own update came about, and Gatekeeper's line says the same: constellation, auto, or Update pressed.",
+   "A launcher that is paired with two Gatekeepers of one constellation was listed twice for each update: once by the Gatekeeper that leads, and once more handed on by the one that joined. It is one line now, the one heard from the launcher itself, and its Through column says which Gatekeeper it was also heard through. This works straight away, before the other Gatekeeper is updated: where a line carries no id for its install, it is matched by the device's name, its system, the versions and the time, and one line takes in one other at most, so two devices of the same name (every Steam Deck is \"steamdeck\" until renamed) are still two lines.",
+   "\"Fetched from\" for a Gatekeeper now says where the file it became really came from: a copy a client handed over, when that is what it used, not the place it would otherwise have looked.",
+   "\"Fetched from the Gatekeeper at 127.0.0.1\" now reads \"the Gatekeeper on its own machine\": that address only means something on the machine that wrote it.",
+   "Longer descriptions of how an update came about are no longer cut short when a joined Gatekeeper hands its lines on.",
+   "The log as it stands is tidied once, when this version first starts: lines doubled before these fixes are made one by the same rule, and the \"fetched from: not said\" line this Gatekeeper used to write for a joined Gatekeeper goes where that Gatekeeper's own line is here. The log as it was is kept beside it as updates-before-tidy.json. What old lines say about how an update came about is left as it was written."
+  ]},
   {"version": "3.12.0", "date": "2026-11-17", "notes": [
    "Options has a new part, End Gatekeeper. Gatekeeper runs in the background whether its window is open or not, and closing the window stops nothing; this ends it, until you next sign in or start it again. It asks first, and won't end while a server it runs itself is on (stop that server first). Servers MC Server Soft runs keep running.",
    "One window. If Gatekeeper's window is already open, opening it again (from the launcher's Open Gatekeeper, the Play or Host screen, or its own shortcut) brings that window to the front instead of opening a second one.",

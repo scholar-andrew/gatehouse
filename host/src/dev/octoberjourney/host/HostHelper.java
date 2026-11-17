@@ -759,6 +759,8 @@ public final class HostHelper {
 			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 			if (!Files.isRegularFile(jar)) return new String[] {"refused", "Gatekeeper isn't running from a file it can replace."};
 			byte[] b = Peer.heldBytes(newestKeeperSha);   // (the copy already here: fetched when it was first seen, or handed over)
+			// (where the file this Gatekeeper is about to become really came from: for the update log)
+			String cameFrom = b == null ? newestKeeperAt : Peer.heldFrom();
 			if (b == null) b = fetchBytes(newestKeeperAt + "/oj-host.jar");
 			if (!sha256(b).equalsIgnoreCase(newestKeeperSha)) return new String[] {"failed", "What was fetched doesn't match what was published (its checksum differs). Nothing was changed."};
 			Path fresh = jar.resolveSibling("oj-host.jar.new");
@@ -769,7 +771,7 @@ public final class HostHelper {
 			catch (IOException | RuntimeException notAJar) { sound = false; }
 			if (!sound) { Files.deleteIfExists(fresh); return new String[] {"failed", "What was published isn't a Gatekeeper that can run. Nothing was changed."}; }
 			// One program: the Play half on this machine, if there is one, gets the same file now (it is never in use).
-			UpdateLog.aboutToUpdate();   // (what it was, and how this update came about: written down as a line when it is back)
+			UpdateLog.aboutToUpdate(cameFrom);   // (what it was, and how this update came about: written down as a line when it is back)
 			int play = dev.gatehouse.Main.updatePlayCopies(fresh, newestKeeperAt);
 			if (play > 0) log("update: the Gatehouse launcher on this machine was updated with it (" + play + (play == 1 ? " copy)" : " copies)"));
 			String javaExe = ProcessHandle.current().info().command().orElse("javaw"), q = "'", folder = jar.getParent().toString();
@@ -2051,7 +2053,10 @@ public final class HostHelper {
 				if (x.getRequestMethod().equals("POST")) {
 					Map<String, Object> ub = body(x);
 					long pid = 0; try { pid = (long) Double.parseDouble(Json.str(ub.get("panel_pid"))); } catch (NumberFormatException ignored) {}
-					UpdateLog.how = ServerTools.yes(ub.get("with_play")) ? "normal (Update pressed in the launcher on this machine)" : "normal (Update pressed)";
+					// (asked by the launcher on this machine as it updates itself: how that came about is how this did.
+					// It was the constellation's go, or auto mode, unless Update was pressed there)
+					String lh = Json.str(ub.get("how"));
+					UpdateLog.how = !ServerTools.yes(ub.get("with_play")) ? "normal (Update pressed)" : lh.equals("constellation") || lh.equals("auto") ? AutoUpdate.howNow(lh) : "normal (Update pressed in the launcher on this machine)";
 					String[] r = applyUpdate(pid);
 					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else {

@@ -72,6 +72,8 @@ final class AutoUpdate {
 		return m.equals("auto") || m.equals("constellation") ? m : "normal";
 	}
 	static String lead() { return setting("constellation_lead", ""); }
+	/** How an update that starts now came about, in the update log's words. */
+	static String howNow(String mode) { return mode + (mode.equals("constellation") && following() ? " (on " + leadName + "'s go)" : ""); }
 	static boolean following() { return !lead().isEmpty() && leadMember && System.currentTimeMillis() - leadHeard < 120_000; }
 	static boolean newer() { return !newestKeeper.isEmpty() && cmpVersion(newestKeeper, ownVersion()) > 0; }
 	static String modeOf(Map<String, Object> b) {
@@ -136,7 +138,7 @@ final class AutoUpdate {
 						// Not for a Gatekeeper: it writes the line for its own update, where it was fetched from included, and hands
 						// it on; a second line from here would say the same update twice, and without the source)
 						String before = Json.str(d.get("version"));
-						if (!keeper && !before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info, r.source);
+						if (!keeper && !before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info, r.source, r.install);
 						d.put("update_mode", r.mode); d.put("version", r.own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
 						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);
@@ -316,7 +318,7 @@ final class AutoUpdate {
 						log(tag + status + (waitingFor.isEmpty() ? "" : " Not waited for any longer: " + String.join(", ", waitingFor) + "."));
 						Thread.sleep(8000);   // (so every open client has asked once and been told to go)
 					} else { status = "Updating to " + newestKeeper + " now."; log(tag + status); }
-					UpdateLog.how = mode + (mode.equals("constellation") && following() ? " (on " + leadName + "'s go)" : "");
+					UpdateLog.how = howNow(mode);
 					String[] r = applyUpdate(0);
 					log(tag + r[1]);
 					if (r[0].equals("ok")) try { java.nio.file.Files.writeString(dir.resolve("auto-update-tried.txt"), target, StandardCharsets.UTF_8); } catch (IOException ignored) {}

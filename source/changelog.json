@@ -1,4 +1,7 @@
 [
+ {"version": "1.45.1", "date": "2026-11-17", "notes": [
+  "For hosts: fixes to what the update log says about how and from where each client updated (Gatehouse 3.12.1). Nothing in the pack's mods or settings changed."
+ ]},
  {"version": "1.45.0", "date": "2026-11-17", "notes": [
   "For a machine that hosts and plays: the launcher can start its Gatekeeper when it isn't running, Gatekeeper's window can end it, and asking for that window switches to it when it is already open (Gatehouse 3.12.0). Nothing in the pack's mods or settings changed."
  ]},

@@ -107,7 +107,7 @@ final class ConstellationUi {
 			Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/updates", null);
 			SwingUtilities.invokeLater(() -> {
 				DefaultTableModel lm = new DefaultTableModel(new Object[] {"When", "Client", "Kind", "Player", "System", "From", "To", "How", "Fetched from", "Through"}, 0) { @Override public boolean isCellEditable(int rr, int cc) { return false; } };
-				for (Object o : Json.list(r.get("entries"))) { Map<String, Object> en = Json.map(o); lm.addRow(new Object[] {Json.str(en.get("when")), Json.str(en.get("client")), Json.str(en.get("kind")), Json.str(en.get("player")), Json.str(en.get("system")) + (Json.str(en.get("info")).isEmpty() ? "" : "  (" + Json.str(en.get("info")) + ")"), Json.str(en.get("from")), Json.str(en.get("to")), Json.str(en.get("how")), Json.str(en.get("source")).isEmpty() ? "not said" : Json.str(en.get("source")), Json.str(en.get("via"))}); }
+				for (Object o : Json.list(r.get("entries"))) { Map<String, Object> en = Json.map(o); lm.addRow(new Object[] {Json.str(en.get("when")), Json.str(en.get("client")), Json.str(en.get("kind")), Json.str(en.get("player")), Json.str(en.get("system")) + (Json.str(en.get("info")).isEmpty() ? "" : "  (" + Json.str(en.get("info")) + ")"), Json.str(en.get("from")), Json.str(en.get("to")), Json.str(en.get("how")), Json.str(en.get("source")).isEmpty() ? "not said" : Json.str(en.get("source")), (Json.str(en.get("via")).isEmpty() && !Json.str(en.get("also")).isEmpty() ? "(also heard through " + Json.str(en.get("also")) + ")" : Json.str(en.get("via")))}); }
 				JTable lt = new JTable(lm); lt.setRowHeight(24);
 				JScrollPane ls = new JScrollPane(lt); ls.setPreferredSize(new java.awt.Dimension(1100, 420));
 				JPanel lp = new JPanel(new BorderLayout(0, 6));

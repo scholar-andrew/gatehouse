@@ -1,3 +1,5 @@
+== 1.45.1 | 2026-11-17
+- For hosts: fixes to what the update log says about how and from where each client updated (Gatehouse 3.12.1). Nothing in the pack's mods or settings changed.
 == 1.45.0 | 2026-11-17
 - For a machine that hosts and plays: the launcher can start its Gatekeeper when it isn't running, Gatekeeper's window can end it, and asking for that window switches to it when it is already open (Gatehouse 3.12.0). Nothing in the pack's mods or settings changed.
 == 1.44.1 | 2026-11-17

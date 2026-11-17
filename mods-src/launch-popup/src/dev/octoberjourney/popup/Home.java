@@ -45,6 +45,9 @@ import javax.swing.WindowConstants;
 final class Home {
 	/** A Gatekeeper said, in answer to this launcher's report, that it knows of a newer version than this launcher is. */
 	private static volatile boolean keeperSaysNewer;
+	/** How the update that is about to start came about: "normal" (Update was pressed) unless auto mode or a
+	 *  constellation's go pressed it. */
+	private static volatile String updateHow = "normal";
 	private Home() {}
 
 	/** A pack installed in Prism: {instance id, name, address to join, game folder, its Gatekeeper's address or ""}. */
@@ -1388,6 +1391,8 @@ final class Home {
 			ownUpdateLater.addActionListener(ev -> { if (offered[0] != null) declined[0] = offered[0][1]; ownUpdate.setVisible(false); f.validate(); LaunchPopup.iconUpdate = false; LaunchPopup.icons(); });
 			ownUpdateGo.addActionListener(ev -> {
 				String[] found = offered[0];
+				String how = updateHow;
+				updateHow = "normal";
 				if (found == null) return;
 				ownUpdateGo.setEnabled(false); ownUpdateLater.setEnabled(false);
 				ownUpdateText.setText("Fetching the newer " + LaunchPopup.TOOL + "\u2026");
@@ -1396,7 +1401,7 @@ final class Home {
 					// One program: the Gatekeeper on this same machine, if there is one, is updated by the same press.
 					// It is given this same file (one fetch for the pair): a Gatekeeper that is running takes it and manages
 					// its own update; one that isn't has its file replaced, where this launcher can reach it.
-					if (ok && shot == null) dev.gatehouse.Main.pairUpdate(Path.of(found[2]).resolve("extras/launch-popup.jar"), found[1]);
+					if (ok && shot == null) dev.gatehouse.Main.pairUpdate(Path.of(found[2]).resolve("extras/launch-popup.jar"), found[1], how);
 					SwingUtilities.invokeLater(() -> {
 						if (ok) { again[0] = "\u0000relaunch"; f.dispose(); return; }
 						ownUpdateText.setText("<html>Couldn't fetch it just now. Nothing was changed; it will be offered again.</html>");
@@ -1482,7 +1487,7 @@ final class Home {
 						boolean update = mode.equals("auto") || go;
 						// (the constellation is ready: its own sound, heard out before this launcher closes to update)
 						if (go && mode.equals("constellation") && offered[0] != null && ownUpdateGo.isEnabled()) { dev.gatehouse.look.Chime.constellation(); try { Thread.sleep(dev.gatehouse.look.Chime.MILLIS); } catch (InterruptedException e) { return; } }
-						if (update && offered[0] != null) SwingUtilities.invokeLater(() -> { if (offered[0] != null && ownUpdateGo.isEnabled() && ownUpdate.isVisible()) { sub.setText(mode.equals("auto") ? "Updating by itself (auto mode)\u2026" : "Updating together with your Gatekeeper (constellation mode)\u2026"); ownUpdateGo.doClick(); } });
+						if (update && offered[0] != null) SwingUtilities.invokeLater(() -> { if (offered[0] != null && ownUpdateGo.isEnabled() && ownUpdate.isVisible()) { updateHow = mode; sub.setText(mode.equals("auto") ? "Updating by itself (auto mode)\u2026" : "Updating together with your Gatekeeper (constellation mode)\u2026"); ownUpdateGo.doClick(); } });
 						else if (gathering) SwingUtilities.invokeLater(() -> sub.setText("A new version is out. Your Gatekeeper is waiting for every open launcher in its constellation to see it, then everything updates together."));
 					}
 				}, "update-mode");
