@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Gatekeeper</title>
+<link rel="stylesheet" href="/panel/panel.css">
+</head>
+<body>
+<header>
+  <h1 id="title">Gatekeeper</h1>
+  <span id="whoami"></span>
+  <button id="signout" class="quiet hidden">Sign out</button>
+</header>
+<main id="signin" class="hidden">
+  <form id="signin-form" class="card narrow">
+    <h2>Sign in</h2>
+    <label>Account <input id="user" autocomplete="username" required></label>
+    <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit">Sign in</button>
+    <p id="signin-said" class="said"></p>
+    <p class="note">Accounts are made by this Gatekeeper's owner, in Gatekeeper's window on the machine itself.</p>
+  </form>
+</main>
+<main id="app" class="hidden">
+  <nav id="nav"></nav>
+  <p id="said" class="said"></p>
+  <section id="view"></section>
+</main>
+<script src="/panel/panel.js"></script>
+</body>
+</html>

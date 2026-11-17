@@ -213,6 +213,40 @@ Two things to know:
 On Windows the same works without MCSS when `host.json` in Gatekeeper's folder says `"host": "builtin"`. With MCSS,
 New server and Manage are greyed: MCSS does those for its own servers.
 
+### The web panel
+
+A page for controlling Gatekeeper from a browser, on any system, with or without MCSS. It is off until you turn it on.
+
+1. In Gatekeeper, open the **Web panel** tab and press **New account**. Type a name and a password (10 characters or
+   more), and tick what the account may do, or **Admin** for everything.
+2. Tick **The web panel is on**, and copy the address beside it (`http://100.x.y.z:25570/panel/`).
+3. Open that address in a browser on a device that is on your Tailscale network, and sign in.
+
+| An account that may... | Gets |
+|---|---|
+| See | Servers and their state, players, Gatekeeper's log |
+| Start and stop | Start, Stop and Restart for servers; Start and Close MCSS |
+| Console | A server's console and typing into it (where Gatekeeper runs the server itself); Kick |
+| Settings, backups, tasks | Back up now, running a task, memory and other settings that name nothing on the disk |
+| Launchers and players | Answering launchers' requests, their permissions, the whitelist |
+| Sleep and wake | Sleep for the server machine, Wake for the devices you listed |
+| Admin | All of those, and Update Gatekeeper and New server |
+
+What to know about it:
+
+- **Only Tailscale.** The panel listens on the machine's Tailscale address and nowhere else: not the internet, not
+  the home network. It is plain `http`, which is safe there because Tailscale encrypts everything between devices.
+- **Accounts are made at the machine only.** The web panel can't make, change or remove them. It also can't do
+  Server setup, touch Gatekeeper's access to MCSS, or set anything that names a program or a folder on the machine
+  (a server's own start command, its Java, an installer). Passwords are not kept, only a scrambled form that can't
+  be turned back; five wrong ones lock that account out from that device for five minutes.
+- **Waking other computers.** In the Web panel tab, add a device by name and MAC address (on Windows: Settings,
+  Network & internet, the adapter's properties, Physical address). The server machine sends it a Wake-on-LAN signal
+  when Wake is pressed, so the device must be on the same home network and set to wake on one: in Device Manager,
+  the network adapter's Power Management ("Allow this device to wake the computer"), and often a setting in its
+  BIOS. Those are yours to set. The panel can't wake the server machine itself, since it runs on it: a launcher on
+  the home network does that.
+
 ### 3. Let players in
 
 When a player adds your Gatekeeper, their launcher appears in a server's **Access Manager**. A new launcher can do
@@ -271,6 +305,7 @@ Gatekeeper where it would be, marked "Not supported on SteamOS" or "Not supporte
 | MCSS's own controls (Start MCSS, Sign in, MCSS control) | Yes | Not supported | Not supported |
 | Updating while a server is on | Yes | Stop the server first | Stop the server first |
 | New server and Manage (console, settings, backups, tasks) in Gatekeeper | In MCSS instead | Yes | Yes |
+| Web panel with accounts; waking other devices | Yes | Yes | Yes |
 | Access Manager, Host setup, setup guide | Yes | Yes | Yes |
 | Starts when you sign in | Yes | Yes | Yes |
 | Updates itself | Yes | Yes | Yes |

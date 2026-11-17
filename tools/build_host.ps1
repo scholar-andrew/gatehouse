@@ -19,6 +19,9 @@ Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $out 'classes\gat
 # Gatekeeper carries its own install script, for Options > Uninstall (which runs it with -Uninstall).
 Copy-Item (Join-Path $root 'installer\keeper\install-keeper.ps1') (Join-Path $out 'classes\install-keeper.ps1')
 Copy-Item (Join-Path $root 'installer\keeper\install-keeper.sh') (Join-Path $out 'classes\install-keeper.sh')   # (Linux and SteamOS)
+# The web panel's page (host\web): served from inside Gatekeeper.
+New-Item -ItemType Directory -Force (Join-Path $out 'classes\web') | Out-Null
+Copy-Item (Join-Path $root 'host\web\*') (Join-Path $out 'classes\web')
 # Pictures for the setup guide's steps, when there are any: source\wizard\gatekeeper\<step key>.png
 $art = Join-Path $root 'source\wizard\gatekeeper'
 if (Test-Path $art) { New-Item -ItemType Directory -Force (Join-Path $out 'classes\wizard') | Out-Null; Copy-Item (Join-Path $art '*.png') (Join-Path $out 'classes\wizard') }

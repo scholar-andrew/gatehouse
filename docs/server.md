@@ -150,7 +150,23 @@ ones `DirectHost` runs; every call is `/admin/tools/...` and is refused (with "M
   the list was saved or Gatekeeper started), or `manual`.
 - **Not replicated**: MCSS's web panel, API keys and users, Bedrock and proxy server types, plugin management.
 
-Tested with a stand-in for a Minecraft server (`FakeServer` in the test scratch folder), and for making servers a
+**The web panel (`WebPanel`, `PanelUi`, `host/web`).** `/panel` on the launchers' listener (the Tailscale address
+only), 404 unless `web_panel` is `true`. `host/web/panel.html|js|css` are served from inside the jar under a strict
+Content-Security-Policy (`default-src 'self'`; the script builds the page with `textContent` only).
+
+- **Accounts**: `users.json` (`salt`, `rounds`, `hash`: PBKDF2-HMAC-SHA256, 210 000 rounds; `admin`, `perms`,
+  `enabled`). Only `/admin/panel/user` on the local listener writes it; no web call does.
+- **Sessions**: `POST /panel/login` sets `gk_session` (HttpOnly, SameSite=Strict, Path=/panel); only its SHA-256 is
+  kept, in memory. Idle 2 h, at most 24 h. Every non-GET call must carry `X-Panel-Token` (the session's own token).
+  Five wrong passwords per account-and-address: locked for 5 minutes. A missing account costs the same hash time.
+- **Calls**: `/panel/api/<x>` is `/admin/<x>` handed through, only if `WebPanel.ALLOWED` lists it, with the permission
+  it names (`view`, `control`, `console`, `manage`, `access`, `machine`, or `admin`). A body with a `MACHINE_ONLY`
+  key (`start`, `java`, `backup_dir`, `file`, `add`, `remove`) is refused, as is `tools/new` of kind `forge`/`file`:
+  nothing reachable from the web can name a program or a path on the machine. Each POST is logged with the account.
+- **Wake**: `wake_devices` in `host.json` (name, MAC); `WebPanel.wake` sends the 102-byte magic packet to UDP 9 and 7
+  on each interface's broadcast address. `/admin/sleep` is `sleepPc()`.
+
+Tested with a stand-in for a Minecraft server (`FakeServer` in the test scratch folder), dummy web accounts, and for making servers a
 stand-in download source and installer: start, the Done line,
 console commands, stop, a failed start, and a Gatekeeper ending and a new one taking the server over. Not yet with
 a real Minecraft server, and not on real Linux.

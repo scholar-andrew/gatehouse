@@ -814,6 +814,7 @@ public final class HostHelper {
 				else try {
 					HttpServer r = HttpServer.create(new InetSocketAddress(bind, port()), 0);
 					r.createContext("/v1/", HostHelper::launcher);
+					r.createContext("/panel", WebPanel::web);   // (the web panel: off unless the owner turned it on)
 					r.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(4));
 					r.start();
 					if (turn != bindTurn) { r.stop(0); return; }
@@ -1971,7 +1972,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
@@ -2588,6 +2589,7 @@ public final class HostHelper {
 				SwingUtilities.invokeLater(() -> { shareSaid.setText(msg); f.getRootPane().requestFocusInWindow(); loadSteps.run(); });
 			}, "name").start());
 			firstTabs.addTab("Host setup", hostSetup);
+			firstTabs.addTab("Web panel", PanelUi.tab(f));
 			firstTabs.addChangeListener(ev -> { if (firstTabs.getSelectedIndex() == 3) loadSteps.run(); });
 			new javax.swing.Timer(5000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else if (firstTabs.getSelectedIndex() == 3 && hostSetup.isShowing()) loadSteps.run(); }).start();
 			if (System.getenv("OJ_PANEL_PNG") == null) loadSteps.run();   // (so the tab's title says what's left to do)
@@ -3195,6 +3197,10 @@ public final class HostHelper {
 						java.awt.image.BufferedImage hi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D hg = hi.createGraphics(); p.paint(hg); hg.dispose();
 						javax.imageio.ImageIO.write(hi, "png", new java.io.File(shot + "-hostsetup.png"));
+						firstTabs.setSelectedIndex(4); p.validate();
+						java.awt.image.BufferedImage wpi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D wpg = wpi.createGraphics(); p.paint(wpg); wpg.dispose();
+						javax.imageio.ImageIO.write(wpi, "png", new java.io.File(shot + "-webpanel.png"));
 						gear.doClick(0); p.validate();
 						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D gg2 = gi2.createGraphics(); p.paint(gg2); gg2.dispose();
