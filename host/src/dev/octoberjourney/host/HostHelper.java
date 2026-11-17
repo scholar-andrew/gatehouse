@@ -113,6 +113,8 @@ public final class HostHelper {
 	static boolean nativeOk() { return builtin() || nativeToo(); }
 	/** Does Gatekeeper run the current server itself (rather than MCSS)? */
 	static boolean isNative() { return builtin() || (nativeToo() && ServerTools.yes(server().get("native"))); }
+	/** What runs the servers on this machine, as launchers are told: "mcss", "builtin" (Gatekeeper itself), or "both". */
+	static String hostKind() { return builtin() ? "builtin" : nativeToo() ? "both" : "mcss"; }
 	static final DirectHost DIRECT = new DirectHost();
 	/** Whatever runs the current server: Gatekeeper itself, or the host program. */
 	static ServerHost sh() { return isNative() ? DIRECT : host; }
@@ -1106,12 +1108,13 @@ public final class HostHelper {
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", setting("bind", "") + ":" + (port.isEmpty() ? "25565" : port),
 								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
-								"kind", facts[0], "minecraft_version", facts[1]));
+								"kind", facts[0], "minecraft_version", facts[1], "native", isNative()));
 					}
 				} finally { SERVER.set(keep); }
 				String name = setting("name", "");
 				if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
-				reply(x, 200, m("name", name, "servers", list, "suspended", ban[0].equals("suspend"), "perm_machine", canSleep, "perm_mcss", granted, "mcss_phase", mcssPhase(), "close", host.closeMode()));
+				reply(x, 200, m("name", name, "servers", list, "suspended", ban[0].equals("suspend"), "perm_machine", canSleep, "perm_mcss", granted, "mcss_phase", mcssPhase(), "close", host.closeMode(),
+						"host", hostKind(), "system", systemName(), "version", ownVersion()));   // (what runs the servers here, so a launcher doesn't show an MCSS that isn't there)
 				return;
 			}
 			if (path.equals("/v1/pulled") && x.getRequestMethod().equals("POST")) {
@@ -1156,7 +1159,7 @@ public final class HostHelper {
 				boolean clear = Boolean.TRUE.equals(d.get("clear_access"));
 				if (clear && saved.equals("none")) { d.remove("clear_access"); clear = false; changed = true; log(who(d) + " forgot its saved server access"); }
 				if (changed) saveDevices(devs);
-				reply(x, 200, m("clear_access", clear, "state", granted ? "granted" : "pending", "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(),
+				reply(x, 200, m("clear_access", clear, "host", hostKind(), "system", systemName(), "state", granted ? "granted" : "pending", "mcss", host.running(), "minecraft", minecraftRunning(), "close", host.closeMode(),
 						"sleep", canSleep, "server", canServer, "admin", canAdmin, "server_ready", host.hasAccess(),
 						"request", minecraftRunning() ? "" : requestState.getOrDefault(id + "|server", ""),
 						"perm", m("machine", ban[0].isEmpty() ? permState(d, "machine") : "none", "mcss", ban[0].isEmpty() ? permState(d, "mcss") : "none",

@@ -841,6 +841,17 @@ final class Home {
 							sleepB.addActionListener(ev -> { if (sure.test("Sleep", "Put the server machine to sleep?")) { ActionListenerOnce.run(sleepB, press, () -> c.helper("POST", "/v1/pc/sleep", "{}")); } });
 							connList.add((JPanel) mr[0]); connList.add(Box.createVerticalStrut(8));
 							if (answering && !cat.containsKey("_old")) {
+								// What runs the servers there, as that Gatekeeper says: MCSS ("mcss", and what an older Gatekeeper
+								// means by saying nothing), Gatekeeper itself ("builtin"), or both. With no MCSS there, its line
+								// stays, greyed, and says so.
+								String hostKind = str(cat.get("host")), sys = str(cat.get("system")), gkv = str(cat.get("version"));
+								boolean noMcss = hostKind.equals("builtin");
+								String noMcssWhy = (sys.isEmpty() || sys.equals("Windows") ? "Not used here" : "Not supported on " + sys) + ": Gatekeeper runs the servers itself";
+								if (!gkv.isEmpty()) {
+									Object[] gr = row.apply("Gatekeeper", new Component[] {});
+									set.accept((JLabel) gr[2], new String[] {"ok", "Answering   \u00b7   version " + gkv + (sys.isEmpty() ? "" : "   \u00b7   on " + sys) + (noMcss ? "   \u00b7   runs the servers itself" : hostKind.equals("both") ? "   \u00b7   runs some servers itself" : "")});
+									connList.add((JPanel) gr[0]); connList.add(Box.createVerticalStrut(8));
+								}
 								// MCSS
 								String mph = str(cat.get("mcss_phase"));
 								boolean mUp = mph.equals("running") || mph.equals("closing"), mBusy = mph.equals("starting") || mph.equals("closing"), force = "force".equals(str(cat.get("close")));
@@ -850,6 +861,10 @@ final class Home {
 								set.accept((JLabel) cr[2], new String[] {mBusy ? "warn" : mUp ? "ok" : "off", mph.equals("starting") ? "Starting\u2026" : mph.equals("closing") ? "Closing\u2026" : mUp ? "Running" : "Not running"});
 								mb.setVisible("true".equals(str(cat.get("perm_mcss"))));
 								mb.setEnabled(!mBusy);
+								if (noMcss) {
+									set.accept((JLabel) cr[2], new String[] {"off", noMcssWhy});
+									mb.setText("Start MCSS"); mb.setEnabled(false); mb.setToolTipText(noMcssWhy);
+								}
 								mb.addActionListener(ev -> { if (!mUp || sure.test("Close MCSS", "Close MCSS? Any Minecraft server that is running is stopped first (the world is saved), and anyone playing is disconnected.")) ActionListenerOnce.run(mb, press, () -> mUp ? c.mcssClose(force) : c.mcssStart()); });
 								connList.add((JPanel) cr[0]); connList.add(Box.createVerticalStrut(8));
 								// each server
@@ -858,9 +873,10 @@ final class Home {
 									String sid = str(s.get("id")), ph = str(s.get("phase")), snm = str(s.get("name")).isEmpty() ? sid : str(s.get("name"));
 									boolean sUp = ph.equals("online") || ph.equals("stopping"), sBusy = ph.equals("starting") || ph.equals("stopping");
 									JButton sb = new JButton(sUp ? "Stop server" : "Start server");
-									sb.setToolTipText(sUp ? "Stops this Minecraft server: the world is saved first, and anyone playing is disconnected" : "Starts this Minecraft server. Gatekeeper starts MCSS first if it isn't running.");
+									boolean ownRun = noMcss || "true".equals(str(s.get("native")));
+									sb.setToolTipText(sUp ? "Stops this Minecraft server: the world is saved first, and anyone playing is disconnected" : ownRun ? "Starts this Minecraft server. Gatekeeper runs it itself." : "Starts this Minecraft server. Gatekeeper starts MCSS first if it isn't running.");
 									Object[] sr = row.apply(snm, new Component[] {sb});
-									set.accept((JLabel) sr[2], new String[] {sBusy ? "warn" : ph.equals("online") ? "ok" : "off", ph.equals("online") ? "Online" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : ph.equals("nomcss") ? "Off (MCSS isn't running)" : "Off"});
+									set.accept((JLabel) sr[2], new String[] {sBusy ? "warn" : ph.equals("online") ? "ok" : "off", (ph.equals("online") ? "Online" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : ph.equals("nomcss") ? "Off (MCSS isn't running)" : "Off") + (hostKind.equals("both") ? ownRun ? "   \u00b7   run by Gatekeeper itself" : "   \u00b7   run by MCSS" : "")});
 									sb.setVisible("true".equals(str(s.get("allowed"))));
 									sb.setEnabled(!sBusy);
 									sb.addActionListener(ev -> { if (!sUp || sure.test("Stop server", "Stop " + LaunchPopup.esc(snm) + "? The world is saved first, and anyone playing is disconnected.")) ActionListenerOnce.run(sb, press, () -> c.helperAs(sid, "POST", sUp ? "/v1/server/stop" : "/v1/server/start", "{}")); });

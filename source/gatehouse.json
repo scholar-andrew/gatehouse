@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.9.0",
+ "version": "2.9.1",
  "changes": [
+  {"version": "2.9.1", "date": "2026-11-16", "notes": [
+   "Connections now shows what really runs the servers on a Gatekeeper's machine. Where the Gatekeeper runs them itself (always on Linux and SteamOS), the MCSS line is still listed, but grey, saying \"Not supported on SteamOS: Gatekeeper runs the servers itself\" (or Linux; on Windows, \"Not used here\") instead of a green \"Running\", and its button is greyed. Where a Windows Gatekeeper uses both, each server says whether MCSS or Gatekeeper itself runs it.",
+   "A Gatekeeper line, under Server machine: that it is answering, its version and the system it runs on. This needs Gatekeeper 2.7.2 or newer on the server machine; with an older one nothing changes."
+  ]},
   {"version": "2.9.0", "date": "2026-11-16", "notes": [
    "A setup guide: the steps from a device with nothing set up to playing on a server, one at a time. Prism Launcher, your Minecraft account, adding the owner's Gatekeeper, connecting to it, installing a server, and playing. Each step says what to do, has a button for it where there is one, and shows whether it's done; the guide looks again every few seconds, so a step ticks by itself.",
    "The guide opens by itself on a device that has no Gatekeeper and no server yet, and is always in Options (the wheel at the top right).",

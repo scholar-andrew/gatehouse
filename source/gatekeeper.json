@@ -1,7 +1,10 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.7.1",
+ "version": "2.7.2",
  "changes": [
+  {"version": "2.7.2", "date": "2026-11-16", "notes": [
+   "Launchers are now told what runs the servers on this machine: MC Server Soft, Gatekeeper itself, or both, and for each server which of the two. Before, a Gatekeeper that runs the servers itself (every one on Linux and SteamOS) answered that MCSS was running, so launchers showed a green \"MCSS: Running\" for a machine that has no MCSS. Gatehouse 2.9.1 shows it properly."
+  ]},
   {"version": "2.7.1", "date": "2026-11-16", "notes": [
    "Fixed: Manage opened the wrong server, or said \"MC Server Soft does this\" for a server Gatekeeper runs itself. Once any server had been opened in the window, Manage asked about that one (or the first in the list) instead of the one whose button was pressed. The web panel was not affected.",
    "New server: the File box is only for the last two kinds (a Forge or NeoForge installer, or a server jar you already have). For the others it is greyed and now says why (\"Not needed for this kind: Gatekeeper fetches it\"), and the version list says the same when a file decides the version."

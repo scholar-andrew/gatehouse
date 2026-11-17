@@ -1247,6 +1247,12 @@ public final class LaunchPopup {
 				else if (c.mcssPhase.equals("starting")) { text = "MCSS is starting\u2026"; state = "warn"; }
 				else if (c.mcssPhase.equals("closing")) { text = "MCSS is closing\u2026 (after the Minecraft server has stopped)"; state = "warn"; }
 				else { text = running ? "MCSS is running" : "MCSS isn't running"; state = running ? "ok" : "off"; }
+				// (a Gatekeeper that runs the servers itself has no MCSS: the line stays, greyed, and says so)
+				if (s(r.get("host")).equals("builtin") && !c.ban.equals("blacklist")) {
+					String sys = s(r.get("system"));
+					text = (sys.isEmpty() || sys.equals("Windows") ? "Not used here" : "Not supported on " + sys) + ": this Gatekeeper runs the servers itself";
+					state = "off"; granted = false;
+				}
 			} catch (IOException | RuntimeException e) { state = "off"; text = "Gatekeeper isn't answering (the server machine may be asleep or signed out)"; }
 			String st = state, tx = text, md = mode; boolean g = granted, run = running, sl = sleepOk, gm = game;
 			SwingUtilities.invokeLater(() -> {
