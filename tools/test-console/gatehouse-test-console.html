@@ -113,17 +113,62 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
 @media (max-width: 620px) { .form { grid-template-columns: minmax(0, 1fr); } .card > .main { flex-basis: 100%; } .card > .side { margin-left: 0; align-items: flex-start; } .strip .say { margin-left: 0; width: 100%; } }
 .oops { border: 1px solid var(--bad); color: var(--bad); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; white-space: pre-wrap; }
 @media (prefers-reduced-motion: reduce) { .switch i, .switch i::after { transition: none; } }
+/* the two parts of the console, and every item's number */
+.modes { display: flex; gap: 4px; background: var(--bg0); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+.mode { background: none; border: 0; color: var(--dim); font: 800 12.5px var(--ui); letter-spacing: .14em; text-transform: uppercase; padding: 7px 12px; border-radius: 7px; cursor: pointer; }
+.mode:hover { color: var(--text); }
+.mode[aria-selected="true"] { background: var(--raised); color: #fff; }
+.mode .n { display: inline-block; margin-left: 6px; font-size: 11px; letter-spacing: 0; background: var(--acc); color: var(--bg0); border-radius: 9px; padding: 0 6px; }
+.ref { display: inline-block; min-width: 26px; margin-right: 8px; padding: 1px 7px; border-radius: 6px; background: var(--bg0); border: 1px solid var(--acc); color: var(--acc); font: 800 13.5px var(--ui); letter-spacing: .04em; text-align: center; vertical-align: 1px; font-variant-numeric: tabular-nums; cursor: copy; }
+.tab .gn { color: var(--acc); margin-right: 6px; letter-spacing: 0; }
+.goto { gap: 6px; }
+.goto input { width: 76px; padding: 5px 9px; font-size: 14px; }
+.goto .gsay { font-size: 12.5px; color: var(--dim); }
+.card.flash, .rcard.flash { box-shadow: 0 0 0 3px var(--acc); }
+/* requests */
+.rcard { background: var(--card); border: 1px solid var(--line); border-left: 5px solid var(--off); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rcard[data-cat="priority"] { border-left-color: var(--bad); }
+.rcard[data-cat="bug"] { border-left-color: var(--warn); }
+.rcard[data-cat="feature"] { border-left-color: var(--good); }
+.rcard[data-cat="troubleshoot"] { border-left-color: var(--cant); }
+.rcard[data-closed="1"] { opacity: .72; }
+.rtop { display: flex; gap: 10px 16px; align-items: flex-start; flex-wrap: wrap; }
+.rtop > .main { flex: 1 1 300px; min-width: 0; }
+.rtop > .side { flex: 0 0 auto; margin-left: auto; display: flex; flex-direction: row; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rtop > .side select { width: auto; padding: 6px 9px; }
+.cat { font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; border-radius: 4px; padding: 2px 7px; background: var(--deep); color: var(--dim); }
+.cat[data-cat="priority"] { color: var(--bad); } .cat[data-cat="bug"] { color: var(--warn); } .cat[data-cat="feature"] { color: var(--good); } .cat[data-cat="troubleshoot"] { color: var(--cant); } .cat[data-cat="idea"], .cat[data-cat="question"] { color: var(--acc); }
+.status { font-size: 12px; font-weight: 700; border-radius: 12px; padding: 2px 10px; background: var(--deep); border: 1px solid var(--line); color: var(--text); }
+.status[data-s="new"] { border-color: var(--acc); color: var(--acc); } .status[data-s="added"] { border-color: var(--good); color: var(--bg0); background: var(--good); } .status[data-s="progress"] { border-color: var(--warn); color: var(--warn); } .status[data-s="waiting"] { border-color: var(--bad); color: var(--bad); } .status[data-s="done"] { border-color: var(--good); color: var(--good); }
+.desc { margin: 0; color: #C9D6E2; white-space: pre-wrap; max-width: 70ch; overflow-wrap: anywhere; }
+.atts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.att { position: relative; display: inline-flex; align-items: center; gap: 6px; background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 5px 9px; color: var(--text); text-decoration: none; font-size: 13.5px; max-width: 100%; }
+.att img { height: 72px; width: auto; max-width: 150px; border-radius: 5px; display: block; }
+.att.pic { padding: 3px; }
+.att .x { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: var(--deep); color: var(--text); font: 700 12px var(--ui); cursor: pointer; line-height: 1; }
+.rctl { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rctl select { width: auto; padding: 6px 9px; }
+.redit { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px 14px; }
+.redit .full { grid-column: 1 / -1; }
+.redit > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.redit label { font-size: 13px; color: var(--acc); font-weight: 600; }
+@media (max-width: 620px) { .redit { grid-template-columns: minmax(0, 1fr); } .rtop > .side { margin-left: 0; } }
 </style>
 
 <header><div class="wrap bar">
   <div class="brand">GATEHOUSE<small>TEST CONSOLE</small></div>
+  <div class="modes" role="tablist" aria-label="Parts of the console">
+    <button class="mode" type="button" role="tab" id="m-tests">Tests</button>
+    <button class="mode" type="button" role="tab" id="m-req">Requests<span class="n" id="m-req-n" hidden></span></button>
+  </div>
   <div class="tabs" id="tabs" role="tablist" aria-label="Sections"></div>
 </div></header>
 
-<main class="wrap">
+<main class="wrap" id="testsMain">
   <div class="filters">
     <div class="group" id="devices" aria-label="Device"><span>Device</span></div>
     <div class="group" id="shows" aria-label="Show"><span>Show</span></div>
+    <form class="group goto" id="goto-f"><span>Go to</span><input type="text" id="goto" maxlength="8" placeholder="4b" aria-label="An item's number, like 4b or R3" autocomplete="off"><button class="chip" type="submit">Go</button><span class="gsay" id="goto-say"></span></form>
   </div>
   <div class="headrow">
     <div><h2 id="head">Everything to test</h2><p class="sub" id="sub"></p></div>
@@ -137,6 +182,29 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       <div class="full row"><button class="btn" type="submit">Add it</button><button class="btn quiet" type="button" id="f-cancel">Cancel</button></div>
     </form>
     <div class="empty" id="empty">Loading the checks…</div>
+  </div>
+</main>
+
+<main class="wrap" id="reqMain" hidden>
+  <div class="filters">
+    <div class="group" id="rcats" aria-label="Category"><span>Category</span></div>
+    <div class="group" id="rshow" aria-label="Show"><span>Show</span></div>
+  </div>
+  <div class="headrow">
+    <div><h2>Requests</h2><p class="sub">Priority items, new features, things to troubleshoot and bugs: what you want next. Each gets a number (R1, R2...) to refer to it by. Claude reads them when you ask, sets where each stands, and answers on the card.</p></div>
+    <button class="btn" type="button" id="r-new">New request</button>
+  </div>
+  <div class="list" id="rlist">
+    <form class="form" id="rform" hidden>
+      <div><label for="r-title">Title</label><input type="text" id="r-title" maxlength="140" placeholder="Show all servers on one page"></div>
+      <div><label for="r-cat">Category</label><select id="r-cat"></select></div>
+      <div class="full"><label for="r-desc">Description</label><textarea id="r-desc" rows="4" maxlength="8000" placeholder="What you want, or what goes wrong, and where"></textarea></div>
+      <div class="full"><label>Attachments (optional)</label><div class="atts" id="r-atts"></div></div>
+      <div class="full row"><button class="btn quiet" type="button" id="r-file">Attach a file</button><button class="btn quiet" type="button" id="r-paste">Paste a picture</button><input type="file" id="r-pick" hidden multiple></div>
+      <div class="full paste" id="r-pastebox" hidden><input type="text" id="r-pastein" placeholder="Paste here: Ctrl+V, or press and hold, then Paste" autocomplete="off" aria-label="Paste a picture here"><button class="btn quiet" type="button" id="r-pasteno">Cancel</button></div>
+      <div class="full row"><button class="btn" type="submit">Add it</button><button class="btn quiet" type="button" id="r-cancel">Cancel</button></div>
+    </form>
+    <div class="empty" id="rempty">Loading the requests…</div>
   </div>
 </main>
 
@@ -251,7 +319,10 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     var id = item.id, c = el("article", "card"), k = { root: c, item: item };
     c.id = "card-" + id;
     var left = el("div", "main");
-    left.appendChild(el("h3", "title", item.title));
+    var h3 = el("h3", "title");
+    if (item.ref) { var rb = el("span", "ref", item.ref); rb.title = "Item " + item.ref + ": click to copy its number"; rb.addEventListener("click", function () { copyRef(item.ref); }); h3.appendChild(rb); }
+    h3.appendChild(document.createTextNode(item.title));
+    left.appendChild(h3);
     k.tags = el("div", "tags"); left.appendChild(k.tags);
     left.appendChild(el("p", "steps", item.steps || ""));
     k.first = el("p", "first"); left.appendChild(k.first);
@@ -397,21 +468,36 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     Array.prototype.slice.call(holder.querySelectorAll("button")).forEach(function (b) { b.remove(); });
     list.forEach(function (o) {
       var b = el("button", k === "ver" ? "tab" : "chip", o[1]); b.type = "button";
+      if (k === "ver" && o[3]) { var gn = el("span", "gn", o[3] + " ·"); b.insertBefore(gn, b.firstChild); b.title = "Its items are numbered " + o[3] + "a, " + o[3] + "b..."; }
       if (k === "ver") { b.setAttribute("role", "tab"); b.setAttribute("aria-selected", view.ver === o[0] ? "true" : "false"); if (o[2] != null) { var n = el("span", "n", String(o[2])); if (!o[2]) n.dataset.zero = "1"; n.title = o[2] + " not tested yet"; b.appendChild(n); } }
       else b.setAttribute("aria-pressed", view[k] === o[0] ? "true" : "false");
       b.addEventListener("click", function () { view[k] = o[0]; if (k === "device") Object.keys(sel).forEach(function (s) { if (/\|pinned$/.test(s)) delete sel[s]; }); keep(); render(); });
       holder.appendChild(b);
     });
   }
+  /** The number of a section's items (the digits of their numbers: 1 for every update, then one for each version). */
+  function groupNum(f) { var n = 0; live().forEach(function (i) { if (f(i) && i.ref) { var m = /^(\d+)/.exec(i.ref); if (m) n = n || parseInt(m[1], 10); } }); return n; }
+  function letters(n) { var s = ""; n = n + 1; while (n > 0) { var r = (n - 1) % 26; s = String.fromCharCode(97 + r) + s; n = Math.floor((n - 1) / 26); } return s; }
+  function letterIndex(s) { var n = 0; for (var i = 0; i < s.length; i++) n = n * 26 + (s.charCodeAt(i) - 96); return n - 1; }
+  /** The number for a new item in a section: its section's number and the next letter. */
+  function nextRef(f) {
+    var g = groupNum(f), top = -1, most = 0;
+    live().forEach(function (i) { var m = /^(\d+)([a-z]+)$/.exec(i.ref || ""); if (!m) return; most = Math.max(most, parseInt(m[1], 10)); if (g && parseInt(m[1], 10) === g) top = Math.max(top, letterIndex(m[2])); });
+    if (!g) g = most + 1;
+    return g + letters(top + 1);
+  }
+  function copyRef(ref) { try { navigator.clipboard.writeText(ref).then(function () { say("Copied " + ref); }, function () { say("Item " + ref); }); } catch (e) { say("Item " + ref); } }
+  function flash(node) { node.classList.add("flash"); setTimeout(function () { node.classList.remove("flash"); }, 2200); }
   function tabs() {
     var all = live(), vers = [];
     all.forEach(function (i) { if (i.every) return; var v = i.version || "earlier"; if (vers.indexOf(v) < 0) vers.push(v); });
     vers.sort(function (a, b) { return a === "earlier" ? 1 : b === "earlier" ? -1 : verNum(b) > verNum(a) ? 1 : -1; });
     if (view.ver !== "all" && view.ver !== "smoke" && vers.indexOf(view.ver) < 0) view.ver = "all";
     function left(f) { return all.filter(function (i) { return f(i) && stateOf(i) === "untested"; }).length; }
-    chips($("tabs"), [["smoke", "Every update", left(function (i) { return i.every; })], ["all", "All", left(function () { return true; })]].concat(vers.map(function (v) { return [v, v === "earlier" ? "Earlier" : v, left(function (i) { return !i.every && (i.version || "earlier") === v; })]; })), "ver");
+    chips($("tabs"), [["smoke", "Every update", left(function (i) { return i.every; }), groupNum(function (i) { return i.every; })], ["all", "All", left(function () { return true; })]].concat(vers.map(function (v) { var f = function (i) { return !i.every && (i.version || "earlier") === v; }; return [v, v === "earlier" ? "Earlier" : v, left(f), groupNum(f)]; })), "ver");
   }
   function counts() {
+    if (typeof mode === "function" && mode() === "requests") return;
     var c = { untested: 0, works: 0, broken: 0, unintended: 0, tested: 0, cant: 0 };
     live().forEach(function (i) { c[stateOf(i)]++; });
     var s = $("strip"), was = $("say") ? $("say").textContent : "Saved as you go", wasColor = $("say") ? $("say").style.color : "";
@@ -495,6 +581,21 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   }
   window.addEventListener("error", function (ev) { oops("script", ev.error || ev.message); });
 
+  // ---- going to an item by its number (4b, or R3 for a request)
+  $("goto-f").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var want = $("goto").value.trim().toLowerCase().replace(/\s+/g, ""), gs = $("goto-say");
+    if (!want) return;
+    if (/^r\d+$/.test(want)) { var r = null; Object.keys(reqs).forEach(function (k) { if (String(reqs[k].ref || "").toLowerCase() === want) r = reqs[k]; }); if (!r) { gs.textContent = "No request " + want.toUpperCase(); return; } gs.textContent = ""; mode("requests"); rview.cat = "all"; rview.show = "all"; rrender(); var rc = $("req-" + r.id); if (rc) { rc.scrollIntoView({ block: "center" }); flash(rc); } return; }
+    var found = null; live().forEach(function (i) { if (String(i.ref || "").toLowerCase() === want) found = i; });
+    if (!found) { gs.textContent = "No item " + want; return; }
+    gs.textContent = "";
+    view.ver = "all"; view.show = "all"; view.device = "all"; keep();
+    var g = groupOf(found); folded[g] = false;
+    render();
+    var c = $("card-" + found.id); if (c) { c.scrollIntoView({ block: "center" }); flash(c); }
+  });
+
   // ---- something that isn't on the list
   var form = $("form");
   DEVICES.forEach(function (d) { var o = el("option", null, d); o.value = d; $("f-device").appendChild(o); });
@@ -505,7 +606,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     var title = $("f-title").value.trim(), dev = $("f-device").value, note = $("f-note").value.trim();
     if (!title) { $("f-title").focus(); return; }
     if (!db) { say("Not saved: sign in to claude.ai to keep your answers", true); return; }
-    var id = "own-" + Date.now().toString(36), item = { order: 0, version: current || "", device: dev, title: title, steps: "Something you ran into that wasn't on the list.", ask: "", custom: true, added: new Date().toISOString() };
+    var id = "own-" + Date.now().toString(36), item = { order: 900, version: current || "", device: dev, title: title, steps: "Something you ran into that wasn't on the list.", ask: "", custom: true, added: new Date().toISOString(), ref: nextRef(function (i) { return !i.every && (i.version || "") === (current || ""); }) };
     say("Saving…");
     db.doc("items/" + id).set(item).then(function () {
       item.id = id; items[id] = item;
@@ -516,6 +617,163 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       var t = $("card-" + id); if (t) t.scrollIntoView({ block: "center" });
     }, function (e) { say("Not saved: " + ((e && e.message) || "the store didn't answer"), true); });
   });
+
+  // ================================================================ requests
+  var CATS = [["priority", "Priority"], ["feature", "New feature"], ["troubleshoot", "Troubleshoot"], ["bug", "Bug"], ["idea", "Idea"], ["question", "Question"], ["other", "Other"]];
+  var STATUSES = [["new", "New"], ["planned", "Planned"], ["progress", "In progress"], ["waiting", "Waiting on you"], ["added", "Added"], ["done", "Done"], ["wont", "Won't do"]];
+  function word(list, k) { for (var i = 0; i < list.length; i++) if (list[i][0] === k) return list[i][1]; return k; }
+  function closed(r) { return r.status === "done" || r.status === "wont" || r.status === "added"; }
+  var reqs = {}, rcards = {}, rloaded = false, rview = { cat: "all", show: "open" }, editing = {};
+  try { var kr = JSON.parse(localStorage.getItem("gh-test-rview") || "null"); if (kr && typeof kr === "object") { rview.cat = kr.cat || "all"; rview.show = kr.show || "open"; } } catch (e) {}
+  function rkeep() { try { localStorage.setItem("gh-test-rview", JSON.stringify(rview)); } catch (e) {} }
+  var drafts = [];   // (attachments on the new request, before it is added)
+  function size(n) { return n < 1024 ? n + " bytes" : n < 1048576 ? Math.round(n / 1024) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
+  function upload(file, done) {
+    if (!assets) { say("Attachments can't be added in this view: open the console in claude.ai, signed in", true); return; }
+    if (file.size > 20 * 1024 * 1024) { say(file.name + " is too big (20 MB at most)", true); return; }
+    say("Attaching " + (file.name || "the picture") + "…");
+    assets.upload(file).then(function (a) { done({ id: a.id, name: file.name || "pasted picture.png", type: a.contentType || file.type || "", size: a.sizeBytes || file.size || 0 }); say("Attached"); },
+      function (e) { say((file.name || "That file") + " wasn't attached: " + ((e && e.message) || "this kind of file isn't taken") + ". Pictures, videos, PDFs and text files are.", true); });
+  }
+  function attView(a, onRemove) {
+    var pic = /^image\//.test(a.type || "");
+    var link = el("a", "att" + (pic ? " pic" : "")); link.href = "/_blob/" + a.id; link.target = "_blank"; link.rel = "noopener"; link.title = (a.name || "attachment") + (a.size ? " (" + size(a.size) + ")" : "");
+    if (pic) { var img = el("img"); img.src = "/_blob/" + a.id; img.alt = a.name || "A picture"; img.loading = "lazy"; link.appendChild(img); }
+    else link.appendChild(document.createTextNode("\uD83D\uDCCE " + (a.name || "attachment") + (a.size ? "  (" + size(a.size) + ")" : "")));
+    if (onRemove) { var x = el("button", "x", "×"); x.type = "button"; x.title = "Remove this attachment"; x.setAttribute("aria-label", "Remove " + (a.name || "this attachment")); x.addEventListener("click", function (ev) { ev.preventDefault(); ev.stopPropagation(); onRemove(); }); link.appendChild(x); }
+    return link;
+  }
+  function drawDrafts() { var box = $("r-atts"); box.textContent = ""; drafts.forEach(function (a, i) { box.appendChild(attView(a, function () { drafts.splice(i, 1); drawDrafts(); if (assets) assets.delete(a.id).catch(function () {}); })); }); if (!drafts.length) box.appendChild(el("span", "meta", "None yet.")); }
+  function saveReq(r) {
+    if (!db) { say("Not saved: sign in to claude.ai to keep requests", true); return Promise.resolve(); }
+    var doc = {}; ["n", "ref", "category", "title", "description", "attachments", "status", "created", "updated", "reply", "added_in"].forEach(function (k) { if (r[k] !== undefined) doc[k] = r[k]; });
+    doc.updated = new Date().toISOString();
+    reqs[r.id] = Object.assign({}, r, doc);
+    say("Saving…");
+    return db.doc("requests/" + r.id).set(doc).then(function () { say("Saved"); }, function (e) { say("Not saved: " + ((e && e.message) || "the store didn't answer"), true); });
+  }
+  function rcard(r) {
+    var c = el("article", "rcard"); c.id = "req-" + r.id;
+    c.dataset.cat = r.category || "other"; c.dataset.closed = closed(r) ? "1" : "";
+    var top = el("div", "rtop"), main = el("div", "main"), side = el("div", "side");
+    var h3 = el("h3", "title"); var rb = el("span", "ref", r.ref || "R?"); rb.title = "Request " + r.ref + ": click to copy its number"; rb.addEventListener("click", function () { copyRef(r.ref); }); h3.appendChild(rb); h3.appendChild(document.createTextNode(r.title || "(no title)"));
+    main.appendChild(h3);
+    var tags = el("div", "tags"); var ct = el("span", "cat", word(CATS, r.category)); ct.dataset.cat = r.category || "other"; tags.appendChild(ct);
+    var st = el("span", "status", r.status === "added" && r.added_in ? "Added in " + r.added_in : word(STATUSES, r.status || "new")); st.dataset.s = r.status || "new"; tags.appendChild(st);
+    main.appendChild(tags);
+    top.appendChild(main);
+    var ss = el("select"); ss.id = "rs-" + r.id; ss.setAttribute("aria-label", "Where request " + r.ref + " stands");
+    STATUSES.forEach(function (s) { var o = el("option", null, s[1]); o.value = s[0]; ss.appendChild(o); }); ss.value = r.status || "new";
+    ss.addEventListener("change", function () { var n = Object.assign({}, reqs[r.id], { status: ss.value }); saveReq(n).then(rrender); });
+    side.appendChild(ss);
+    var eb = el("button", "btn quiet", editing[r.id] ? "Done editing" : "Edit"); eb.type = "button"; eb.addEventListener("click", function () { editing[r.id] = !editing[r.id]; rrender(); }); side.appendChild(eb);
+    top.appendChild(side);
+    c.appendChild(top);
+    if (editing[r.id]) {
+      var f = el("div", "redit");
+      var d1 = el("div"), l1 = el("label", null, "Title"), it = el("input"); it.type = "text"; it.maxLength = 140; it.value = r.title || ""; it.id = "re-t-" + r.id; l1.htmlFor = it.id; d1.appendChild(l1); d1.appendChild(it);
+      var d2 = el("div"), l2 = el("label", null, "Category"), cs = el("select"); cs.id = "re-c-" + r.id; l2.htmlFor = cs.id; CATS.forEach(function (x) { var o = el("option", null, x[1]); o.value = x[0]; cs.appendChild(o); }); cs.value = r.category || "other"; d2.appendChild(l2); d2.appendChild(cs);
+      var d3 = el("div", "full"), l3 = el("label", null, "Description"), dt = el("textarea"); dt.rows = 4; dt.maxLength = 8000; dt.value = r.description || ""; dt.id = "re-d-" + r.id; l3.htmlFor = dt.id; d3.appendChild(l3); d3.appendChild(dt);
+      var d4 = el("div", "full row"), sv = el("button", "btn", "Save changes"); sv.type = "button";
+      sv.addEventListener("click", function () { var ti = it.value.trim(); if (!ti) { it.focus(); return; } var n = Object.assign({}, reqs[r.id], { title: ti, category: cs.value, description: dt.value.trim() }); editing[r.id] = false; saveReq(n).then(rrender); });
+      d4.appendChild(sv);
+      [d1, d2, d3, d4].forEach(function (x) { f.appendChild(x); });
+      c.appendChild(f);
+    } else if (r.description) c.appendChild(el("p", "desc", r.description));
+    var atts = el("div", "atts");
+    (r.attachments || []).forEach(function (a, i) { atts.appendChild(attView(a, editing[r.id] ? function () { var list = (reqs[r.id].attachments || []).slice(); list.splice(i, 1); saveReq(Object.assign({}, reqs[r.id], { attachments: list })).then(rrender); if (assets) assets.delete(a.id).catch(function () {}); } : null)); });
+    if (assets && !closed(r)) {
+      var pick = el("input"); pick.type = "file"; pick.multiple = true; pick.hidden = true; pick.id = "rp-" + r.id;
+      var ab = el("button", "btn quiet", "Attach a file"); ab.type = "button"; ab.addEventListener("click", function () { pick.click(); });
+      var add = function (file) { upload(file, function (a) { var list = (reqs[r.id].attachments || []).concat([a]); saveReq(Object.assign({}, reqs[r.id], { attachments: list })).then(rrender); }); };
+      pick.addEventListener("change", function () { Array.prototype.forEach.call(pick.files || [], add); pick.value = ""; });
+      var pb = el("button", "btn quiet", "Paste a picture"); pb.type = "button";
+      var box = el("div", "paste"); box.hidden = true; var pin = el("input"); pin.type = "text"; pin.placeholder = "Paste here: Ctrl+V, or press and hold, then Paste"; pin.autocomplete = "off"; pin.setAttribute("aria-label", "Paste a picture here"); pin.addEventListener("input", function () { pin.value = ""; });
+      box.appendChild(pin);
+      pb.addEventListener("click", function () { box.hidden = false; pin.focus(); });
+      c.addEventListener("paste", function (ev) { var fl = pictureIn(ev); if (fl) { ev.preventDefault(); box.hidden = true; add(fl); } else if (ev.target === pin) { ev.preventDefault(); say("What you pasted isn't a picture. Copy the picture itself, then paste again.", true); } });
+      atts.appendChild(ab); atts.appendChild(pb); atts.appendChild(pick);
+      c.appendChild(atts); c.appendChild(box);
+    } else if ((r.attachments || []).length) c.appendChild(atts);
+    if (r.reply) { var rp = el("div", "reply"); rp.appendChild(el("b", null, "Claude")); rp.appendChild(document.createTextNode(String(r.reply))); c.appendChild(rp); }
+    c.appendChild(el("div", "meta", "Added " + (r.created ? new Date(r.created).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "") + (r.updated && r.updated !== r.created ? "  ·  changed " + new Date(r.updated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "")));
+    return c;
+  }
+  function rchips(holder, list, k) {
+    Array.prototype.slice.call(holder.querySelectorAll("button")).forEach(function (b) { b.remove(); });
+    list.forEach(function (o) { var b = el("button", "chip", o[1]); b.type = "button"; b.setAttribute("aria-pressed", rview[k] === o[0] ? "true" : "false"); b.addEventListener("click", function () { rview[k] = o[0]; rkeep(); rrender(); }); holder.appendChild(b); });
+  }
+  function rrender() {
+    var all = Object.keys(reqs).map(function (k) { return reqs[k]; });
+    var open = all.filter(function (r) { return !closed(r); });
+    var mn = $("m-req-n"); mn.hidden = !open.length; mn.textContent = String(open.length);
+    if (mode() !== "requests") return;
+    rchips($("rcats"), [["all", "All"]].concat(CATS.map(function (c) { return [c[0], c[1] + " (" + open.filter(function (r) { return r.category === c[0]; }).length + ")"]; })), "cat");
+    rchips($("rshow"), [["open", "Open"], ["waiting", "Waiting on you"], ["added", "Requests added (" + all.filter(function (r) { return r.status === "added"; }).length + ")"], ["closed", "Done or won't do"], ["all", "Everything"]], "show");
+    var catOrder = CATS.map(function (c) { return c[0]; });
+    var shown = all.filter(function (r) {
+      if (rview.cat !== "all" && r.category !== rview.cat) return false;
+      if (rview.show === "open" && closed(r)) return false;
+      if (rview.show === "waiting" && r.status !== "waiting") return false;
+      if (rview.show === "added" && r.status !== "added") return false;
+      if (rview.show === "closed" && (r.status !== "done" && r.status !== "wont")) return false;
+      return true;
+    }).sort(function (a, b) { return ((closed(a) ? 1 : 0) - (closed(b) ? 1 : 0)) || (catOrder.indexOf(a.category) - catOrder.indexOf(b.category)) || ((b.n || 0) - (a.n || 0)); });
+    var list = $("rlist"), focusId = document.activeElement && document.activeElement.id;
+    Array.prototype.slice.call(list.querySelectorAll(".rcard")).forEach(function (n) { n.remove(); });
+    shown.forEach(function (r) { try { list.appendChild(rcard(r)); } catch (err) { oops("drawing request " + r.id, err); } });
+    if (focusId && $(focusId) && document.activeElement !== $(focusId)) { try { $(focusId).focus({ preventScroll: true }); } catch (e) {} }
+    var e = $("rempty"); e.hidden = shown.length > 0;
+    if (!shown.length) e.textContent = !rloaded ? "Loading the requests…" : !all.length ? "No requests yet. Press New request to add the first." : "Nothing matches these filters.";
+    rcounts();
+  }
+  function rcounts() {
+    if (mode() !== "requests") return;
+    var s = $("strip"), was = $("say") ? $("say").textContent : "Saved as you go", wasColor = $("say") ? $("say").style.color : "";
+    s.textContent = "";
+    var all = Object.keys(reqs).map(function (k) { return reqs[k]; });
+    [["new", "new"], ["planned", "planned"], ["progress", "in progress"], ["waiting", "waiting on you"], ["added", "added"], ["done", "done"]].forEach(function (p) {
+      var n = all.filter(function (r) { return (r.status || "new") === p[0]; }).length; if (!n && p[0] !== "new") return;
+      var d = el("span"); d.appendChild(el("b", null, String(n))); d.appendChild(document.createTextNode(" " + p[1])); s.appendChild(d);
+    });
+    var sy = el("span", "say", was); sy.id = "say"; sy.style.color = wasColor; s.appendChild(sy);
+  }
+  // the form for a new one
+  var rform = $("rform");
+  CATS.forEach(function (c) { var o = el("option", null, c[1]); o.value = c[0]; $("r-cat").appendChild(o); });
+  $("r-new").addEventListener("click", function () { rform.hidden = false; drafts = []; drawDrafts(); $("r-file").hidden = !assets; $("r-paste").hidden = !assets; $("rlist").insertBefore(rform, $("rlist").firstChild); $("r-title").focus(); });
+  $("r-cancel").addEventListener("click", function () { rform.hidden = true; drafts.forEach(function (a) { if (assets) assets.delete(a.id).catch(function () {}); }); drafts = []; });
+  $("r-file").addEventListener("click", function () { $("r-pick").click(); });
+  $("r-pick").addEventListener("change", function () { Array.prototype.forEach.call($("r-pick").files || [], function (f) { upload(f, function (a) { drafts.push(a); drawDrafts(); }); }); $("r-pick").value = ""; });
+  $("r-paste").addEventListener("click", function () { $("r-pastebox").hidden = false; $("r-pastein").focus(); });
+  $("r-pasteno").addEventListener("click", function () { $("r-pastebox").hidden = true; });
+  $("r-pastein").addEventListener("input", function () { $("r-pastein").value = ""; });
+  rform.addEventListener("paste", function (ev) { var f = pictureIn(ev); if (f) { ev.preventDefault(); $("r-pastebox").hidden = true; upload(f, function (a) { drafts.push(a); drawDrafts(); }); } else if (ev.target === $("r-pastein")) { ev.preventDefault(); say("What you pasted isn't a picture. Copy the picture itself, then paste again.", true); } });
+  rform.addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var title = $("r-title").value.trim();
+    if (!title) { $("r-title").focus(); return; }
+    var most = 0; Object.keys(reqs).forEach(function (k) { most = Math.max(most, reqs[k].n || 0); });
+    var now = new Date().toISOString(), r = { id: "r-" + Date.now().toString(36), n: most + 1, ref: "R" + (most + 1), category: $("r-cat").value, title: title, description: $("r-desc").value.trim(), attachments: drafts.slice(), status: "new", created: now, reply: "" };
+    saveReq(r).then(function () {
+      $("r-title").value = ""; $("r-desc").value = ""; drafts = []; rform.hidden = true;
+      rview.show = "open"; rview.cat = "all"; rkeep(); rrender();
+      var c = $("req-" + r.id); if (c) { c.scrollIntoView({ block: "center" }); flash(c); }
+    });
+  });
+  // Tests and Requests
+  var modeNow = "tests";
+  try { if (localStorage.getItem("gh-test-mode") === "requests") modeNow = "requests"; } catch (e) {}
+  function mode(m) {
+    if (m === undefined) return modeNow;
+    modeNow = m; try { localStorage.setItem("gh-test-mode", m); } catch (e) {}
+    $("testsMain").hidden = m !== "tests"; $("reqMain").hidden = m !== "requests"; $("tabs").hidden = m !== "tests";
+    $("m-tests").setAttribute("aria-selected", m === "tests" ? "true" : "false"); $("m-req").setAttribute("aria-selected", m === "requests" ? "true" : "false");
+    if (m === "tests") render(); else rrender();
+    return m;
+  }
+  $("m-tests").addEventListener("click", function () { mode("tests"); });
+  $("m-req").addEventListener("click", function () { mode("requests"); });
 
   function start(d) {
     db = d;
@@ -531,6 +789,15 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       Object.keys(next).forEach(function (id) { var a = items[id], b = next[id]; if (a && cards[id] && (a.title !== b.title || a.steps !== b.steps || a.ask !== b.ask) && document.activeElement !== cards[id].ta) { cards[id].root.remove(); delete cards[id]; } });
       items = next; render();
     }, function (e) { clearTimeout(timer); loaded = true; $("empty").textContent = "The checks couldn't be loaded: " + ((e && e.message) || "the store didn't answer") + "."; });
+    db.collection("requests").onSnapshot(function (snap) {
+      rloaded = true;
+      var next = {};
+      // (copies: what the store hands back can't be written on)
+      snap.docs.forEach(function (doc) { next[doc.id] = Object.assign({}, doc.data() || {}, { id: doc.id }); });
+      reqs = next;
+      if (mode() === "requests" && document.activeElement && /^re-|^r-title$|^r-desc$/.test(document.activeElement.id || "")) { rcounts(); var mn = $("m-req-n"); return; }   // (not redrawn under the words being typed)
+      rrender();
+    }, function (e) { rloaded = true; $("rempty").textContent = "The requests couldn't be loaded: " + ((e && e.message) || "the store didn't answer") + "."; });
     db.collection("results").onSnapshot(function (snap) {
       var seen = {};
       snap.docs.forEach(function (doc) {
@@ -543,10 +810,11 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       render();
     }, function () {});
   }
-  render();
+  mode(modeNow);
+  if (!db) { $("rempty").textContent = "Requests are kept in your claude.ai account. Open the console signed in to see them."; }
   if (window.claude && window.claude.use) {
     window.claude.use("db").then(start, function () { start(null); });
-    window.claude.use("assets").then(function (a) { assets = a || null; if (assets) paintAll(); }, function () {});
+    window.claude.use("assets").then(function (a) { assets = a || null; if (assets) { paintAll(); if (mode() === "requests") rrender(); } }, function () {});
   } else start(null);
 })();
 </script>

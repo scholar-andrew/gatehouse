@@ -1,7 +1,15 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.19.0",
+ "version": "3.20.0",
  "changes": [
+  {"version": "3.20.0", "date": "2026-11-17", "notes": [
+   "Remove: an installed server's card has Remove. It asks first, then deletes the server's instance in Prism Launcher on this device (close Prism Launcher first). The server and its world aren't touched, and Install sets it up again.",
+   "A server its Gatekeeper no longer has says so on its card, in red, with Remove beside it.",
+   "Chat: the rooms are cards with their pictures and a red count of new messages, in place of the list.",
+   "A file offered in a room shows in the conversation with View and Save a copy. Nothing is downloaded until you press one. View shows a picture in the chat; a video or sound opens in this device's own player.",
+   "Paste puts words in the line, or offers a copied picture or copied file to the room (Ctrl+V in the line does the same). Attach offers a file from this device.",
+   "A short sound plays when a message arrives in a room you aren't reading; switch it off under the chat."
+  ]},
   {"version": "3.19.0", "date": "2026-11-17", "notes": [
    "A new layout. Three sections across the top: Servers, Chat (what was People) and Updates (in place of Constellation). The rest is in a menu down the left, opened and closed with the three lines at the top left (on a controller, the View button; on a keyboard, M).",
    "The menu: Gatekeepers, The host's machine, What this device may do, Systems, Options, Setup guide, and Play or Host.",

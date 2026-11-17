@@ -1,4 +1,7 @@
 [
+ {"version": "1.53.0", "date": "2026-11-17", "notes": [
+  "In the launcher: Remove for an installed server, chat rooms as cards with pictures and new-message counts, files in chat with View, Paste for pictures and files, and a sound for new messages (Gatehouse 3.20.0). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.52.0", "date": "2026-11-17", "notes": [
   "A new layout for the launcher: Servers, Chat and Updates across the top, and a menu at the top left for the rest (Gatehouse 3.19.0). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

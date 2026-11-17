@@ -1,8 +1,15 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.19.0",
+ "version": "3.20.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.20.0", "date": "2026-11-17", "notes": [
+   "Servers are cards now, like Gatehouse's: each server's picture, whether it's on and who is playing, with Pack, Manage and Open on the card, and a panel beside them saying more about the one you're on.",
+   "Chat: the rooms are cards with their pictures and a red count of new messages, in place of the list. Chat in the top bar shows how many rooms have messages you haven't read.",
+   "A file offered in a room now shows in the conversation with View and Save a copy. Nothing is fetched until you press one. View shows a picture in the chat; a video, a sound or any other file opens in this machine's own program for it.",
+   "Paste puts words in the line, or offers a copied picture or copied file to the room (Ctrl+V in the line does the same). Attach offers a file from this machine.",
+   "A short sound plays when a message arrives in a room you aren't reading; switch it off under the chat."
+  ]},
   {"version": "3.19.0", "date": "2026-11-17", "notes": [
    "A new layout. Three sections across the top: Servers, Chat and Updates. Everything about setting this machine and its constellation up is in a menu down the left, opened and closed with the three lines at the top left (on a controller, the View button; on a keyboard, M).",
    "The menu: Host setup, Launchers and players, Web panel, Constellation, Systems, History of servers, Options, Setup guide, and Play or Host. A red number beside Host setup is steps still to do; beside Launchers and players, launchers asking for something. A red dot on the menu button means one of these is waiting.",

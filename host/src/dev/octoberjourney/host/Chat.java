@@ -31,7 +31,8 @@ import com.sun.net.httpserver.HttpExchange;
  *   /v1/chat        POST            {room, after} -> {messages, next}; with "text": says it first
  *   /admin/chat     POST            the same for the owner, plus {"rooms": true}
  *   /admin/chat/clear POST {room}   empties a room (the machine itself only)
- * A message: {n, when, who, text}. Nothing but text is taken, at most 500 characters, at most one a second from a client.
+ * A message: {n, when, who, text}, and {file: {id, name, size}} when it offers a file (Share). Nothing but text is taken
+ * from a client, at most 500 characters, at most one a second.
  */
 final class Chat {
 	private Chat() {}
@@ -56,7 +57,8 @@ final class Chat {
 	private static long last(String id) { List<Object> l = room(id); return l.isEmpty() ? 0 : num(Json.map(l.get(l.size() - 1)).get("n")); }
 	private static long num(Object o) { try { return (long) Double.parseDouble(Json.str(o)); } catch (RuntimeException e) { return 0; } }
 
-	static synchronized String say(String roomId, String who, String key, String text) {
+	static synchronized String say(String roomId, String who, String key, String text) { return say(roomId, who, key, text, null); }
+	static synchronized String say(String roomId, String who, String key, String text, Map<String, Object> file) {
 		String t = text == null ? "" : text.replaceAll("[\\p{Cntrl}&&[^\\n]]", "").strip();
 		if (t.isEmpty()) return "Nothing to say.";
 		if (t.length() > 500) t = t.substring(0, 500);
@@ -65,7 +67,9 @@ final class Chat {
 		if (was != null && now - was < 1000) return "One message a second at most.";
 		lastSaid.put(key, now);
 		List<Object> l = room(roomId);
-		l.add(m("n", last(roomId) + 1, "when", LocalDateTime.now().format(TIME), "who", who.length() > 40 ? who.substring(0, 40) : who, "text", t));
+		Map<String, Object> msg = m("n", last(roomId) + 1, "when", LocalDateTime.now().format(TIME), "who", who.length() > 40 ? who.substring(0, 40) : who, "text", t);
+		if (file != null) msg.put("file", file);
+		l.add(msg);
 		while (l.size() > KEEP) l.remove(0);
 		try { Files.createDirectories(file(roomId).getParent()); Files.writeString(file(roomId), Json.write(l), StandardCharsets.UTF_8); } catch (IOException ignored) {}
 		return "";

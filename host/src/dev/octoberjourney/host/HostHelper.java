@@ -3394,6 +3394,19 @@ public final class HostHelper {
 				r.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 84));
 				return new Object[] {r, st, b};
 			};
+			// The servers as cards, like the launcher's: each with its picture, whether it's on and who is playing, and
+			// Open, Pack and Manage; the panel beside them says more about the one the selection or the mouse is on.
+			JPanel cardGrid = new JPanel();
+			dev.gatehouse.look.GameCard.grid(cardGrid);
+			dev.gatehouse.look.GameCard.Side cardSide = new dev.gatehouse.look.GameCard.Side();
+			{
+				java.util.function.Consumer<dev.gatehouse.look.GameCard> before = dev.gatehouse.look.GameCard.onHot;   // (the launcher's, when this window is shown inside it)
+				dev.gatehouse.look.GameCard.onHot = card -> { if (SwingUtilities.isDescendingFrom(card, cardGrid)) cardSide.show(card); else if (before != null) before.accept(card); };
+			}
+			JPanel cardsBoth = new JPanel(new BorderLayout(14, 0)); cardsBoth.setOpaque(false);
+			cardsBoth.add(cardGrid, BorderLayout.CENTER); cardsBoth.add(cardSide, BorderLayout.EAST);
+			cardsBoth.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			Map<String, java.awt.Image> cardPics = new java.util.concurrent.ConcurrentHashMap<>();
 			@SuppressWarnings("unchecked") java.util.function.Consumer<Map<String, Object>>[] fillOverviewRef = new java.util.function.Consumer[1];
 			String[] overShown = {""};
 			java.util.function.Consumer<Map<String, Object>> fillOverview = r -> {
@@ -3417,27 +3430,45 @@ public final class HostHelper {
 				overList.add(h2);
 				List<Object> sv = Json.list(r.get("servers"));
 				if (sv.isEmpty()) { JLabel none = new JLabel("None yet. Gatekeeper opens Server setup for you; it's also on a server's Status tab."); none.setForeground(new Color(0x8F98A0)); overList.add(none); }
+				String hotWas = cardSide.showing() == null ? "" : cardSide.showing().name.getText();
+				cardGrid.removeAll(); cardSide.clear();
+				dev.gatehouse.look.GameCard firstCard = null;
 				for (Object o : sv) {
 					Map<String, Object> s = Json.map(o);
-					boolean on = Boolean.TRUE.equals(s.get("running"));
-					Object[] sr = overRow.apply(Json.str(s.get("name")), "Open");
+					boolean on = Boolean.TRUE.equals(s.get("running")), gone = Boolean.TRUE.equals(s.get("gone"));
 					String players = Json.str(s.get("players")).replaceAll("\\.0$", "");
 					String ph = Json.str(s.get("phase"));
 					boolean nat = Boolean.TRUE.equals(s.get("native"));
-					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + (Json.str(r.get("host")).equals("mcss") ? nat ? "   \u00b7   run by Gatekeeper itself" : "   \u00b7   run by MCSS" : "") + "   \u00b7   " + Json.str(s.get("dir")));
-					((JLabel) sr[1]).setForeground(on ? new Color(0x8BD46E) : ph.equals("starting") || ph.equals("stopping") ? new Color(0xE9B949) : new Color(0x8F98A0));
-					((JButton) sr[2]).setToolTipText("This server's page: who may join and what each launcher may do, how it is, its pack" + (nat ? ", and its console, settings and backups" : ""));
-					if (firstEnter[0] == null) firstEnter[0] = (JButton) sr[2];
 					String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
-					((JButton) sr[2]).addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), ""}));
+					JButton openB = new JButton("Open");
+					openB.setToolTipText("This server's page: who may join and what each launcher may do, how it is, its pack" + (nat ? ", and its console, settings and backups" : ""));
+					if (firstEnter[0] == null) firstEnter[0] = openB;
+					openB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), ""}));
 					JButton manageB = new JButton("Manage\u2026");
 					manageB.setEnabled(nat);
 					manageB.setToolTipText(nat ? "Its console, settings, game settings, backups and scheduled tasks" : ServerTools.HERE_MCSS);
 					manageB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), "manage"}));
-					if (Boolean.TRUE.equals(s.get("gone"))) {
+					JButton packB = new JButton("Pack\u2026");
+					packB.setToolTipText("<html>What players' launchers install for this server: its pack and the mods in it, its pictures for Steam,<br>who the server is for (private, shareable or public), and invites</html>");
+					packB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), "pack"}));
+					packB.setVisible(!gone);
+					dev.gatehouse.look.GameCard card = new dev.gatehouse.look.GameCard(nm, new java.awt.Component[] {packB, manageB, openB});
+					String stateText = gone ? "Deleted in MC Server Soft: launchers are no longer shown it" : on ? "Running, " + players + " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off";
+					card.state.setText(stateText);
+					card.state.setForeground(gone ? new Color(0xFF7B72) : on ? new Color(0x8BD46E) : ph.equals("starting") || ph.equals("stopping") ? new Color(0xE9B949) : new Color(0x8F98A0));
+					if (farUrl == null) {   // (its picture: the one chosen for it here, or its own server-icon.png)
+						String tag = Icons.tag(id), pk = id + "|" + tag;
+						if (!tag.isEmpty()) { java.awt.Image img = cardPics.computeIfAbsent(pk, k -> { try { byte[] pb = Icons.png(id); java.awt.Image im = pb == null ? null : javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(pb)); return im == null ? new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB) : im; } catch (IOException ex) { return new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB); } }); if (img.getWidth(null) > 1) card.picture(img); }
+					}
+					List<String[]> facts = new ArrayList<>();
+					facts.add(new String[] {"Now", gone ? "Deleted in MC Server Soft" : on ? "Running" : ph.equals("starting") ? "Starting" : ph.equals("stopping") ? "Shutting down" : "Off"});
+					if (on) facts.add(new String[] {"Playing", players.isEmpty() ? "0" : players});
+					facts.add(new String[] {"Port", Json.str(s.get("port"))});
+					facts.add(new String[] {"Run by", Json.str(r.get("host")).equals("mcss") ? (nat ? "Gatekeeper itself" : "MC Server Soft") : "Gatekeeper itself"});
+					facts.add(new String[] {"Folder", Json.str(s.get("dir"))});
+					card.facts(facts);
+					if (gone) {
 						// MCSS has deleted it: said so, and Manage's place is taken by the one thing left to do with it.
-						((JLabel) sr[1]).setText("Deleted in MC Server Soft: its folder is gone. Launchers are no longer shown it.   \u00b7   " + Json.str(s.get("dir")));
-						((JLabel) sr[1]).setForeground(new Color(0xFF7B72));
 						for (java.awt.event.ActionListener al : manageB.getActionListeners()) manageB.removeActionListener(al);
 						manageB.setText("Remove from Gatekeeper"); manageB.setEnabled(true);
 						manageB.setToolTipText("Takes it off Gatekeeper's list. There are no files left to delete.");
@@ -3447,21 +3478,16 @@ public final class HostHelper {
 								String msg;
 								try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/tools/delete?server=" + id, "{\"files\":false}"))).get("message")); } catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
 								String m2 = msg;
-								try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2 + "</div></html>", "Remove from Gatekeeper", JOptionPane.PLAIN_MESSAGE); }); } catch (Exception ignored) {}
+								try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); }); } catch (Exception ignored) {}
 							}, "remove-gone").start();
 						});
 					}
-					// Pack: for every server, whoever runs it (Manage is only for the ones Gatekeeper runs itself, and a
-					// server's pack, who it is for and its invites have nothing to do with who runs it).
-					if (!Boolean.TRUE.equals(s.get("gone"))) {
-						JButton packB = new JButton("Pack…");
-						packB.setToolTipText("<html>What players' launchers install for this server: its pack and the mods in it, its pictures for Steam,<br>who the server is for (private, shareable or public), and invites</html>");
-						packB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), "pack"}));
-						((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(packB);
-					}
-					((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(manageB);
-					overList.add((JPanel) sr[0]); overList.add(javax.swing.Box.createVerticalStrut(8));
+					cardGrid.add(card);
+					if (firstCard == null || nm.equals(hotWas)) firstCard = card;
 				}
+				if (!sv.isEmpty()) overList.add(cardsBoth);
+				if (firstCard != null) cardSide.show(firstCard);
+				cardGrid.revalidate(); cardGrid.repaint();
 				JButton setupHere = new JButton("Server setup…");
 				setupHere.setToolTipText("Which MCSS and which of its servers Gatekeeper looks after, and this machine's Tailscale address");
 				setupHere.addActionListener(ev -> setup.run());
@@ -3697,6 +3723,7 @@ public final class HostHelper {
 			shell.menu("Gatekeeper", "guide", "Setup guide", () -> pickSection.accept("GUIDE"));
 			shell.menu("Gatekeeper", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
 			shell.afterMenu(() -> dev.octoberjourney.popup.Nav.home(f));
+			ChatUi.unread = n -> SwingUtilities.invokeLater(() -> shell.badge("CHAT", n));   // (rooms with messages not read here)
 			shell.body(p);
 			String[] subShown = {null};
 			Runnable sync = () -> {
@@ -3815,6 +3842,22 @@ public final class HostHelper {
 						java.awt.image.BufferedImage wpi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D wpg = wpi.createGraphics(); shell.paint(wpg); wpg.dispose();
 						javax.imageio.ImageIO.write(wpi, "png", new java.io.File(shot + "-webpanel.png"));
+						firstTabs.setSelectedIndex(6); shell.validate(); try { Thread.sleep(2500); } catch (InterruptedException ignored) {} sync.run(); shell.validate();
+						java.awt.image.BufferedImage chi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D chg = chi.createGraphics(); shell.paint(chg); chg.dispose();
+						javax.imageio.ImageIO.write(chi, "png", new java.io.File(shot + "-chat.png"));
+						{   // (View pressed on the first file in the room: <file>-chatview.png)
+							java.util.List<java.awt.Component> all = new java.util.ArrayList<>(); java.util.ArrayDeque<java.awt.Container> todo = new java.util.ArrayDeque<>(java.util.List.of(shell));
+							while (!todo.isEmpty()) for (java.awt.Component c : todo.pop().getComponents()) { all.add(c); if (c instanceof java.awt.Container k) todo.push(k); }
+							for (java.awt.Component c : all) if (c instanceof JButton vb && "View".equals(vb.getText()) && vb.isVisible()) { vb.doClick(); break; }
+							// (waits while letting the window's own events run: the picture arrives through them)
+							java.awt.SecondaryLoop wait = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
+							javax.swing.Timer stop = new javax.swing.Timer(2500, ev2 -> wait.exit()); stop.setRepeats(false); stop.start(); wait.enter();
+							shell.validate();
+							java.awt.image.BufferedImage cvi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D cvg = cvi.createGraphics(); shell.paint(cvg); cvg.dispose();
+							javax.imageio.ImageIO.write(cvi, "png", new java.io.File(shot + "-chatview.png"));
+						}
 						firstTabs.setSelectedIndex(5); try { Thread.sleep(700); } catch (InterruptedException ignored) {} sync.run(); shell.validate();
 						java.awt.image.BufferedImage cni = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D cng = cni.createGraphics(); shell.paint(cng); cng.dispose();

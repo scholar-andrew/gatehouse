@@ -58,6 +58,31 @@ public final class Chime {
 		t.start();
 	}
 
+	private static volatile long lastMessage = 0;
+	/** A new chat message: two soft notes, falling (not more than once in five seconds). */
+	public static void message() {
+		if (System.getenv("OJ_HOST_DIR") != null || System.getenv("OJ_HOME_DRY") != null) return;
+		long now = System.currentTimeMillis();
+		if (now - lastMessage < 5000) return;
+		lastMessage = now;
+		Thread t = new Thread(() -> {
+			try {
+				float rate = 44100f;
+				double[] notes = {987.77, 783.99};
+				int step = (int) (rate * 0.11), tail = (int) (rate * 0.5);
+				double[] mix = new double[step + tail];
+				for (int n = 0; n < notes.length; n++)
+					for (int i = 0; i < tail && n * step + i < mix.length; i++) { double tt = i / rate; mix[n * step + i] += Math.min(1, tt / 0.008) * Math.exp(-tt * 7) * (Math.sin(2 * Math.PI * notes[n] * tt) + 0.2 * Math.sin(4 * Math.PI * notes[n] * tt)); }
+				byte[] pcm = new byte[mix.length * 2];
+				for (int i = 0; i < mix.length; i++) { int v = (int) Math.max(-32767, Math.min(32767, mix[i] * 0.16 * 32767)); pcm[2 * i] = (byte) v; pcm[2 * i + 1] = (byte) (v >> 8); }
+				javax.sound.sampled.AudioFormat fmt = new javax.sound.sampled.AudioFormat(rate, 16, 1, true, false);
+				try (javax.sound.sampled.SourceDataLine line = javax.sound.sampled.AudioSystem.getSourceDataLine(fmt)) { line.open(fmt); line.start(); line.write(pcm, 0, pcm.length); line.drain(); }
+			} catch (Exception | LinkageError silent) { /* no sound on this machine */ }
+		}, "message-chime");
+		t.setDaemon(true);
+		t.start();
+	}
+
 	/** Testing: writes it as a sound file to listen to. Argument: the .wav file to write. */
 	public static void main(String[] a) throws Exception {
 		byte[] pcm = wave();

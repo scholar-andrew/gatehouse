@@ -107,8 +107,8 @@ the bumpers on a controller (Q and E on a keyboard). It always opens on **Server
 
 | Section | What is there |
 | --- | --- |
-| **Servers** | The servers of the Gatekeeper you used last, as cards. Each says whether it's on and has **Install** or **Launch**; the panel beside them says more about the one you are on. With more than one Gatekeeper, a button for each sits under the heading. **Add Gatekeeper** is at the top right. |
-| **Chat** | A room for each Gatekeeper and each of its servers you have been let onto. **Files** in a room shows what was offered there, saves a copy, or offers one of yours. |
+| **Servers** | The servers of the Gatekeeper you used last, as cards. Each says whether it's on and has **Install** or **Launch**, and an installed one has **Remove** (it asks first, then deletes its instance in Prism Launcher; close Prism Launcher first). A server its Gatekeeper no longer has says so on its card; the panel beside them says more about the one you are on. With more than one Gatekeeper, a button for each sits under the heading. **Add Gatekeeper** is at the top right. |
+| **Chat** | A room for each Gatekeeper and each of its servers you have been let onto, as cards with their pictures and a red count of new messages. **Paste** puts words in the line, or offers a copied picture or file to the room; **Attach** offers a file. A file someone offered shows with **View** and **Save a copy**, and nothing is fetched until you press one. A short sound plays for a message in a room you aren't reading (switch it off under the chat). |
 | **Updates** | Three tabs: what changed in **Gatehouse**, what changed in your **Gatekeepers**, and **Update options** (how this launcher updates, [three ways](#three-ways-to-update), and **Check for updates**). A red dot here means a new version has arrived. |
 
 The **menu** (the three lines at the top left, the controller's **View** button, or **M**) opens a column down the left
@@ -188,8 +188,8 @@ opens on Servers, also when Gatehouse brings it to the front.
 
 | Section | What is there |
 | --- | --- |
-| **Servers** | MCSS and the list of servers, **New server**, **Server setup**, **Check for updates**. Each server has **Open**, **Pack** and **Manage**, which all open the server's own page, on a different tab: **Access Manager**, **Server Status**, **Updates Pulled**, **Pack**, and for a server Gatekeeper runs itself **Console**, **Settings**, **Game settings**, **Backups** and **Tasks**. |
-| **Chat** | The rooms, where you write as Host, pass files and can empty a room. |
+| **Servers** | MCSS, then the servers as cards (picture, whether it's on, who is playing; the panel beside them says more), **New server**, **Server setup**, **Check for updates**. Each server has **Open**, **Pack** and **Manage**, which all open the server's own page, on a different tab: **Access Manager**, **Server Status**, **Updates Pulled**, **Pack**, and for a server Gatekeeper runs itself **Console**, **Settings**, **Game settings**, **Backups** and **Tasks**. |
+| **Chat** | The rooms as cards, where you write as Host, paste or attach files, view what others offered, and can empty a room. A red count on Chat is rooms with new messages. |
 | **Updates** | **What's new in Gatekeeper** and **in Gatehouse**, and the **Update log**. |
 
 | Menu | What is there |

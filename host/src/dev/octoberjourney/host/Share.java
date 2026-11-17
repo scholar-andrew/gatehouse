@@ -76,7 +76,7 @@ final class Share {
 		List<Object> l = index();
 		l.add(m("id", id, "room", room, "name", clean, "size", b.length, "who", who, "when", LocalDateTime.now().format(TIME), "at", System.currentTimeMillis()));
 		save(l);
-		Chat.say(room, who, key + "/file", "offers a file: " + clean + " (" + size(b.length) + "). Files… saves a copy.");
+		Chat.say(room, who, key + "/file", "offers a file: " + clean + " (" + size(b.length) + "). Files… saves a copy.", m("id", id, "name", clean, "size", b.length));
 		log("files: " + who + " offered " + clean + " (" + size(b.length) + ") in " + Chat.all().getOrDefault(room, room));
 		return m("result", "ok", "message", "Offered to the room. It is kept for a day.", "id", id);
 	}
