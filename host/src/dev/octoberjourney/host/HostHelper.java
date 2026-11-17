@@ -2297,7 +2297,7 @@ public final class HostHelper {
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
 		// (things that fetch from the internet on the way take as long as the connection makes them: looking for an
 		// update and updating. The window used to give up on those after five seconds, with the update still going.)
-		c.setConnectTimeout(2000); c.setReadTimeout(path.startsWith("/admin/update") || path.startsWith("/admin/tools/new") ? 180_000 : 5000); c.setRequestMethod(method);
+		c.setConnectTimeout(2000); c.setReadTimeout(path.startsWith("/admin/update") || path.startsWith("/admin/tools/new") || path.startsWith("/admin/pack/") ? 180_000 : 5000); c.setRequestMethod(method);
 		if (body != null) { c.setDoOutput(true); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
 		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
 	}

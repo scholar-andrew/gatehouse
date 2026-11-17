@@ -59,7 +59,9 @@ final class PackUi {
 		p.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 		if (farUrl != null) { p.add(ServerToolsUi.note(ServerToolsUi.wrap("A server's pack is made and built at its own Gatekeeper's window, not from another Gatekeeper.", 560)), BorderLayout.NORTH); return p; }
 		JLabel stands = new JLabel(" "), said = new JLabel(" "), artSaid = new JLabel(" "), preview = new JLabel();
-		JButton make = new JButton("Make a pack for this server"), build = new JButton("Build again"), release = new JButton("New version…"), bring = new JButton("Bring in a pack from a folder…");
+		JButton make = new JButton("Make a pack for this server"), build = new JButton("Build again"), release = new JButton("New version…"), bring = new JButton("Bring in a pack from a folder…"), modsB = new JButton("Mods players get…");
+		modsB.setToolTipText("<html>The server's own mods, each with a switch: which ones players are sent. Gatekeeper guesses; you decide.<br>A mod comes from its own page on the mod site when that exact file is published there, and from this Gatekeeper otherwise.</html>");
+		String[] nextNotes = {""};
 		make.setToolTipText("For a Fabric server: a pack with its Minecraft and Fabric versions and no mods yet. Launchers can then install it and keep it current.");
 		build.setToolTipText("Builds the pack again as it is (after choosing a picture, say). Players get what changed the next time they press Play.");
 		release.setToolTipText("Gives the pack its next version number with notes players read before updating, then builds it");
@@ -98,7 +100,7 @@ final class PackUi {
 			{
 				now[0] = s;
 				boolean defined = ServerTools.yes(s.get("defined"));
-				make.setVisible(!defined); build.setVisible(defined); release.setVisible(defined);
+				make.setVisible(!defined); build.setVisible(defined); release.setVisible(defined); modsB.setVisible(defined);
 				make.setEnabled(!Json.str(s.get("loader")).isEmpty());
 				String text;
 				if (Json.str(s.get("server")).isEmpty()) text = Json.str(s.get("message")).isEmpty() ? "Couldn't ask Gatekeeper: is it running?" : esc(Json.str(s.get("message")));
@@ -129,14 +131,16 @@ final class PackUi {
 		make.addActionListener(e -> post.accept("/admin/pack/start", m()));
 		build.addActionListener(e -> post.accept("/admin/pack/build", m()));
 		release.addActionListener(e -> {
-			JTextArea notes = new JTextArea(6, 46);
+			JTextArea notes = new JTextArea(nextNotes[0], 6, 46);
 			notes.setLineWrap(true); notes.setWrapStyleWord(true);
 			JPanel ask = new JPanel(new BorderLayout(0, 6));
 			ask.add(new JLabel(ServerToolsUi.wrap("What changed, a line for each thing. Players read this before they update.", 420)), BorderLayout.NORTH);
 			ask.add(new JScrollPane(notes), BorderLayout.CENTER);
 			if (javax.swing.JOptionPane.showConfirmDialog(p, ask, "New version of the pack", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
+			nextNotes[0] = "";
 			post.accept("/admin/pack/release", m("notes", notes.getText()));
 		});
+		modsB.addActionListener(e -> mods(p, q, text -> { if (!text.isEmpty()) nextNotes[0] = nextNotes[0].isEmpty() ? text : nextNotes[0] + "\n" + text; load.run(); }));
 		bring.addActionListener(e -> {
 			javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 			fc.setDialogTitle("The folder the pack is defined in");
@@ -168,7 +172,7 @@ final class PackUi {
 		int y = 0;
 		row(form, y++, null, ServerToolsUi.note(ServerToolsUi.wrap("A pack is what players' launchers install and keep current for this server: its mods, their settings, and the pictures Steam shows for its shortcut. Gatekeeper builds it and hands it to launchers itself.", 560)));
 		row(form, y++, null, stands);
-		row(form, y++, null, line(make, build, release, bring));
+		row(form, y++, null, line(make, modsB, release, build, bring));
 		row(form, y++, null, said);
 		row(form, y++, null, ServerToolsUi.note(ServerToolsUi.wrap("Pictures for Steam. Each is one you choose (brought to the right size here) or one Gatekeeper makes. A change goes out with the next build.", 560)));
 		row(form, y++, "Picture", line(slotBox, choose, back));
@@ -179,6 +183,61 @@ final class PackUi {
 		opening[0] = false;
 		return p;
 	}
+
+	/** The list of the server's mods with a switch for each. saved: told what changed (a start for the next version's notes). */
+	static void mods(java.awt.Component over, String q, java.util.function.Consumer<String> saved) {
+		DefaultTableModel tm = new DefaultTableModel(new Object[] {"Send", "Mod", "Version", "MB", "Players get it from", "In the pack now", "Why"}, 0) {
+			@Override public Class<?> getColumnClass(int c) { return c == 0 ? Boolean.class : String.class; }
+			@Override public boolean isCellEditable(int r, int c) { return c == 0 && !"hand".equals(getValueAt(r, 5) == null ? "" : rowHand.get(this).get(r)); }
+		};
+		java.util.List<String> keys = new java.util.ArrayList<>();
+		java.util.List<String> hands = new java.util.ArrayList<>();
+		rowHand.put(tm, hands);
+		JTable table = new JTable(tm);
+		table.setRowHeight(24);
+		int[] widths = {50, 210, 90, 50, 150, 130, 420};
+		for (int i = 0; i < widths.length; i++) table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+		JLabel head = ServerToolsUi.note(" "), said = new JLabel(" ");
+		JButton again = new JButton("Look again"), save = new JButton("Save the list");
+		again.setToolTipText("Reads the server's mods folder again and asks the mod site afresh about every file");
+		java.util.function.Consumer<Map<String, Object>> show = r -> {
+			tm.setRowCount(0); keys.clear(); hands.clear();
+			if (!Json.str(r.get("result")).equals("ok")) { head.setText(ServerToolsUi.wrap(Json.str(r.get("message")).isEmpty() ? "Couldn't ask Gatekeeper: is it running?" : Json.str(r.get("message")), 1000)); save.setEnabled(false); return; }
+			save.setEnabled(true);
+			for (Object o : Json.list(r.get("mods"))) {
+				Map<String, Object> e = Json.map(o);
+				String from = Json.str(e.get("from")), in = Json.str(e.get("in_pack"));
+				keys.add(Json.str(e.get("key"))); hands.add(ServerTools.yes(e.get("hand")) ? "hand" : "");
+				tm.addRow(new Object[] {ServerTools.yes(e.get("send")), Json.str(e.get("name")), Json.str(e.get("version")), Json.str(e.get("mb")),
+						from.equals("site") ? "Its own page (" + Json.str(r.get("site")) + ")" : from.equals("gatekeeper") ? "This Gatekeeper" : from.equals("unknown") ? "Not known yet" : "",
+						in.equals("yes") ? "Yes" : in.equals("older") ? "An older file of it" : in.equals("hand") ? "Yes, put there by hand" : "No", Json.str(e.get("why")) + (ServerTools.yes(e.get("chosen")) ? " (Your choice.)" : "")});
+			}
+			List<Object> gone = Json.list(r.get("gone"));
+			String text = tm.getRowCount() == 0 ? "The server's mods folder has no mods in it." : "The server's own mods (" + tm.getRowCount() + "). Tick the ones players are sent; Gatekeeper's guess is ticked already. A mod comes from its own page when that exact file is published there, and from this Gatekeeper otherwise. Saving changes the pack's list; players get it with the pack's next version.";
+			if (!ServerToolsUi.num(r.get("by_hand")).equals("0")) text += " The pack also has " + ServerToolsUi.num(r.get("by_hand")) + " mod(s) put there by hand, which this list leaves alone.";
+			if (!gone.isEmpty()) { StringBuilder g = new StringBuilder(); for (Object o : gone) g.append(g.length() == 0 ? "" : ", ").append(Json.str(o)); text += " No longer on the server, and taken out of the pack when you save: " + g + "."; }
+			if (!Json.str(r.get("trouble")).isEmpty()) text += " " + Json.str(r.get("trouble"));
+			head.setText(ServerToolsUi.wrap(text, 1000));
+		};
+		java.util.function.Consumer<Boolean> load = fresh -> { head.setText("Reading the server's mods and asking the mod site…"); ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/pack/mods" + q + (fresh ? "&again=1" : ""), null); SwingUtilities.invokeLater(() -> show.accept(r)); }); };
+		again.addActionListener(e -> load.accept(true));
+		save.addActionListener(e -> {
+			Map<String, Object> send = new java.util.LinkedHashMap<>();
+			for (int i = 0; i < tm.getRowCount(); i++) if (!hands.get(i).equals("hand")) send.put(keys.get(i), Boolean.TRUE.equals(tm.getValueAt(i, 0)));
+			said.setForeground(ServerToolsUi.AMBER); said.setText("Saving…");
+			ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/pack/mods" + q, m("send", send)); SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said, r); if (Json.str(r.get("result")).equals("ok")) { saved.accept(Json.str(r.get("notes"))); load.accept(false); } }); });
+		});
+		JScrollPane sp = new JScrollPane(table); sp.setPreferredSize(new java.awt.Dimension(1100, 400));
+		JPanel lp = new JPanel(new BorderLayout(0, 6));
+		lp.add(head, BorderLayout.NORTH); lp.add(sp, BorderLayout.CENTER);
+		JPanel foot = new JPanel(new BorderLayout()); foot.add(line(save, again), BorderLayout.WEST); foot.add(said, BorderLayout.CENTER);
+		lp.add(foot, BorderLayout.SOUTH);
+		load.accept(false);
+		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/pack/mods" + q, null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) {} t.dispose(); return; }
+		javax.swing.JOptionPane.showMessageDialog(over, lp, "Mods players get", javax.swing.JOptionPane.PLAIN_MESSAGE);
+	}
+	private static final Map<DefaultTableModel, java.util.List<String>> rowHand = new java.util.WeakHashMap<>();
+	static String shotTo;   // (testing: a picture of the list instead of the dialog)
 
 	static String whatSays(String what) {
 		return switch (what) { case "made" -> "Made"; case "found" -> "Looked after from here on"; case "pack" -> "Pack built"; case "removed" -> "No longer looked after"; default -> what; };

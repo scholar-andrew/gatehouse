@@ -34,7 +34,7 @@ doesn't work. The program carries the same steps inside it as setup guides that 
 The Gatehouse and Gatekeeper installers are plain scripts you can read first. They need no administrator rights,
 check each download against a published SHA-256, and have a dry run that shows what they would do.
 
-Current version: **Gatehouse 3.15.0**, for both halves. What changed is listed in the program (the Gatehouse updates
+Current version: **Gatehouse 3.16.0**, for both halves. What changed is listed in the program (the Gatehouse updates
 and Gatekeeper updates tabs), it updates itself, and on a machine with both halves one press updates both.
 
 | | Windows | Linux | SteamOS (Steam Deck) |

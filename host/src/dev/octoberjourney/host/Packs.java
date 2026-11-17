@@ -42,6 +42,7 @@ import java.util.Map;
  *   POST /admin/pack/build              builds it again as it is
  *   POST /admin/pack/release {notes}    a new version with those notes, then builds
  *   GET, POST /admin/pack/art?slot=     a Steam picture: the one in use; a chosen one (the file as the body), or none
+ *   GET, POST /admin/pack/mods          which of the server's mods players are sent (ModList)
  */
 final class Packs {
 	private Packs() {}
@@ -315,6 +316,7 @@ final class Packs {
 		boolean post = x.getRequestMethod().equals("POST");
 		if (Json.str(s.get("id")).isEmpty()) { reply(x, 200, m("result", "refused", "message", "No such server.")); return true; }
 		String id = Json.str(s.get("id"));
+		if (ModList.admin(x, path, s)) return true;
 		if (path.equals("/admin/pack") && !post) reply(x, 200, state(s));
 		else if (path.equals("/admin/pack/start") && post) result(x, start(s));
 		else if (path.equals("/admin/pack/build") && post) result(x, build(s, "asked for in Gatekeeper's window"));

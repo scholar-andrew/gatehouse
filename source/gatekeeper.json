@@ -1,8 +1,17 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.15.0",
+ "version": "3.16.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.16.0", "date": "2026-11-17", "notes": [
+   "Mods players get: a new button on a server's Pack tab. Gatekeeper reads the mods in the server's mods folder, guesses which ones players need, and shows the list with a switch for each. You decide; only a choice that differs from the guess is kept as yours.",
+   "Where a player's copy comes from: the mod's own page on Modrinth when that exact file is published there, and this Gatekeeper otherwise. Either way it is checked against the server's own file.",
+   "To find that out, Gatekeeper asks Modrinth about the files' checksums when you open the list. Nothing about the server or its players is sent, and no sign-in is used. Answers are kept, so a file is asked about once; Look again asks afresh.",
+   "A mod is left off by default when its own file says it is for servers only, or its page says players don't use it.",
+   "A mod updated on the server is updated in the pack the next time the list is saved, and one taken off the server is taken out. Mods put in a pack by hand are left alone.",
+   "Saving the list changes the pack's definition only. Players get it with the pack's next version: New version opens with what was added, updated and removed already written as its notes.",
+   "If Modrinth can't be reached, mods it hasn't been asked about are not added until it answers, and the list says so."
+  ]},
   {"version": "3.15.0", "date": "2026-11-17", "notes": [
    "Packs. A server's Manage window has a new tab, Pack. Gatekeeper can now keep a server's pack itself, build it, and hand it to launchers from its own address, with no outside site involved. Launchers install it and keep it current with what they already have.",
    "Make a pack for this server: for a Fabric server, a pack with its Minecraft and Fabric loader versions and no mods yet. Not supported for other kinds of server yet (a plain server needs no pack).",

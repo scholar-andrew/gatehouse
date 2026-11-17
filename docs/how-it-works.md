@@ -156,6 +156,13 @@ A Gatekeeper can build a server's pack and hand it to launchers, with no reposit
   or *Bring in a pack from a folder* (a definition, or the folder October Journey is built from). *New version*
   takes the notes players read and the next version number. Only Gatekeeper's own window can do these: not the web
   panel, not another Gatekeeper.
+- **Mods players get** (`ModList.java`). Gatekeeper reads the jars in the server's `mods` folder (each one's
+  `fabric.mod.json`), asks Modrinth which of those exact files it publishes (`POST /v2/version_files` with their
+  SHA-512 hashes; no sign-in; answers kept in `packs/<id>/lookup.json`), guesses which ones players need, and the
+  host confirms the list, a switch for each. A mod published there is fetched by players from its own page; any
+  other is copied into the pack and comes from Gatekeeper. Either way it is checked against the hash of the
+  server's own file. Entries the list adds are marked `"from": "server"` in the definition's `mods.json`; mods put
+  there by hand are never touched. Nothing reaches players until the pack's next version is built.
 - **Pictures for Steam.** Cover, hero, logo, icon and wide: each is one the owner chose (brought to the slot's size)
   or one made from the pack's name and the server's picture, the same file every time for the same name.
 

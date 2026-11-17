@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.15.0",
+ "version": "3.16.0",
  "changes": [
+  {"version": "3.16.0", "date": "2026-11-17", "notes": [
+   "Nothing new in the launcher itself: this version goes with Gatekeeper 3.16.0, where a host chooses which of a server's mods players are sent."
+  ]},
   {"version": "3.15.0", "date": "2026-11-17", "notes": [
    "A server whose Gatekeeper keeps its pack itself is installed and kept current from that Gatekeeper. Nothing changes in how Install or Play look."
   ]},
