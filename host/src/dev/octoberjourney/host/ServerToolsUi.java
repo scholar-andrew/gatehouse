@@ -42,6 +42,7 @@ import javax.swing.table.DefaultTableModel;
  */
 final class ServerToolsUi {
 	static final Color GREY = new Color(0x8F98A0), GREEN = new Color(0x8BD46E), RED = new Color(0xFF7B72), AMBER = new Color(0xE9B949);
+	static final String NO_FILE = "Not needed for this kind: Gatekeeper fetches it";
 	static final String[][] WHEN = {{"daily", "Every day at a time"}, {"every", "Every so many minutes"}, {"manual", "Only when I press Run now"}};
 	static final String[][] WHO = {{"any", "Whoever is on"}, {"empty", "Only if nobody is playing"}, {"some", "Only if someone is playing"}};
 	static final String[][] JOB = {{"restart", "Restart the server"}, {"stop", "Stop the server"}, {"start", "Start the server"}, {"backup", "Make a backup"}, {"commands", "Type commands"}};
@@ -99,8 +100,11 @@ final class ServerToolsUi {
 			String k = kind.get();
 			boolean own = k.equals("forge") || k.equals("file");
 			verF.setEnabled(!own); fileF.setEnabled(own); browse.setEnabled(own);
+			// (a box that isn't used for this kind says so, and why)
+			if (!own) fileF.setText(NO_FILE); else if (fileF.getText().equals(NO_FILE)) fileF.setText("");
 			fileL.setText(k.equals("forge") ? "Installer" : "File");
 			verF.removeAllItems();
+			if (own) verF.addItem(k.equals("forge") ? "Not needed: the installer decides it" : "Not needed: it is whatever that jar is");
 			verNote.setText(own ? (k.equals("forge") ? "The installer decides the version. Get it from files.minecraftforge.net or neoforged.net." : "The version is whatever that jar is.") : "Fetching the list of versions…");
 			if (!own) later(() -> {
 				List<Object> got; String trouble = "";
@@ -110,11 +114,11 @@ final class ServerToolsUi {
 			});
 		};
 		kindF.addActionListener(e -> kindChanged.run());
-		browse.addActionListener(e -> { JFileChooser fc = new JFileChooser(fileF.getText().isBlank() ? System.getProperty("user.home", "") : fileF.getText()); fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Jar files", "jar")); if (fc.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) fileF.setText(fc.getSelectedFile().getPath()); });
+		browse.addActionListener(e -> { JFileChooser fc = new JFileChooser(fileF.getText().isBlank() || fileF.getText().equals(NO_FILE) ? System.getProperty("user.home", "") : fileF.getText()); fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Jar files", "jar")); if (fc.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) fileF.setText(fc.getSelectedFile().getPath()); });
 		eulaB.addActionListener(e -> { try { java.awt.Desktop.getDesktop().browse(java.net.URI.create("https://aka.ms/MinecraftEULA")); } catch (Exception ex) { said.setForeground(GREY); said.setText("It's at https://aka.ms/MinecraftEULA"); } });
 		Timer[] poll = {null};
 		make.addActionListener(e -> {
-			Map<String, Object> r = ask("POST", "/admin/tools/new", m("name", nameF.getText(), "kind", kind.get(), "version", Json.str(verF.getSelectedItem()), "file", fileF.getText(), "memory", memF.getText(), "port", portF.getText(), "java", javaOf(javaF), "eula", eula.isSelected()));
+			Map<String, Object> r = ask("POST", "/admin/tools/new", m("name", nameF.getText(), "kind", kind.get(), "version", verF.isEnabled() ? Json.str(verF.getSelectedItem()) : "", "file", fileF.isEnabled() ? fileF.getText() : "", "memory", memF.getText(), "port", portF.getText(), "java", javaOf(javaF), "eula", eula.isSelected()));
 			if (!Json.str(r.get("result")).equals("ok")) { say(said, r); return; }
 			make.setEnabled(false);
 			said.setForeground(AMBER); said.setText("Starting…");

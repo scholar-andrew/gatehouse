@@ -1803,11 +1803,16 @@ public final class HostHelper {
 
 	/** The panel: GET /admin/devices, POST /admin/grant {id, granted}, POST /admin/perm {id, perm: mcss|sleep, value},
 	 *  POST /admin/forget {id}, GET /admin/log. */
+	/** The server a call's query names (?server=<id>, the first if it is there twice), or "". */
+	static String serverIn(String query) {
+		if (query != null) for (String part : query.split("&")) if (part.startsWith("server=")) return part.substring(7).replaceAll("[^\\w.-]", "");
+		return "";
+	}
 	static void admin(HttpExchange x) throws IOException {
 		try {
 			String path = x.getRequestURI().getPath();
 			String query = x.getRequestURI().getQuery();
-			SERVER.set(query != null && query.startsWith("server=") ? query.substring(7).replaceAll("[^\\w.-]", "") : "");
+			SERVER.set(serverIn(query));
 			if (path.equals("/admin/devices")) {
 				panelSeen = System.currentTimeMillis();
 				Map<String, Object> devs = listed();
@@ -2091,7 +2096,7 @@ public final class HostHelper {
 	/** The server Gatekeeper is looking at (its pick, when the machine has more than one). */
 	static volatile String panelServer = "";
 	static String call(String method, String path, String body) throws IOException {
-		if (!panelServer.isEmpty()) path += (path.contains("?") ? "&" : "?") + "server=" + panelServer;
+		if (!panelServer.isEmpty() && !path.contains("server=")) path += (path.contains("?") ? "&" : "?") + "server=" + panelServer;
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
 		c.setConnectTimeout(2000); c.setReadTimeout(5000); c.setRequestMethod(method);
 		if (body != null) { c.setDoOutput(true); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }

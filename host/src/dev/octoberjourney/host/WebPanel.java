@@ -277,7 +277,7 @@ final class WebPanel {
 				if (call.equals("tools/new") && List.of("forge", "file").contains(Json.str(b.get("kind")))) { json(x, 403, m("result", "refused", "message", "A server from an installer or a jar on the machine's disk is made in Gatekeeper's own window.")); return; }
 				body = Json.write(b);
 			}
-			String query = x.getRequestURI().getQuery(), server = query != null && query.startsWith("server=") ? query.substring(7).replaceAll("[^\\w.-]", "") : "";
+			String query = x.getRequestURI().getQuery(), server = serverIn(query);
 			String answer = local(method, "/admin/" + call + (server.isEmpty() ? call.equals("update") && "1".equals(query) ? "?1" : "" : "?server=" + server), body);
 			if (method.equals("POST") && !call.equals("tools/console") && !call.equals("tools/versions")) {
 				Map<String, Object> said = Json.map(Json.parse(answer));

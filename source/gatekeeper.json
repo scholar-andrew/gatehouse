@@ -1,7 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.7.0",
+ "version": "2.7.1",
  "changes": [
+  {"version": "2.7.1", "date": "2026-11-16", "notes": [
+   "Fixed: Manage opened the wrong server, or said \"MC Server Soft does this\" for a server Gatekeeper runs itself. Once any server had been opened in the window, Manage asked about that one (or the first in the list) instead of the one whose button was pressed. The web panel was not affected.",
+   "New server: the File box is only for the last two kinds (a Forge or NeoForge installer, or a server jar you already have). For the others it is greyed and now says why (\"Not needed for this kind: Gatekeeper fetches it\"), and the version list says the same when a file decides the version."
+  ]},
   {"version": "2.7.0", "date": "2026-11-16", "notes": [
    "Where Gatekeeper runs a server itself, it now does for it what MCSS does for its servers. That is every server on Linux and SteamOS. On Windows with MCSS it is a choice: tick \"Gatekeeper may also run servers itself, beside MCSS's\" on the first screen, and New server makes servers that Gatekeeper runs itself (in C:\\Minecraft\\servers unless set otherwise), each with Manage, next to the ones MCSS runs. Each server says which of the two runs it. MCSS's own servers stay MCSS's: for those, Manage is greyed and says MCSS does this. Until the box is ticked nothing changes on Windows.",
    "New server, on the first screen, makes a Minecraft server from nothing: a name, its kind and the Minecraft version, and Gatekeeper fetches the server's program from its makers, checks it and sets it up in a folder of its own. Vanilla comes from Mojang and Paper from PaperMC, both checked against the checksum they publish; Fabric comes from Fabric (which publishes no checksum for it); for Forge or NeoForge you pick the installer you downloaded and Gatekeeper runs it; or pick a server jar you already have. It finds a free port, picks a Java the version can run on (it says which one is missing if none fits; it doesn't install Java), and nothing is fetched until you press Make the server.",
