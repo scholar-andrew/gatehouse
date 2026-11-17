@@ -85,6 +85,22 @@ final class AutoUpdate {
 		return name;
 	}
 
+	private static volatile long hinted = 0;
+	/** Looks for a newer version now, because someone in the constellation has seen one (at most every ten seconds,
+	 *  and not on the caller's own time). */
+	static void hint(String from) {
+		long now = System.currentTimeMillis();
+		if (now - hinted < 10_000) return;
+		hinted = now;
+		Thread t = new Thread(() -> {
+			try {
+				lookForNewer();
+				if (newer() && !mode().equals("normal")) log(mode() + " update: " + from + " saw a newer version first; this Gatekeeper has now seen " + newestKeeper + " too");
+			} catch (RuntimeException ignored) {}
+		}, "update-hint");
+		t.setDaemon(true);
+		t.start();
+	}
 	/** A client reporting in; what it is told. */
 	static Map<String, Object> report(String id, String name, Map<String, Object> b) {
 		Rep r = new Rep();
@@ -103,6 +119,9 @@ final class AutoUpdate {
 					"version", Json.str(c.get("version")).replaceAll("[^\\w.\\-]", ""), "mode", modeOf(c), "open", ServerTools.yes(c.get("open")), "install", installOf(c)));
 		}
 		seen.put(id, r);
+		// (word of an update travels up: a client that has seen a newer version than this Gatekeeper knows of has it
+		// look now, not at its next minute; a member Gatekeeper passes that on to the one it joined the same way)
+		if (!r.sees.isEmpty() && !newer()) hint(name);
 		// (its kind, mode and version are kept with what else is known of it, so the Constellation tab still has them
 		// when the client is closed, or this Gatekeeper has restarted; written only when one of them changed)
 		boolean allowed = !keeper;
@@ -240,6 +259,8 @@ final class AutoUpdate {
 			leadHeard = System.currentTimeMillis();
 			leadState = Json.str(r.get("state")); leadName = Json.str(r.get("lead")); leadMember = ServerTools.yes(r.get("member"));
 			leadGather = Json.map(r.get("gather"));
+			// (and word travels down: the Gatekeeper this one joined is gathering or going for a version this one hasn't seen yet)
+			if ((leadState.equals("gathering") || leadState.equals("go")) && !newer()) hint(leadName);
 			if (leadMember) UpdateLog.handedOn(handing.size());   // (taken there: not handed on again)
 			leadSaid = leadMember ? "Part of " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation." : "Asked to join " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation: waiting for its owner to allow it (on its Constellation tab).";
 		} catch (IOException | RuntimeException e) {
@@ -284,6 +305,7 @@ final class AutoUpdate {
 					}
 					if (mode.equals("constellation")) {
 						goUntil = now + 90_000;
+						dev.gatehouse.look.Chime.constellation();   // (everyone is ready: the constellation's own sound, here and on every client told to go)
 						status = "Updating to " + newestKeeper + " now" + (following() ? ", on " + leadName + "'s go" : "") + (ready.isEmpty() ? "" : ", with " + String.join(", ", ready)) + ".";
 						log(tag + status + (waitingFor.isEmpty() ? "" : " Not waited for any longer: " + String.join(", ", waitingFor) + "."));
 						Thread.sleep(8000);   // (so every open client has asked once and been told to go)

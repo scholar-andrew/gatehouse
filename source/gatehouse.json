@@ -3,7 +3,9 @@
  "version": "3.5.1",
  "changes": [
   {"version": "3.5.1", "date": "2026-11-16", "notes": [
-   "When Gatehouse updates itself it now notes where it fetched the update from (the pack server at an address, or GitHub), and tells the Gatekeepers in your list. Their update log shows it."
+   "When Gatehouse updates itself it now notes where it fetched the update from (the pack server at an address, or GitHub), and tells the Gatekeepers in your list. Their update log shows it.",
+   "In constellation mode a launcher that sees a new version before its Gatekeeper has now passes that on straight away, so the whole constellation finds out sooner.",
+   "When the constellation is ready and your Gatekeeper gives the go, Gatehouse plays the constellation's chime (four soft rising notes) before it updates."
   ]},
   {"version": "3.5.0", "date": "2026-11-16", "notes": [
    "Along with its version and update mode, Gatehouse now tells the Gatekeepers in your list its operating system and Java version. A Gatekeeper keeps an update log from that: when each client went from one version to another, and how. Its owner reads it at the machine, or through the web panel with an account allowed to."

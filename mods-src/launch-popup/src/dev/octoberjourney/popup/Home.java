@@ -1321,6 +1321,8 @@ final class Home {
 						boolean lookNow = mode.equals("auto") ? System.currentTimeMillis() - lookedAt > 60_000 : (go || gathering);
 						if (lookNow && offered[0] == null) { lookedAt = System.currentTimeMillis(); look.run(); }
 						boolean update = mode.equals("auto") || go;
+						// (the constellation is ready: its own sound, heard out before this launcher closes to update)
+						if (go && mode.equals("constellation") && offered[0] != null && ownUpdateGo.isEnabled()) { dev.gatehouse.look.Chime.constellation(); try { Thread.sleep(dev.gatehouse.look.Chime.MILLIS); } catch (InterruptedException e) { return; } }
 						if (update && offered[0] != null) SwingUtilities.invokeLater(() -> { if (offered[0] != null && ownUpdateGo.isEnabled() && ownUpdate.isVisible()) { sub.setText(mode.equals("auto") ? "Updating by itself (auto mode)\u2026" : "Updating together with your Gatekeeper (constellation mode)\u2026"); ownUpdateGo.doClick(); } });
 						else if (gathering) SwingUtilities.invokeLater(() -> sub.setText("A new version is out. Your Gatekeeper is waiting for every open launcher in its constellation to see it, then everything updates together."));
 					}

@@ -4,7 +4,9 @@
  "changes": [
   {"version": "3.5.1", "date": "2026-11-16", "notes": [
    "The update log says where each update was fetched from: a new \"Fetched from\" column, in Gatekeeper's window and on the web panel's Updates page. For Gatekeeper it is the place it downloaded its own update from (the pack server at an address, or GitHub). For a launcher it is the place that launcher noted when it fetched its update; a launcher that was updated by the Gatekeeper on its own machine says so, with where that Gatekeeper got it.",
-   "\"Not said\" there means the client didn't know: it is on a version from before this, or its launcher arrived with a pack's own update or an installer and not through the launcher's Update."
+   "\"Not said\" there means the client didn't know: it is on a version from before this, or its launcher arrived with a pack's own update or an installer and not through the launcher's Update.",
+   "Word of an update now travels through a constellation instead of each client finding it by itself. A launcher or member Gatekeeper that sees a newer version before this Gatekeeper has makes it look at once (it used to look once a minute), and a member is told at once when the Gatekeeper it joined starts gathering. The log says who saw it first.",
+   "A constellation that is ready plays its own chime as it gives the go: four soft rising notes over a quiet chord, on this Gatekeeper and on every client told to go."
   ]},
   {"version": "3.5.0", "date": "2026-11-16", "notes": [
    "An update log for the whole constellation: every time a client goes from one version of the program to another, Gatekeeper keeps a line saying when, which client and what kind, who plays on it, its system (operating system and Java), from which version to which, and how (normal, auto or constellation). It covers this Gatekeeper's launchers, this Gatekeeper itself, and the Gatekeepers that joined with their launchers: a member keeps its own log and hands new lines on to the Gatekeeper it joined, marked as having come through it.",
