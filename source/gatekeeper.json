@@ -1,7 +1,10 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.2.2",
+ "version": "3.2.3",
  "changes": [
+  {"version": "3.2.3", "date": "2026-11-16", "notes": [
+   "Automatic updating, fixed for a launcher that is connected to two Gatekeepers: it updates with whichever of them goes first, and the other Gatekeeper then treated it as a launcher that hadn't seen the update yet and waited for it, for up to ten minutes. A launcher already on the version that is out now counts as ready."
+  ]},
   {"version": "3.2.2", "date": "2026-11-16", "notes": [
    "Fixed: a launcher asking about a server this Gatekeeper no longer has (removed here, or deleted in MCSS) was answered as if it had asked about the first server. A device with a leftover pack or connection for the removed server then showed, started and stopped a different server through it. Such a launcher is now told the server is gone.",
    "Fixed: Update Gatekeeper could seem to do nothing, most of all on a Steam Deck. The window gave up waiting after five seconds, while fetching the update over the internet takes longer than that, and then said it couldn't reach Gatekeeper although the update was still going. It now waits as long as the fetch takes, and says plainly what happened. The same went for Check for updates and for New server.",

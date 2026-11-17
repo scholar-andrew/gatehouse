@@ -51,7 +51,10 @@ final class AutoUpdate {
 	static List<Object[]> open() {
 		List<Object[]> out = new ArrayList<>();
 		long now = System.currentTimeMillis();
-		for (Object[] r : seen.values()) if (now - (Long) r[0] < 25_000 && (Boolean) r[1]) out.add(new Object[] {r[4], !((String) r[2]).isEmpty()});
+		// (a launcher already on the version that is out has nothing left to see: one that reports to two Gatekeepers
+		// updates with whichever goes first, and must not then hold the other one up)
+		for (Object[] r : seen.values()) if (now - (Long) r[0] < 25_000 && (Boolean) r[1])
+			out.add(new Object[] {r[4], !((String) r[2]).isEmpty() || (!((String) r[3]).isEmpty() && !newestKeeper.isEmpty() && cmpVersion((String) r[3], newestKeeper) >= 0)});
 		return out;
 	}
 

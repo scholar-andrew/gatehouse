@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.2.2",
+ "version": "3.2.3",
  "changes": [
+  {"version": "3.2.3", "date": "2026-11-16", "notes": [
+   "Nothing changed in the launcher itself. Automatic updating with two Gatekeepers in your list: this launcher updates with whichever of them goes first, and the second no longer waits up to ten minutes for it before updating too (fixed in Gatekeeper)."
+  ]},
   {"version": "3.2.2", "date": "2026-11-16", "notes": [
    "Fixed: a pack or connection left on this device for a server its Gatekeeper no longer has (the owner removed or deleted it) showed as a working server, and its buttons acted on a different server on that Gatekeeper. It now says \"No longer on this Gatekeeper\" and can't be launched; delete it in Prism Launcher when you no longer need it.",
    "Fixed: Steam's pop-up was drawn into Gatehouse's window, sometimes over the buttons at the bottom right, and left a smear behind. Gatehouse had a setting against this that was being applied too late to take effect; it is now applied first. The window also redraws itself for a while after it opens.",
