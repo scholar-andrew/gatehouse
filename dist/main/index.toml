@@ -11,7 +11,7 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "2cb691921d1d3a023e635b9e2a6d9758678e92057c244135019721b97d63718f"
+hash = "b5e640f420c2334c9fef14e00bd599b4db5efeb1842a0694db2652022cd194b2"
 
 [[files]]
 file = "extras/gatehouse-launcher.ps1"
