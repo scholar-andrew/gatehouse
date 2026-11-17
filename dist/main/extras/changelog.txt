@@ -1,3 +1,5 @@
+== 1.36.0 | 2026-11-16
+- Nothing changed in the pack itself. The program has three update modes (normal, auto, constellation), Gatekeeper has a Constellation tab showing every connected client and its mode, and Gatekeepers can join one constellation and update together (Gatehouse 3.3.0).
 == 1.35.4 | 2026-11-16
 - Nothing changed in the pack or in how the program works: a test update, for trying out updating (Gatehouse 3.2.4).
 == 1.35.3 | 2026-11-16
