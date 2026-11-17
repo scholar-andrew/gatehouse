@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.11.0",
+ "version": "3.11.1",
  "changes": [
+  {"version": "3.11.1", "date": "2026-11-17", "notes": [
+   "A test update: nothing changed. It is here so that an update being passed from client to client can be watched on real devices: who raises its hand first, which copy each client takes, and what the update log says each fetched it from."
+  ]},
   {"version": "3.11.0", "date": "2026-11-17", "notes": [
    "Gatehouse now takes a newer version of itself from a Gatekeeper in your list when one has it, before it looks anywhere outside. That is usually quicker, and it works when the place a pack names can't be reached.",
    "When a Gatekeeper tells this launcher it knows of a newer version, the launcher looks straight away instead of at its next round.",

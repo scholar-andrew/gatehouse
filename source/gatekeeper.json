@@ -1,7 +1,10 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.11.0",
+ "version": "3.11.1",
  "changes": [
+  {"version": "3.11.1", "date": "2026-11-17", "notes": [
+   "A test update: nothing changed. It is here so that an update being passed from client to client can be watched on real devices: who raises its hand first, which copy each client takes, and what the update log says each fetched it from."
+  ]},
   {"version": "3.11.0", "date": "2026-11-17", "notes": [
    "An update is now passed from client to client, so a constellation fetches it from outside only once. Each Gatekeeper keeps the newest program file it has heard of and gives it to its launchers and to Gatekeepers that joined it. It fetches a newer version as soon as it sees one, not only when it updates.",
    "The first to see a newer version raises its hand: it tells its Gatekeeper it is fetching it, the others are told it is in hand and wait for that copy, and when it arrives it is handed over. A Gatekeeper that joined another hands on what it gets to that one, and takes what that one has. The log says who saw it first and where each copy came from.",
