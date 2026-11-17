@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.10.1",
+ "version": "3.0.0",
  "changes": [
+  {"version": "3.0.0", "date": "2026-11-16", "notes": [
+   "Gatehouse and Gatekeeper are now one program with two halves: Play (this launcher) and Host (Gatekeeper, which looks after the Minecraft servers on a machine). This is the first of four steps towards that, and nothing about playing changes in it.",
+   "Options has a new Play or Host button: the program's first screen, with a card for each half that says whether it is set up on this device and a button that opens it, or sets it up if it isn't. Someone who only plays can ignore it.",
+   "From now on both halves carry the same version number (this one is 3.0.0 for both)."
+  ]},
   {"version": "2.10.1", "date": "2026-11-16", "notes": [
    "Remote Gatekeeper, Access Manager: the sets of buttons under the list (Server accesses, Administrative actions, List) were squeezed in a narrow window until buttons disappeared. They now sit side by side while they fit and move into rows when they don't, so every button stays whole; scroll down if the window is short. \"Administration actions\" is now \"Administrative actions\"."
   ]},

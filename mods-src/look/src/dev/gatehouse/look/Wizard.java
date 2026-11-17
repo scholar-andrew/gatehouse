@@ -162,7 +162,7 @@ public final class Wizard extends JPanel {
 			mark.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
 			body.add(title); body.add(mark);
 			if (!s.detail.isEmpty() && !na) { JLabel d = new JLabel("<html><div style='width:" + textWidth + "px; color:#8F98A0'>" + esc(s.detail) + "</div></html>"); d.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0)); body.add(d); }
-			java.net.URL art = artFrom == null ? null : artFrom.getResource("/wizard/" + s.key + ".png");
+			java.net.URL art = artFrom == null ? null : artFrom.getResource("/wizard/" + (artFrom.getPackageName().endsWith(".host") ? "gatekeeper" : "gatehouse") + "/" + s.key + ".png");
 			if (art != null) { JLabel pic = new JLabel(new ImageIcon(art)); pic.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0)); body.add(pic); }
 			JLabel text = new JLabel("<html><div style='width:" + textWidth + "px'>" + esc(s.text) + "</div></html>");
 			body.add(text);

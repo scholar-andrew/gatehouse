@@ -2526,7 +2526,11 @@ public final class HostHelper {
 			checkNow.setToolTipText("Looks now for a newer Gatekeeper, instead of waiting for the next look (every five minutes)");
 			JLabel checkSaid = new JLabel(" ");
 			checkSaid.setForeground(new Color(0x8F98A0));
-			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 6)); checkRow.add(checkNow); checkRow.add(checkSaid);
+			// (Gatehouse is one program with two halves; this is the Host half. The first screen has a button for each.)
+			JButton halves = new JButton("Play or Host\u2026");
+			halves.setToolTipText("Gatehouse's first screen: open the Play half (the launcher) on this device, or set it up");
+			halves.addActionListener(ev -> dev.gatehouse.Main.choose(f));
+			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 6)); checkRow.add(checkNow); checkRow.add(halves); checkRow.add(checkSaid);
 			serversTab.add(checkRow, BorderLayout.SOUTH);
 			checkNow.addActionListener(ev -> {
 				checkNow.setEnabled(false);

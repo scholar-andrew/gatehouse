@@ -31,7 +31,7 @@ doesn't work. Both programs carry the same steps inside them as a setup guide th
 The Gatehouse and Gatekeeper installers are plain scripts you can read first. They need no administrator rights,
 check each download against a published SHA-256, and have a dry run that shows what they would do.
 
-Current versions: **Gatehouse 2.10.1**, **Gatekeeper 2.8.1**. Each program lists its own changes (the Gatehouse
+Current versions: **Gatehouse 3.0.0** (one program: its Play half is the launcher, its Host half is Gatekeeper). Each program lists its own changes (the Gatehouse
 updates and Gatekeeper updates tabs), and both update themselves.
 
 | | Windows | Linux | SteamOS (Steam Deck) |

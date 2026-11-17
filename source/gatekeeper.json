@@ -1,7 +1,13 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.8.1",
+ "version": "3.0.0",
  "changes": [
+  {"version": "3.0.0", "date": "2026-11-16", "notes": [
+   "Gatehouse and Gatekeeper are now one program with two halves: Play (the Gatehouse launcher) and Host (Gatekeeper). This is the first of four steps towards that, and nothing about how Gatekeeper works changes in it: the same window, the same background service, the same settings and permissions.",
+   "The one program file is published under both of its old names, so this Gatekeeper updates exactly as before, and from now on the two halves always carry the same version number (this one is 3.0.0 for both).",
+   "Play or Host, at the bottom of the first screen, opens the program's first screen: a card for each half that says whether it is set up on this device, with a button that opens it, or sets it up if it isn't (the setup opens in a window of its own and asks before it fetches anything).",
+   "Still to come, in later updates: one installer per system, a Gatehouse on the same machine linking to its Gatekeeper by itself with its player whitelisted and allowed everything, and both halves updating in one go."
+  ]},
   {"version": "2.8.1", "date": "2026-11-16", "notes": [
    "Access Manager: the sets of buttons under the list (Server accesses, Administrative actions, List) no longer get squeezed when the window is narrow. They sit side by side while they fit and move into rows when they don't, and a set wider than the window puts its own buttons in rows, so every button stays whole. \"Administration actions\" is now \"Administrative actions\"."
   ]},

@@ -261,6 +261,13 @@ their next launch; nobody has to touch a device.
   `tools/build_popup.ps1`, written to the temporary folder and run with `-WithPack` / `--with-pack`: it takes out
   what is Gatehouse's own and leaves the instances), or `tell` (inside Prism's Flatpak: the command is shown). The word `confirm` has to be
   typed first. `OJ_UNINSTALL_DRY` shows the command instead of running it; `OJ_UNINSTALL_EXTRA` adds options to it.
+- **One program, two halves.** Gatehouse (the launcher, "Play") and Gatekeeper (the server machine's part, "Host")
+  are built into one file by `tools/build_program.ps1`, starting at `dev.gatehouse.Main` (`mods-src/program`), which
+  only decides which half was asked for: `--serve`/`--panel` and friends are the Host half, `--choose` (or nothing at
+  all, for a file that isn't a Gatekeeper's own) is the first screen with a card for each half, anything else is the
+  Play half. The same bytes are published under both old names (`extras/launch-popup.jar` in the pack,
+  `gatekeeper/oj-host.jar`), so each half still updates the way it did, and both carry one version number (the build
+  refuses two). Merging is staged: this is stage 1; one installer, same-machine linking and one combined update follow.
 - **Two ways Gatekeeper runs servers.** `ServerHost` is the seam: `McssHost` (through MC Server Soft, Windows) and
   `DirectHost` (Gatekeeper starts the server's own files and keeps its console; always on Linux and SteamOS, where
   there is no MCSS). `docs/server.md` has the details. What a system or a host kind can't do stays listed, marked

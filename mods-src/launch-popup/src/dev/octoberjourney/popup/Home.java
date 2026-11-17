@@ -483,6 +483,13 @@ final class Home {
 			options.add(guideRow);
 			Runnable[] openGuide = {null};
 			guideB.addActionListener(ev -> { if (openGuide[0] != null) openGuide[0].run(); });
+			optLine.accept("Play and Host", true);
+			optLine.accept(LaunchPopup.TOOL + " is one program with two halves: Play (this launcher) and Host (Gatekeeper, which looks after the Minecraft servers on a machine). The first screen opens either one, or sets up the one this device doesn't have yet.", false);
+			JButton halvesB = new JButton("Play or Host\u2026");
+			halvesB.addActionListener(ev -> dev.gatehouse.Main.choose(f));
+			JPanel halvesRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
+			halvesRow.add(halvesB); halvesRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+			options.add(halvesRow);
 			optLine.accept("Uninstall", true);
 			String[] planNow = uninstallPlan(instances, false);
 			optLine.accept(planNow[1], false);
