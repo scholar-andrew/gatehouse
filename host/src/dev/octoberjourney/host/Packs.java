@@ -31,8 +31,9 @@ import java.util.Map;
  *                                                   its one pack source)
  *   GET /v1/pack/<server id>/clients/<file>        what Install puts in the game folder
  *   GET /v1/pack/<server id>/main|deck/<file>      the pack itself
- * No secret is asked for these, as none is asked by the pack server that came before (packwiz-installer can't send
- * one); like everything of Gatekeeper's they are only reachable on this machine and on its Tailscale address.
+ * No secret can be asked for these (packwiz-installer can't send one), so a request is matched to launchers by the
+ * address it comes from, and answered only when the server is for one of them (Invites: private, shareable, public).
+ * Like everything of Gatekeeper's they are only reachable on this machine and on its Tailscale address.
  *
  * Gatekeeper's own window (never the web panel or another Gatekeeper: these name folders on this machine, or change
  * what players are sent):
@@ -43,6 +44,8 @@ import java.util.Map;
  *   POST /admin/pack/release {notes}    a new version with those notes, then builds
  *   GET, POST /admin/pack/art?slot=     a Steam picture: the one in use; a chosen one (the file as the body), or none
  *   GET, POST /admin/pack/mods          which of the server's mods players are sent (ModList)
+ *   POST /admin/pack/visibility {mode}  who the server and its pack are for: private, shareable or public (Invites)
+ *   POST /admin/pack/invite             an invite from the owner; POST /admin/pack/invites/takeback takes them all back
  */
 final class Packs {
 	private Packs() {}
@@ -259,6 +262,7 @@ final class Packs {
 		int cut = rest.indexOf('/');
 		String id = cut < 0 ? rest : rest.substring(0, cut), file = cut < 0 ? "" : rest.substring(cut + 1);
 		if (!has(id) || file.isEmpty() || file.contains("..") || file.contains("\\") || file.contains(":") || file.startsWith("/")) { reply(x, 404, m("error", "no such file")); return; }
+		if (!Invites.packFor(x, id)) { reply(x, 403, m("error", "this pack isn't for this device: its owner hasn't let this launcher in, and it has used no invite")); return; }
 		try {
 			if (file.equals("profile.json")) { send(x, profile(id), "application/json"); return; }
 			if (file.equals("clients/mmc-pack.json")) { send(x, mmcPack(id), "application/json"); return; }
@@ -289,6 +293,7 @@ final class Packs {
 		String loader = fabricLoader(sd);
 		Map<String, Object> out = m("server", id, "name", Json.str(s.get("name")), "kind", loader.isEmpty() ? serverFacts(sd)[0] : "fabric", "minecraft", serverFacts(sd)[1], "loader", loader,
 				"defined", defined(id), "built", has(id), "address", base(id), "slots", List.of(PackArt.SLOTS), "slot_says", List.of(PackArt.SAYS));
+		out.putAll(Invites.state(s));
 		if (!defined(id)) {
 			out.put("message", loader.isEmpty() ? "Not supported for this kind of server yet: Gatekeeper builds packs for Fabric servers. A plain server needs no pack. A pack made elsewhere can still be brought in from its folder."
 					: "This server has no pack yet. Making one gives players an instance with its Minecraft and Fabric versions, set up and kept current from their launcher.");
@@ -318,6 +323,9 @@ final class Packs {
 		String id = Json.str(s.get("id"));
 		if (ModList.admin(x, path, s)) return true;
 		if (path.equals("/admin/pack") && !post) reply(x, 200, state(s));
+		else if (path.equals("/admin/pack/visibility") && post) result(x, Invites.setMode(s, Json.str(body(x).get("mode"))));
+		else if (path.equals("/admin/pack/invite") && post) reply(x, 200, Invites.make(s, "host", "the owner"));
+		else if (path.equals("/admin/pack/invites/takeback") && post) result(x, Invites.takeBack(s));
 		else if (path.equals("/admin/pack/start") && post) result(x, start(s));
 		else if (path.equals("/admin/pack/build") && post) result(x, build(s, "asked for in Gatekeeper's window"));
 		else if (path.equals("/admin/pack/release") && post) result(x, release(s, Json.str(body(x).get("notes"))));

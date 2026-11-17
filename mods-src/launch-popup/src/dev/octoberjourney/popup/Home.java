@@ -111,6 +111,8 @@ final class Home {
 			return a.isEmpty() ? null : new String[] {a, str(m.get("name")), Connect.invite(str(m.get("tailscale_share")))};
 		}
 		String name = "", share = "";
+		// (an invite to a server names its Gatekeeper the same way: gatehouse://invite/<address>?code=...&name=...)
+		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://invite/")) t = "gatehouse://pair/" + t.substring("gatehouse://invite/".length());
 		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://pair/")) {
 			t = t.substring("gatehouse://pair/".length());
 			int q = t.indexOf('?');
@@ -124,6 +126,24 @@ final class Home {
 		}
 		String a = norm(t);
 		return a.isEmpty() ? null : new String[] {a, name, share};
+	}
+
+	/** The code in an invite to a server (gatehouse://invite/<address>?code=ABCDE-FGHIJ, or the code by itself), or "". */
+	static String inviteCode(String text) {
+		String t = text == null ? "" : text.trim();
+		java.util.regex.Matcher mt = java.util.regex.Pattern.compile("(?i)[?&]code=([A-Za-z0-9\\-]{10,12})").matcher(t);
+		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://invite/") && mt.find()) return mt.group(1).toUpperCase(java.util.Locale.ROOT);
+		return t.matches("(?i)[A-Z0-9]{5}-?[A-Z0-9]{5}") ? t.toUpperCase(java.util.Locale.ROOT) : "";
+	}
+	/** Hands an invite's code to its Gatekeeper, and returns what it said. */
+	static String useInvite(ServerControl c, String code) {
+		try {
+			String say = "{\"code\":\"" + ServerControl.jsonEsc(code) + "\"}";
+			Map<String, Object> r = c.helper("POST", "/v1/invite/accept", say);
+			if ("401".equals(str(r.get("_code")))) { c.hello(); r = c.helper("POST", "/v1/invite/accept", say); }
+			if ("404".equals(str(r.get("_code")))) return "That Gatekeeper is from before invites (older than Gatehouse 3.17.0), so the invite can't be used until its owner updates it.";
+			return str(r.get("message")).isEmpty() ? "The Gatekeeper didn't take the invite (" + str(r.get("_code")) + ")." : str(r.get("message"));
+		} catch (IOException | RuntimeException e) { return "The Gatekeeper isn't answering, so the invite wasn't used. It is still good: add it again once this device can reach it."; }
 	}
 
 	/** This device's line to one Gatekeeper: a small folder of its own (so the launcher's usual code can talk to it),
@@ -772,7 +792,10 @@ final class Home {
 					JButton install = new JButton("Install");
 					install.setToolTipText("Sets this server's pack up in Prism Launcher on this device. The mods download on the first launch.");
 					install.setVisible(false);
-					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {missing, install, go});
+					JButton inviteB = new JButton("Invite…");
+					inviteB.setToolTipText("Makes an invite to send someone: their Gatehouse can then install this server's pack and join. It doesn't put them on the whitelist or give them any control.");
+					inviteB.setVisible(false);
+					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {missing, inviteB, install, go});
 					go.setVisible(pack != null); missing.setVisible(pack == null);
 					if (pack != null) go.addActionListener(ev -> {
 						if (launchBusy) return;
@@ -891,7 +914,7 @@ final class Home {
 					// (opened from this pack's own Steam shortcut: as if Launch had been pressed)
 					if (pack != null && autoLaunch != null && autoLaunch[0].equals(pack[0])) { autoLaunch = null; autoDirect = true; SwingUtilities.invokeLater(go::doClick); }
 					serverList.add((JPanel) r[0]);
-					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install, r[0]});
+					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install, r[0], inviteB});
 				};
 				for (String[] pk : packs) if (pk[4].equals(url)) add.accept(pk[0].startsWith("gatehouse-") ? pk[0].substring("gatehouse-".length()) : pk[0], pk);
 				ServerControl c = url.isEmpty() ? null : client(home, url, packs);
@@ -939,7 +962,35 @@ final class Home {
 									facts.add(new String[] {"Run by", "true".equals(str(s.get("native"))) ? "Gatekeeper itself" : "MC Server Soft, through Gatekeeper"});
 									facts.add(new String[] {"On this device", r[1] != null ? "Installed: Launch updates its pack, then shows its page with Play" : str(s.get("profile")).isEmpty() && !kindIs.equals("vanilla") ? "Not installed, and its pack isn't published for launchers: ask the owner" : "Not installed yet: Install sets it up in Prism Launcher"});
 									facts.add(new String[] {"What you may do", "true".equals(str(s.get("allowed"))) ? "Start and stop this server from here (under Machine)" : "Play, once you are on its whitelist. Starting and stopping it is the host's to allow."});
+									String vis = str(s.get("visibility"));
+									if (!vis.isEmpty()) facts.add(new String[] {"Who it is for", vis.equals("public") ? "Public: every launcher that connects to this Gatekeeper. You can invite people." : vis.equals("shareable") ? "Shareable: launchers its owner let in, and anyone they invite. You can invite people." : "Private: only launchers its owner let in"});
 									card.facts(facts);
+								}
+								{   // (Invite: for a server its owner made shareable or public)
+									JButton vb = (JButton) r[7];
+									boolean can = "true".equals(str(s.get("invite")));
+									if (vb.isVisible() != can) { vb.setVisible(can); serverList.revalidate(); }
+									if (can && vb.getActionListeners().length == 0) vb.addActionListener(ev -> {
+										vb.setEnabled(false);
+										new Thread(() -> {
+											Map<String, Object> got;
+											try { got = c.helper("POST", "/v1/invite", "{\"server\":\"" + ServerControl.jsonEsc(id) + "\"}"); } catch (IOException | RuntimeException ex) { got = null; }
+											Map<String, Object> g = got;
+											SwingUtilities.invokeLater(() -> {
+												vb.setEnabled(true);
+												if (g == null || !"ok".equals(str(g.get("result")))) { JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + LaunchPopup.esc(g == null ? "The Gatekeeper isn't answering." : str(g.get("message")).isEmpty() ? "The Gatekeeper didn't make an invite." : str(g.get("message"))) + "</div></html>", "Invite", JOptionPane.PLAIN_MESSAGE); return; }
+												javax.swing.JTextField link = new javax.swing.JTextField(str(g.get("link")), 40);
+												link.setEditable(false);
+												JButton copy = new JButton("Copy");
+												copy.addActionListener(e2 -> { try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(link.getText()), null); copy.setText("Copied"); } catch (RuntimeException ignored) {} });
+												JPanel box = new JPanel(new BorderLayout(0, 8));
+												box.add(new JLabel("<html><div style='width:440px'>An invite to <b>" + LaunchPopup.esc(str(g.get("server"))) + "</b>, good until " + LaunchPopup.esc(str(g.get("until"))) + ".<br><br>" + LaunchPopup.esc(str(g.get("message"))) + "</div></html>"), BorderLayout.NORTH);
+												JPanel ln = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); ln.add(link); ln.add(copy);
+												box.add(ln, BorderLayout.CENTER);
+												JOptionPane.showMessageDialog(f, box, "Invite", JOptionPane.PLAIN_MESSAGE);
+											});
+										}, "invite").start();
+									});
 								}
 								if (r[1] == null) ((JLabel) r[3]).setText(str(s.get("name")).isEmpty() ? id : str(s.get("name")));
 								boolean on = "true".equals(str(s.get("online")));
@@ -1255,13 +1306,21 @@ final class Home {
 					if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { String[] got = parsePairing(LaunchPopup.readFile(fc.getSelectedFile().toPath())); field.setText(got == null ? "" : "gatehouse://pair/" + shown(got[0]) + "?name=" + java.net.URLEncoder.encode(got[1], StandardCharsets.UTF_8) + (got[2].isEmpty() ? "" : "&ts=" + java.net.URLEncoder.encode(got[2], StandardCharsets.UTF_8))); }
 				});
 				JPanel form = new JPanel(new BorderLayout(0, 8));
-				form.add(new JLabel("<html><div style='width:420px'>Paste the address or pairing link the Gatekeeper's owner gave you (in Gatekeeper: Status, Share pairing), or open the pairing file they sent. If this device can't reach it yet, the next window walks through getting connected.</div></html>"), BorderLayout.NORTH);
+				form.add(new JLabel("<html><div style='width:420px'>Paste the address or pairing link the Gatekeeper's owner gave you (in Gatekeeper: Status, Share pairing), an invite to a server someone sent you, or open the pairing file they sent. If this device can't reach it yet, the next window walks through getting connected.</div></html>"), BorderLayout.NORTH);
 				JPanel line = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); line.add(field); line.add(file);
 				form.add(line, BorderLayout.CENTER);
 				if (JOptionPane.showConfirmDialog(f, form, "Add Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
-				String[] got = parsePairing(field.getText());
-				if (got == null) { JOptionPane.showMessageDialog(f, "That doesn't look like a Gatekeeper's address, pairing link or pairing file.", "Add Gatekeeper", JOptionPane.PLAIN_MESSAGE); return; }
-				for (String[] k : keepers) if (k[0].equals(got[0])) { showServers.accept(k[0]); return; }
+				String code = inviteCode(field.getText());
+				String[] parsed = parsePairing(field.getText());
+				// (a code by itself: for the one Gatekeeper this launcher knows, if it knows just one)
+				if (!code.isEmpty() && !field.getText().trim().toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://")) parsed = keepers.size() == 1 ? new String[] {keepers.get(0)[0], keepers.get(0)[1], ""} : null;
+				String[] got = parsed;
+				if (got == null) { JOptionPane.showMessageDialog(f, !code.isEmpty() ? "<html><div style='width:380px'>That is an invite's code by itself. Paste the whole invite (it starts with gatehouse://invite/), so the launcher knows which Gatekeeper it is for.</div></html>" : "That doesn't look like a Gatekeeper's address, pairing link, invite or pairing file.", "Add Gatekeeper", JOptionPane.PLAIN_MESSAGE); return; }
+				java.util.function.Consumer<String> handIn = url -> new Thread(() -> {
+					String told = useInvite(client(home, url, packs), code);
+					SwingUtilities.invokeLater(() -> { JOptionPane.showMessageDialog(f, "<html><div style='width:400px'>" + LaunchPopup.esc(told) + "</div></html>", "Invite", JOptionPane.PLAIN_MESSAGE); showServers.accept(url); });
+				}, "invite").start();
+				for (String[] k : keepers) if (k[0].equals(got[0])) { if (code.isEmpty()) showServers.accept(k[0]); else handIn.accept(k[0]); return; }
 				sub.setText("Asking the Gatekeeper at " + shown(got[0]) + "…");
 				new Thread(() -> {
 					ServerControl c = client(home, got[0], packs);
@@ -1278,12 +1337,12 @@ final class Home {
 							saveKeepers(home, keepers);
 							sub.setText("Pick a Gatekeeper to see its servers.");
 							showKeepers[0].run();
-							if (Connect.show(f, got[0], got[1], got[2], c::hello)) showServers.accept(got[0]);
+							if (Connect.show(f, got[0], got[1], got[2], c::hello)) { if (code.isEmpty()) showServers.accept(got[0]); else handIn.accept(got[0]); }
 							return;
 						}
 						saveKeepers(home, keepers);
-						if (wasRemoved) { cameBack = f.getBounds(); again[0] = got[0]; f.dispose(); return; }   // (its packs belong to it again: the window afresh, on its servers)
-						showServers.accept(got[0]);
+						if (wasRemoved && code.isEmpty()) { cameBack = f.getBounds(); again[0] = got[0]; f.dispose(); return; }   // (its packs belong to it again: the window afresh, on its servers)
+						if (code.isEmpty()) showServers.accept(got[0]); else handIn.accept(got[0]);
 					});
 				}, "add-gatekeeper").start();
 			});

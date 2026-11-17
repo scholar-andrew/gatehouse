@@ -166,6 +166,28 @@ A Gatekeeper can build a server's pack and hand it to launchers, with no reposit
 - **Pictures for Steam.** Cover, hero, logo, icon and wide: each is one the owner chose (brought to the slot's size)
   or one made from the pack's name and the server's picture, the same file every time for the same name.
 
+## Who a server and its pack are for
+Each server is private, shareable or public (`Invites.java`; set on the server's Pack tab, at Gatekeeper's own
+window only; `"visibility"` on the server in `host.json`; private when nothing is set).
+
+- **Private:** this machine's launcher, a launcher with Gatekeeper or MCSS control, one allowed to start and stop
+  this server, one playing as someone on its whitelist, and one that used an invite the owner made.
+- **Shareable:** those, and a launcher that used an invite made by a launcher that has the server.
+- **Public:** every launcher that connects to the Gatekeeper.
+- A launcher the server is not for isn't told of it in `/v1/catalog` and isn't given its pack (`403`). A suspended
+  or blacklisted launcher gets neither, whatever the setting.
+- **How a pack's files are guarded.** packwiz-installer can't send a launcher's secret, so a request under
+  `/v1/pack/<id>/` is matched to launchers by the address it comes from: the address a launcher last spoke to
+  Gatekeeper from with its secret (`ip` in `devices.json`, kept current on every call). On Tailscale an address
+  belongs to one device. The machine itself is always given them.
+- **Invites.** `POST /v1/invite {server}` (a launcher that has a shareable or public server; the owner's is
+  `POST /admin/pack/invite`) answers a code and a link, `gatehouse://invite/<address>?code=ABCDE-FGHIJ`, good for
+  seven days and any number of launchers. The other launcher adds the Gatekeeper with it (Add Gatekeeper takes an
+  invite) and hands the code in, `POST /v1/invite/accept {code}`. It only makes the server "for" that launcher: no
+  whitelist, no permission. A player's invite stops counting while the server is private; the owner's always
+  counts. Eight wrong codes from one launcher lock it out of invites for an hour. *Take back invites* clears a
+  server's codes and the launchers that came in by one.
+
 ## The history of servers
 `history.json` beside Gatekeeper's settings holds a line for each server it made, started or stopped looking after,
 and each new pack version, with the Gatekeeper's name and address (`History.java`; *History of servers* on the

@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.16.0",
+ "version": "3.17.0",
  "changes": [
+  {"version": "3.17.0", "date": "2026-11-17", "notes": [
+   "Invite: on a server its owner made shareable or public, a new Invite button makes a link to send someone. It lasts seven days. It lets their Gatehouse install the server's pack and join; it doesn't put them on the whitelist or give them any control.",
+   "Add Gatekeeper now also takes an invite: paste the link someone sent you, and the server is listed with Install.",
+   "The panel beside a server says who it is for: private, shareable or public.",
+   "A server whose owner hasn't let this launcher in is no longer listed, once its Gatekeeper is on 3.17.0. Ask the owner, or for an invite."
+  ]},
   {"version": "3.16.0", "date": "2026-11-17", "notes": [
    "Nothing new in the launcher itself: this version goes with Gatekeeper 3.16.0, where a host chooses which of a server's mods players are sent."
   ]},

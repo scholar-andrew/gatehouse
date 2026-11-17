@@ -62,6 +62,14 @@ final class PackUi {
 		JButton make = new JButton("Make a pack for this server"), build = new JButton("Build again"), release = new JButton("New version…"), bring = new JButton("Bring in a pack from a folder…"), modsB = new JButton("Mods players get…");
 		modsB.setToolTipText("<html>The server's own mods, each with a switch: which ones players are sent. Gatekeeper guesses; you decide.<br>A mod comes from its own page on the mod site when that exact file is published there, and from this Gatekeeper otherwise.</html>");
 		String[] nextNotes = {""};
+		String[][] modes = {{"private", "Private: only launchers you let in"}, {"shareable", "Shareable: those, and anyone they invite"}, {"public", "Public: every launcher that connects here"}};
+		JComboBox<String> whoBox = new JComboBox<>(new String[] {modes[0][1], modes[1][1], modes[2][1]});
+		whoBox.setToolTipText("<html>Who this server and its pack are for. Private unless you change it.<br>Private: this machine's launcher, launchers with control here or allowed to start this server, launchers playing as someone on its whitelist, and anyone you invite.<br>Shareable: those, and anyone one of them invites.<br>Public: every launcher that connects to this Gatekeeper.<br>An invite never puts anyone on the whitelist or gives any control.</html>");
+		JButton inviteB = new JButton("Invite…"), takeBackB = new JButton("Take back invites");
+		inviteB.setToolTipText("Makes an invite to send someone: in their Gatehouse they add this Gatekeeper with it, and this server is then listed for them with Install. Lasts seven days.");
+		takeBackB.setToolTipText("Every invite to this server that hasn't run out stops working, and launchers that only came in by invite are no longer given it");
+		JLabel invitedSaid = ServerToolsUi.note(" ");
+		boolean[] filling = {false};
 		make.setToolTipText("For a Fabric server: a pack with its Minecraft and Fabric versions and no mods yet. Launchers can then install it and keep it current.");
 		build.setToolTipText("Builds the pack again as it is (after choosing a picture, say). Players get what changed the next time they press Play.");
 		release.setToolTipText("Gives the pack its next version number with notes players read before updating, then builds it");
@@ -117,6 +125,13 @@ final class PackUi {
 					if (notes.length() > 0) text += "<br>This version's notes:" + notes;
 				}
 				stands.setText("<html><div style='width:560px'>" + text + "</div></html>");
+				filling[0] = true;
+				for (int i = 0; i < modes.length; i++) if (modes[i][0].equals(Json.str(s.get("visibility")))) whoBox.setSelectedIndex(i);
+				filling[0] = false;
+				StringBuilder came = new StringBuilder();
+				for (Object o : Json.list(s.get("invited"))) { Map<String, Object> c = Json.map(o); came.append(came.length() == 0 ? "" : "; ").append(Json.str(c.get("name"))).append(" (invited by ").append(Json.str(c.get("by"))).append(ServerTools.yes(c.get("counts")) ? ")" : ", not counting while this is private)"); }
+				invitedSaid.setText(ServerToolsUi.wrap((came.length() == 0 ? "Nobody has come in by invite." : "Came in by invite: " + came + ".") + " Invites that haven't run out: " + ServerToolsUi.num(s.get("invites_live")) + ".", 560));
+				takeBackB.setEnabled(came.length() > 0 || !ServerToolsUi.num(s.get("invites_live")).equals("0"));
 				p.revalidate();
 				showArt.run();
 			}
@@ -129,6 +144,23 @@ final class PackUi {
 			SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said, r); load.run(); });
 		});
 		make.addActionListener(e -> post.accept("/admin/pack/start", m()));
+		whoBox.addActionListener(e -> { if (!filling[0]) post.accept("/admin/pack/visibility", m("mode", modes[Math.max(0, whoBox.getSelectedIndex())][0])); });
+		takeBackB.addActionListener(e -> { if (javax.swing.JOptionPane.showConfirmDialog(p, ServerToolsUi.wrap("Take back every invite to this server? Launchers that only came in by invite are no longer given it or its pack. What they already installed stays on their device.", 420), "Take back invites", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) post.accept("/admin/pack/invites/takeback", m()); });
+		inviteB.addActionListener(e -> ServerToolsUi.later(() -> {
+			Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/pack/invite" + q, m());
+			SwingUtilities.invokeLater(() -> {
+				if (!Json.str(r.get("result")).equals("ok")) { ServerToolsUi.say(said, r); return; }
+				javax.swing.JTextField link = new javax.swing.JTextField(Json.str(r.get("link")), 44);
+				link.setEditable(false);
+				JButton copy = new JButton("Copy");
+				copy.addActionListener(ev -> { try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(link.getText()), null); copy.setText("Copied"); } catch (RuntimeException ignored) {} });
+				JPanel box = new JPanel(new BorderLayout(0, 8));
+				box.add(new JLabel(ServerToolsUi.wrap("An invite to " + Json.str(r.get("server")) + ", good until " + Json.str(r.get("until")) + ". " + Json.str(r.get("message")), 480)), BorderLayout.NORTH);
+				box.add(line(link, copy), BorderLayout.CENTER);
+				javax.swing.JOptionPane.showMessageDialog(p, box, "Invite", javax.swing.JOptionPane.PLAIN_MESSAGE);
+				load.run();
+			});
+		}));
 		build.addActionListener(e -> post.accept("/admin/pack/build", m()));
 		release.addActionListener(e -> {
 			JTextArea notes = new JTextArea(nextNotes[0], 6, 46);
@@ -171,6 +203,8 @@ final class PackUi {
 		JPanel form = new JPanel(new GridBagLayout());
 		int y = 0;
 		row(form, y++, null, ServerToolsUi.note(ServerToolsUi.wrap("A pack is what players' launchers install and keep current for this server: its mods, their settings, and the pictures Steam shows for its shortcut. Gatekeeper builds it and hands it to launchers itself.", 560)));
+		row(form, y++, "Who it is for", line(whoBox, inviteB, takeBackB));
+		row(form, y++, "", invitedSaid);
 		row(form, y++, null, stands);
 		row(form, y++, null, line(make, modsB, release, build, bring));
 		row(form, y++, null, said);

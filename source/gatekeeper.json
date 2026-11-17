@@ -1,8 +1,19 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.16.0",
+ "version": "3.17.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.17.0", "date": "2026-11-17", "notes": [
+   "Who a server is for. Each server's Pack tab has a new setting: private, shareable or public. It covers the server and its pack, and is changed at this Gatekeeper's own window only.",
+   "Every server is private unless you change it. Private: this machine's launcher, a launcher with Gatekeeper or MCSS control, one allowed to start and stop that server, one playing as someone on its whitelist, and anyone you invite yourself.",
+   "This changes what launchers are shown: a launcher you never let in is no longer told of your servers, and is refused their packs. What it already installed stays on its device.",
+   "Shareable: those, and any launcher invited by someone who has the server. Public: every launcher that connects to this Gatekeeper.",
+   "A suspended or blacklisted launcher is shown no server and given no pack, whatever the setting.",
+   "Invites. Invite on the Pack tab makes a link to send someone, good for seven days and any number of people. In their Gatehouse they paste it into Add Gatekeeper, and the server is then listed for them with Install. They still have to be able to reach this Gatekeeper.",
+   "An invite does nothing else: it puts nobody on a whitelist and gives no permission to start, stop or manage anything.",
+   "Players with a shareable or public server can make invites too. A player's invite stops counting while the server is private; yours always counts. Take back invites cancels a server's unused invites and everyone who came in by one.",
+   "A pack's files are given by the address a launcher last spoke from, since the program that downloads mods can't send a launcher's secret. After you let a launcher in or shut it out, downloads follow within a few seconds."
+  ]},
   {"version": "3.16.0", "date": "2026-11-17", "notes": [
    "Mods players get: a new button on a server's Pack tab. Gatekeeper reads the mods in the server's mods folder, guesses which ones players need, and shows the list with a switch for each. You decide; only a choice that differs from the guess is kept as yours.",
    "Where a player's copy comes from: the mod's own page on Modrinth when that exact file is published there, and this Gatekeeper otherwise. Either way it is checked against the server's own file.",

@@ -1177,7 +1177,7 @@ public final class HostHelper {
 			// (the program file this Gatekeeper holds or runs: the published program, given to whoever asks)
 			if (path.startsWith("/v1/program/") && x.getRequestMethod().equals("GET")) { Peer.serve(x, path); return; }
 			// (a pack this Gatekeeper built, fetched by a launcher's update step and by Install: plain files, as from any pack source)
-			if (path.startsWith("/v1/pack/") && x.getRequestMethod().equals("GET")) { Packs.serve(x, path); return; }
+			if (path.startsWith("/v1/pack/") && x.getRequestMethod().equals("GET")) { Packs.serve(x, path); return; }   // (only for whom the pack is for: Invites.packFor)
 			// (the Gatekeeper this one joined, managing this one with the secret it was given for that: see Manage)
 			if (path.startsWith("/v1/manage/") && x.getRequestHeaders().getFirst("X-Manage") != null) { Manage.serve(x, path, null); return; }
 			if (path.equals("/v1/hello") && x.getRequestMethod().equals("POST")) {
@@ -1208,6 +1208,8 @@ public final class HostHelper {
 			Map<String, Object> d = Json.map(devs.get(id == null ? "" : id));
 			if (d.isEmpty() || token == null || !sha256(token).equals(d.get("token_sha256"))) { reply(x, 401, m("state", "unknown", "error", "say hello first")); return; }
 			contact.put(id, System.currentTimeMillis());
+			// (where it speaks from, kept current: a pack's files are given by that address, see Invites.packFor)
+			if (!ip.equals(Json.str(d.get("ip")))) { d.put("ip", ip); devs.put(id, d); saveDevices(devs); }
 			// A launcher asking about a server by name gets that server or nothing. One that this Gatekeeper no longer
 			// has (removed here, or deleted in MCSS) used to be answered for as if it were the first server: a leftover
 			// pack on a device then showed, started and stopped a different server.
@@ -1222,6 +1224,7 @@ public final class HostHelper {
 			if ((path.equals("/v1/program") || path.equals("/v1/program/hand")) && x.getRequestMethod().equals("POST")) { Peer.take(x, path, who(d), d); return; }
 			if (path.equals("/v1/icon") && x.getRequestMethod().equals("GET")) { Icons.serve(x); return; }
 			if (path.equals("/v1/history") && x.getRequestMethod().equals("POST")) { History.take(x, who(d), d); return; }
+			if ((path.equals("/v1/invite") || path.equals("/v1/invite/accept")) && x.getRequestMethod().equals("POST")) { Invites.launcher(x, path, id, d, devs); return; }
 			if (path.equals("/v1/chat/rooms") || (path.equals("/v1/chat") && x.getRequestMethod().equals("POST"))) { Chat.launcher(x, path, id, d); return; }
 			if (path.equals("/v1/share") || path.equals("/v1/share/list")) { Share.launcher(x, path, id, d); return; }
 			if (path.startsWith("/v1/manage/")) { Manage.serve(x, path, d); return; }
@@ -1264,10 +1267,11 @@ public final class HostHelper {
 						Map<String, Object> s = Json.map(o);
 						SERVER.set(Json.str(s.get("id")));
 						if (goneFromMcss(s)) continue;   // (deleted in MCSS: not shown to launchers)
+						if (!Invites.mayHave(d, s)) continue;   // (private or shareable, and not for this launcher)
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", (x.getLocalAddress().getAddress().isLoopbackAddress() || setting("bind", "").isEmpty() ? "127.0.0.1" : setting("bind", "")) + ":" + (port.isEmpty() ? "25565" : port),
-								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Packs.has(Json.str(s.get("id"))) ? Packs.base(Json.str(s.get("id"))) + "/profile.json" : Json.str(s.get("profile")), "pack", Packs.has(Json.str(s.get("id"))), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
+								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Packs.has(Json.str(s.get("id"))) ? Packs.base(Json.str(s.get("id"))) + "/profile.json" : Json.str(s.get("profile")), "pack", Packs.has(Json.str(s.get("id"))), "visibility", Invites.mode(s), "invite", Invites.mayInvite(d, s), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
 								"kind", facts[0], "minecraft_version", facts[1], "native", isNative(), "icon", Icons.tag(Json.str(s.get("id")))));
 					}
 				} finally { SERVER.set(keep); }
