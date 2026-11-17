@@ -395,6 +395,59 @@ final class ServerTools {
 		return new String[] {"ok", "Saved" + (on && (b.containsKey("memory") || b.containsKey("java") || b.containsKey("start")) ? ": it takes effect when the server next starts" : "") + (notes.isEmpty() ? "" : " (" + String.join("; ", notes) + ")") + "."};
 	}
 
+	// ------------------------------------------------------------------ deleting a server
+
+	/** Takes the current server out of Gatekeeper, and (files: true) deletes its folder for good. Its files are only
+	 *  deleted for a server Gatekeeper runs itself, with the server off, and when "name" is the server's name as the
+	 *  owner typed it. Backups are left where they are. Permissions launchers and players had for it go with it. */
+	static synchronized String[] delete(Map<String, Object> b) throws IOException {
+		Map<String, Object> s = server();
+		if (s.isEmpty()) return new String[] {"refused", "No such server"};
+		String id = id(), name = Json.str(s.get("name"));
+		boolean files = yes(b.get("files")), nat = isNative();
+		Path d = serverDir().toAbsolutePath().normalize();
+		if (minecraftRunning()) return new String[] {"refused", "Stop " + name + " first: a server that is on can't be removed."};
+		if (backing.getOrDefault(id, "").startsWith("Backing up")) return new String[] {"refused", "A backup of " + name + " is being made: wait for it to finish."};
+		if (files) {
+			if (!nat) return new String[] {"refused", "MC Server Soft runs " + name + ", so its files are MCSS's to delete (in MCSS: the server's menu, Delete). Gatekeeper can stop looking after it."};
+			if (!Json.str(b.get("name")).trim().equals(name)) return new String[] {"refused", "To delete its files, type the server's name exactly: " + name};
+			Path home = Path.of(System.getProperty("user.home", "")).toAbsolutePath().normalize(), all = Path.of(serversDir()).toAbsolutePath().normalize();
+			if (d.getNameCount() < 2 || d.equals(home) || d.equals(all) || home.startsWith(d) || all.startsWith(d)) return new String[] {"refused", "Gatekeeper won't delete " + d + ": that isn't a folder of one server."};
+			for (Object o : servers()) if (Json.map(o) != s && Path.of(Json.str(Json.map(o).get("dir"))).toAbsolutePath().normalize().startsWith(d)) return new String[] {"refused", "Another server's folder is inside " + d + ", so Gatekeeper won't delete it."};
+			if (Files.isDirectory(d) && !DirectHost.looksLikeServer(d) && !Files.exists(d.resolve("eula.txt"))) return new String[] {"refused", d + " doesn't look like a Minecraft server's folder, so Gatekeeper won't delete it."};
+		}
+		// Server control for the first server is kept under "server", for any other under "server:<id>": when the
+		// first goes, the next one becomes the first, and what it was allowed moves to "server" with it.
+		List<Object> list = new ArrayList<>(servers());
+		boolean wasFirst = firstServer();
+		String key = serverKey();
+		list.removeIf(o -> Json.map(o) == s);
+		String next = wasFirst && !list.isEmpty() ? "server:" + Json.str(Json.map(list.get(0)).get("id")) : "";
+		Map<String, Object> devs = devices(), pls = players();
+		for (Map<String, Object> holders : List.of(devs, pls)) for (Object v : holders.values()) {
+			Map<String, Object> h = Json.map(v);
+			h.remove(key);
+			if (!next.isEmpty() && h.containsKey(next)) h.put("server", h.remove(next));
+		}
+		saveDevices(devs); savePlayers(pls);
+		cfg.put("servers", list);
+		saveCfg();
+		DirectHost.ended.remove(id); backing.remove(id); lastRan.keySet().removeIf(k -> k.startsWith(id + "|"));
+		String kept = Files.isDirectory(backupDir(s, d)) ? " Its backups are still in " + backupDir(s, d) + "." : "";
+		if (files) {
+			try { wipe(d); }
+			catch (IOException e) { log("server " + name + " removed from Gatekeeper; its folder " + d + " could not be deleted in full: " + e); return new String[] {"failed", name + " is out of Gatekeeper, but its folder couldn't be deleted in full (" + e.getMessage() + "). What is left is in " + d + "."}; }
+			log("server " + name + " deleted by the owner: removed from Gatekeeper, and its folder " + d + " deleted");
+			return new String[] {"ok", name + " is deleted: it is out of Gatekeeper and its folder is gone." + kept};
+		}
+		log("server " + name + " removed from Gatekeeper by the owner (its files stay in " + d + ")");
+		return new String[] {"ok", name + " is out of Gatekeeper. Its files are still in " + d + (nat ? "; Server setup can add it again." : "; it is still MCSS's server.") + kept};
+	}
+	static Path backupDir(Map<String, Object> s, Path d) {
+		String set = Json.str(s.get("backup_dir"));
+		return !set.isEmpty() ? Path.of(set) : d.getParent().resolveSibling("minecraft-server-backups").resolve(d.getFileName().toString());
+	}
+
 	// ------------------------------------------------------------------ backups
 
 	static final Map<String, String> backing = new ConcurrentHashMap<>();   // (server id -> how its backup is going, or went)
@@ -567,6 +620,11 @@ final class ServerTools {
 			saveCfg();
 			log("servers run by Gatekeeper itself, beside MCSS's: " + (want ? "allowed" : "not allowed"));
 			reply(x, 200, m("result", "ok", "message", want ? "Gatekeeper may now run servers itself as well. New server makes them in " + serversDir() + "; servers already in that folder show up in Server setup. MCSS's own servers stay MCSS's." : "Gatekeeper runs no servers itself now: MCSS runs them all."));
+			return true;
+		}
+		if (what.equals("delete") && post) {   // (any server can be taken out of Gatekeeper; only its own can lose their files)
+			String[] dr = delete(b);
+			reply(x, 200, m("result", dr[0], "message", dr[1]));
 			return true;
 		}
 		boolean forOne = !what.equals("new") && !what.equals("versions");

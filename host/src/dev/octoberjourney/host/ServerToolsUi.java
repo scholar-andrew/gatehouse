@@ -247,6 +247,29 @@ final class ServerToolsUi {
 		row(set, y++, null, note("Folder: " + Json.str(first.get("dir"))));
 		row(set, y++, null, line(saveSet));
 		row(set, y++, null, setSaid);
+		// Deleting the server: out of Gatekeeper only, or its files too (which needs its name typed).
+		JButton delB = new JButton("Delete this server\u2026");
+		delB.setToolTipText("Takes this server out of Gatekeeper, and, if you choose, deletes its folder for good");
+		delB.addActionListener(e -> {
+			String nm = Json.str(first.get("name"));
+			javax.swing.JRadioButton only = new javax.swing.JRadioButton("Take it out of Gatekeeper, and leave its files where they are", true), all = new javax.swing.JRadioButton("Delete it for good: out of Gatekeeper, and its whole folder deleted (the world too)");
+			javax.swing.ButtonGroup g = new javax.swing.ButtonGroup(); g.add(only); g.add(all);
+			JTextField typedName = new JTextField(20); typedName.setEnabled(false);
+			all.addActionListener(ev -> typedName.setEnabled(true)); only.addActionListener(ev -> typedName.setEnabled(false));
+			JPanel form = new JPanel(); form.setLayout(new javax.swing.BoxLayout(form, javax.swing.BoxLayout.Y_AXIS));
+			for (JComponent c : new JComponent[] {new JLabel(wrap("Delete " + nm + "? The server has to be off. Launchers that had it stop listing it.", 460)), only, all, new JLabel(wrap("Folder: " + Json.str(first.get("dir")) + ". Deleting it can't be undone; backups Gatekeeper made are kept. To delete for good, type the server's name:", 460)), typedName}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); form.add(javax.swing.Box.createVerticalStrut(6)); }
+			if (JOptionPane.showConfirmDialog(owner, form, "Delete " + nm, JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
+			later(() -> {
+				Map<String, Object> r = ask("POST", "/admin/tools/delete" + q, m("files", all.isSelected(), "name", typedName.getText()));
+				SwingUtilities.invokeLater(() -> {
+					if (!Json.str(r.get("result")).equals("ok")) { say(setSaid, r); return; }
+					JOptionPane.showMessageDialog(owner, wrap(Json.str(r.get("message")), 420), "Delete " + nm, JOptionPane.PLAIN_MESSAGE);
+					java.awt.Window w = SwingUtilities.getWindowAncestor(tabs);
+					if (w instanceof JDialog) w.dispose();
+				});
+			});
+		});
+		row(set, y++, null, line(delB));
 		JPanel setTop = new JPanel(new BorderLayout()); setTop.add(set, BorderLayout.NORTH);
 		tabs.addTab("Settings", setTop);
 

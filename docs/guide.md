@@ -199,7 +199,7 @@ Steps 4 to 8 above become these (the MCSS steps stay in the guide, greyed and ma
 | Tab | What it has |
 |---|---|
 | Console | What the server prints, a line to type commands into, uptime, memory, processor and players, and Start/Stop, Restart and End it now |
-| Settings | Name, memory, port, which Java, an own start command, start with Gatekeeper, start again after a crash |
+| Settings | Name, memory, port, which Java, an own start command, start with Gatekeeper, start again after a crash; and **Delete this server** (out of Gatekeeper only, or its folder too, which needs its name typed and can't be undone) |
 | Game settings | The server's own `server.properties` (difficulty, game mode, how many may play...) |
 | Backups | A zip of the world or of the whole folder, keeping the newest few. With the server on, it is told to hold its saving still while the copy is made |
 | Tasks | Things done by the clock: restart, stop, start, back up or type commands, every day at a time or every so many minutes |
