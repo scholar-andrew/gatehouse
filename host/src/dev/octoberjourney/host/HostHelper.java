@@ -706,6 +706,28 @@ public final class HostHelper {
 	/** Fetches the published Gatekeeper, checks it, and arranges for it to take this one's place. Gatekeeper ends a
 	 *  moment after this returns ok. "alsoWait": the window's process, which has to end too (it holds the file open),
 	 *  and is opened again afterwards. */
+	/** Linux and SteamOS: the applications menu's "Gatehouse" entry, if it was made before the program had a first
+	 *  screen, opens the launcher directly. It is given --choose, once, so the menu opens Play or Host while Steam's
+	 *  own shortcut goes on opening the launcher. Done here because the launcher can't: on a Steam Deck it runs inside
+	 *  Prism Launcher's Flatpak, which isn't shown the menu's files. Nothing else in the entry is touched. */
+	static void menuEntry() {
+		if (WIN || System.getenv("OJ_HOST_DIR") != null) return;   // (never from a Gatekeeper under test)
+		try {
+			String data = System.getenv("XDG_DATA_HOME");
+			Path entry = Path.of(data == null || data.isEmpty() ? System.getProperty("user.home", "") + "/.local/share" : data, "applications", "gatehouse.desktop");
+			if (!Files.isRegularFile(entry)) return;
+			String t = Files.readString(entry, StandardCharsets.UTF_8);
+			StringBuilder out = new StringBuilder();
+			boolean changed = false;
+			for (String line : t.split("\n", -1)) {
+				if (line.startsWith("Exec=") && line.contains("gatehouse-launcher.sh") && !line.contains("--choose")) { line = line + " --choose"; changed = true; }
+				out.append(line).append('\n');
+			}
+			if (!changed) return;
+			Files.writeString(entry, out.substring(0, out.length() - 1), StandardCharsets.UTF_8);
+			log("the applications menu's Gatehouse entry now opens the Play or Host screen (Steam's shortcut still opens the launcher)");
+		} catch (IOException | RuntimeException ignored) {}
+	}
 	/** An update was asked for while a server Gatekeeper runs itself was on: it is applied when none is. */
 	static volatile boolean updateWaiting = false;
 	static String[] applyUpdate(long alsoWait) {
@@ -850,6 +872,7 @@ public final class HostHelper {
 		// (for the servers Gatekeeper runs itself: their tasks by the clock, and the ones set to start with it)
 		ServerTools.schedule();
 		ServerTools.autostart();
+		menuEntry();
 		// (an update that had to wait for a server to be off: done when it is)
 		Thread waiting = new Thread(() -> {
 			while (true) {

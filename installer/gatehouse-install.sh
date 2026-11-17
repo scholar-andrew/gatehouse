@@ -285,10 +285,11 @@ fi
 script="$app/extras/gatehouse-launcher.sh"
 if [ "$flatpak_prism" = 1 ]; then run="flatpak run --command=bash $APP_ID \"$script\""; else run="bash \"$script\""; fi
 if [ "$NO_MENU" = 1 ]; then say "Menu entry: left out (--no-menu)."
-elif [ "$DRY" = 1 ]; then say "Menu entry: would write $desktop, which runs: $run"
+elif [ "$DRY" = 1 ]; then say "Menu entry: would write $desktop, which runs: $run --choose"
 else
   mkdir -p "$(dirname "$desktop")"
-  printf '[Desktop Entry]\nType=Application\nName=Gatehouse\nComment=Your Minecraft servers and their Gatekeepers\nExec=%s\nTerminal=false\nCategories=Game;\n' "$run" > "$desktop"
+  # (the menu entry opens the program's first screen, Play or Host; the Steam shortcut goes straight into the launcher)
+  printf '[Desktop Entry]\nType=Application\nName=Gatehouse\nComment=Gatehouse: play, or host\nExec=%s --choose\nTerminal=false\nCategories=Game;\n' "$run" > "$desktop"
   say "Menu entry: \"Gatehouse\" is in your applications menu."
 fi
 

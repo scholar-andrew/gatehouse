@@ -3,7 +3,9 @@
 # <instance>/minecraft/extras/, kept up to date with the pack). Run inside Prism Launcher's Flatpak
 # (flatpak run --command=bash org.prismlauncher.PrismLauncher <this file>), or directly where Prism isn't a Flatpak.
 # It opens the Gatehouse launcher window, which lists the packs installed in Prism Launcher with whether each server
-# is online and a Play button; with --play <instance id> it starts that pack straight away.
+# is online and a Play button; with --play <instance id> it starts that pack straight away. With --choose it opens
+# the program's first screen instead (Play or Host): what the applications menu entry does. The Steam shortcut runs
+# this without it, and so goes straight into the launcher.
 # It only finds Java and the launcher and runs it; everything else is in the launcher (extras/launch-popup.jar).
 main() {
   local here instances data jar java best v prism app
@@ -44,6 +46,10 @@ main() {
   # The launcher ends with 12 when a newer copy of itself is in place (it updated itself): the newest is then opened
   # in its place, each time that happens (GATEHOUSE_RELAUNCH tells the launcher that this script does that).
   export GATEHOUSE_RELAUNCH=loop
+  if [ "$1" = "--choose" ]; then
+    if [ -n "$OJ_HOME_DRY" ]; then echo "would open the first screen: $java -jar $jar --choose"; exit 0; fi   # (testing)
+    exec "$java" -jar "$jar" --choose
+  fi
   round=0
   while :; do
     "$java" -jar "$jar" --home "$instances" --prism "$prism" "$@"; code=$?

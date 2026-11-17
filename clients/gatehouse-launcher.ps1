@@ -1,10 +1,12 @@
 # What the Gatehouse Steam shortcuts run on Windows (setup points them here: <instance>\minecraft\extras\, kept up to
 # date with the pack). It opens the Gatehouse launcher window, which lists the packs installed in Prism Launcher with
 # whether each server is online and a Play button; with -Play <instance id> it starts that pack straight away.
+#   -Choose     open the program's first screen instead (Play or Host): what the Start menu shortcut does. The Steam
+#               shortcut runs this without it, and so goes straight into the launcher.
 #   -Prism      prismlauncher.exe (setup passes it; otherwise the usual place)
 #   -Instances  Prism's instances folder (otherwise worked out from where this file is)
 # It only finds Java and the launcher and runs it; everything else is in the launcher (extras\launch-popup.jar).
-param([string]$Prism, [string]$Instances, [string]$Play)
+param([string]$Prism, [string]$Instances, [string]$Play, [switch]$Choose)
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 # Installed by itself, with no pack (gatehouse-install.ps1), this file is in <Prism's folder>\gatehouse\app\extras, and
 # the launcher's own copy is beside it; otherwise it is in a pack's extras folder, three levels below "instances".
@@ -54,6 +56,17 @@ if (-not $java) { Prism-Instead }
 # launcher itself is waited for, not programs it started: Prism Launcher may still be open, and waiting for that
 # too would leave an updated launcher unopened until Prism closed.
 $env:GATEHOUSE_RELAUNCH = 'loop'
+# A Start menu shortcut made before the first screen existed opens the launcher directly: it is given -Choose, once,
+# so the Start menu opens Play or Host and Steam (which has its own shortcut) goes on opening the launcher.
+if (-not $env:OJ_HOME_DRY) {
+    try {
+        $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'Gatehouse.lnk'
+        if (Test-Path $lnk) {
+            $sh = New-Object -ComObject WScript.Shell; $s = $sh.CreateShortcut($lnk)
+            if ($s.Arguments -like '*gatehouse-launcher.ps1*' -and $s.Arguments -notlike '*-Choose*') { $s.Arguments = $s.Arguments + ' -Choose'; $s.Description = 'Gatehouse: play, or host'; $s.Save() }
+        }
+    } catch { }
+}
 $runs = @((Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run.jar'), (Join-Path (Split-Path -Parent $Instances) 'gatehouse-launcher-run-2.jar'))
 for ($round = 0; $round -lt 8; $round++) {
     if ($round -gt 0) {
@@ -70,6 +83,8 @@ for ($round = 0; $round -lt 8; $round++) {
     if (-not $run) { $run = $jar }
     $launcherArgs = @('-jar', "`"$run`"", '--home', "`"$Instances`"", '--prism', "`"$Prism`"")
     if ($Play -and $round -eq 0) { $launcherArgs += @('--play', $Play) }
+    if ($Choose) { $launcherArgs = @('-jar', "`"$run`"", '--choose') }
+    if ($env:OJ_HOME_DRY -and $Choose) { "would open the first screen: $java $($launcherArgs -join ' ')"; exit 0 }   # (testing)
     $p = Start-Process -PassThru $java -ArgumentList $launcherArgs
     $null = $p.Handle   # (so its exit code is kept)
     $p.WaitForExit()

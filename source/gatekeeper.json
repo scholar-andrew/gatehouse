@@ -4,7 +4,8 @@
  "changes": [
   {"version": "3.2.1", "date": "2026-11-16", "notes": [
    "Fixed on Steam Deck: the launcher didn't recognise the Gatekeeper on the same machine, so Play or Host offered to set it up again, there was no This machine line, and the launcher didn't link itself. The launcher looked for Gatekeeper's folder, which it can't see there (it runs inside Prism Launcher's Flatpak). It now asks for a Gatekeeper on the machine instead, and this Gatekeeper answers.",
-   "The launcher can ask this Gatekeeper to open its own window, which is how Open Gatekeeper works from inside that sandbox."
+   "The launcher can ask this Gatekeeper to open its own window, which is how Open Gatekeeper works from inside that sandbox.",
+   "Shortcuts: the Gatehouse entry outside Steam (the Start menu on Windows, the applications menu on Linux and SteamOS) now opens the Play or Host screen, and the Gatehouse shortcut in Steam goes on opening the launcher directly. On Linux and SteamOS, Gatekeeper brings an existing menu entry up to date when it starts, because the launcher there can't reach it."
   ]},
   {"version": "3.2.0", "date": "2026-11-16", "notes": [
    "The third step of making Gatehouse and Gatekeeper one program: the launcher on this same machine links itself to this Gatekeeper. It needs no pairing link, no request for you to answer, and no Tailscale, because it asks through the door that only answers on this machine. It shows in the Access Manager like any launcher, allowed everything.",

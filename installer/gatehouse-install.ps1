@@ -217,7 +217,8 @@ function Install-Gatehouse {
     if ($NoShortcut) { Say 'Shortcuts: left out (-NoShortcut).' }
     elseif ($DryRun) { Say "Shortcuts: would make `"Gatehouse`" and `"Uninstall Gatehouse`" in the Start menu ($programs), both running powershell.exe with a script in $app." }
     else {
-        Link (Join-Path $programs 'Gatehouse.lnk') $powershellExe $options (Split-Path -Parent $script) 'Gatehouse: your Minecraft servers and their Gatekeepers'
+        # (the Start menu opens the program's first screen, Play or Host; Steam, below, goes straight into the launcher)
+        Link (Join-Path $programs 'Gatehouse.lnk') $powershellExe ($options + ' -Choose') (Split-Path -Parent $script) 'Gatehouse: play, or host'
         Link (Join-Path $programs 'Uninstall Gatehouse.lnk') $powershellExe ('-NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $app 'gatehouse-install.ps1') + '" -Uninstall -Gatehouse') $app 'Removes the Gatehouse launcher'
         Say 'Shortcuts: "Gatehouse" and "Uninstall Gatehouse" are in the Start menu.'
     }
