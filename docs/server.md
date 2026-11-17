@@ -150,6 +150,14 @@ ones `DirectHost` runs; every call is `/admin/tools/...` and is refused (with "M
   the list was saved or Gatekeeper started), or `manual`.
 - **Not replicated**: MCSS's web panel, API keys and users, Bedrock and proxy server types, plugin management.
 
+**Both on one Windows machine.** `host.json` `"native_servers": "true"` (the tick box on the first screen,
+`/admin/tools/native`) lets Gatekeeper run servers of its own beside MCSS's. A server entry with `"native": true` is
+then run by `HostHelper.DIRECT` (a `DirectHost`); the others by `host` (the `McssHost`). `sh()` picks per server and
+is what every server-level call uses (`serverStatus`, `serverAction`, `command`, `diagnose`, starting); `host` is
+still MCSS itself (running, start, close, sign-in). `isNative()` gates Manage, backups, tasks and autostart per
+server, `nativeOk()` gates New server. Server setup lists MCSS's servers and the folders in `servers_dir`. Closing
+MCSS stops only the servers MCSS runs. The box can't be unticked while a native server is still looked after.
+
 **The web panel (`WebPanel`, `PanelUi`, `host/web`).** `/panel` on the launchers' listener (the Tailscale address
 only), 404 unless `web_panel` is `true`. `host/web/panel.html|js|css` are served from inside the jar under a strict
 Content-Security-Policy (`default-src 'self'`; the script builds the page with `textContent` only).

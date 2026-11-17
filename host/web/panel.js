@@ -47,17 +47,17 @@ const views = {
       v.appendChild(line);
     }
     o.servers.forEach(s => {
-      const card = el('div', 'card row', null, [el('div', 'grow', null, [el('h3', '', s.name), el('div', phaseClass(s), phaseWord(s) + '   ·   port ' + s.port)])]);
+      const card = el('div', 'card row', null, [el('div', 'grow', null, [el('h3', '', s.name), el('div', phaseClass(s), phaseWord(s) + '   ·   port ' + s.port + (o.host === 'mcss' ? (s.native ? '   ·   run by Gatekeeper itself' : '   ·   run by MCSS') : ''))])]);
       const up = s.running || s.phase === 'starting';
       if (can('control')) {
         card.appendChild(up ? button('Stop', () => act('server/stop', {}, s.id, 'Stop ' + s.name + '? Anyone playing is disconnected (the world is saved first).')) : button('Start', () => act('server/start', {}, s.id)));
-        if (o.host === 'builtin') { const r = button('Restart', () => act('tools/action', { action: 'restart' }, s.id, 'Restart ' + s.name + '? Anyone playing is disconnected until it is back.')); r.disabled = !s.running; card.appendChild(r); }
+        if (s.native) { const r = button('Restart', () => act('tools/action', { action: 'restart' }, s.id, 'Restart ' + s.name + '? Anyone playing is disconnected until it is back.')); r.disabled = !s.running; card.appendChild(r); }
       }
-      if (o.host === 'builtin') card.appendChild(button('Open', () => openServer(s.id, s.name), 'quiet'));
+      if (s.native) card.appendChild(button('Open', () => openServer(s.id, s.name), 'quiet'));
       v.appendChild(card);
     });
     if (!o.servers.length) v.appendChild(el('p', 'note', 'This Gatekeeper looks after no servers yet.'));
-    if (o.host !== 'builtin') v.appendChild(el('p', 'note', 'Consoles, settings, backups and tasks: this Gatekeeper works through MC Server Soft, which keeps those for its servers.'));
+    if (o.servers.some(s => !s.native)) v.appendChild(el('p', 'note', 'Consoles, settings, backups and tasks for the servers MC Server Soft runs are kept by MCSS.'));
     $('view').replaceChildren(v);
   } },
   players: { name: 'Players', needs: 'view', every: 8000, async draw() {

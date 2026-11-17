@@ -210,8 +210,11 @@ Two things to know:
   Gatekeeper won't update itself while one is on: stop it, update, start it again.
 - **Tasks and crash handling need Gatekeeper running.** It is a background service, so it normally is.
 
-On Windows the same works without MCSS when `host.json` in Gatekeeper's folder says `"host": "builtin"`. With MCSS,
-New server and Manage are greyed: MCSS does those for its own servers.
+**On Windows too.** Tick **Gatekeeper may also run servers itself, beside MCSS's** on Gatekeeper's first screen.
+New server then makes servers Gatekeeper runs itself, in `C:\Minecraft\servers`, each with Manage, next to the ones
+MCSS runs; every server says which of the two runs it. MCSS's own servers stay MCSS's (Manage is greyed for them),
+and closing MCSS leaves Gatekeeper's own servers running. Without the tick, nothing changes. (Windows with no MCSS at
+all: `"host": "builtin"` in `host.json` in Gatekeeper's folder.)
 
 ### The web panel
 
@@ -304,7 +307,7 @@ Gatekeeper where it would be, marked "Not supported on SteamOS" or "Not supporte
 | Seeing, starting and stopping servers | Yes, through MCSS | Yes, Gatekeeper runs them | Yes, Gatekeeper runs them |
 | MCSS's own controls (Start MCSS, Sign in, MCSS control) | Yes | Not supported | Not supported |
 | Updating while a server is on | Yes | Stop the server first | Stop the server first |
-| New server and Manage (console, settings, backups, tasks) in Gatekeeper | In MCSS instead | Yes | Yes |
+| New server and Manage (console, settings, backups, tasks) in Gatekeeper | Yes, for servers Gatekeeper runs itself (a tick box turns that on); MCSS keeps its own | Yes | Yes |
 | Web panel with accounts; waking other devices | Yes | Yes | Yes |
 | Access Manager, Host setup, setup guide | Yes | Yes | Yes |
 | Starts when you sign in | Yes | Yes | Yes |

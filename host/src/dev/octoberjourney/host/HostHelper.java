@@ -74,7 +74,7 @@ public final class HostHelper {
 		dir = Path.of(System.getenv().getOrDefault("OJ_HOST_DIR", own));
 		Files.createDirectories(dir);
 		cfg = Json.map(Json.parse(read(dir.resolve("host.json"))));
-		host = builtin() ? new DirectHost() : new McssHost();
+		host = builtin() ? DIRECT : new McssHost();
 		String mode = args.length > 0 ? args[0] : "--panel";
 		startMinimized = java.util.Arrays.asList(args).contains("--minimized");
 		if (mode.equals("--uninstall-command")) {   // (testing: what Options > Uninstall would run; nothing is run)
@@ -107,6 +107,15 @@ public final class HostHelper {
 	/** Does Gatekeeper run the Minecraft servers itself (DirectHost), with no MC Server Soft? Always on Linux and
 	 *  SteamOS, where there is no MCSS; on Windows when host.json "host" is "builtin". */
 	static boolean builtin() { return !WIN || setting("host", "mcss").equals("builtin"); }
+	/** On Windows with MCSS: may Gatekeeper also run servers of its own beside MCSS's (host.json "native_servers")? */
+	static boolean nativeToo() { return !builtin() && setting("native_servers", "false").equals("true"); }
+	/** May Gatekeeper make and run servers itself on this machine at all? */
+	static boolean nativeOk() { return builtin() || nativeToo(); }
+	/** Does Gatekeeper run the current server itself (rather than MCSS)? */
+	static boolean isNative() { return builtin() || (nativeToo() && ServerTools.yes(server().get("native"))); }
+	static final DirectHost DIRECT = new DirectHost();
+	/** Whatever runs the current server: Gatekeeper itself, or the host program. */
+	static ServerHost sh() { return isNative() ? DIRECT : host; }
 	/** The folder Gatekeeper's own servers are in, one folder each (host.json "servers_dir"). */
 	static String serversDir() { return setting("servers_dir", WIN ? "C:\\Minecraft\\servers" : System.getProperty("user.home", "") + "/minecraft-servers"); }
 	/** What is said where MCSS would be, on a Gatekeeper that runs the servers itself. */
@@ -447,9 +456,9 @@ public final class HostHelper {
 		Object[] c = phaseSeen.get(key);
 		if (c != null && System.currentTimeMillis() - (Long) c[0] < 1500) return (String) c[1];
 		String e = expected(key + "|server"), p;
-		if (!host.running()) p = e.equals("starting") ? "starting" : "nomcss";
+		if (!sh().running()) p = e.equals("starting") ? "starting" : "nomcss";
 		else {
-			int st = host.hasAccess() ? host.serverStatus() : -1;
+			int st = sh().hasAccess() ? sh().serverStatus() : -1;
 			if (st == 1) p = e.equals("stopping") ? "stopping" : "online";
 			else if (st == 2 || st == 3) p = "starting";
 			else if (st == 4) p = "stopping";
@@ -501,12 +510,12 @@ public final class HostHelper {
 			for (int i = 0; i < Math.max(1, l.size()); i++) {
 				String id = l.isEmpty() ? "" : Json.str(Json.map(l.get(i)).get("id"));
 				SERVER.set(id);
-				if (minecraftRunning()) up.add(id);
+				if (!isNative() && minecraftRunning()) up.add(id);   // (the servers MCSS runs; Gatekeeper's own carry on)
 			}
 			if (up.isEmpty()) { expect("mcss", "closing", 60_000); String[] r = host.close(force); if (!r[0].equals("ok")) met("mcss"); return r; }
 			if (host.closeMode().equals("force") && !force) return host.close(false);   // (it says why it needs the force close)
 			if (!host.hasAccess()) return new String[] {"refused", "A Minecraft server is running and Gatekeeper isn't signed in to MCSS, so it can't stop it safely first: stop the server in MCSS, then close it"};
-			for (String id : up) { SERVER.set(id); host.serverAction(false); expect(serverKey() + "|server", "stopping", 200_000); }
+			for (String id : up) { SERVER.set(id); sh().serverAction(false); expect(serverKey() + "|server", "stopping", 200_000); }
 		} finally { SERVER.set(keep); }
 		expect("mcss", "closing", 260_000);
 		Thread t = new Thread(() -> {
@@ -664,7 +673,7 @@ public final class HostHelper {
 	static String[] applyUpdate(long alsoWait) {
 		lookForNewer();
 		if (newestKeeper.isEmpty() || cmpVersion(newestKeeper, ownVersion()) <= 0) return new String[] {"ok", "This is already the newest Gatekeeper (" + ownVersion() + ")."};
-		if (builtin() && DirectHost.anyTracked()) return new String[] {"refused", "A Minecraft server that this Gatekeeper runs is on. Updating restarts Gatekeeper, and the server's console would be lost with it: stop the server first, then update."};
+		if (DirectHost.anyTracked()) return new String[] {"refused", "A Minecraft server that this Gatekeeper runs is on. Updating restarts Gatekeeper, and the server's console would be lost with it: stop the server first, then update."};
 		try {
 			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 			if (!Files.isRegularFile(jar)) return new String[] {"refused", "Gatekeeper isn't running from a file it can replace."};
@@ -750,7 +759,7 @@ public final class HostHelper {
 				String t = read(props), name = serverName();
 				if (t.isEmpty() || t.replace(" ", "").contains("white-list=true")) continue;
 				if (minecraftRunning()) {
-					String[] r = host.command("whitelist on");
+					String[] r = sh().command("whitelist on");
 					if (r[0].equals("ok")) {
 						for (int i = 0; i < 12 && !read(props).replace(" ", "").contains("white-list=true"); i++) try { Thread.sleep(300); } catch (InterruptedException ignored) {}
 						done.add(name + " (told in its console; in effect now)");
@@ -876,8 +885,17 @@ public final class HostHelper {
 				for (Object o : servers()) if (samePath(Json.str(Json.map(o).get("dir")), d)) { tracked = true; id = Json.str(Json.map(o).get("id")); if (!Json.str(Json.map(o).get("name")).isEmpty()) name = Json.str(Json.map(o).get("name")); }
 				found.add(m("name", name, "id", id, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", Json.str(c.get("guid")), "tracked", tracked));
 			}
-			if (found.isEmpty() && problem.isEmpty()) problem = "MCSS has no servers yet: make one in MCSS first, then look again.";
+			if (found.isEmpty() && problem.isEmpty() && !nativeToo()) problem = "MCSS has no servers yet: make one in MCSS first, then look again.";
 		}
+		// (and, where Gatekeeper may run servers of its own beside MCSS's, the ones in its servers folder)
+		if (nativeToo() && Files.isDirectory(Path.of(serversDir()))) try (java.util.stream.Stream<Path> s = Files.list(Path.of(serversDir()))) {
+			for (Path d : (Iterable<Path>) s.filter(q -> Files.isDirectory(q) && DirectHost.looksLikeServer(q)).sorted()::iterator) {
+				String name = d.getFileName().toString(), id = "";
+				boolean tracked = false;
+				for (Object o : servers()) if (samePath(Json.str(Json.map(o).get("dir")), d)) { tracked = true; id = Json.str(Json.map(o).get("id")); if (!Json.str(Json.map(o).get("name")).isEmpty()) name = Json.str(Json.map(o).get("name")); }
+				found.add(m("name", name, "id", id, "dir", d.toString(), "minecraft", "127.0.0.1:" + (portNow(d.toString()).isEmpty() ? "25565" : portNow(d.toString())), "mcss_server", "", "tracked", tracked, "native", true));
+			}
+		} catch (IOException | RuntimeException ignored) {}
 		List<Object> addrs = new ArrayList<>();
 		try {
 			for (java.net.NetworkInterface ni : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces()))
@@ -932,7 +950,7 @@ public final class HostHelper {
 			String base = Json.str(s.get("name")).toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", ""), id = base.isEmpty() ? "server" : base;
 			for (int n = 2; used.contains(id); n++) id = base + "-" + n;
 			used.add(id);
-			keep.add(m("id", id, "name", Json.str(s.get("name")), "dir", Json.str(s.get("dir")), "minecraft", Json.str(s.get("minecraft")), "mcss_server", Json.str(s.get("mcss_server"))));
+			keep.add(m("id", id, "name", Json.str(s.get("name")), "dir", Json.str(s.get("dir")), "minecraft", Json.str(s.get("minecraft")), "mcss_server", Json.str(s.get("mcss_server")), "native", builtin() || ServerTools.yes(s.get("native"))));
 			added++;
 		}
 		boolean moved = !bind.isEmpty() && !bind.equals(setting("bind", ""));
@@ -951,26 +969,26 @@ public final class HostHelper {
 	 *  Returns at once with what is happening; how it ended goes in the log. */
 	static String[] startServerFully(String by) {
 		if (outdated()) return new String[] {"refused", "Gatekeeper is out of date (" + ownVersion() + "; " + newestKeeper + " is out), and starts no server until it's updated: the owner does that in Gatekeeper's window."};
-		if (!host.hasAccess()) return new String[] {"refused", "Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
-		if (host.running()) {
-			int st = host.serverStatus();
+		if (!sh().hasAccess()) return new String[] {"refused", "Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
+		if (sh().running()) {
+			int st = sh().serverStatus();
 			if (st == 1) return new String[] {"ok", "The server is already on"};
 			if (st == 3) return new String[] {"ok", "The server is already starting"};
-			String[] r = host.serverAction(true);
+			String[] r = sh().serverAction(true);
 			if (r[0].equals("ok")) expect(serverKey() + "|server", "starting", 240_000);
 			return r;
 		}
-		String[] s = host.start();
+		String[] s = sh().start();
 		if (!s[0].equals("ok")) return s;
 		expect("mcss", "starting", 120_000); expect(serverKey() + "|server", "starting", 300_000);
 		String which = SERVER.get();
 		Thread t = new Thread(() -> {
 			SERVER.set(which);
 			try {
-				for (int i = 0; i < 120 && host.serverStatus() < 0; i++) Thread.sleep(1000);
-				if (host.serverStatus() < 0) { log("start " + serverName() + " (asked by " + by + "): MCSS started, but it isn't answering Gatekeeper (if its sign-in ended, sign in again on the Status tab)"); return; }
+				for (int i = 0; i < 120 && sh().serverStatus() < 0; i++) Thread.sleep(1000);
+				if (sh().serverStatus() < 0) { log("start " + serverName() + " (asked by " + by + "): MCSS started, but it isn't answering Gatekeeper (if its sign-in ended, sign in again on the Status tab)"); return; }
 				Thread.sleep(1500);
-				String[] r = host.serverStatus() == 1 || host.serverStatus() == 3 ? new String[] {"ok", "it was already coming up"} : host.serverAction(true);
+				String[] r = sh().serverStatus() == 1 || sh().serverStatus() == 3 ? new String[] {"ok", "it was already coming up"} : sh().serverAction(true);
 				log("start " + serverName() + " (asked by " + by + "), after starting MCSS: " + r[1]);
 			} catch (InterruptedException ignored) {}
 		}, "start-server");
@@ -1218,10 +1236,10 @@ public final class HostHelper {
 			}
 			if (path.startsWith("/v1/server")) {
 				if (!canServer) { reply(x, 403, m("error", "this device isn't allowed to control the server (the owner allows it in Gatekeeper)")); return; }
-				if (path.equals("/v1/server") && x.getRequestMethod().equals("GET")) reply(x, 200, m("status", host.serverStatus()));
+				if (path.equals("/v1/server") && x.getRequestMethod().equals("GET")) reply(x, 200, m("status", sh().serverStatus()));
 				else if (path.equals("/v1/server/log") && x.getRequestMethod().equals("GET")) reply(x, 200, m("lines", serverLog(80)));
 				else if ((path.equals("/v1/server/start") || path.equals("/v1/server/stop")) && x.getRequestMethod().equals("POST")) {
-					String[] r = path.endsWith("start") ? startServerFully(who(d)) : host.serverAction(false);
+					String[] r = path.endsWith("start") ? startServerFully(who(d)) : sh().serverAction(false);
 					if (path.endsWith("stop") && r[0].equals("ok")) expect(serverKey() + "|server", "stopping", 200_000);
 					log((path.endsWith("start") ? "start" : "stop") + " the Minecraft server asked by " + who(d) + ": " + r[1]);
 					reply(x, 200, m("result", r[0], "message", r[1]));
@@ -1496,7 +1514,7 @@ public final class HostHelper {
 	static String[] kick(String name, String reason) {
 		if (!name.matches("\\w{1,16}")) return new String[] {"refused", "That isn't a Minecraft name"};
 		if (!minecraftRunning()) return new String[] {"refused", "The server isn't running, so nobody is on it"};
-		String[] r = host.command("kick " + name + (clean(reason, 120).isEmpty() ? "" : " " + clean(reason, 120)));
+		String[] r = sh().command("kick " + name + (clean(reason, 120).isEmpty() ? "" : " " + clean(reason, 120)));
 		return r[0].equals("ok") ? new String[] {"ok", "Asked the server to kick " + name} : r;
 	}
 
@@ -1685,7 +1703,7 @@ public final class HostHelper {
 		if (whitelisted(name) == on) return new String[] {"ok", name + (on ? " is already on the whitelist" : " isn't on the whitelist")};
 		try {
 			if (minecraftRunning()) {
-				String[] r = host.command("whitelist " + (on ? "add " : "remove ") + name);
+				String[] r = sh().command("whitelist " + (on ? "add " : "remove ") + name);
 				if (!r[0].equals("ok")) return r;
 				for (int i = 0; i < 12 && whitelisted(name) != on; i++) Thread.sleep(300);
 				return whitelisted(name) == on ? new String[] {"ok", (on ? "Added " + name + " to" : "Removed " + name + " from") + " the whitelist of " + serverName()}
@@ -1869,7 +1887,7 @@ public final class HostHelper {
 				}
 				reply(x, 200, m("ok", true));
 			} else if (path.equals("/admin/server/stop")) {
-				String[] r = host.serverAction(false);
+				String[] r = sh().serverAction(false);
 				if (r[0].equals("ok")) expect(serverKey() + "|server", "stopping", 200_000);
 				log("stop the Minecraft server from Gatekeeper: " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
@@ -1881,7 +1899,7 @@ public final class HostHelper {
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/keytest")) {
 				// Troubleshooting: what the host program answers to Gatekeeper's access (never the access itself).
-				reply(x, 200, host.diagnose());
+				reply(x, 200, sh().diagnose());
 			} else if (path.equals("/admin/signin")) {
 				// The owner signs Gatekeeper in to the host program with an account there (typed in Gatekeeper on this
 				// PC). What it hands back is kept; the password never is.
@@ -1964,10 +1982,10 @@ public final class HostHelper {
 						SERVER.set(Json.str(s.get("id")));
 						boolean on = serverPhase().equals("online");
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "running", on, "phase", serverPhase(), "players", on ? onlineBy.getOrDefault(serverKey(), Map.of()).size() : 0,
-								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir"))));
+								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir")), "native", isNative()));
 					}
 				} finally { SERVER.set(keep); }
-				reply(x, 200, m("mcss_exe", builtin() ? serversDir() : setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list, "host", builtin() ? "builtin" : "mcss"));
+				reply(x, 200, m("mcss_exe", builtin() ? serversDir() : setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list, "host", builtin() ? "builtin" : "mcss", "native_ok", nativeOk(), "native_folder", serversDir()));
 			} else if (path.equals("/admin/pulls")) {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
@@ -2963,7 +2981,7 @@ public final class HostHelper {
 				((JLabel) mr[1]).setForeground(up ? new Color(0x8BD46E) : new Color(0x8F98A0));
 				if (builtin()) { ((JLabel) mr[1]).setText("MC Server Soft: " + noMcssShort()); ((JLabel) mr[1]).setForeground(new Color(0x8F98A0)); }
 				overList.add((JPanel) mr[0]);
-				JLabel h2 = new JLabel(builtin() ? "Servers" : "Servers in this MCSS"); h2.setFont(h2.getFont().deriveFont(Font.BOLD, 14f)); h2.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0)); h2.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				JLabel h2 = new JLabel(builtin() || Boolean.TRUE.equals(r.get("native_ok")) ? "Servers" : "Servers in this MCSS"); h2.setFont(h2.getFont().deriveFont(Font.BOLD, 14f)); h2.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0)); h2.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 				overList.add(h2);
 				List<Object> sv = Json.list(r.get("servers"));
 				if (sv.isEmpty()) { JLabel none = new JLabel("None yet. Gatekeeper opens Server setup for you; it's also on a server's Status tab."); none.setForeground(new Color(0x8F98A0)); overList.add(none); }
@@ -2973,14 +2991,15 @@ public final class HostHelper {
 					Object[] sr = overRow.apply(Json.str(s.get("name")), "Open");
 					String players = Json.str(s.get("players")).replaceAll("\\.0$", "");
 					String ph = Json.str(s.get("phase"));
-					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + "   \u00b7   " + Json.str(s.get("dir")));
+					boolean nat = Boolean.TRUE.equals(s.get("native"));
+					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + (Json.str(r.get("host")).equals("mcss") ? nat ? "   \u00b7   run by Gatekeeper itself" : "   \u00b7   run by MCSS" : "") + "   \u00b7   " + Json.str(s.get("dir")));
 					((JLabel) sr[1]).setForeground(on ? new Color(0x8BD46E) : ph.equals("starting") || ph.equals("stopping") ? new Color(0xE9B949) : new Color(0x8F98A0));
 					((JButton) sr[2]).setToolTipText("Access Manager, Server Status and Updates Pulled for this server");
 					String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
 					((JButton) sr[2]).addActionListener(ev -> { panelServer = id; inServer[0] = true; head.setText("Gatekeeper \u2013 " + nm); backB.setVisible(true); levels.show(stack, "server"); refresh.run(); });
 					JButton manageB = new JButton("Manage\u2026");
-					manageB.setEnabled(builtin());
-					manageB.setToolTipText(builtin() ? "Its console, settings, game settings, backups and scheduled tasks" : ServerTools.HERE_MCSS);
+					manageB.setEnabled(nat);
+					manageB.setToolTipText(nat ? "Its console, settings, game settings, backups and scheduled tasks" : ServerTools.HERE_MCSS);
 					manageB.addActionListener(ev -> ServerToolsUi.manage(f, id, nm));
 					((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(manageB);
 					overList.add((JPanel) sr[0]); overList.add(javax.swing.Box.createVerticalStrut(8));
@@ -2989,11 +3008,24 @@ public final class HostHelper {
 				setupHere.setToolTipText("Which MCSS and which of its servers Gatekeeper looks after, and this machine's Tailscale address");
 				setupHere.addActionListener(ev -> setup.run());
 				JButton newHere = new JButton("New server\u2026");
-				newHere.setEnabled(builtin());
-				newHere.setToolTipText(builtin() ? "Makes a Minecraft server from nothing: Gatekeeper fetches its program and sets it up" : ServerTools.HERE_MCSS);
+				boolean natOk = Boolean.TRUE.equals(r.get("native_ok"));
+				newHere.setEnabled(natOk);
+				newHere.setToolTipText(natOk ? "Makes a Minecraft server from nothing: Gatekeeper fetches its program and sets it up" : ServerTools.HERE_MCSS);
 				newHere.addActionListener(ev -> ServerToolsUi.newServer(f, () -> new Thread(() -> { try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); }); } catch (Exception ignored) {} }, "overview").start()));
 				JPanel setupLine = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 8)); setupLine.add(newHere); setupLine.add(setupHere); setupLine.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-				if (!builtin()) { JLabel inMcss = new JLabel("New server and Manage: done in MC Server Soft here"); inMcss.setForeground(new Color(0x8F98A0)); setupLine.add(inMcss); }
+				if (Json.str(r.get("host")).equals("mcss")) {
+					// Windows with MCSS: Gatekeeper may run servers of its own as well, if the owner says so.
+					javax.swing.JCheckBox own = new javax.swing.JCheckBox("Gatekeeper may also run servers itself, beside MCSS's", natOk);
+					own.setToolTipText("New server then makes servers in " + Json.str(r.get("native_folder")) + " that Gatekeeper runs itself, with Manage for each. MCSS's own servers stay MCSS's.");
+					own.addActionListener(ev -> new Thread(() -> {
+						String msg;
+						try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/tools/native", Json.write(m("on", own.isSelected()))))).get("message")); } catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
+						String m2 = msg;
+						try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2 + "</div></html>", "Servers run by Gatekeeper", JOptionPane.PLAIN_MESSAGE); }); } catch (Exception ignored) {}
+					}, "native").start());
+					setupLine.add(own);
+					if (!natOk) { JLabel inMcss = new JLabel("Until then, New server and Manage are done in MC Server Soft"); inMcss.setForeground(new Color(0x8F98A0)); setupLine.add(inMcss); }
+				}
 				overList.add(setupLine);
 				overList.revalidate(); overList.repaint();
 			};

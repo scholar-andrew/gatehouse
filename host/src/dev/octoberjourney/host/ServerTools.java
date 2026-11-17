@@ -148,7 +148,7 @@ final class ServerTools {
 
 	/** Starts making a server (it carries on in the background; "making" says how it goes). */
 	static synchronized String[] create(Map<String, Object> b) {
-		if (!builtin()) return new String[] {"refused", HERE_MCSS};
+		if (!nativeOk()) return new String[] {"refused", HERE_MCSS};
 		if (making.get("state").equals("working")) return new String[] {"refused", "Gatekeeper is still making the last server"};
 		String name = clean(Json.str(b.get("name")), 40), kind = Json.str(b.get("kind")), version = Json.str(b.get("version")).trim(), file = Json.str(b.get("file")).trim();
 		String memory = memoryOk(Json.str(b.get("memory")).trim().isEmpty() ? "4G" : Json.str(b.get("memory")).trim()), port = Json.str(b.get("port")).trim().replaceAll("\\.0$", ""), java = Json.str(b.get("java")).trim();
@@ -252,7 +252,7 @@ final class ServerTools {
 			String base = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", ""), id = base.isEmpty() ? "server" : base;
 			for (int n = 2; used.contains(id); n++) id = (base.isEmpty() ? "server" : base) + "-" + n;
 			List<Object> all = new ArrayList<>(servers());
-			all.add(m("id", id, "name", name, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", "", "memory", memory, "java", java, "kind", kind, "version", version));
+			all.add(m("id", id, "name", name, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", "", "native", true, "memory", memory, "java", java, "kind", kind, "version", version));
 			cfg.put("servers", all);
 			if (setting("servers_dir", "").isEmpty()) cfg.put("servers_dir", serversDir());
 			saveCfg();
@@ -417,7 +417,7 @@ final class ServerTools {
 	/** Starts a backup of the current server (in the background). With the server on, it is told to save and to hold
 	 *  its saving still while its files are copied; a server whose console Gatekeeper lost has to be stopped first. */
 	static String[] backup(String by) {
-		if (!builtin()) return new String[] {"refused", HERE_MCSS};
+		if (!isNative()) return new String[] {"refused", HERE_MCSS};
 		Map<String, Object> s = server();
 		if (s.isEmpty()) return new String[] {"refused", "No such server"};
 		String id = id(), name = serverName();
@@ -487,11 +487,11 @@ final class ServerTools {
 	static String[] runTask(Map<String, Object> t, String by) {
 		String job = Json.str(t.get("job"));
 		if (job.equals("start")) return startServerFully(by);
-		if (job.equals("stop")) { String[] r = host.serverAction(false); if (r[0].equals("ok")) expect(serverKey() + "|server", "stopping", 200_000); return r; }
+		if (job.equals("stop")) { String[] r = sh().serverAction(false); if (r[0].equals("ok")) expect(serverKey() + "|server", "stopping", 200_000); return r; }
 		if (job.equals("restart")) return DirectHost.restart();
 		if (job.equals("backup")) return backup(by);
 		String[] last = {"refused", "It has no commands"};
-		for (Object c : Json.list(t.get("commands"))) { last = host.command(Json.str(c)); if (!last[0].equals("ok")) return last; }
+		for (Object c : Json.list(t.get("commands"))) { last = sh().command(Json.str(c)); if (!last[0].equals("ok")) return last; }
 		return last[0].equals("ok") ? new String[] {"ok", "Typed into the console"} : last;
 	}
 	/** Every 20 seconds: each server's enabled tasks whose time has come. */
@@ -499,13 +499,14 @@ final class ServerTools {
 		Thread t = new Thread(() -> {
 			while (true) {
 				try { Thread.sleep(20_000); } catch (InterruptedException e) { return; }
-				if (!builtin()) continue;
+				if (!nativeOk()) continue;
 				try {
 					String hhmm = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
 					for (Object o : new ArrayList<>(servers())) {
 						Map<String, Object> s = Json.map(o);
 						String id = Json.str(s.get("id"));
 						SERVER.set(id);
+						if (!isNative()) continue;
 						List<Object> tasks = Json.list(s.get("tasks"));
 						for (int i = 0; i < tasks.size(); i++) {
 							Map<String, Object> task = Json.map(tasks.get(i));
@@ -532,13 +533,14 @@ final class ServerTools {
 	}
 	/** When Gatekeeper starts: the servers set to start with it. */
 	static void autostart() {
-		if (!builtin()) return;
+		if (!nativeOk()) return;
 		Thread t = new Thread(() -> {
 			try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
 			for (Object o : new ArrayList<>(servers())) {
 				Map<String, Object> s = Json.map(o);
 				if (!yes(s.get("autostart"))) continue;
 				SERVER.set(Json.str(s.get("id")));
+				if (!isNative()) continue;
 				String[] r = startServerFully("autostart");
 				log("autostart " + serverName() + ": " + r[1]);
 			}
@@ -556,7 +558,19 @@ final class ServerTools {
 		String what = path.substring(13);
 		boolean post = x.getRequestMethod().equals("POST");
 		Map<String, Object> b = post ? body(x) : new LinkedHashMap<>();
-		if (!builtin()) { reply(x, 200, m("result", "refused", "message", HERE_MCSS, "host", "mcss")); return true; }
+		if (what.equals("native") && post) {
+			// Windows with MCSS: whether Gatekeeper may also run servers of its own.
+			boolean want = yes(b.get("on"));
+			if (builtin()) { reply(x, 200, m("result", "refused", "message", "Gatekeeper already runs every server itself on this machine.")); return true; }
+			if (!want) for (Object o : servers()) if (yes(Json.map(o).get("native"))) { reply(x, 200, m("result", "refused", "message", "Gatekeeper still looks after " + Json.str(Json.map(o).get("name")) + ", which it runs itself. Untick it in Server setup first (its files stay where they are).")); return true; }
+			cfg.put("native_servers", want ? "true" : "false");
+			saveCfg();
+			log("servers run by Gatekeeper itself, beside MCSS's: " + (want ? "allowed" : "not allowed"));
+			reply(x, 200, m("result", "ok", "message", want ? "Gatekeeper may now run servers itself as well. New server makes them in " + serversDir() + "; servers already in that folder show up in Server setup. MCSS's own servers stay MCSS's." : "Gatekeeper runs no servers itself now: MCSS runs them all."));
+			return true;
+		}
+		boolean forOne = !what.equals("new") && !what.equals("versions");
+		if (forOne ? !isNative() : !nativeOk()) { reply(x, 200, m("result", "refused", "message", HERE_MCSS, "host", "mcss")); return true; }
 		String[] r = null;
 		if (what.equals("new")) {
 			if (post) r = create(b);
@@ -597,7 +611,7 @@ final class ServerTools {
 			return true;
 		} else if (what.equals("command")) {
 			String line = Json.str(b.get("command")).trim().replaceAll("^/", "");
-			r = line.isEmpty() ? new String[] {"refused", "Nothing to type"} : host.command(line);
+			r = line.isEmpty() ? new String[] {"refused", "Nothing to type"} : sh().command(line);
 			if (r[0].equals("ok")) log("console of " + serverName() + ", typed in Gatekeeper: " + clean(line, 120));
 		} else if (what.equals("action")) {
 			String a = Json.str(b.get("action"));

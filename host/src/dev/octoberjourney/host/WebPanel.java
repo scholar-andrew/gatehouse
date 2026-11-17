@@ -242,7 +242,7 @@ final class WebPanel {
 		for (String[] p : PERMS) if (may(u, p[0])) perms.add(p[0]);
 		String name = setting("name", "");
 		if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
-		return m("user", s.user, "admin", ServerTools.yes(u.get("admin")), "perms", perms, "csrf", s.csrf, "gatekeeper", name, "version", ownVersion(), "system", systemName(), "host", builtin() ? "builtin" : "mcss");
+		return m("user", s.user, "admin", ServerTools.yes(u.get("admin")), "perms", perms, "csrf", s.csrf, "gatekeeper", name, "version", ownVersion(), "system", systemName(), "host", nativeOk() ? "builtin" : "mcss");
 	}
 
 	static void web(HttpExchange x) throws IOException {
