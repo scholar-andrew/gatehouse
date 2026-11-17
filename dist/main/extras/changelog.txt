@@ -1,3 +1,5 @@
+== 1.32.1 | 2026-11-16
+- Nothing changed in the pack itself. The Access Manager's buttons no longer get squeezed out of sight in a narrow window (Gatehouse 2.10.1, Gatekeeper 2.8.1).
 == 1.32.0 | 2026-11-16
 - Nothing changed in the pack itself. Both programs have an icon that shows what is waiting, buttons that open web pages work on SteamOS, Gatekeeper notices a server deleted in MCSS, and its window keeps one size (Gatehouse 2.10.0, Gatekeeper 2.8.0).
 == 1.31.0 | 2026-11-16
