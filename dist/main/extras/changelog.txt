@@ -1,3 +1,5 @@
+== 1.41.0 | 2026-11-17
+- For hosts: Gatekeeper's window has the new look, with the same five sections as the launcher (Gatehouse 3.8.0). Nothing in the pack's mods or settings changed.
 == 1.40.0 | 2026-11-17
 - A server's own page in the launcher has the new look too: its tabs are sections across the top, and Play, Restart and Quit are along the bottom (Gatehouse 3.7.0). Nothing in the pack's mods or settings changed.
 == 1.39.0 | 2026-11-17

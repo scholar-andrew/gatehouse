@@ -189,6 +189,8 @@ public final class GameShell extends JPanel {
 		@Override protected java.awt.Insets getContentBorderInsets(int placement) { return new java.awt.Insets(0, 0, 0, 0); }
 		@Override protected java.awt.Insets getTabAreaInsets(int placement) { return new java.awt.Insets(0, 0, 0, 0); }
 	}
+	/** Takes a tabbed pane's own row of tabs away (something else chooses its tab: the top bar, or buttons). */
+	public static void hideTabs(javax.swing.JTabbedPane pane) { pane.setUI(new NoStrip()); pane.setFocusable(false); }
 	private static String key(String title) { return title.endsWith(" (new)") ? title.substring(0, title.length() - 6) : title; }
 
 	/** A shell whose sections are a tabbed pane's tabs, kept in step with it as tabs come, go, are renamed or chosen

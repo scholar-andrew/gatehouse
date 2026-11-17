@@ -112,6 +112,24 @@ public final class GameCard extends JPanel {
 		g.dispose();
 	}
 
+	/** A line in a list drawn as a slim card: rounded, and glowing while one of its buttons is selected. It holds
+	 *  whatever it is given, laid out however it is told. */
+	public static final class Strip extends JPanel {
+		private boolean hot;
+		private final PropertyChangeListener focus = e -> { boolean h = e.getNewValue() instanceof Component c && SwingUtilities.isDescendingFrom(c, this); if (h != hot) { hot = h; repaint(); } };
+		public Strip(LayoutManager layout) { super(layout); setOpaque(false); }
+		@Override public void addNotify() { super.addNotify(); KeyboardFocusManager.getCurrentKeyboardFocusManager().addPropertyChangeListener("focusOwner", focus); }
+		@Override public void removeNotify() { KeyboardFocusManager.getCurrentKeyboardFocusManager().removePropertyChangeListener("focusOwner", focus); super.removeNotify(); }
+		@Override protected void paintComponent(Graphics g0) {
+			Graphics2D g = GameShell.smooth(g0);
+			int w = getWidth(), h = getHeight();
+			if (hot) for (int k = 3; k >= 1; k--) { g.setColor(GameShell.a(GameShell.ACC, 18 + (3 - k) * 14)); g.setStroke(new BasicStroke(k * 2.2f)); g.draw(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14)); }
+			g.setColor(hot ? CARD_HI : CARD); g.fill(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14));
+			g.setColor(hot ? GameShell.ACC : GameShell.a(GameShell.TEXT, 26)); g.setStroke(new BasicStroke(hot ? 2f : 1f)); g.draw(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14));
+			g.dispose();
+		}
+	}
+
 	/** Lays cards out in as many equal columns as fit, and as many rows as that takes. */
 	private static final class Grid implements LayoutManager {
 		@Override public void addLayoutComponent(String n, Component c) {}

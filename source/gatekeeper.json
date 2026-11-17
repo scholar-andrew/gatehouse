@@ -1,7 +1,15 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.7.0",
+ "version": "3.8.0",
  "changes": [
+  {"version": "3.8.0", "date": "2026-11-17", "notes": [
+   "Gatekeeper's window has the new look, laid out like a game's menu, with the same five sections as the launcher across the top: Servers, People, Constellation, Machine and Options. Click one, or flip with Q and E (the bumpers on a controller).",
+   "Where things are now. Servers: MCSS and the list of servers, New server, Server setup, Check for updates; opening a server shows its Access Manager, Server Status and Updates Pulled as before. People: the web panel's accounts, and a button to the Access Manager of the first server. Constellation: the clients, with What's new in Gatekeeper and What's new in Gatehouse beside it. Machine: Host setup. Options: what the wheel used to open (the wheel is gone).",
+   "A red number on People is how many launchers are waiting for an answer; on Machine, how many setup steps are still to do.",
+   "The lines for MCSS and each server are slim cards that glow while one of their buttons is selected. A strip along the bottom shows the version, and what the buttons do.",
+   "A controller now drives this window as it does the launcher's: move with the stick or d-pad, A presses, B (or Esc) goes back from a server to the list.",
+   "Not changed yet: the Manage window, the pages' own contents, and the web panel in a browser."
+  ]},
   {"version": "3.7.0", "date": "2026-11-17", "notes": [
    "Nothing changed in Gatekeeper itself: this version carries the launcher's next step (a server's own page in the new look). Gatekeeper's own window is next."
   ]},

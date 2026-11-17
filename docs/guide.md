@@ -79,8 +79,8 @@ would happen without doing it.
 
 The first time, Gatehouse opens on its **setup guide**. Each step says what to do, has a button for it where there is
 one, and shows a mark: green when it's done, red when it isn't. The guide looks again every few seconds, so a step
-ticks by itself once you've done it. You can leave the guide at any point; it's always under **Options** (the wheel
-at the top right).
+ticks by itself once you've done it. You can leave the guide at any point; it's always under **Options**, in
+the top bar.
 
 The steps:
 
@@ -166,8 +166,22 @@ Prism Launcher fetches, so install Prism Launcher from Discover and open it once
 ### 2. Follow the setup guide
 
 Gatekeeper's window opens on its **setup guide** the first time. As in Gatehouse, each step shows whether it's done
-and ticks by itself. It's always under **Options** (the wheel at the top right), and the **Host setup** tab shows the
-same checks all at once.
+and ticks by itself. It's always under **Options** in the top bar, and **Machine** (Host setup) shows the same checks
+all at once.
+
+Gatekeeper's window has the same five sections across the top as the launcher (click one, or flip with Q and E, or
+a controller's bumpers):
+
+| Section | What is there |
+| --- | --- |
+| **Servers** | MCSS and the list of servers, **New server**, **Server setup**, **Check for updates**. **Open** a server for its Access Manager, Server Status and Updates Pulled; **Manage** for the ones Gatekeeper runs itself. |
+| **People** | The web panel's accounts, and **Launchers and players**: the Access Manager of the first server (for another server, open it under Servers). A red number here is launchers waiting for an answer. |
+| **Constellation** | The clients and their update modes, joining and allowing, the update log; **What's new in Gatekeeper** and **in Gatehouse** beside it. |
+| **Machine** | Host setup: every check at once. A red number here is steps still to do. |
+| **Options** | How Gatekeeper updates, the setup guide, Play or Host, and Uninstall. |
+
+Where this guide says a "tab" of Gatekeeper's first screen (Web panel, Constellation, Host setup), it is the page
+of that name in these sections.
 
 The steps on Windows (Linux and SteamOS differ in steps 4 to 8: see [below](#on-linux-and-steamos-the-servers)):
 
@@ -380,7 +394,7 @@ at the machine itself, anyone who can open Gatekeeper's window can.
 
 ## Removing it
 
-In either half: **Options** (the wheel), **Uninstall**, and type `confirm`. Each half is removed on its own, so a
+In either half: **Options**, **Uninstall**, and type `confirm`. Each half is removed on its own, so a
 machine with both can keep one. A tick box decides whether what that half remembers goes too (for the launcher, its
 Gatekeepers and this device's identity; for Gatekeeper, who is allowed what and its key for MCSS).
 

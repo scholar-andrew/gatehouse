@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.7.0",
+ "version": "3.8.0",
  "changes": [
+  {"version": "3.8.0", "date": "2026-11-17", "notes": [
+   "Nothing changed in the launcher: this version carries Gatekeeper's window in the new look."
+  ]},
   {"version": "3.7.0", "date": "2026-11-17", "notes": [
    "A server's own page (what opens after Launch) has the new look too. Its tabs are now the sections across the top: Updates, Server news, Connection, Server, Mods, and Gatekeeper when the host has allowed this device Gatekeeper control. The bumpers (Q and E) flip between them, and a section with something new has a red dot.",
    "Play, Restart, Quit and the Gatehouse button (back to the menu) are in the strip along the bottom, with what reaches them. B on a controller, or Esc, goes back to the menu at once.",

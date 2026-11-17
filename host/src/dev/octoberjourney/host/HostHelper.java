@@ -2235,9 +2235,10 @@ public final class HostHelper {
 			JFrame f = new JFrame("Gatekeeper");
 			f.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
-			p.setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
+			p.setBorder(BorderFactory.createEmptyBorder(14, 24, 10, 24));
+			p.setOpaque(false);
 			JLabel head = new JLabel("Gatekeeper");
-			head.setFont(head.getFont().deriveFont(Font.BOLD, 17f));
+			head.setFont(head.getFont().deriveFont(Font.BOLD, 24f));
 			JLabel state = new JLabel(" ");
 			// MCSS itself: start it, or close it (how follows MCSS's own X-button setting, as for the launchers).
 			JButton mcssRun = new JButton("Start MCSS");
@@ -2265,10 +2266,14 @@ public final class HostHelper {
 			JButton gear = new JButton(dev.gatehouse.look.SteamLook.gear(18));
 			gear.setToolTipText("Options");
 			JPanel headRight = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
-			headRight.add(pickRow); headRight.add(gear);
+			headRight.add(pickRow);   // (Options is a section in the top bar now; the wheel is no longer shown)
 			JPanel headLine = new JPanel(new BorderLayout()); headLine.add(head, BorderLayout.WEST); headLine.add(headRight, BorderLayout.EAST);
 			JPanel headRows = new JPanel(new BorderLayout(0, 6)); headRows.add(headLine, BorderLayout.NORTH); headRows.add(reqRow, BorderLayout.SOUTH);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(headRows, BorderLayout.NORTH);
+			// (under the heading: the pages of the section that is open, when it has more than one)
+			JPanel subRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+			top.add(subRow, BorderLayout.CENTER);
+			for (javax.swing.JComponent clear : new javax.swing.JComponent[] {top, headRows, headLine, headRight, pickRow, subRow}) clear.setOpaque(false);
 			p.add(top, BorderLayout.NORTH);
 			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Controls the server", "Status", "Now"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
@@ -2821,7 +2826,8 @@ public final class HostHelper {
 			String ownV = Json.str(notesInside("gatekeeper").get("version"));
 			if (!ownV.isEmpty()) f.setTitle("Gatekeeper " + ownV);
 			stack.add(firstTabs, "overview"); stack.add(tabs, "server");
-			p.add(stack, BorderLayout.CENTER);
+			dev.gatehouse.look.GameShell.hideTabs(firstTabs);   // (the sections in the top bar, and the buttons under the heading, choose its page)
+			p.add(dev.gatehouse.look.GameShell.sheet(stack), BorderLayout.CENTER);
 			JButton backB = new JButton("\u2039 Servers");
 			backB.setToolTipText("Back to MCSS and the list of servers on this machine");
 			backB.setVisible(false);
@@ -2913,7 +2919,8 @@ public final class HostHelper {
 				} catch (IOException | RuntimeException ex) { uninstallSaid.setText("Couldn't start the uninstall: " + ex.getMessage()); }
 			});
 			JPanel optionsTop = new JPanel(new BorderLayout()); optionsTop.add(options, BorderLayout.NORTH);
-			stack.add(new JScrollPane(optionsTop), "options");
+			JScrollPane optionsScroll = new JScrollPane(optionsTop);
+			stack.add(optionsScroll, "options");
 			String[] optionsFrom = {"overview", "Gatekeeper"};
 			gear.addActionListener(ev -> { optionsFrom[0] = backB.isVisible() ? "server" : "overview"; optionsFrom[1] = head.getText(); head.setText("Gatekeeper \u2013 Options"); pickRow.setVisible(false); levels.show(stack, "options"); });
 			optBack.addActionListener(ev -> { head.setText(optionsFrom[1]); pickRow.setVisible(true); levels.show(stack, optionsFrom[0]); });
@@ -3152,10 +3159,10 @@ public final class HostHelper {
 			// ---- the first screen: MCSS, then its servers
 			pickRow.removeAll(); pickRow.add(backB);   // (the list of servers replaces the drop-down that picked one)
 			boolean[] inServer = {false};
+			JButton[] firstEnter = {null};   // (the button that opens the first server in the list)
 			java.util.function.BiFunction<String, String, Object[]> overRow = (title, button) -> {
-				JPanel r = new JPanel(new BorderLayout(14, 0));
-				r.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(12, 14, 12, 14)));
-				r.setBackground(new Color(0x141D29));
+				JPanel r = new dev.gatehouse.look.GameCard.Strip(new BorderLayout(14, 0));   // (a slim card: it glows while one of its buttons is selected)
+				r.setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
 				JLabel n = new JLabel(title); n.setFont(n.getFont().deriveFont(Font.BOLD, 16f));
 				JLabel st = new JLabel(" ");
 				JPanel text = new JPanel(new BorderLayout(0, 4)); text.setOpaque(false);
@@ -3175,6 +3182,7 @@ public final class HostHelper {
 				if (overSig.equals(overShown[0]) && overList.getComponentCount() > 0) return;
 				overShown[0] = overSig;
 				overList.removeAll();
+				firstEnter[0] = null;
 				JLabel h1 = new JLabel(builtin() ? "What runs the servers" : "MCSS on this machine"); h1.setFont(h1.getFont().deriveFont(Font.BOLD, 14f)); h1.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0)); h1.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 				overList.add(h1);
 				boolean up = Boolean.TRUE.equals(r.get("mcss"));
@@ -3199,6 +3207,7 @@ public final class HostHelper {
 					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + (Json.str(r.get("host")).equals("mcss") ? nat ? "   \u00b7   run by Gatekeeper itself" : "   \u00b7   run by MCSS" : "") + "   \u00b7   " + Json.str(s.get("dir")));
 					((JLabel) sr[1]).setForeground(on ? new Color(0x8BD46E) : ph.equals("starting") || ph.equals("stopping") ? new Color(0xE9B949) : new Color(0x8F98A0));
 					((JButton) sr[2]).setToolTipText("Access Manager, Server Status and Updates Pulled for this server");
+					if (firstEnter[0] == null) firstEnter[0] = (JButton) sr[2];
 					String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
 					((JButton) sr[2]).addActionListener(ev -> { panelServer = id; inServer[0] = true; head.setText("Gatekeeper \u2013 " + nm); backB.setVisible(true); levels.show(stack, "server"); refresh.run(); });
 					JButton manageB = new JButton("Manage\u2026");
@@ -3426,8 +3435,75 @@ public final class HostHelper {
 			refreshB.addActionListener(e -> refresh.run());
 			new Timer(3000, e -> refresh.run()).start();
 			refresh.run();
-			f.setContentPane(p);
+			// ---- the window as a game's menu (GameShell): five sections across the top, this page in the middle, and
+			// what the buttons do along the bottom. The pages themselves are the ones above; a section shows one of
+			// them, and where it has several, buttons under the heading choose.
+			boolean[] peopleJump = {false};
+			Runnable toOverview = () -> {
+				if (guide[0].isVisible()) leaveGuide.run(); else if (optionsScroll.isVisible()) optBack.doClick();
+				if (inServer[0]) backB.doClick();
+			};
+			java.util.function.Consumer<String> pickSection = s -> {
+				switch (s) {
+					case "SERVERS" -> { toOverview.run(); firstTabs.setSelectedIndex(0); }
+					case "PEOPLE" -> { toOverview.run(); firstTabs.setSelectedIndex(4); }
+					case "CONSTELLATION" -> { toOverview.run(); firstTabs.setSelectedIndex(5); }
+					case "MACHINE" -> { toOverview.run(); firstTabs.setSelectedIndex(3); }
+					default -> { if (!optionsScroll.isVisible()) { if (guide[0].isVisible()) leaveGuide.run(); gear.doClick(0); } }
+				}
+			};
+			dev.gatehouse.look.GameShell shell = new dev.gatehouse.look.GameShell("Gatekeeper", new String[] {"SERVERS", "PEOPLE", "CONSTELLATION", "MACHINE", "OPTIONS"}, pickSection);
+			shell.body(p);
+			String[] subShown = {null};
+			Runnable sync = () -> {
+				boolean aside = optionsScroll.isVisible() || guide[0].isVisible();
+				int at = firstTabs.getSelectedIndex();
+				if (!inServer[0]) peopleJump[0] = false;
+				String lit = aside ? "OPTIONS" : inServer[0] ? (peopleJump[0] && tabs.getSelectedIndex() == 0 ? "PEOPLE" : "SERVERS") : at == 0 ? "SERVERS" : at == 3 ? "MACHINE" : at == 4 ? "PEOPLE" : "CONSTELLATION";
+				shell.light(lit);
+				// (what is waiting: launchers' requests on People, setup steps still to do on Machine)
+				shell.badge("PEOPLE", reqRow.isVisible() ? reqRow.getComponentCount() : 0);
+				java.util.regex.Matcher todoM = java.util.regex.Pattern.compile("\\((\\d+) to do\\)").matcher(firstTabs.getTitleAt(3));
+				shell.badge("MACHINE", todoM.find() ? Integer.parseInt(todoM.group(1)) : 0);
+				String want = aside || inServer[0] ? "" : lit + at;
+				if (want.equals(subShown[0])) return;
+				subShown[0] = want;
+				subRow.removeAll();
+				String[][] pages = want.isEmpty() ? new String[0][] : lit.equals("PEOPLE") ? new String[][] {{"Web panel accounts", "4"}, {"Launchers and players\u2026", "enter"}}
+						: lit.equals("CONSTELLATION") ? new String[][] {{"Clients", "5"}, {"What's new in Gatekeeper", "1"}, {"What's new in Gatehouse", "2"}} : new String[0][];
+				for (String[] pg : pages) {
+					boolean here = pg[1].equals(String.valueOf(at));
+					JButton b = new JButton((here ? "\u25cf  " : "") + pg[0]);
+					if (here) b.setFont(b.getFont().deriveFont(Font.BOLD));
+					if (pg[1].equals("enter")) {
+						b.setToolTipText("The Access Manager of the first server in the list: who may join it and what each launcher may do. For another server, open it under Servers.");
+						b.addActionListener(ev -> { if (firstEnter[0] == null) { JOptionPane.showMessageDialog(f, "There is no server yet. Add one under Servers first."); return; } peopleJump[0] = true; firstEnter[0].doClick(0); tabs.setSelectedIndex(0); });
+					} else b.addActionListener(ev -> firstTabs.setSelectedIndex(Integer.parseInt(pg[1])));
+					subRow.add(b);
+				}
+				subRow.revalidate(); subRow.repaint();
+			};
+			firstTabs.addChangeListener(ev -> sync.run());
+			tabs.addChangeListener(ev -> sync.run());
+			new Timer(350, ev -> sync.run()).start();
+			sync.run();
+			JLabel verL = new JLabel("Gatekeeper " + ownV);
+			verL.setFont(verL.getFont().deriveFont(Font.BOLD, 13f));
+			shell.left().add(verL);
+			dev.gatehouse.look.GameShell.Hint backHint = new dev.gatehouse.look.GameShell.Hint("B", "Esc", "Back");
+			backHint.setVisible(false);
+			backB.addComponentListener(new java.awt.event.ComponentAdapter() {
+				@Override public void componentShown(java.awt.event.ComponentEvent e) { backHint.setVisible(true); }
+				@Override public void componentHidden(java.awt.event.ComponentEvent e) { backHint.setVisible(false); }
+			});
+			shell.right().add(new dev.gatehouse.look.GameShell.Hint("A", "Enter", "Select")); shell.right().add(backHint);
+			// (a controller, or Q, E and Esc, drive this window as they do the launcher's)
+			dev.octoberjourney.popup.Nav.tag(backB, "back");
+			backB.putClientProperty("navNow", Boolean.TRUE);
+			if (System.getenv("OJ_PANEL_PNG") == null) dev.octoberjourney.popup.Nav.start();
+			f.setContentPane(shell);
 			f.pack();
+			if (System.getenv("OJ_PANEL_PNG") != null) f.setSize(1240, 800);
 			dev.gatehouse.look.AppIcon.apply(f, true, 0, false);
 			if (System.getenv("OJ_PANEL_PNG") == null) {
 				java.awt.Rectangle scr = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
@@ -3455,34 +3531,34 @@ public final class HostHelper {
 					pairB.doClick();
 					try {   // (the first screen: <file>-overview.png; then into the first server for the rest)
 						fillOverview.accept(Json.map(Json.parse(call("GET", "/admin/overview", null))));
-						p.validate();
-						java.awt.image.BufferedImage oi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D og = oi.createGraphics(); p.paint(og); og.dispose();
+						sync.run(); shell.validate();
+						java.awt.image.BufferedImage oi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D og = oi.createGraphics(); shell.paint(og); og.dispose();
 						javax.imageio.ImageIO.write(oi, "png", new java.io.File(shot + "-overview.png"));
-						firstTabs.setSelectedIndex(1); p.validate();
-						java.awt.image.BufferedImage ni = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D ng = ni.createGraphics(); p.paint(ng); ng.dispose();
+						firstTabs.setSelectedIndex(1); sync.run(); shell.validate();
+						java.awt.image.BufferedImage ni = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D ng = ni.createGraphics(); shell.paint(ng); ng.dispose();
 						javax.imageio.ImageIO.write(ni, "png", new java.io.File(shot + "-notes.png"));
-						firstTabs.setSelectedIndex(3); p.validate();
-						java.awt.image.BufferedImage hi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D hg = hi.createGraphics(); p.paint(hg); hg.dispose();
+						firstTabs.setSelectedIndex(3); sync.run(); shell.validate();
+						java.awt.image.BufferedImage hi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D hg = hi.createGraphics(); shell.paint(hg); hg.dispose();
 						javax.imageio.ImageIO.write(hi, "png", new java.io.File(shot + "-hostsetup.png"));
-						firstTabs.setSelectedIndex(4); p.validate();
-						java.awt.image.BufferedImage wpi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D wpg = wpi.createGraphics(); p.paint(wpg); wpg.dispose();
+						firstTabs.setSelectedIndex(4); sync.run(); shell.validate();
+						java.awt.image.BufferedImage wpi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D wpg = wpi.createGraphics(); shell.paint(wpg); wpg.dispose();
 						javax.imageio.ImageIO.write(wpi, "png", new java.io.File(shot + "-webpanel.png"));
-						firstTabs.setSelectedIndex(5); try { Thread.sleep(700); } catch (InterruptedException ignored) {} p.validate();
-						java.awt.image.BufferedImage cni = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D cng = cni.createGraphics(); p.paint(cng); cng.dispose();
+						firstTabs.setSelectedIndex(5); try { Thread.sleep(700); } catch (InterruptedException ignored) {} sync.run(); shell.validate();
+						java.awt.image.BufferedImage cni = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D cng = cni.createGraphics(); shell.paint(cng); cng.dispose();
 						javax.imageio.ImageIO.write(cni, "png", new java.io.File(shot + "-constellation.png"));
-						gear.doClick(0); p.validate();
-						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D gg2 = gi2.createGraphics(); p.paint(gg2); gg2.dispose();
+						gear.doClick(0); sync.run(); shell.validate();
+						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D gg2 = gi2.createGraphics(); shell.paint(gg2); gg2.dispose();
 						javax.imageio.ImageIO.write(gi2, "png", new java.io.File(shot + "-options.png"));
 						optBack.doClick(0);
-						levels.show(stack, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); p.validate();
-						java.awt.image.BufferedImage wi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D wg = wi.createGraphics(); p.paint(wg); wg.dispose();
+						levels.show(stack, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); sync.run(); shell.validate();
+						java.awt.image.BufferedImage wi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D wg = wi.createGraphics(); shell.paint(wg); wg.dispose();
 						javax.imageio.ImageIO.write(wi, "png", new java.io.File(shot + "-wizard.png"));
 						levels.show(stack, "overview");
 						firstTabs.setSelectedIndex(0);
@@ -3492,16 +3568,16 @@ public final class HostHelper {
 						// (the Updates Pulled tab, filled in directly: <file>-pulls.png)
 						tabs.setSelectedIndex(2);
 						try { fillPulls.accept(Json.list(Json.map(Json.parse(call("GET", "/admin/pulls", null))).get("pulls"))); } catch (Exception ignored) {}
-						p.validate();
-						java.awt.image.BufferedImage pi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-						java.awt.Graphics2D pg = pi.createGraphics(); p.paint(pg); pg.dispose();
+						sync.run(); shell.validate();
+						java.awt.image.BufferedImage pi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D pg = pi.createGraphics(); shell.paint(pg); pg.dispose();
 						javax.imageio.ImageIO.write(pi, "png", new java.io.File(shot + "-pulls.png"));
 						for (int i = 0; i < 3; i++) {
 							tabs.setSelectedIndex(i == 2 ? 1 : 0);
 							if (i == 1) byPlayer.doClick(); else if (i == 0) byDevice.doClick();
-							p.validate();
-							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-							java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
+							sync.run(); shell.validate();
+							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D g = img.createGraphics(); shell.paint(g); g.dispose();
 							javax.imageio.ImageIO.write(img, "png", new java.io.File(shot + (i == 0 ? "-access.png" : i == 1 ? "-players.png" : "-status.png")));
 						}
 					} catch (IOException ex) { ex.printStackTrace(); }

@@ -27,7 +27,7 @@ import javax.swing.text.JTextComponent;
  *  On tabs, left and right change the tab; in a list, up and down move the row. Whatever window of the launcher is in
  *  front is the one being driven, questions included. Buttons say what they are with tag(): "back", "restart", "quit".
  *  The arrow keys do the same moving when a button or a tab row is selected. */
-final class Nav {
+public final class Nav {
 	private Nav() {}
 
 	private static boolean on;
@@ -35,10 +35,10 @@ final class Nav {
 	private static void flip(Window w, int by) { if (w instanceof javax.swing.JFrame jf && jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs) gs.flip(by); }
 
 	/** Marks a button as the one B / Select, Y or Start goes to. */
-	static void tag(JComponent c, String what) { c.putClientProperty("nav", what); }
+	public static void tag(JComponent c, String what) { c.putClientProperty("nav", what); }
 
 	/** Turns it on (once, for every window of the launcher). */
-	static synchronized void start() {
+	public static synchronized void start() {
 		rightClickIsLeftClick();
 		if (on) return;
 		on = true;
