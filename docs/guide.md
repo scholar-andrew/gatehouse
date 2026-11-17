@@ -1,30 +1,39 @@
-# How to use Gatehouse and Gatekeeper
+# How to use Gatehouse
 
-This page takes you from nothing installed to playing on a server (if you're a player) or to running one your
-friends can join (if you're the host). Both programs also carry this as a **setup guide** inside them, which checks
-each step for you; this page is the same road, written out.
+Gatehouse is one program with two halves. This page takes you from nothing installed to playing on a server (the
+**Play** half), to running one your friends can join (the **Host** half), or both on the same machine. The program
+also carries these steps inside it as **setup guides** that check each step for you; this page is the same road,
+written out.
 
-- [What the two programs are](#what-the-two-programs-are)
+- [One program, two halves](#one-program-two-halves)
 - [For players: Gatehouse](#for-players-gatehouse)
 - [For hosts: Gatekeeper](#for-hosts-gatekeeper)
+- [Hosting and playing on the same machine](#hosting-and-playing-on-the-same-machine)
 - [Updates](#updates)
-- [Removing them](#removing-them)
+- [Removing it](#removing-it)
 - [What works on which system](#what-works-on-which-system)
 - [When something doesn't work](#when-something-doesnt-work)
 
-## What the two programs are
+## One program, two halves
 
-| | Gatehouse | Gatekeeper |
+| | Play: the Gatehouse launcher | Host: Gatekeeper |
 | --- | --- | --- |
-| Who runs it | Each player, on the device they play on | The host, on the machine that runs the Minecraft servers |
+| Who sets it up | Each player, on the device they play on | The host, on the machine that runs the Minecraft servers |
 | What it does | Lists the servers you can join, installs and updates each server's mods, shows what changed, and starts the game | Lets the launchers you allow see, start and stop your servers, and decides who may do what |
-| Works with | [Prism Launcher](https://prismlauncher.org/), which runs Minecraft | On Windows, [MC Server Soft](https://www.mcserversoft.com/) (MCSS), which runs the servers. On Linux and SteamOS, nothing else: Gatekeeper runs the servers itself |
+| How it runs | A window you open when you want to play | In the background from the moment you sign in; its window is only for looking and changing things |
+| Works with | [Prism Launcher](https://prismlauncher.org/), which runs Minecraft | On Windows, [MC Server Soft](https://www.mcserversoft.com/) (MCSS), or Gatekeeper running the servers itself. On Linux and SteamOS, Gatekeeper runs them itself |
 
-The two talk over [Tailscale](https://tailscale.com/), a private network between the host's machine and the devices
-the host lets in. Nothing is opened to the internet, and no router settings are changed.
+It is the same program file either way, with one version number. A device sets up the half it needs: most people
+only Play, the host sets up Host, and a host who also plays sets up both. The **Play or Host** screen (in
+Gatehouse's Options, and at the bottom of Gatekeeper's first screen) shows which halves a device has, opens either,
+and sets up the one it doesn't have yet.
 
-Neither program needs administrator rights or the system password. Both are plain Java programs installed by
-scripts you can read first.
+Launchers and Gatekeepers on different devices talk over [Tailscale](https://tailscale.com/), a private network
+between the host's machine and the devices the host lets in. Nothing is opened to the internet, and no router
+settings are changed.
+
+Neither half needs administrator rights or the system password. It is a plain Java program installed by scripts you
+can read first.
 
 ---
 
@@ -268,28 +277,47 @@ their launcher, your machine chimes and Gatekeeper shows what they asked for.
 
 ---
 
+## Hosting and playing on the same machine
+
+Both halves can be set up on one machine, and both are on at once: Gatekeeper keeps running in the background while
+you play, and never needs its window open.
+
+- **Nothing to pair.** When the launcher opens and finds a Gatekeeper running on the same machine, it links itself
+  to it: no pairing link, no request to answer, and no Tailscale needed between the two. The Gatekeeper appears in
+  the launcher's list by itself (or the pairing you already had is used).
+- **You are let in.** That launcher is allowed everything on that Gatekeeper (starting and stopping servers, MCSS,
+  sleep, the Access Manager), on every server, and the account you play as in Prism Launcher is put on each
+  server's whitelist. Play works straight away.
+- **Gatekeeper is a button away.** The launcher's first screen shows **This machine hosts servers** at the top, with
+  whether its Gatekeeper is running and an **Open Gatekeeper** button.
+- **Only this machine's launcher.** A launcher on any other device still pairs and waits for you to allow what you
+  choose, whoever plays on it.
+
 ## Updates
 
 - **Mods and settings for a server** update by themselves each time a player presses Launch.
-- **Gatehouse** looks for a newer version of itself and offers **Update Gatehouse**.
-- **Gatekeeper** shows **Update Gatekeeper** when a newer one is out. It fetches it, checks it, restarts, and goes
-  back to the version before if the new one doesn't answer. Running Minecraft servers aren't touched.
+- **The program** tells you when a newer one is out: **Update Gatehouse** in the launcher, **Update Gatekeeper** in
+  Gatekeeper. It fetches the new file, checks it, and restarts; Gatekeeper goes back to the version before if the
+  new one doesn't answer. **Check for updates**, in both, looks right away instead of waiting.
+- **One press covers both halves** on a machine that has both: updating either one updates the other.
+- **A running server isn't interrupted.** If a server Gatekeeper runs itself is on, Gatekeeper's update waits and
+  is applied by itself as soon as that server is off. Servers MCSS runs aren't affected by the restart.
 
 Versions have to match for anyone to play:
 
 - An out-of-date **Gatekeeper** starts no server until the host updates it.
-- An out-of-date **Gatehouse** isn't offered Play until that player updates it.
+- An out-of-date **launcher** isn't offered Play until that player updates it.
 
-Each program lists what changed in it: the **Gatehouse updates** and **Gatekeeper updates** tabs.
+What changed is listed in the program: the **Gatehouse updates** and **Gatekeeper updates** tabs.
 
-## Removing them
+## Removing it
 
-In either program: **Options** (the wheel), **Uninstall**, and type `confirm`. A tick box decides whether what the
-program remembers goes too (for Gatehouse, its Gatekeepers and this device's identity; for Gatekeeper, who is allowed
-what and its key for MCSS).
+In either half: **Options** (the wheel), **Uninstall**, and type `confirm`. Each half is removed on its own, so a
+machine with both can keep one. A tick box decides whether what that half remembers goes too (for the launcher, its
+Gatekeepers and this device's identity; for Gatekeeper, who is allowed what and its key for MCSS).
 
-- Removing **Gatehouse** leaves Prism Launcher and the servers installed in it. Remove a server in Prism Launcher:
-  right-click it, Delete.
+- Removing the **launcher** leaves Prism Launcher and the servers installed in it. Remove a server in Prism
+  Launcher: right-click it, Delete.
 - Removing **Gatekeeper** leaves MCSS, your servers and their worlds untouched.
 
 The install scripts do the same from outside: `-Uninstall` on Windows, `--uninstall` on Linux.

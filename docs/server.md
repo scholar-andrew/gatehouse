@@ -76,11 +76,11 @@ Setting Gatekeeper up step by step, for a host: [How to use Gatehouse and Gateke
 This section is the reference.
 
 MCSS's web panel only exists while MCSS is running, so starting MCSS itself needs something else on the PC: the host
-helper (`host/`, built by `tools/build_host.ps1`). It is installed from **gatehouse-keeper.zip** (on the releases
+helper (`host/`, built by `tools/build_program.ps1`). It is installed from **gatehouse-keeper.zip** (on the releases
 page): unpack it and run `install-keeper.ps1`, a plain PowerShell script you can read first
 ([`installer/keeper/install-keeper.ps1`](../installer/keeper/install-keeper.ps1)); it needs Java 17 or newer, downloads
 nothing, and `-Uninstall` removes it. A new install goes to `%LOCALAPPDATA%\Programs\GatehouseKeeper`; the owner's
-own is in `C:\Minecraft\GatehouseKeeper` (kept current from this repository by `tools/install_host.ps1`).
+own is in `C:\Minecraft\GatehouseKeeper` (set up by the install script, and kept current by its own Update).
 **Linux and SteamOS.** The same Gatekeeper runs there, installed by `install-keeper.sh` from the same zip
 ([`installer/keeper/install-keeper.sh`](../installer/keeper/install-keeper.sh); on a Steam Deck: Desktop Mode,
 Konsole, `bash install-keeper.sh`), or fetched and checked for you by `bash gatehouse-install.sh --gatekeeper`. It
@@ -226,7 +226,7 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
 - **The catalog.** A launcher's menu asks `GET /v1/catalog` for this Gatekeeper's name (`name` in `host.json`, else
   the computer's name) and its servers: id, name, the address to join, whether it's on, and `profile`, the address
   of that server's pack profile (a `config.json`, docs/profiles.md; `profile` on the server in `host.json`, filled in
-  from this repository by `tools/install_host.ps1`). A launcher can install a pack from that. A blacklisted launcher
+  by its own Update). A launcher can install a pack from that. A blacklisted launcher
   gets nothing. It also says what kind each server is (`kind`: `modded` when its folder has mods or a mod loader's files, else
   `vanilla`) and its Minecraft version (`minecraft_version`, from the server's own log, else its `versions` folder), so a
   launcher can set up a plain instance for a plain server that has no pack.
@@ -358,7 +358,7 @@ setup remains the list of everything at once.
 
 The settings wheel at the top right opens Options: the version, where Gatekeeper runs from and where its settings
 are, and **Uninstall**. After `confirm` is typed, Gatekeeper writes out the install script it carries
-(`install-keeper.ps1`, put inside it by `tools/build_host.ps1`) beside its settings and runs it with `-Uninstall -Yes`
+(`install-keeper.ps1`, put inside it by `tools/build_program.ps1`) beside its settings and runs it with `-Uninstall -Yes`
 (`-Purge` when the tick box for its settings is on) in a PowerShell window that stays open until Enter is pressed;
 the script stops Gatekeeper, this window included. `--uninstall-command` prints what would be run, for tests.
 

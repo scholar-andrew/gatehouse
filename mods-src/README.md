@@ -30,7 +30,7 @@ saves the player's choice under `mods` in `pack-options.json`; the pack sync app
 disabling or re-enabling the mod's jar. Nothing happens in the running game: a loaded mod can't be unloaded.
 
 ## launch-popup (the window before the game starts)
-`launch-popup/`, built with `tools/build_popup.ps1` into `source/files/launch-popup.jar`. It isn't a Minecraft mod: it's
+`launch-popup/`, built with `tools/build_program.ps1` into `source/files/launch-popup.jar`. It isn't a Minecraft mod: it's
 a small Swing program (Java 17, no libraries) that the pack sync runs with Prism's Java before the game starts. It
 lists what the update checked (coloured dots), the mods it added, removed and updated, mod switches, notes and the
 patch notes, or "no updates"; a Server tab shows what the server runs and what changed there. It honours the pop-up

@@ -42,7 +42,7 @@ its pack installs into a fresh folder and the launcher shows its name and adds i
 2. Put its mods in `profiles/<id>/source/mods.json` (and `tools/mod_sizes.py` for their sizes), its notes in
    `source/changelog.json`.
 3. `python tools/build_pack.py --profile <id>`, commit and push: that publishes `dist/<id>/`.
-4. `tools\install_host.ps1` on the server PC adds its server to Gatekeeper.
+4. Server setup, in Gatekeeper on the server PC, adds its server to Gatekeeper.
 5. On each device: `GatehouseSetup.exe --profile=<id>` (or `bash gatehouse-setup.sh --profile=<id>`).
 
 Not exercised with a real second server: Steam shortcuts and art for a second pack, and two packs' launchers talking
@@ -72,7 +72,7 @@ Still fixed in code or scripts:
 | Launcher (`LaunchPopup.java`) | "October Journey" in the window title, the checklist heading, the update question and every summary headline (10 places) |
 | Sync scripts (`pack-sync.ps1`, `.sh`) | "October Journey" in two messages each; the rest is already read from files beside the script |
 | Gatekeeper (`HostHelper.java`) | default address `100.91.134.102`, default server folder `...\servers\octoberserver`, one MCSS server, window titles |
-| `tools/install_host.ps1`, `tools/serve.ps1` | the PC's Tailscale address, `C:\Minecraft\...` paths, task and shortcut names |
+| `tools/serve.ps1` (and `installer/keeper/install-keeper.ps1`) | the PC's Tailscale address, `C:\Minecraft\...` paths, task and shortcut names |
 | Installers and uninstallers | the name in every message (31 places in the Windows setup), the Tailscale address in the uninstallers |
 | `clients/pack-sources.txt` | the two pack sources (a copy of what the profile already says) |
 | Build (`tools/build_pack.py`) | one pack built from `source/`, into `dist/main` and `dist/deck` |

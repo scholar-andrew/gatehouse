@@ -1,24 +1,27 @@
 # Gatehouse
 
-Gatehouse gets a group of friends onto the same Minecraft server and keeps them there. It is two programs:
+Gatehouse gets a group of friends onto the same Minecraft server and keeps them there. It is one program with two
+halves, and a device sets up the half it needs:
 
-- **Gatehouse**, the launcher, on each player's device. It lists the servers you can join, installs and updates each
-  server's mods, shows what changed on your device and on the server, and has the controls for the server that its
-  owner has allowed your device. Then it starts the game through [Prism Launcher](https://prismlauncher.org/).
-- **Gatekeeper**, on the machine that runs the servers. It lets the launchers its owner allows see, start and stop
-  the servers, shows who asked for what, and has an Access Manager for deciding who may do which, per device or per
-  player, including each server's whitelist. On Windows it works with
-  [MC Server Soft](https://www.mcserversoft.com/); on Linux and SteamOS, where there is no MCSS, it runs the servers
-  itself.
+- **Play**, the Gatehouse launcher, on each player's device. It lists the servers you can join, installs and updates
+  each server's mods, shows what changed on your device and on the server, and has the controls for the server that
+  its owner has allowed your device. Then it starts the game through [Prism Launcher](https://prismlauncher.org/).
+- **Host**, Gatekeeper, on the machine that runs the servers. It lets the launchers its owner allows see, start and
+  stop the servers, shows who asked for what, and has an Access Manager for deciding who may do which, per device or
+  per player, including each server's whitelist. It works with [MC Server Soft](https://www.mcserversoft.com/) on
+  Windows, or runs the servers itself (always on Linux and SteamOS, where there is no MCSS).
 
-The two talk over the owner's private [Tailscale](https://tailscale.com/) network, so nothing is opened to the
-internet. GitHub is only a fallback for downloads.
+A host who also plays sets up both on one machine: the launcher there links itself to its Gatekeeper, is allowed
+everything, and its player is whitelisted, with nothing to pair.
+
+Launchers and Gatekeepers on different devices talk over the owner's private [Tailscale](https://tailscale.com/)
+network, so nothing is opened to the internet. GitHub is only a fallback for downloads.
 
 ## Start here
 
-**[How to use Gatehouse and Gatekeeper](docs/guide.md)**: step-by-step instructions for players and for hosts, from
+**[How to use Gatehouse](docs/guide.md)**: step-by-step instructions for players and for hosts, from
 nothing installed to playing, plus updates, removing them, what works on which system, and what to do when something
-doesn't work. Both programs carry the same steps inside them as a setup guide that checks each one for you.
+doesn't work. The program carries the same steps inside it as setup guides that check each one for you.
 
 ## Download
 
@@ -31,8 +34,8 @@ doesn't work. Both programs carry the same steps inside them as a setup guide th
 The Gatehouse and Gatekeeper installers are plain scripts you can read first. They need no administrator rights,
 check each download against a published SHA-256, and have a dry run that shows what they would do.
 
-Current versions: **Gatehouse 3.2.0** (one program: its Play half is the launcher, its Host half is Gatekeeper). Each program lists its own changes (the Gatehouse
-updates and Gatekeeper updates tabs), and both update themselves.
+Current version: **Gatehouse 3.2.0**, for both halves. What changed is listed in the program (the Gatehouse updates
+and Gatekeeper updates tabs), it updates itself, and on a machine with both halves one press updates both.
 
 | | Windows | Linux | SteamOS (Steam Deck) |
 | --- | --- | --- | --- |

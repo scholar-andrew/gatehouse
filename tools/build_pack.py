@@ -326,7 +326,7 @@ def write_profile_config() -> None:
 def publish_gatekeeper() -> None:
     """Gatekeeper, published beside the pack so a running Gatekeeper can update itself: gatekeeper/oj-host.jar and
     gatekeeper/gatekeeper.json (its version and checksum, and the launcher's version in this same build, which is
-    what Gatekeeper holds launchers to). The jar is the one tools/build_host.ps1 built; if its own notes aren't the
+    what Gatekeeper holds launchers to). The jar is the one tools/build_program.ps1 built; if its own notes aren't the
     current source/gatekeeper.json, the build stops rather than publish a Gatekeeper that would never count as new."""
     import zipfile
     jar = os.path.join(ROOT, "host", "oj-host.jar")
@@ -334,7 +334,7 @@ def publish_gatekeeper() -> None:
     with zipfile.ZipFile(jar) as z:
         inside = json.loads(z.read("gatekeeper-notes.json").decode("utf-8")).get("version", "")
     if inside != want:
-        sys.exit(f"host/oj-host.jar is Gatekeeper {inside}, but source/gatekeeper.json says {want}: run tools/build_host.ps1 first")
+        sys.exit(f"host/oj-host.jar is Gatekeeper {inside}, but source/gatekeeper.json says {want}: run tools/build_program.ps1 first")
     data = open(jar, "rb").read()
     out = os.path.join(DIST, "gatekeeper")
     os.makedirs(out, exist_ok=True)

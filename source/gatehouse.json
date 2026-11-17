@@ -1,5 +1,5 @@
 {
- "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
+ "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
  "version": "3.2.0",
  "changes": [
   {"version": "3.2.0", "date": "2026-11-16", "notes": [
