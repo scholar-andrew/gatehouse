@@ -1,4 +1,7 @@
 [
+ {"version": "1.37.0", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack itself. In constellation mode every client shows who the group is waiting for during an update, as a row of coloured pips (Gatehouse 3.4.0)."
+ ]},
  {"version": "1.36.1", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself. Gatekeeper's Constellation tab lists a client once when it is connected more than one way (Gatehouse 3.3.1)."
  ]},

@@ -494,7 +494,11 @@ final class Home {
 			ownUpdateButtons.add(ownUpdateLater); ownUpdateButtons.add(ownUpdateGo);
 			ownUpdate.add(ownUpdateText, BorderLayout.CENTER); ownUpdate.add(ownUpdateButtons, BorderLayout.EAST);
 			ownUpdate.setVisible(false);
-			top.add(headRow, BorderLayout.NORTH); top.add(sub, BorderLayout.CENTER); top.add(ownUpdate, BorderLayout.SOUTH);
+			// (in constellation mode, while a Gatekeeper is gathering an update: a pip for every client it is taking along)
+			dev.gatehouse.look.Pips gatherPips = new dev.gatehouse.look.Pips();
+			JPanel subRow = new JPanel(new BorderLayout(0, 2));
+			subRow.add(sub, BorderLayout.CENTER); subRow.add(gatherPips, BorderLayout.SOUTH);
+			top.add(headRow, BorderLayout.NORTH); top.add(subRow, BorderLayout.CENTER); top.add(ownUpdate, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
 			CardLayout cards = new CardLayout();
 			JPanel deck = new JPanel(cards);
@@ -1286,13 +1290,17 @@ final class Home {
 						if (LaunchPopup.embedded) continue;
 						String mode = updateMode(home);
 						boolean go = false, gathering = false;
+						Object[] gatherSaid = {null};
 						for (String[] k : new ArrayList<>(keepers)) try {
 							ServerControl sc = asked.computeIfAbsent(k[0], u -> client(home, u, packs));
 							String[] found = offered[0];
 							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"install\":\"" + installId(home) + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
 							if ("go".equals(str(r.get("state")))) go = true;
 							if ("gathering".equals(str(r.get("state")))) gathering = true;
+							if (r.get("gather") != null && gatherSaid[0] == null) gatherSaid[0] = r.get("gather");
 						} catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before this */ }
+						Object shown = mode.equals("constellation") ? gatherSaid[0] : null;
+						SwingUtilities.invokeLater(() -> gatherPips.set(shown));
 						if (mode.equals("normal")) continue;
 						boolean lookNow = mode.equals("auto") ? System.currentTimeMillis() - lookedAt > 60_000 : (go || gathering);
 						if (lookNow && offered[0] == null) { lookedAt = System.currentTimeMillis(); look.run(); }

@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.3.1",
+ "version": "3.4.0",
  "changes": [
+  {"version": "3.4.0", "date": "2026-11-16", "notes": [
+   "In constellation mode, while your Gatekeeper is gathering an update, Gatehouse shows who it is waiting for under its title: a row of pips, one for each client being taken along, and a line such as \"Waiting for 2 of 6 others\". Green is ready, amber hasn't seen the update yet, red is a Gatekeeper with a server still on. Gatekeepers are squares, launchers circles, and your own pip has a white ring. Pointing at the row says which is which (with names only if you have Gatekeeper control there, or it is your own machine's Gatekeeper)."
+  ]},
   {"version": "3.3.1", "date": "2026-11-16", "notes": [
    "Gatehouse now gives this install an id of its own (a random one, made once) and tells it to the Gatekeepers in your list along with its version and update mode. A Gatekeeper that hears of this launcher twice, from itself and through another Gatekeeper in its constellation, uses it to list the launcher once."
   ]},

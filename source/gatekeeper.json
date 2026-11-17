@@ -1,7 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.3.1",
+ "version": "3.4.0",
  "changes": [
+  {"version": "3.4.0", "date": "2026-11-16", "notes": [
+   "In constellation mode, while an update is being gathered, every client shows who the constellation is waiting for: a row of pips, one for each client being taken along, with a line beside it such as \"Waiting for 2 of 6 others\". Green is ready, amber hasn't seen the update yet (or, for a Gatekeeper, one of its launchers hasn't), red is a Gatekeeper with a server of its own still on. Gatekeepers are squares and launchers circles, and a client's own pip has a white ring.",
+   "Gatekeeper shows the pips at the bottom of its first screen and on the Constellation tab; pointing at them lists who is who. A Gatekeeper that joined another's constellation passes that Gatekeeper's picture on to its own launchers, with itself and its launchers in it, so every client in the constellation sees the same thing.",
+   "Names behind the pips are given to Gatekeepers in the constellation, to the launcher on a Gatekeeper's own machine and to launchers with Gatekeeper control. Other launchers see the pips and the count without names."
+  ]},
   {"version": "3.3.1", "date": "2026-11-16", "notes": [
    "The Constellation tab recognises the same client reached more than one way. A launcher paired with this Gatekeeper that is also paired with a Gatekeeper that joined was listed twice: once by itself and once under that Gatekeeper. It is now listed and counted once, with the other way beside it (\"also through ...\"), and a line under the list says how many clients are connected more than one way.",
    "How it knows: each install of the program now gives itself an id once and reports it to every Gatekeeper, directly or through another. A client from before this version is recognised by its name, player and system all matching, and the list says when that is how."

@@ -95,7 +95,9 @@ final class ConstellationUi {
 		JPanel joinRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave);
 		JPanel bottom = new JPanel();
 		bottom.setLayout(new javax.swing.BoxLayout(bottom, javax.swing.BoxLayout.Y_AXIS));
-		for (javax.swing.JComponent c : new javax.swing.JComponent[] {buttons, said, joinRow, leadSaid, did}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); bottom.add(c); }
+		dev.gatehouse.look.Pips pips = new dev.gatehouse.look.Pips();
+		new Timer(4000, e -> { if (p.isShowing()) ServerToolsUi.later(() -> { Object gg = ServerToolsUi.ask("GET", "/admin/auto", null).get("gather"); SwingUtilities.invokeLater(() -> pips.set(gg)); }); }).start();
+		for (javax.swing.JComponent c : new javax.swing.JComponent[] {buttons, said, pips, joinRow, leadSaid, did}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); bottom.add(c); }
 		p.add(head, BorderLayout.NORTH); p.add(new JScrollPane(table), BorderLayout.CENTER); p.add(bottom, BorderLayout.SOUTH);
 		new Timer(5000, e -> { if (p.isShowing()) load.run(); }).start();
 		load.run();

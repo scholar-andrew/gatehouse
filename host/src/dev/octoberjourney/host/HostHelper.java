@@ -2597,6 +2597,10 @@ public final class HostHelper {
 			halves.setToolTipText("Gatehouse's first screen: open the Play half (the launcher) on this device, or set it up");
 			halves.addActionListener(ev -> dev.gatehouse.Main.choose(f));
 			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 6)); checkRow.add(checkNow); checkRow.add(halves); checkRow.add(checkSaid);
+			// (in constellation mode, while an update is being gathered: a pip for every client it is taking along)
+			dev.gatehouse.look.Pips gatherPips = new dev.gatehouse.look.Pips();
+			checkRow.add(gatherPips);
+			if (System.getenv("OJ_PANEL_PNG") == null) new Timer(4000, ev -> { if (f.isDisplayable()) new Thread(() -> { try { Object gg = Json.map(Json.parse(call("GET", "/admin/auto", null))).get("gather"); SwingUtilities.invokeLater(() -> gatherPips.set(gg)); } catch (Exception ignored) {} }, "pips").start(); }).start();
 			serversTab.add(checkRow, BorderLayout.SOUTH);
 			checkNow.addActionListener(ev -> {
 				checkNow.setEnabled(false);
