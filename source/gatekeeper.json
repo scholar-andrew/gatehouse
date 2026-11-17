@@ -1,7 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.2.4",
+ "version": "3.3.0",
  "changes": [
+  {"version": "3.3.0", "date": "2026-11-16", "notes": [
+   "Three update modes, chosen in Options under Updating. Normal: nothing updates until you press Update Gatekeeper (what it is unless you choose otherwise). Auto: Gatekeeper looks every minute and updates itself as soon as a new version is out, waiting only for a server it runs itself to be off. Constellation: the group goes together; this is what 3.2.2 called \"update automatically, together with the launchers that are open\", and a Gatekeeper that had that ticked is in constellation mode now.",
+   "A constellation is this Gatekeeper and every client connected to it. The new Constellation tab lists them all: each client's kind, player, system, version, update mode (normal, auto or constellation) and whether it is open now, with a count of how many are in each mode and how this Gatekeeper's own update stands. Launchers now report in while their window is open whatever their mode; one from before this version shows as \"not said\".",
+   "Each launcher chooses its own mode in its own Options. In constellation mode Gatekeeper waits only for the open launchers that are in constellation mode too."
+  ]},
   {"version": "3.2.4", "date": "2026-11-16", "notes": [
    "A test update: nothing changed. It is here so that updating itself can be tried, automatic updating in particular (Options, Updating)."
   ]},

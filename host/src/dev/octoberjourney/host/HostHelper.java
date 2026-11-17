@@ -2774,6 +2774,7 @@ public final class HostHelper {
 			}, "name").start());
 			firstTabs.addTab("Host setup", hostSetup);
 			firstTabs.addTab("Web panel", PanelUi.tab(f));
+			firstTabs.addTab("Constellation", ConstellationUi.tab(f));
 			firstTabs.addChangeListener(ev -> { if (firstTabs.getSelectedIndex() == 3) loadSteps.run(); });
 			new javax.swing.Timer(5000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else if (firstTabs.getSelectedIndex() == 3 && hostSetup.isShowing()) loadSteps.run(); }).start();
 			if (System.getenv("OJ_PANEL_PNG") == null) loadSteps.run();   // (so the tab's title says what's left to do)
@@ -2840,12 +2841,14 @@ public final class HostHelper {
 			JPanel guideRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
 			guideRow.add(guideB); guideRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			options.add(guideRow);
-			// Automatic updating: off unless ticked here.
+			// How this Gatekeeper updates: normal unless changed here.
 			optLine.accept("Updating", true);
-			javax.swing.JCheckBox autoBox = new javax.swing.JCheckBox("Update automatically, together with the launchers that are open");
-			autoBox.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-			options.add(autoBox);
-			optLine.accept("Off unless you tick it. With it on, when a newer version is out Gatekeeper waits until every open launcher that has this on too has seen the update, waits for any server it runs itself to be off, and then they all update at once. A launcher takes part only if the same box is ticked in its own Options; the others update when their player presses Update. With it off, nothing updates until you press Update Gatekeeper.", false);
+			javax.swing.JRadioButton modeNormal = new javax.swing.JRadioButton("Normal: update when I press Update Gatekeeper", true),
+					modeAuto = new javax.swing.JRadioButton("Auto: update by itself as soon as a new version is out"),
+					modeGroup = new javax.swing.JRadioButton("Constellation: wait for the open launchers, then update together");
+			javax.swing.ButtonGroup modeGroupOf = new javax.swing.ButtonGroup();
+			for (javax.swing.JRadioButton rb : new javax.swing.JRadioButton[] {modeNormal, modeAuto, modeGroup}) { modeGroupOf.add(rb); rb.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(rb); }
+			optLine.accept("Normal is what it is unless you choose otherwise. Auto: Gatekeeper looks every minute and updates itself, waiting only for a server it runs itself to be off. Constellation: when a new version is out, Gatekeeper waits until every open launcher that is in constellation mode too has seen it, waits for any server it runs itself to be off, and then they all update at once. Each launcher chooses its own mode in its own Options; the Constellation tab shows which is in which.", false);
 			JLabel autoSaid = new JLabel(" ");
 			autoSaid.setForeground(new Color(0x8F98A0)); autoSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			options.add(autoSaid);
@@ -2854,10 +2857,12 @@ public final class HostHelper {
 				try {
 					Map<String, Object> a = Json.map(Json.parse(call("GET", "/admin/auto", null)));
 					List<Object> open = Json.list(a.get("launchers"));
-					SwingUtilities.invokeLater(() -> { autoFilling[0] = true; autoBox.setSelected(Boolean.TRUE.equals(a.get("on"))); autoFilling[0] = false; autoSaid.setText("<html><div style='width:470px'>" + Json.str(a.get("status")).replace("<", "&lt;") + (Boolean.TRUE.equals(a.get("on")) ? " Launchers open with it on right now: " + (open.isEmpty() ? "none" : open.toString().replaceAll("[\\[\\]]", "").replace("<", "&lt;")) + "." : "") + "</div></html>"); });
+					String md = Json.str(a.get("mode"));
+					SwingUtilities.invokeLater(() -> { autoFilling[0] = true; (md.equals("auto") ? modeAuto : md.equals("constellation") ? modeGroup : modeNormal).setSelected(true); autoFilling[0] = false; autoSaid.setText("<html><div style='width:470px'>" + Json.str(a.get("status")).replace("<", "&lt;") + (md.equals("constellation") ? " Launchers open in constellation mode right now: " + (open.isEmpty() ? "none" : open.toString().replaceAll("[\\[\\]]", "").replace("<", "&lt;")) + "." : "") + "</div></html>"); });
 				} catch (Exception ignored) {}
-			}, "auto-update").start();
-			autoBox.addActionListener(ev -> { if (autoFilling[0]) return; boolean want = autoBox.isSelected(); new Thread(() -> { try { call("POST", "/admin/auto", Json.write(m("on", want))); } catch (Exception ignored) {} autoRead.run(); }, "auto-update").start(); });
+			}, "update-mode").start();
+			java.awt.event.ActionListener pickMode = ev -> { if (autoFilling[0]) return; String want = modeAuto.isSelected() ? "auto" : modeGroup.isSelected() ? "constellation" : "normal"; new Thread(() -> { try { call("POST", "/admin/auto", Json.write(m("mode", want))); } catch (Exception ignored) {} autoRead.run(); }, "update-mode").start(); };
+			modeNormal.addActionListener(pickMode); modeAuto.addActionListener(pickMode); modeGroup.addActionListener(pickMode);
 			if (System.getenv("OJ_PANEL_PNG") == null) { autoRead.run(); new Timer(5000, ev -> { if (options.isShowing()) autoRead.run(); }).start(); }
 			optLine.accept("Uninstall", true);
 			optLine.accept("Removes Gatekeeper from this machine: it is stopped, and " + say("its start-up task, its Start menu shortcut", "its start-up service, its entry in the applications menu") + " and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
@@ -3458,6 +3463,10 @@ public final class HostHelper {
 						java.awt.image.BufferedImage wpi = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D wpg = wpi.createGraphics(); p.paint(wpg); wpg.dispose();
 						javax.imageio.ImageIO.write(wpi, "png", new java.io.File(shot + "-webpanel.png"));
+						firstTabs.setSelectedIndex(5); try { Thread.sleep(700); } catch (InterruptedException ignored) {} p.validate();
+						java.awt.image.BufferedImage cni = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D cng = cni.createGraphics(); p.paint(cng); cng.dispose();
+						javax.imageio.ImageIO.write(cni, "png", new java.io.File(shot + "-constellation.png"));
 						gear.doClick(0); p.validate();
 						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D gg2 = gi2.createGraphics(); p.paint(gg2); gg2.dispose();

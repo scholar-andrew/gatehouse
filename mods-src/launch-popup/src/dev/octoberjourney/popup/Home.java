@@ -387,9 +387,13 @@ final class Home {
 	 *  allowed everything there, and the account it plays as is whitelisted. Uses the pairing it already has with that
 	 *  Gatekeeper when there is one; otherwise adds it, reached on this machine itself. True when the list changed.
 	 *  (Not under OJ_HOME_DRY, so a test never links to the real Gatekeeper; OJ_KEEPER_DIR names a stand-in one.) */
-	/** Has this device's owner turned automatic updating on (gatehouse-options.json in Gatehouse's own folder)? Off unless it says so. */
-	static boolean autoUpdate(Path home) {
-		return "true".equals(str(ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(home.resolve("gatehouse-options.json")))).get("auto_update")));
+	/** How this device's owner has it update (gatehouse-options.json in Gatehouse's own folder): normal unless it says
+	 *  auto or constellation. (From before the modes, "auto_update": true meant what is now constellation.) */
+	static String updateMode(Path home) {
+		Map<String, Object> o = ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(home.resolve("gatehouse-options.json"))));
+		String m = str(o.get("update_mode"));
+		if (m.equals("auto") || m.equals("constellation")) return m;
+		return "true".equals(str(o.get("auto_update"))) ? "constellation" : "normal";
 	}
 	/** The Gatekeeper in this launcher's list that is the one on this same machine (as its address is listed), or "". */
 	static volatile String hereUrl = "";
@@ -533,13 +537,16 @@ final class Home {
 			options.add(guideRow);
 			Runnable[] openGuide = {null};
 			guideB.addActionListener(ev -> { if (openGuide[0] != null) openGuide[0].run(); });
-			// Automatic updating: off unless ticked here (kept in Gatehouse's own folder on this device).
+			// How this launcher updates: normal unless changed here (kept in Gatehouse's own folder on this device).
 			optLine.accept("Updating", true);
-			javax.swing.JCheckBox autoBox = new javax.swing.JCheckBox("Update automatically, together with my Gatekeepers", autoUpdate(home));
-			autoBox.setAlignmentX(Component.LEFT_ALIGNMENT);
-			autoBox.addActionListener(ev -> { try { Files.createDirectories(home); Files.writeString(home.resolve("gatehouse-options.json"), "{\"auto_update\": " + autoBox.isSelected() + "}\n", StandardCharsets.UTF_8); } catch (IOException ignored) {} });
-			options.add(autoBox);
-			optLine.accept("Off unless you tick it. With it on, while this window is open " + LaunchPopup.TOOL + " tells the Gatekeepers in your list that it is here. A Gatekeeper whose owner has turned on the same thing waits until every open launcher has seen a new version, and then they all update at once, this one included, without you pressing Update. With it off, " + LaunchPopup.TOOL + " updates only when you press Update.", false);
+			String modeNow = updateMode(home);
+			javax.swing.JRadioButton modeNormal = new javax.swing.JRadioButton("Normal: update when I press Update", modeNow.equals("normal")),
+					modeAuto = new javax.swing.JRadioButton("Auto: update by itself as soon as a new version is out", modeNow.equals("auto")),
+					modeGroup = new javax.swing.JRadioButton("Constellation: update together with my Gatekeeper and its other launchers", modeNow.equals("constellation"));
+			javax.swing.ButtonGroup modeGroupOf = new javax.swing.ButtonGroup();
+			java.awt.event.ActionListener pickMode = ev -> { try { Files.createDirectories(home); Files.writeString(home.resolve("gatehouse-options.json"), "{\"update_mode\": \"" + (modeAuto.isSelected() ? "auto" : modeGroup.isSelected() ? "constellation" : "normal") + "\"}\n", StandardCharsets.UTF_8); } catch (IOException ignored) {} };
+			for (javax.swing.JRadioButton rb : new javax.swing.JRadioButton[] {modeNormal, modeAuto, modeGroup}) { modeGroupOf.add(rb); rb.setAlignmentX(Component.LEFT_ALIGNMENT); rb.addActionListener(pickMode); options.add(rb); }
+			optLine.accept("Normal is what it is unless you choose otherwise. Auto: while this window is open, " + LaunchPopup.TOOL + " updates itself as soon as it sees a new version, without waiting for anyone. Constellation: " + LaunchPopup.TOOL + " waits for a Gatekeeper in your list that is in constellation mode too; that Gatekeeper waits until every such launcher has seen the new version, and then they all update at once. With a Gatekeeper that isn't in constellation mode, you press Update as in Normal.", false);
 			optLine.accept("Play and Host", true);
 			optLine.accept(LaunchPopup.TOOL + " is one program with two halves: Play (this launcher) and Host (Gatekeeper, which looks after the Minecraft servers on a machine). The first screen opens either one, or sets up the one this device doesn't have yet.", false);
 			JButton halvesB = new JButton("Play or Host\u2026");
@@ -1254,29 +1261,35 @@ final class Home {
 				new Thread(look, "self-update").start();
 				new Timer(Notes.pollMillis(), tick -> { if (f.isDisplayable()) new Thread(look, "self-update").start(); else ((Timer) tick.getSource()).stop(); }).start();
 			}
-			// Automatic updating, when this device has it on: every few seconds each Gatekeeper in the list is told this
-			// launcher is open, which version it is, and whether it has seen a newer one. A Gatekeeper that is gathering
-			// has it look for the update at once; one that says "go" has it update, as if Update had been pressed.
+			// Every few seconds, while this window is open, each Gatekeeper in the list is told this launcher is open, its
+			// version, its update mode, and whether it has seen a newer version: that is what a Gatekeeper's Constellation
+			// tab shows. In auto mode this launcher updates as soon as it has seen one. In constellation mode a Gatekeeper
+			// that is gathering has it look at once, and one that says "go" has it update, as if Update had been pressed.
 			if (shot == null && (System.getenv("OJ_HOME_DRY") == null || System.getenv("OJ_KEEPER_DIR") != null)) {
 				Map<String, ServerControl> asked = new java.util.concurrent.ConcurrentHashMap<>();
 				Thread auto = new Thread(() -> {
+					long lookedAt = 0;
 					while (f.isDisplayable() || !f.isVisible()) {
 						try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
 						if (!f.isDisplayable()) return;
-						if (!autoUpdate(home) || LaunchPopup.embedded) continue;
+						if (LaunchPopup.embedded) continue;
+						String mode = updateMode(home);
 						boolean go = false, gathering = false;
 						for (String[] k : new ArrayList<>(keepers)) try {
 							ServerControl sc = asked.computeIfAbsent(k[0], u -> client(home, u, packs));
 							String[] found = offered[0];
-							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"auto\":true,\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
+							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
 							if ("go".equals(str(r.get("state")))) go = true;
 							if ("gathering".equals(str(r.get("state")))) gathering = true;
 						} catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before this */ }
-						if ((go || gathering) && offered[0] == null) look.run();
-						if (go && offered[0] != null) SwingUtilities.invokeLater(() -> { if (offered[0] != null && ownUpdateGo.isEnabled() && ownUpdate.isVisible()) { sub.setText("Updating automatically, together with your Gatekeeper\u2026"); ownUpdateGo.doClick(); } });
-						else if (gathering) SwingUtilities.invokeLater(() -> sub.setText("A new version is out. Your Gatekeeper is waiting for every open launcher to see it, then everything updates together."));
+						if (mode.equals("normal")) continue;
+						boolean lookNow = mode.equals("auto") ? System.currentTimeMillis() - lookedAt > 60_000 : (go || gathering);
+						if (lookNow && offered[0] == null) { lookedAt = System.currentTimeMillis(); look.run(); }
+						boolean update = mode.equals("auto") || go;
+						if (update && offered[0] != null) SwingUtilities.invokeLater(() -> { if (offered[0] != null && ownUpdateGo.isEnabled() && ownUpdate.isVisible()) { sub.setText(mode.equals("auto") ? "Updating by itself (auto mode)\u2026" : "Updating together with your Gatekeeper (constellation mode)\u2026"); ownUpdateGo.doClick(); } });
+						else if (gathering) SwingUtilities.invokeLater(() -> sub.setText("A new version is out. Your Gatekeeper is waiting for every open launcher in its constellation to see it, then everything updates together."));
 					}
-				}, "auto-update");
+				}, "update-mode");
 				auto.setDaemon(true);
 				auto.start();
 			}
