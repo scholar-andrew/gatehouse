@@ -348,6 +348,10 @@ The installers download everything else at run time, so they only need a new rel
 3. If an uninstaller changed, put its new SHA-256 in `installer/config.json` (`uninstall_windows`, `uninstall_linux`):
    setup saves the uninstaller on each device only when the hash matches, and otherwise skips it. The Linux one is
    fetched from `main`, the Windows one from the latest release.
+   The two zips are made, not kept: `gatehouse-install.zip` is `installer/gatehouse-install.ps1`,
+   `gatehouse-install.sh`, `Install Gatehouse.cmd` and `Uninstall Gatehouse.cmd`; `gatehouse-keeper.zip` is
+   `host/oj-host.jar` (the published build) with `installer/keeper/install-keeper.ps1` and `install-keeper.sh`.
+   Make them again whenever those scripts change, and the second also when it has fallen far behind the program.
 4. Upload all four files to the release (`gh release upload setup-v1 installer\windows\*.exe
    installer\linux\*.sh --clobber`, or a new release). The README links to `releases/latest/download/<file>`, so keep
    the file names.
@@ -359,7 +363,6 @@ The installers download everything else at run time, so they only need a new rel
 | --- | --- |
 | `tools/build_pack.py` | Builds `dist/` and `docs/mods.md` from `source/`, the art, the layout, `installer/config.json` and the sync scripts. |
 | `tools/build_mod.ps1 <mod>` | Builds `mods-src/chatlift`, `handofffix` or `octoberjourney` into `source/files/mods/`. |
-| `tools/build_program.ps1` | Builds `mods-src/launch-popup` (plain Java 17, no Minecraft code) into `source/files/launch-popup.jar`. |
 | `mods-src/launch-popup/.../Connection.java` | The Connection tab: the checks (this device's Tailscale address from its network interfaces; `tailscale status --json` where the command can be run; connections to the server machine's ports) and what to do about each. `java -jar launch-popup.jar --server <game folder> connection` prints them. |
 | `mods-src/launch-popup/.../ServerControl.java` | The Server controls tab: status (Minecraft's server list ping for online, ping and players; panel port; MCSS API; Gatekeeper's port, so a PC with MCSS closed still counts as awake), Wake on LAN, Start, Stop, opening the panel, sign-in. `java -jar launch-popup.jar --server <game folder> status\|wake\|start\|stop` runs one of them from a terminal (`OJ_WAKE_TEST=host:port` also sends the wake signal there, for testing). |
 | `tools/build_program.ps1` | Builds the one program, both halves (`mods-src/launch-popup`, `host/`, `mods-src/look`, `mods-src/program`; plain Java 17), into `source/files/launch-popup.jar` and `host/oj-host.jar` (the same file). It used to be installed on the server PC by a separate tool: `C:\Minecraft\GatehouseKeeper`, the sign-in scheduled task and the Start menu shortcut ([docs/server.md](server.md#the-host-helper-starting-and-closing-mcss)). |

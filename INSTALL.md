@@ -28,7 +28,7 @@ a server's owner gave you, and install that Gatekeeper's servers from its list.
 - **Gatekeeper on Linux or SteamOS**: `bash gatehouse-install.sh --gatekeeper`. MC Server Soft is Windows only,
   so there Gatekeeper runs the Minecraft servers itself ([how](docs/guide.md#on-linux-and-steamos-the-servers)). Putting the machine to sleep from a launcher is not
   supported on SteamOS, and adding Gatekeeper to Steam is not supported on Linux or SteamOS; both are still listed
-  where they would be, marked so. Not yet tried on a real Linux machine.
+  where they would be, marked so. In use on one Steam Deck; not yet tried on a plain Linux desktop.
 - **Linux, including Steam Deck:** `bash gatehouse-install.sh`. It offers Prism Launcher from Flathub if it's
   missing, puts the launcher in Prism's folder under `gatehouse/app`, and adds a **Gatehouse** entry to the
   applications menu. On a Steam Deck, in Desktop Mode, right-click that entry and choose Add to Steam to have it in

@@ -28,6 +28,9 @@ only Play, the host sets up Host, and a host who also plays sets up both. The **
 Gatehouse's Options, and at the bottom of Gatekeeper's first screen) shows which halves a device has, opens either,
 and sets up the one it doesn't have yet.
 
+**Which shortcut opens what.** **Gatehouse** in the Start menu or the applications menu opens the Play or Host
+screen, where you pick a half. **Gatehouse in your Steam library** goes straight to the launcher, ready to play.
+
 Launchers and Gatekeepers on different devices talk over [Tailscale](https://tailscale.com/), a private network
 between the host's machine and the devices the host lets in. Nothing is opened to the internet, and no router
 settings are changed.
@@ -146,7 +149,7 @@ It fetches Gatekeeper, checks it against its published checksum, and installs it
 service that starts when you sign in, and **Gatekeeper** in the applications menu. On SteamOS it uses the Java that
 Prism Launcher fetches, so install Prism Launcher from Discover and open it once first.
 
-> Gatekeeper on Linux and SteamOS is new and has not yet been run on a real Linux machine or Steam Deck. See
+> Gatekeeper on SteamOS is in use on one Steam Deck. A plain Linux desktop hasn't been tried yet. See
 > [What works on which system](#what-works-on-which-system).
 
 ### 2. Follow the setup guide
@@ -242,6 +245,7 @@ A page for controlling Gatekeeper from a browser, on any system, with or without
 | Settings, backups, tasks | Back up now, running a task, memory and other settings that name nothing on the disk |
 | Launchers and players | Answering launchers' requests, their permissions, the whitelist |
 | Sleep and wake | Sleep for the server machine, Wake for the devices you listed |
+| See the update log | The **Updates** page: [every update in the constellation](#the-update-log) |
 | Admin | All of those, and Update Gatekeeper and New server |
 
 What to know about it:
@@ -310,6 +314,59 @@ Versions have to match for anyone to play:
 
 What changed is listed in the program: the **Gatehouse updates** and **Gatekeeper updates** tabs.
 
+### Three ways to update
+
+Each launcher and each Gatekeeper chooses for itself, under **Options**, **Updating**. Nothing changes unless you
+choose: Normal is what a new install is in.
+
+| Mode | What happens when a new version is out |
+| --- | --- |
+| **Normal** | It tells you, and updates when you press Update. |
+| **Auto** | It updates by itself. A Gatekeeper looks every minute and waits only for a server it runs itself to be off. |
+| **Constellation** | It waits for the rest of its group, and they all update at the same moment. |
+
+### Constellations
+
+A **constellation** is a Gatekeeper and every client connected to it: its launchers, other Gatekeepers that have
+joined it, and their launchers. The Gatekeeper leads it. Its **Constellation** tab lists every client with its
+kind, player, system, version, whether it is open now, and which update mode it is in, with a count of each mode.
+
+**Updating together.** When a new version is out, a Gatekeeper in constellation mode gathers its constellation: it
+waits until every client that is open and in constellation mode too has seen the new version, and until any server
+it (or a member Gatekeeper) runs itself is off. Then it gives the go, and they all update at once. A client that is
+closed, or in another mode, isn't waited for. It doesn't wait for ever either: after ten minutes it goes with
+whoever is ready.
+
+- **Pips.** While it gathers, every client in it shows a row of small circles, one for each client being taken
+  along, and a line such as "Waiting for 2 of 5 others". Green is ready, amber hasn't seen the update yet, red is a
+  Gatekeeper with a server still on. Your own has a white ring. Pointing at the row says who is who (to the host
+  and to members; other players see the circles without names).
+- **Word travels.** Whichever client sees the new version first passes it on, up to the leading Gatekeeper and
+  down to the members, so the constellation doesn't wait for each one's own next look.
+- **The chime.** When everyone is ready, the Gatekeeper and every client told to go play the constellation's chime:
+  four soft rising notes. A launcher lets it finish before it closes to update.
+
+**Joining another Gatekeeper's constellation.** A host with more than one Gatekeeper (a PC and a Steam Deck, say)
+can make them one constellation. On the Gatekeeper that is to join: Constellation tab, type the other Gatekeeper's
+address (`100.x.y.z:25570`) or its pairing link, and press **Join**. On the leading Gatekeeper it then shows as
+"Asked to join": click it and press **Allow into this constellation**. From then on the member updates on the
+leader's go, and its launchers are listed with the leader's. Joining gives no control of anything: a member can't
+start, stop or change anything on the leader, or the other way round. **Leave** on the member, or **Remove from
+this constellation** on the leader, ends it.
+
+**The same device twice.** A launcher paired with both the leader and a member would show up two ways. It is listed
+and counted once, with the other way beside it ("also ...").
+
+### The update log
+
+Each Gatekeeper keeps a log of every update in its constellation: when, which client, its kind, player and system,
+from which version to which, how (by hand, auto or constellation), and **where the update was fetched from** (the
+pack server at an address, or GitHub). A member Gatekeeper hands its lines on to the leader. **Update log...** on
+the Constellation tab shows it; it is kept in `updates.json` in Gatekeeper's folder, the newest 5000 lines.
+"Not said" means the client didn't know (a version from before the log existed, or a launcher that arrived with a
+pack's own update or an installer). Through the web panel only an account given **See the update log** can read it;
+at the machine itself, anyone who can open Gatekeeper's window can.
+
 ## Removing it
 
 In either half: **Options** (the wheel), **Uninstall**, and type `confirm`. Each half is removed on its own, so a
@@ -339,7 +396,7 @@ Gatekeeper where it would be, marked "Not supported on SteamOS" or "Not supporte
 | Web panel with accounts; waking other devices | Yes | Yes | Yes |
 | Access Manager, Host setup, setup guide | Yes | Yes | Yes |
 | Starts when you sign in | Yes | Yes | Yes |
-| Updates itself | Yes | Yes | Yes |
+| Updates itself; Auto and Constellation modes; joining a constellation | Yes | Yes | Yes |
 | Puts the machine to sleep from a launcher | Yes | Yes | Not supported |
 | Gatekeeper in your Steam library | Yes | Not supported | Not supported |
 
@@ -347,11 +404,11 @@ On SteamOS: a Steam Deck that is asleep can't be woken from another device, so k
 serves. Tailscale doesn't officially support SteamOS, and a SteamOS update can remove it; Gatekeeper's Host setup
 shows when that has happened.
 
-**How far each has been tested.** Windows 10 is where both programs are used day to day. Gatehouse is used on a
-Steam Deck. Gatekeeper on Linux and SteamOS has so far only been tested from Windows with stand-ins: the install
-script, its background service and running a real Minecraft server (only a stand-in so far) have not been tried on
-a real machine. More detail, with
-hardware: [INSTALL.md: Tested on](../INSTALL.md#tested-on).
+**How far each has been tested.** Windows 10 is where both halves are used day to day, and both are used on one
+Steam Deck (SteamOS): there Gatekeeper is installed, runs in the background, updates itself and belongs to the
+Windows machine's constellation. Still tested only with stand-ins: a plain Linux desktop, the web panel in a real
+browser, making a server from Mojang's, PaperMC's and Fabric's real downloads, and a real Forge installer. More
+detail, with hardware: [INSTALL.md: Tested on](../INSTALL.md#tested-on).
 
 ## When something doesn't work
 
@@ -362,6 +419,8 @@ hardware: [INSTALL.md: Tested on](../INSTALL.md#tested-on).
 | No Play, and a **Request** button instead | You aren't on the whitelist, the server is off and you may not start it, or you've been suspended. Press the button to ask the host. |
 | The server won't start from a launcher | In Gatekeeper, check **Host setup**. Windows: MCSS has to be found, its web API on, and Gatekeeper signed in to MCSS. Linux and SteamOS: the server's folder needs its program and `eula=true`; if it starts and stops again, Gatekeeper's log has the last thing it said (often the wrong Java version or too little memory). |
 | A new player's launcher never appears in Access Manager | Their device has to reach your machine over Tailscale. Check they accepted your invite, and on Windows that the firewall lets Java in on private networks. |
+| A Gatekeeper that joined doesn't show in the leader's constellation | Both have to be on the current version. On the leader, look for it as "Asked to join" and allow it. The member's Constellation tab says what the leader last answered. |
+| A constellation update never starts | The pips show who is waited for. Amber: that client hasn't seen the update (press **Check for updates** on it, or close it). Red: stop the server that Gatekeeper runs. It goes with whoever is ready after ten minutes. |
 | Everything looked right and stopped working months later | Tailscale signed the machine out. Sign in again, and turn off key expiry for it (step 3 for hosts). |
 
 Gatekeeper keeps a log, `host.log`, in its folder (shown under Options). For anything else, open an

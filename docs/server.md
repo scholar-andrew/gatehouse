@@ -168,7 +168,7 @@ Content-Security-Policy (`default-src 'self'`; the script builds the page with `
   kept, in memory. Idle 2 h, at most 24 h. Every non-GET call must carry `X-Panel-Token` (the session's own token).
   Five wrong passwords per account-and-address: locked for 5 minutes. A missing account costs the same hash time.
 - **Calls**: `/panel/api/<x>` is `/admin/<x>` handed through, only if `WebPanel.ALLOWED` lists it, with the permission
-  it names (`view`, `control`, `console`, `manage`, `access`, `machine`, or `admin`). A body with a `MACHINE_ONLY`
+  it names (`view`, `control`, `console`, `manage`, `access`, `machine`, `updates`, or `admin`). A body with a `MACHINE_ONLY`
   key (`start`, `java`, `backup_dir`, `file`, `add`, `remove`) is refused, as is `tools/new` of kind `forge`/`file`:
   nothing reachable from the web can name a program or a path on the machine. Each POST is logged with the account.
 - **Wake**: `wake_devices` in `host.json` (name, MAC); `WebPanel.wake` sends the 102-byte magic packet to UDP 9 and 7
@@ -346,6 +346,65 @@ Gatekeeper looks every five minutes at the pack server on its own machine if the
 - **A launcher that is behind** the published Gatehouse (it says which it is in `X-Gatehouse`, from Gatehouse 2.5.0)
   is told `blocked` for itself.
 - Nothing reachable to compare with: nothing is blocked. `host.json` `require_current: false` turns the blocking off.
+
+### Update modes, constellations and the update log
+
+For a host, in plain words: [the guide](guide.md#three-ways-to-update). This is the reference.
+
+**Modes (`AutoUpdate`).** `update_mode` in `host.json` (`normal`, `auto`, `constellation`; `GET` / `POST
+/admin/auto`); each launcher has the same choice of its own in `gatehouse-options.json`. In `auto` and
+`constellation` a Gatekeeper looks for a newer version every minute instead of every five. `auto` updates as soon
+as it sees one, waiting only for the servers it runs itself to be off. A failed try is noted in
+`auto-update-tried.txt` and not repeated for ten minutes.
+
+**Reports.** Every open client posts `/v1/update/state` every 5 seconds: `mode`, `own` (its version), `sees` (a
+newer version it has seen, or empty), `install` (an id kept per install), `info` (system and Java), `source` (where
+it fetched its last update). A member Gatekeeper posts the same, plus its own launchers (`clients`), whether a
+server it runs is on (`busy`), and update-log lines not handed on yet (`events`). The answer carries `state`
+(`gathering`, `go` or nothing) and `gather` (the pips). `devices.json` remembers each client's `update_mode`,
+`version`, `install` and `kind`.
+
+**Constellation mode.** The leading Gatekeeper, on seeing a newer version:
+
+1. gathers: waits until every open client in constellation mode has reported `sees` (at least 15 seconds, so each
+   has had a turn; at most 10 minutes, after which the ones still not ready are left to themselves);
+2. waits for the servers it runs itself to be off;
+3. gives the go for 90 seconds: clients told `go` update themselves, it plays `Chime.constellation()`, and a few
+   seconds later updates the way Update Gatekeeper does. A client that opens later on the old version is told `go`
+   when it reports.
+
+**Word travelling (`AutoUpdate.hint`).** A report whose `sees` is newer than what this Gatekeeper knows makes it
+look at once (at most every 10 seconds), and a member that hears its lead is gathering or going does the same.
+`host.log` says who saw it first.
+
+**Joining (`constellation_lead`).** `POST /admin/constellation` `{"join": address or pairing link}` on the member
+saves the lead's address; the member then introduces itself there like a launcher (`/v1/hello`) and reports. The
+lead lists it as "asked" until `{"allow": id, "value": true}` sets `constellation: true` on it in `devices.json`.
+A member gets no permission on the lead and gives none. In constellation mode a member follows the lead's go; it
+counts as ready when it has seen the update, its own constellation-mode launchers have, and no server it runs is
+on. If the lead can't be reached it carries on by itself. `{"leave": true}` on the member, or allow `false` on the
+lead, ends it.
+
+**The same client twice (`AutoUpdate.withoutDuplicates`).** A launcher known both directly and through a member is
+matched by `install` id, or failing that by name, player and system (`same_by`), listed once, with the other way
+in `also`.
+
+**Pips (`AutoUpdate.gatherFor`, `look/Pips`).** One entry per client being taken along: `s` (`ready`, `waiting`,
+`busy`), `k` (`launcher`, `gatekeeper`), `n` (name), `me`. Names are given only to Gatekeeper's own window, the
+launcher on the same machine, a launcher with Gatekeeper control, and members; everyone else gets them blank.
+
+**The update log (`UpdateLog`, `updates.json`, `GET /admin/updates`).** A line each time a client's reported
+version changes, or this Gatekeeper comes back from an update (it writes `update-how.txt`, `version|how|source`,
+before restarting). Fields: when, client, kind, player, system, `info`, from, to, how, `source`, and `via` for
+lines a member handed on (each has an id, so none is filed twice). The newest 5000 are kept. A launcher learns its
+own source from `launch-popup.source.txt`, which `Notes` writes when it fetches the jar. Through the web panel the
+log needs the `updates` permission; the file itself is an ordinary file on the machine, with no password.
+
+**The launcher on the same machine (`LocalLink`, `dev.gatehouse.Main`).** `/admin/local/link` answers on loopback
+only. The launcher finds its Gatekeeper by asking `127.0.0.1:<port>/admin/about` (`Main.keeperDoor`; it can't look
+at Gatekeeper's folder from inside Prism's Flatpak), then posts its identity: that device is marked `local`, has
+every permission on every server, and the account it plays as is whitelisted by UUID. `/admin/local/open` has
+Gatekeeper open its own window. No launcher on another device is ever marked local.
 
 ### The setup guide
 
