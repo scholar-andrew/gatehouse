@@ -1148,6 +1148,15 @@ public final class HostHelper {
 			Map<String, Object> d = Json.map(devs.get(id == null ? "" : id));
 			if (d.isEmpty() || token == null || !sha256(token).equals(d.get("token_sha256"))) { reply(x, 401, m("state", "unknown", "error", "say hello first")); return; }
 			contact.put(id, System.currentTimeMillis());
+			// A launcher asking about a server by name gets that server or nothing. One that this Gatekeeper no longer
+			// has (removed here, or deleted in MCSS) used to be answered for as if it were the first server: a leftover
+			// pack on a device then showed, started and stopped a different server.
+			String askedServer = header(x, "X-Server");
+			if (!askedServer.isEmpty() && (path.startsWith("/v1/server") || (path.equals("/v1/mcss") && x.getRequestMethod().equals("GET")))) {
+				Map<String, Object> named = null;
+				for (Object o : servers()) if (askedServer.equals(Json.str(Json.map(o).get("id")))) named = Json.map(o);
+				if (named == null || goneFromMcss(named)) { reply(x, 410, m("state", "gone", "error", "That server is no longer on this Gatekeeper: its owner removed it, or it was deleted.")); return; }
+			}
 			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
@@ -2020,7 +2029,7 @@ public final class HostHelper {
 				} else {
 					String uq = x.getRequestURI().getQuery();
 					if (uq != null && (uq.equals("1") || uq.startsWith("1&"))) lookForNewer();   // (?1: look now)
-					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", outdated(), "gatehouse", newestHouse, "from", newestKeeperAt, "reached", lookReached));
+					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", outdated(), "gatehouse", newestHouse, "from", newestKeeperAt, "reached", lookReached, "waiting", updateWaiting));
 				}
 			} else if (path.equals("/admin/whitelist/on")) {
 				String[] r = whitelistOn();
@@ -2205,7 +2214,9 @@ public final class HostHelper {
 	static String call(String method, String path, String body) throws IOException {
 		if (!panelServer.isEmpty() && !path.contains("server=")) path += (path.contains("?") ? "&" : "?") + "server=" + panelServer;
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
-		c.setConnectTimeout(2000); c.setReadTimeout(5000); c.setRequestMethod(method);
+		// (things that fetch from the internet on the way take as long as the connection makes them: looking for an
+		// update and updating. The window used to give up on those after five seconds, with the update still going.)
+		c.setConnectTimeout(2000); c.setReadTimeout(path.startsWith("/admin/update") || path.startsWith("/admin/tools/new") ? 180_000 : 5000); c.setRequestMethod(method);
 		if (body != null) { c.setDoOutput(true); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
 		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
 	}
@@ -2617,7 +2628,9 @@ public final class HostHelper {
 					SwingUtilities.invokeLater(() -> {
 						if (behind && !ownUpdate.isVisible()) chime();
 						iconUpdate = behind; dev.gatehouse.look.AppIcon.apply(f, true, iconMessages, iconUpdate);
-						if (behind && ownUpdateGo.isEnabled()) ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
+						boolean waits = Boolean.TRUE.equals(u.get("waiting")) || "true".equals(Json.str(u.get("waiting")));
+						if (behind && ownUpdateGo.isEnabled()) ownUpdateText.setText(waits ? "<html><b>Gatekeeper " + Json.str(u.get("newest")) + " is waiting to be installed.</b> A server this Gatekeeper runs is on; it updates by itself as soon as that server is off.</html>"
+								: "<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
 						ownUpdate.setVisible(behind);
 					});
 				} catch (Exception ignored) {}
@@ -2628,7 +2641,7 @@ public final class HostHelper {
 				new Thread(() -> {
 					String result = "failed", msg;
 					try { Map<String, Object> r = Json.map(Json.parse(call("POST", "/admin/update", Json.write(m("panel_pid", ProcessHandle.current().pid()))))); result = Json.str(r.get("result")); msg = Json.str(r.get("message")); }
-					catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
+					catch (Exception ex) { msg = "Gatekeeper didn't answer while updating (" + ex.getMessage() + "). If it is restarting, this window opens again by itself in a moment; if not, look at Gatekeeper activity for what it says about the update."; }
 					String res = result, said = msg;
 					SwingUtilities.invokeLater(() -> {
 						ownUpdateText.setText("<html>" + said.replace("<", "&lt;") + (res.equals("ok") ? " This window closes and opens again by itself." : "") + "</html>");

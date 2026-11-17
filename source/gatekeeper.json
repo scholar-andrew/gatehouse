@@ -1,7 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.2.1",
+ "version": "3.2.2",
  "changes": [
+  {"version": "3.2.2", "date": "2026-11-16", "notes": [
+   "Fixed: a launcher asking about a server this Gatekeeper no longer has (removed here, or deleted in MCSS) was answered as if it had asked about the first server. A device with a leftover pack or connection for the removed server then showed, started and stopped a different server through it. Such a launcher is now told the server is gone.",
+   "Fixed: Update Gatekeeper could seem to do nothing, most of all on a Steam Deck. The window gave up waiting after five seconds, while fetching the update over the internet takes longer than that, and then said it couldn't reach Gatekeeper although the update was still going. It now waits as long as the fetch takes, and says plainly what happened. The same went for Check for updates and for New server.",
+   "When an update is waiting for a server to be off, the update bar says so (and which version is waiting) instead of offering the button again."
+  ]},
   {"version": "3.2.1", "date": "2026-11-16", "notes": [
    "Fixed on Steam Deck: the launcher didn't recognise the Gatekeeper on the same machine, so Play or Host offered to set it up again, there was no This machine line, and the launcher didn't link itself. The launcher looked for Gatekeeper's folder, which it can't see there (it runs inside Prism Launcher's Flatpak). It now asks for a Gatekeeper on the machine instead, and this Gatekeeper answers.",
    "The launcher can ask this Gatekeeper to open its own window, which is how Open Gatekeeper works from inside that sandbox.",

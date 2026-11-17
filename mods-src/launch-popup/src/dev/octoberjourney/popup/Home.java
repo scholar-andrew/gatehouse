@@ -387,7 +387,10 @@ final class Home {
 	 *  allowed everything there, and the account it plays as is whitelisted. Uses the pairing it already has with that
 	 *  Gatekeeper when there is one; otherwise adds it, reached on this machine itself. True when the list changed.
 	 *  (Not under OJ_HOME_DRY, so a test never links to the real Gatekeeper; OJ_KEEPER_DIR names a stand-in one.) */
+	/** The Gatekeeper in this launcher's list that is the one on this same machine (as its address is listed), or "". */
+	static volatile String hereUrl = "";
 	static boolean linkHere(Path instances, Path home, List<String[]> keepers, List<String[]> packs) {
+		hereUrl = "";
 		if (System.getenv("OJ_HOME_DRY") != null && System.getenv("OJ_KEEPER_DIR") == null) return false;
 		int doorPort = dev.gatehouse.Main.keeperDoor();   // (asked for, not looked for: its folder isn't visible from inside a sandbox)
 		if (doorPort <= 0) return false;
@@ -400,6 +403,7 @@ final class Home {
 			for (String[] k : keepers) if (url == null && k[0].equals(norm(door))) url = k[0];
 			boolean changed = false;
 			if (url == null) { url = norm(door); keepers.add(0, new String[] {url, str(about.get("name")), ""}); changed = true; java.util.Set<String> gone = removedKeepers(home); }
+			hereUrl = url;
 			ServerControl sc = client(home, url, packs);
 			// the account this device plays as, from Prism's own list (its name and its id, which a whitelist needs)
 			String player = "", uuid = "";
@@ -858,6 +862,17 @@ final class Home {
 							String[] pk = (String[]) r[1];
 							new Thread(() -> { ServerControl sc = new ServerControl(Path.of(pk[3])); String[] st = sc.ban.equals("blacklist") ? new String[] {"off", "Not shown: this launcher is blacklisted"} : !sc.configured() ? new String[] {"off", "No server set up for this pack"} : sc.status(); set.accept((JLabel) r[0], st); }, "server-status").start();
 						}
+						// A pack installed here whose server this Gatekeeper no longer has (removed there, or deleted): said
+						// so, and not launched, since its address may now be another server's.
+						if (cat != null && !cat.containsKey("_refused") && !cat.containsKey("_old") && cat.get("servers") instanceof List<?> listed) {
+							java.util.Set<String> there = new java.util.HashSet<>();
+							for (Object o : listed) there.add(str(ServerControl.asMap(o).get("id")));
+							for (Map.Entry<String, Object[]> e : rows.entrySet()) if (e.getValue()[1] != null && !there.contains(e.getKey())) {
+								set.accept((JLabel) e.getValue()[0], new String[] {"off", "No longer on this Gatekeeper (removed or deleted there)"});
+								((JButton) e.getValue()[2]).setEnabled(false);
+								((JButton) e.getValue()[2]).setToolTipText("This server is no longer on this Gatekeeper. Its pack is still installed on this device: delete it in Prism Launcher if you don't need it.");
+							}
+						}
 						// ---- Connections: the machine, MCSS and each server, each with the buttons this device is allowed.
 						// (rebuilt only when what the Gatekeeper says changed, so a button isn't replaced under the mouse mid-click)
 						String connSig = String.valueOf(cat) + "|" + (c != null);
@@ -963,7 +978,10 @@ final class Home {
 				// This machine's own Gatekeeper (the Host half of this program), when it is set up here: how it is,
 				// and its window a button away. It runs in the background whether this launcher is open or not.
 				boolean hostUp = dev.gatehouse.Main.keeperDoor() > 0;
-				if (hostUp || dev.gatehouse.Main.keeperDir() != null) {
+				boolean listedHere = false;
+				for (String[] k : keepers) if (k[0].equals(hereUrl)) listedHere = true;
+				// (when it is in the list below, that line is this machine's: no separate one above it)
+				if (!listedHere && (hostUp || dev.gatehouse.Main.keeperDir() != null)) {
 					JButton openHost = new JButton("Open Gatekeeper");
 					openHost.setToolTipText("Opens the window of the Gatekeeper on this machine: its servers, who may use them, and its settings");
 					Object[] hr = row.apply("This machine hosts servers", new Component[] {openHost});
@@ -986,7 +1004,12 @@ final class Home {
 					boolean used = false;
 					for (String[] pk : packs) if (pk[4].equals(k[0])) used = true;
 					boolean usedHere = used;
-					Object[] r = row.apply(k[1].isEmpty() ? "Gatekeeper at " + shown(k[0]) : k[1], new Component[] {remove, connect, open});
+					boolean here = k[0].equals(hereUrl);
+					JButton openHostHere = new JButton("Open Gatekeeper");
+					openHostHere.setToolTipText("Opens the window of the Gatekeeper on this machine: its servers, who may use them, and its settings");
+					openHostHere.setVisible(here);
+					openHostHere.addActionListener(ev -> { String t = dev.gatehouse.Main.openGatekeeper(); sub.setText(t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t); });
+					Object[] r = row.apply((k[1].isEmpty() ? "Gatekeeper at " + shown(k[0]) : k[1]) + (here ? "  (this machine)" : ""), new Component[] {remove, connect, openHostHere, open});
 					open.addActionListener(ev -> showServers.accept(k[0]));
 					remove.addActionListener(ev -> {
 						String who = k[1].isEmpty() ? "the Gatekeeper at " + shown(k[0]) : k[1];

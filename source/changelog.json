@@ -1,4 +1,7 @@
 [
+ {"version": "1.35.2", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack itself. Four fixes in Gatehouse 3.2.2: a removed server no longer acts on another one, Update Gatekeeper works on a slow connection, Steam's pop-up no longer smears the window, and a machine's own Gatekeeper is listed once."
+ ]},
  {"version": "1.35.1", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself. On a Steam Deck, Gatehouse now recognises the Gatekeeper on the same machine (Gatehouse 3.2.1)."
  ]},

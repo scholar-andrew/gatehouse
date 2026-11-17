@@ -776,6 +776,14 @@ public final class LaunchPopup {
 				if (id == java.awt.event.WindowEvent.WINDOW_ACTIVATED) iconMessages = 0;
 				if (id == java.awt.event.WindowEvent.WINDOW_OPENED || id == java.awt.event.WindowEvent.WINDOW_ACTIVATED) icons();
 			}, java.awt.AWTEvent.WINDOW_EVENT_MASK);
+			// (should something outside still draw over a window, it draws itself again: a few times after it opens,
+			// which is when Steam shows its pop-up, and every few seconds after)
+			long[] began = {System.currentTimeMillis()};
+			new Timer(1000, ev -> {
+				long age = System.currentTimeMillis() - began[0];
+				if (age > 20_000 && (age / 1000) % 4 != 0) return;
+				for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) w.repaint();
+			}).start();
 		} catch (RuntimeException ignored) {}
 	}
 	static void chime() {

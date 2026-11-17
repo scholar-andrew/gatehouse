@@ -55,6 +55,13 @@ public final class Main {
 	static final Color GREY = new Color(0x8F98A0), GREEN = new Color(0x8BD46E), AMBER = new Color(0xE9B949);
 
 	public static void main(String[] args) throws Exception {
+		// Plain (GDI / X11) drawing, not Direct3D or OpenGL: Steam's overlay hooks those in programs Steam started, and
+		// drew its pop-ups into the window (over the buttons at the bottom right, leaving a smear when they went). This
+		// has to be said before anything of the window system is touched, or it is too late to take effect: it used to
+		// be said later, after the look had been set up.
+		System.setProperty("sun.java2d.d3d", "false");
+		System.setProperty("sun.java2d.opengl", "false");
+		System.setProperty("sun.java2d.noddraw", "true");
 		String first = args.length > 0 ? args[0] : "";
 		if (first.equals("--choose")) { choose(null); return; }
 		if (first.equals("--start")) {

@@ -290,7 +290,7 @@ final class WebPanel {
 	}
 	static String local(String method, String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
-		c.setConnectTimeout(3000); c.setReadTimeout(30000); c.setRequestMethod(method);
+		c.setConnectTimeout(3000); c.setReadTimeout(path.startsWith("/admin/update") ? 180_000 : 30000); c.setRequestMethod(method);
 		if (body != null) { c.setDoOutput(true); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
 		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "{}" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
 	}
