@@ -1564,7 +1564,8 @@ public final class LaunchPopup {
 		forget.setToolTipText("Takes the selected launcher off the list, with everything it was allowed. It can introduce itself again later.");
 		// Three sets, as in Gatekeeper itself: what they may do with the server, shutting someone out, and the list.
 		java.util.function.BiFunction<String, JButton[], JPanel> set = (title, bs) -> {
-			JPanel g = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+			JPanel g = new JPanel();
+			dev.gatehouse.look.WrapLayout.on(g, 6, 2);   // (a set wider than the window puts its own buttons in rows too)
 			javax.swing.border.TitledBorder tb = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), title);
 			tb.setTitleColor(new Color(0x8F98A0));
 			g.setBorder(tb);
@@ -1572,11 +1573,10 @@ public final class LaunchPopup {
 			return g;
 		};
 		JPanel buttons = new JPanel();
-		buttons.setLayout(new BoxLayout(buttons, BoxLayout.X_AXIS));
-		for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {wlB, revoke}), set.apply("Administration actions", new JButton[] {kickB, suspendB, blackB, liftB}), set.apply("List", new JButton[] {forget}))) {
-			g.setAlignmentY(Component.TOP_ALIGNMENT); buttons.add(g); buttons.add(Box.createHorizontalStrut(6));
+		dev.gatehouse.look.WrapLayout.on(buttons, 6, 1);   // (side by side while they fit, in rows when the window is narrower: never squeezed)
+		for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {wlB, revoke}), set.apply("Administrative actions", new JButton[] {kickB, suspendB, blackB, liftB}), set.apply("List", new JButton[] {forget}))) {
+			buttons.add(g);
 		}
-		buttons.add(Box.createHorizontalGlue());
 		String hint = "Click a permission to change it: Allowed, Not allowed or Denied.";
 		JLabel note = new JLabel(wrap(hint));
 		note.setForeground(grey);

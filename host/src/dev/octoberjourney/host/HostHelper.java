@@ -3255,7 +3255,8 @@ public final class HostHelper {
 			// the list itself.
 			revokeB.setText("Remove server accesses");
 			java.util.function.BiFunction<String, JButton[], JPanel> set = (title, bs) -> {
-				JPanel g = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
+				JPanel g = new JPanel();
+				dev.gatehouse.look.WrapLayout.on(g, 6, 2);   // (a set wider than the window puts its own buttons in rows too)
 				javax.swing.border.TitledBorder tb = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), title);
 				tb.setTitleColor(new Color(0x8F98A0));
 				g.setBorder(tb);
@@ -3263,17 +3264,15 @@ public final class HostHelper {
 				return g;
 			};
 			buttons.removeAll();
-			buttons.setLayout(new javax.swing.BoxLayout(buttons, javax.swing.BoxLayout.X_AXIS));
-			for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {sleepB, mcssB, serverB, adminB, revokeB}), set.apply("Administration actions", new JButton[] {dSuspend, dBlack, dLift}), set.apply("List", new JButton[] {refreshB, forget}))) {
-				g.setAlignmentY(java.awt.Component.TOP_ALIGNMENT); buttons.add(g); buttons.add(javax.swing.Box.createHorizontalStrut(6));
+			dev.gatehouse.look.WrapLayout.on(buttons, 6, 1);
+			for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {sleepB, mcssB, serverB, adminB, revokeB}), set.apply("Administrative actions", new JButton[] {dSuspend, dBlack, dLift}), set.apply("List", new JButton[] {refreshB, forget}))) {
+				buttons.add(g);
 			}
-			buttons.add(javax.swing.Box.createHorizontalGlue());
 			pbuttons.removeAll();
-			pbuttons.setLayout(new javax.swing.BoxLayout(pbuttons, javax.swing.BoxLayout.X_AXIS));
-			for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {pB[2], pB[1], pB[0], pB[3]}), set.apply("Administration actions", new JButton[] {pKick, pSuspend, pBlack, pLift}))) {
-				g.setAlignmentY(java.awt.Component.TOP_ALIGNMENT); pbuttons.add(g); pbuttons.add(javax.swing.Box.createHorizontalStrut(6));
+			dev.gatehouse.look.WrapLayout.on(pbuttons, 6, 1);
+			for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {pB[2], pB[1], pB[0], pB[3]}), set.apply("Administrative actions", new JButton[] {pKick, pSuspend, pBlack, pLift}))) {
+				pbuttons.add(g);
 			}
-			pbuttons.add(javax.swing.Box.createHorizontalGlue());
 			mcssRun.addActionListener(e -> {
 				boolean up = mcssUp[0], force = mcssClose[0].equals("force");
 				if (up && JOptionPane.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead." : "Close MCSS?", "MCSS", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;

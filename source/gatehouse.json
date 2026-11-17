@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.10.0",
+ "version": "2.10.1",
  "changes": [
+  {"version": "2.10.1", "date": "2026-11-16", "notes": [
+   "Remote Gatekeeper, Access Manager: the sets of buttons under the list (Server accesses, Administrative actions, List) were squeezed in a narrow window until buttons disappeared. They now sit side by side while they fit and move into rows when they don't, so every button stays whole; scroll down if the window is short. \"Administration actions\" is now \"Administrative actions\"."
+  ]},
   {"version": "2.10.0", "date": "2026-11-16", "notes": [
    "Gatehouse has an icon, on its windows and on the taskbar: the gatehouse, with a blue gate. A red circle with a number on it means something chimed while you weren't looking at Gatehouse (the owner answered a request, a server you asked for came up, an update turned up); it clears when you look. A green circle means a Gatehouse update is ready.",
    "Buttons that open a web page now try every way the system has, the same on Windows, Linux and SteamOS.",
