@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.14.0",
+ "version": "3.15.0",
  "changes": [
+  {"version": "3.15.0", "date": "2026-11-17", "notes": [
+   "A server whose Gatekeeper keeps its pack itself is installed and kept current from that Gatekeeper. Nothing changes in how Install or Play look."
+  ]},
   {"version": "3.14.0", "date": "2026-11-17", "notes": [
    "Cards show real pictures: the one a Gatekeeper's owner chose for it, and one for each server (or the server's own server-icon.png). A picture is fetched once and kept, and fetched again only when it changes; a Gatekeeper's is still shown while its machine is off.",
    "Beside a Gatekeeper's servers there is now a panel about the server you are on: whether it is on, the game and version, its address, what runs it, whether it is installed on this device, and what you may do with it. It follows the card you move to.",

@@ -1,4 +1,7 @@
 [
+ {"version": "1.48.0", "date": "2026-11-17", "notes": [
+  "For hosts: a Gatekeeper can now keep a server's pack itself, with its pictures for Steam, and keeps a history of servers (Gatehouse 3.15.0). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.47.0", "date": "2026-11-17", "notes": [
   "In the launcher, servers and Gatekeepers can have real pictures, chosen by the host, a panel beside the servers says more about the one you are on, and there are chatrooms for each Gatekeeper and server, with files that can be offered in them (Gatehouse 3.14.0). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

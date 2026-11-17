@@ -363,6 +363,7 @@ final class ServerToolsUi {
 		JPanel taskBottom = new JPanel(new BorderLayout()); taskBottom.add(line(addT, delT, runT, saveT), BorderLayout.NORTH); taskBottom.add(taskSaid, BorderLayout.SOUTH);
 		tasks.add(taskBottom, BorderLayout.SOUTH);
 		tabs.addTab("Tasks", tasks);
+		tabs.addTab("Pack", PackUi.tab(owner, q));
 
 		showStats.accept(first);
 		if (live) {
@@ -384,7 +385,7 @@ final class ServerToolsUi {
 			JFrame t = new JFrame(); t.setContentPane(newForm(t, null)); t.pack(); Thread.sleep(2500); t.pack(); paint(t, prefix + "-newserver.png"); t.dispose();
 			if (id.isEmpty()) return;
 			JFrame t2 = new JFrame(); JTabbedPane tabs = manageTabs(t2, id, false); t2.setContentPane(tabs); t2.pack(); Thread.sleep(1500);
-			String[] names = {"console", "settings", "game", "backups", "tasks"};
+			String[] names = {"console", "settings", "game", "backups", "tasks", "pack"};
 			for (int i = 0; i < tabs.getTabCount() && i < names.length; i++) { tabs.setSelectedIndex(i); t2.validate(); paint(t2, prefix + "-manage-" + names[i] + ".png"); }
 			t2.dispose();
 		} catch (Exception e) { e.printStackTrace(); }

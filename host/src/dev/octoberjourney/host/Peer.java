@@ -44,7 +44,7 @@ final class Peer {
 	private static String ownSha;
 
 	private static Path file() { return dir.resolve("program-held.jar"); }
-	private static Path ownJar() throws IOException {
+	static Path ownJar() throws IOException {
 		try { return Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()); } catch (java.net.URISyntaxException | RuntimeException e) { throw new IOException(e); }
 	}
 

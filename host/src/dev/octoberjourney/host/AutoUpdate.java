@@ -223,7 +223,7 @@ final class AutoUpdate {
 
 	// ------------------------------------------------------------------ as a member of another Gatekeeper's constellation
 
-	private static String leadCall(String path, String body) throws IOException {
+	static String leadCall(String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(lead().replaceAll("/+$", "") + path).openConnection();
 		c.setConnectTimeout(3000); c.setReadTimeout(6000); c.setRequestMethod("POST"); c.setDoOutput(true);
 		c.setRequestProperty("Content-Type", "application/json");
@@ -289,6 +289,7 @@ final class AutoUpdate {
 				try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
 				try {
 					talkToLead();
+					History.sync();   // (the history of servers: kept in step with this Gatekeeper's servers, and shared with the Gatekeeper it joined)
 					String mode = mode(), tag = mode + " update: ";
 					if (mode.equals("normal")) { gatherSince = 0; status = ""; launchersWaiting = false; continue; }
 					long now = System.currentTimeMillis();

@@ -133,6 +133,39 @@ player-facing version). In order:
 The scripts stop at step 1 if no source answers, so a device that can't reach either source just plays the last version
 it had (after applying the switches and showing the pop-up).
 
+## Packs a Gatekeeper keeps itself
+A Gatekeeper can build a server's pack and hand it to launchers, with no repository involved
+(`host/src/.../Packs.java`, `PackBuilder.java`, `PackArt.java`; the Pack tab of a server's Manage window).
+
+- **Where it is kept.** `packs/<server id>/` beside Gatekeeper's settings: `def/` is the definition (the mod list in
+  the shape of `source/mods.json`, the notes, `source/files`, `config.json`, `art/`, and `art-auto/` for the Steam
+  pictures Gatekeeper makes), `built/` is the pack in its `main` and `deck` variants, `pack.json` says what was
+  built last.
+- **The builder** writes what `tools/build_pack.py` writes, file for file. Built from October Journey's definition
+  it gives the published pack back byte for byte, apart from the files that say where the pack comes from.
+- **What launchers fetch**, with the update step and Install they already have:
+  `GET /v1/pack/<server id>/profile.json` (the profile Install reads: this address is both its repository and its
+  one pack source), `/clients/<file>` (what Install puts in the game folder) and `/main|deck/<file>` (the pack).
+  No secret is asked, as none was asked by the pack server before; they answer only on this machine and on its
+  Tailscale address. `/v1/catalog` gives that profile for a server with a pack.
+- **What every pack carries of the program** (sync scripts, launch wrappers, the launcher's scripts and art, the
+  Deck's controller layout, `packwiz-installer-bootstrap.jar`) is inside the program (`pack-extras`, put there by
+  `tools/build_program.ps1`), and the launcher a pack carries is the Gatekeeper's own program file. A pack built
+  by an older program is built again when Gatekeeper starts.
+- **Making one.** *Make a pack for this server* (a Fabric server: its Minecraft and loader versions, no mods yet),
+  or *Bring in a pack from a folder* (a definition, or the folder October Journey is built from). *New version*
+  takes the notes players read and the next version number. Only Gatekeeper's own window can do these: not the web
+  panel, not another Gatekeeper.
+- **Pictures for Steam.** Cover, hero, logo, icon and wide: each is one the owner chose (brought to the slot's size)
+  or one made from the pack's name and the server's picture, the same file every time for the same name.
+
+## The history of servers
+`history.json` beside Gatekeeper's settings holds a line for each server it made, started or stopped looking after,
+and each new pack version, with the Gatekeeper's name and address (`History.java`; *History of servers* on the
+Constellation tab). Lines are only added, and stay after a server is gone. A Gatekeeper that joined another hands
+its lines over and takes that one's (`POST /v1/history`, as the member it is), so a Gatekeeper set up later learns
+of every server and Gatekeeper before it by joining. It holds no folders, player names or keys.
+
 ## Steam keyboard and controllers
 
 - **Linux on a Steam Deck:** SDL (Minecraft 26's window layer) asks Steam for its keyboard whenever a text box is focused, and

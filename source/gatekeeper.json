@@ -1,8 +1,18 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.14.0",
+ "version": "3.15.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.15.0", "date": "2026-11-17", "notes": [
+   "Packs. A server's Manage window has a new tab, Pack. Gatekeeper can now keep a server's pack itself, build it, and hand it to launchers from its own address, with no outside site involved. Launchers install it and keep it current with what they already have.",
+   "Make a pack for this server: for a Fabric server, a pack with its Minecraft and Fabric loader versions and no mods yet. Not supported for other kinds of server yet (a plain server needs no pack).",
+   "Bring in a pack from a folder: takes a pack's definition from a folder on this machine. The pack the server had before is kept beside it until the next time.",
+   "New version takes the notes players read before updating and gives the pack its next version number. Build again builds it as it is.",
+   "Pictures for Steam: cover, hero, logo, icon and wide. Each is a picture you choose, brought to the right size here, or one Gatekeeper makes from the pack's name and the server's picture. A change goes out with the next build.",
+   "Making, building and changing a pack is done at this Gatekeeper's own window only: not from the web panel, and not from another Gatekeeper.",
+   "History of servers, on the Constellation tab: a line for each server a Gatekeeper made, started or stopped looking after, and each new pack version, with which Gatekeeper it was and its address. Lines stay after a server is gone.",
+   "The history is shared in a constellation: a Gatekeeper that joined another and was allowed in hands over its lines and takes that one's, so one set up later learns of every server and Gatekeeper before it. It holds no folders, player names or keys."
+  ]},
   {"version": "3.14.0", "date": "2026-11-17", "notes": [
    "Pictures. Options has a new part, Pictures: choose a picture for this Gatekeeper and one for each server, and launchers show them on their cards in place of the generated art. Any picture file will do (PNG, JPEG, GIF, BMP); it is made square and kept at 256 by 256.",
    "A server with no picture chosen shows the server-icon.png in its own folder, if it has one: the picture Minecraft itself shows for the server in its list. A Gatekeeper with none keeps the picture of the kind of machine it is on.",

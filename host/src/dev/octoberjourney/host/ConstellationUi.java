@@ -135,6 +135,10 @@ final class ConstellationUi {
 			});
 		}));
 		JPanel buttons = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2)); buttons.add(allow); buttons.add(remove); buttons.add(manageLet); buttons.add(manageStop); buttons.add(manageOpen); buttons.add(logB);
+		JButton historyB = new JButton("History of servers\u2026");
+		historyB.setToolTipText("Every server a Gatekeeper of this constellation has made or looked after, and which Gatekeeper that was: kept after a server is gone, and handed to a Gatekeeper that joins later");
+		historyB.addActionListener(e -> PackUi.history(p));
+		buttons.add(historyB);
 		JPanel joinRow = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave); joinRow.add(leadUpdates); joinRow.add(leadManage); joinRow.add(leadOpen);
 		JPanel bottom = new JPanel();
 		bottom.setLayout(new javax.swing.BoxLayout(bottom, javax.swing.BoxLayout.Y_AXIS));

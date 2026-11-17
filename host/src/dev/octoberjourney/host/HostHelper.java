@@ -904,6 +904,8 @@ public final class HostHelper {
 		Device.start();   // (what kind of machine this is, for the picture launchers show)
 		Thread newer = new Thread(() -> { while (true) { try { lookForNewer(); } catch (RuntimeException ignored) {} try { Thread.sleep(300_000); } catch (InterruptedException e) { return; } } }, "newer");
 		newer.setDaemon(true); newer.start();
+		Thread packs = new Thread(() -> { try { Packs.refresh(); } catch (RuntimeException e) { log("packs: " + e); } }, "packs");   // (a pack built by an older program is built again, to carry this one)
+		packs.setDaemon(true); packs.start();
 		// Once a minute, also with no panel or launcher open, the server's log is read for joins (through Gatekeeper's
 		// own local call, so it takes its turn with the other requests): the log starts afresh when the server restarts.
 		Thread watch = new Thread(() -> {
@@ -1174,6 +1176,8 @@ public final class HostHelper {
 			Map<String, Object> devs = devices();
 			// (the program file this Gatekeeper holds or runs: the published program, given to whoever asks)
 			if (path.startsWith("/v1/program/") && x.getRequestMethod().equals("GET")) { Peer.serve(x, path); return; }
+			// (a pack this Gatekeeper built, fetched by a launcher's update step and by Install: plain files, as from any pack source)
+			if (path.startsWith("/v1/pack/") && x.getRequestMethod().equals("GET")) { Packs.serve(x, path); return; }
 			// (the Gatekeeper this one joined, managing this one with the secret it was given for that: see Manage)
 			if (path.startsWith("/v1/manage/") && x.getRequestHeaders().getFirst("X-Manage") != null) { Manage.serve(x, path, null); return; }
 			if (path.equals("/v1/hello") && x.getRequestMethod().equals("POST")) {
@@ -1217,6 +1221,7 @@ public final class HostHelper {
 			if (path.equals("/v1/update/state") && x.getRequestMethod().equals("POST")) { reply(x, 200, AutoUpdate.report(id, who(d), body(x))); return; }
 			if ((path.equals("/v1/program") || path.equals("/v1/program/hand")) && x.getRequestMethod().equals("POST")) { Peer.take(x, path, who(d), d); return; }
 			if (path.equals("/v1/icon") && x.getRequestMethod().equals("GET")) { Icons.serve(x); return; }
+			if (path.equals("/v1/history") && x.getRequestMethod().equals("POST")) { History.take(x, who(d), d); return; }
 			if (path.equals("/v1/chat/rooms") || (path.equals("/v1/chat") && x.getRequestMethod().equals("POST"))) { Chat.launcher(x, path, id, d); return; }
 			if (path.equals("/v1/share") || path.equals("/v1/share/list")) { Share.launcher(x, path, id, d); return; }
 			if (path.startsWith("/v1/manage/")) { Manage.serve(x, path, d); return; }
@@ -1262,7 +1267,7 @@ public final class HostHelper {
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", (x.getLocalAddress().getAddress().isLoopbackAddress() || setting("bind", "").isEmpty() ? "127.0.0.1" : setting("bind", "")) + ":" + (port.isEmpty() ? "25565" : port),
-								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
+								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Packs.has(Json.str(s.get("id"))) ? Packs.base(Json.str(s.get("id"))) + "/profile.json" : Json.str(s.get("profile")), "pack", Packs.has(Json.str(s.get("id"))), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
 								"kind", facts[0], "minecraft_version", facts[1], "native", isNative(), "icon", Icons.tag(Json.str(s.get("id")))));
 					}
 				} finally { SERVER.set(keep); }
@@ -2167,7 +2172,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x, path) && !Packs.admin(x, path) && !History.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}

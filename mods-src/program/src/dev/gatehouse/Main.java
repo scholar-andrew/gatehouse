@@ -71,6 +71,7 @@ public final class Main {
 			else choose(null);
 			return;
 		}
+		if (first.equals("--build-pack")) { dev.octoberjourney.host.PackBuilder.main(args); return; }   // (building a pack from its definition: see PackBuilder)
 		if (List.of("--serve", "--panel", "--minimized", "--uninstall-command").contains(first) || (args.length == 0 && isKeeperFile())) { HostHelper.main(args); return; }
 		if (args.length == 0) { choose(null); return; }
 		LaunchPopup.main(args);

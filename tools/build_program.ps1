@@ -36,6 +36,13 @@ Copy-Item (Join-Path $root 'installer\keeper\install-keeper.ps1'), (Join-Path $r
 # The web panel's page (host\web): served from inside the program.
 New-Item -ItemType Directory -Force (Join-Path $classes 'web') | Out-Null
 Copy-Item (Join-Path $root 'host\web\*') (Join-Path $classes 'web')
+# What every pack a Gatekeeper builds carries of the program itself (PackBuilder): the sync scripts, the launch
+# wrappers, the launcher's scripts, the art for the Steam shortcuts, and the Steam Deck controller layout.
+$extras = Join-Path $classes 'pack-extras'
+New-Item -ItemType Directory -Force (Join-Path $extras 'clients'), (Join-Path $extras 'art'), (Join-Path $extras 'art-prism'), (Join-Path $extras 'art-launcher'), (Join-Path $extras 'steam') | Out-Null
+foreach ($n in 'pack-sync.ps1', 'pack-sync.sh', 'launch-wrapper.sh', 'launch-wrapper.exe', 'gatehouse-launcher.ps1', 'gatehouse-launcher.sh', 'plain-launch.ps1', 'plain-launch.sh', 'packwiz-installer-bootstrap.jar') { Copy-Item (Join-Path $root "clients\$n") (Join-Path $extras 'clients') }
+foreach ($set in 'art', 'art-prism', 'art-launcher') { Copy-Item (Join-Path $root "installer\$set\*.png") (Join-Path $extras $set) }
+Copy-Item (Join-Path $root 'installer\steam\controller_neptune.vdf') (Join-Path $extras 'steam')
 # Pictures for the setup guides' steps, when there are any: source\wizard\gatehouse|gatekeeper\<step key>.png
 foreach ($half in 'gatehouse', 'gatekeeper') {
     $art = Join-Path $root "source\wizard\$half"
