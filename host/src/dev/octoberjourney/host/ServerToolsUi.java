@@ -115,7 +115,7 @@ final class ServerToolsUi {
 		};
 		kindF.addActionListener(e -> kindChanged.run());
 		browse.addActionListener(e -> { JFileChooser fc = new JFileChooser(fileF.getText().isBlank() || fileF.getText().equals(NO_FILE) ? System.getProperty("user.home", "") : fileF.getText()); fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Jar files", "jar")); if (fc.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) fileF.setText(fc.getSelectedFile().getPath()); });
-		eulaB.addActionListener(e -> { try { java.awt.Desktop.getDesktop().browse(java.net.URI.create("https://aka.ms/MinecraftEULA")); } catch (Exception ex) { said.setForeground(GREY); said.setText("It's at https://aka.ms/MinecraftEULA"); } });
+		eulaB.addActionListener(e -> dev.gatehouse.look.Links.openOrShow(owner, "https://aka.ms/MinecraftEULA"));
 		Timer[] poll = {null};
 		make.addActionListener(e -> {
 			Map<String, Object> r = ask("POST", "/admin/tools/new", m("name", nameF.getText(), "kind", kind.get(), "version", verF.isEnabled() ? Json.str(verF.getSelectedItem()) : "", "file", fileF.isEnabled() ? fileF.getText() : "", "memory", memF.getText(), "port", portF.getText(), "java", javaOf(javaF), "eula", eula.isSelected()));

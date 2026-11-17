@@ -586,11 +586,11 @@ final class ServerControl {
 	/** Opens the panel in the default browser. Returns false if nothing could open it (the address is then shown). */
 	boolean openPanel() {
 		try {
-			if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
-				java.awt.Desktop.getDesktop().browse(URI.create(panelUrl));
+			if (dev.gatehouse.look.Links.open(panelUrl)) {
+
 				return true;
 			}
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (RuntimeException ignored) {}
 		for (String[] cmd : new String[][] {{"xdg-open", panelUrl}, {"flatpak-spawn", "--host", "xdg-open", panelUrl}, {"rundll32", "url.dll,FileProtocolHandler", panelUrl}}) {
 			try {
 				Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();

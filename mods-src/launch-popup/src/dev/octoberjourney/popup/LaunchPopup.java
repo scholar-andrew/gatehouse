@@ -157,7 +157,7 @@ public final class LaunchPopup {
 
 	public static void main(String[] args) throws Exception {
 		// The look, before anything is built (rows are made before their window is).
-		if (!GraphicsEnvironment.isHeadless() && !(args.length >= 1 && args[0].equals("--server"))) dev.gatehouse.look.SteamLook.apply();
+		if (!GraphicsEnvironment.isHeadless() && !(args.length >= 1 && args[0].equals("--server"))) { dev.gatehouse.look.SteamLook.apply(); watchWindows(); }
 		// Testing and troubleshooting: java -jar launch-popup.jar --server <game folder> status|wake|start
 		if (args.length >= 3 && args[0].equals("--server")) {
 			ServerControl c = new ServerControl(Path.of(args[1]));
@@ -760,7 +760,28 @@ public final class LaunchPopup {
 	}
 
 	/** A short, soft three-note chime (made here, no sound file): the owner granted something this device asked for. */
+	/** What the windows' icon shows as waiting: things that chimed while none of the windows was being looked at
+	 *  (the red circle with how many; gone when a window is looked at), and a newer Gatehouse (the green circle). */
+	static volatile int iconMessages = 0;
+	static volatile boolean iconUpdate = false;
+	static void icons() {
+		Runnable r = () -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w instanceof JFrame && w.isDisplayable()) dev.gatehouse.look.AppIcon.apply(w, false, iconMessages, iconUpdate); };
+		if (SwingUtilities.isEventDispatchThread()) r.run(); else SwingUtilities.invokeLater(r);
+	}
+	/** Every window gets the icon as it opens, and looking at one clears the messages. */
+	static void watchWindows() {
+		try {
+			java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(ev -> {
+				int id = ev.getID();
+				if (id == java.awt.event.WindowEvent.WINDOW_ACTIVATED) iconMessages = 0;
+				if (id == java.awt.event.WindowEvent.WINDOW_OPENED || id == java.awt.event.WindowEvent.WINDOW_ACTIVATED) icons();
+			}, java.awt.AWTEvent.WINDOW_EVENT_MASK);
+		} catch (RuntimeException ignored) {}
+	}
 	static void chime() {
+		boolean looking = false;
+		for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isActive()) looking = true;
+		if (!looking) { iconMessages++; icons(); }
 		Thread t = new Thread(() -> {
 			try {
 				float rate = 44100f;

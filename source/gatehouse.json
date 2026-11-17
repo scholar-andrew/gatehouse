@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.9.2",
+ "version": "2.10.0",
  "changes": [
+  {"version": "2.10.0", "date": "2026-11-16", "notes": [
+   "Gatehouse has an icon, on its windows and on the taskbar: the gatehouse, with a blue gate. A red circle with a number on it means something chimed while you weren't looking at Gatehouse (the owner answered a request, a server you asked for came up, an update turned up); it clears when you look. A green circle means a Gatehouse update is ready.",
+   "Buttons that open a web page now try every way the system has, the same on Windows, Linux and SteamOS.",
+   "Buttons on the Connections tab could miss a click, because the tab was redrawn every few seconds and a button replaced between press and release did nothing. It is now redrawn only when something on it changed.",
+   "Three buttons that did nothing when they failed now say what went wrong: Open Tailscale, Open Windows' installed apps, and the setup guide's Open Prism Launcher."
+  ]},
   {"version": "2.9.2", "date": "2026-11-16", "notes": [
    "Check for updates, at the bottom of the main window: Gatehouse looks right now for a newer Gatehouse instead of waiting, offers again an update you put off with Later, asks the Gatekeeper on screen again (so an \"Update needed\" clears as soon as its owner has updated), and says what it found."
   ]},

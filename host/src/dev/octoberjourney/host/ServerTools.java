@@ -404,7 +404,7 @@ final class ServerTools {
 		Map<String, Object> s = server();
 		if (s.isEmpty()) return new String[] {"refused", "No such server"};
 		String id = id(), name = Json.str(s.get("name"));
-		boolean files = yes(b.get("files")), nat = isNative();
+		boolean files = yes(b.get("files")), nat = isNative(), wasGone = goneFromMcss(s);
 		Path d = serverDir().toAbsolutePath().normalize();
 		if (minecraftRunning()) return new String[] {"refused", "Stop " + name + " first: a server that is on can't be removed."};
 		if (backing.getOrDefault(id, "").startsWith("Backing up")) return new String[] {"refused", "A backup of " + name + " is being made: wait for it to finish."};
@@ -440,6 +440,7 @@ final class ServerTools {
 			log("server " + name + " deleted by the owner: removed from Gatekeeper, and its folder " + d + " deleted");
 			return new String[] {"ok", name + " is deleted: it is out of Gatekeeper and its folder is gone." + kept};
 		}
+		if (wasGone) { log("server " + name + " removed from Gatekeeper by the owner (MC Server Soft had already deleted it)"); return new String[] {"ok", name + " is out of Gatekeeper. MC Server Soft had already deleted it." + kept}; }
 		log("server " + name + " removed from Gatekeeper by the owner (its files stay in " + d + ")");
 		return new String[] {"ok", name + " is out of Gatekeeper. Its files are still in " + d + (nat ? "; Server setup can add it again." : "; it is still MCSS's server.") + kept};
 	}

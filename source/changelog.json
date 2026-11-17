@@ -1,4 +1,7 @@
 [
+ {"version": "1.32.0", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack itself. Both programs have an icon that shows what is waiting, buttons that open web pages work on SteamOS, Gatekeeper notices a server deleted in MCSS, and its window keeps one size (Gatehouse 2.10.0, Gatekeeper 2.8.0)."
+ ]},
  {"version": "1.31.0", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself. The Gatehouse launcher and Gatekeeper each have a Check for updates button (Gatehouse 2.9.2, Gatekeeper 2.7.4)."
  ]},

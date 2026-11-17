@@ -287,18 +287,8 @@ final class Connection {
 		return null;
 	}
 
-	static boolean open(String url) {
-		try {
-			if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) { java.awt.Desktop.getDesktop().browse(URI.create(url)); return true; }
-		} catch (IOException | RuntimeException ignored) {}
-		for (String[] cmd : new String[][] {{"xdg-open", url}, {"flatpak-spawn", "--host", "xdg-open", url}, {"rundll32", "url.dll,FileProtocolHandler", url}}) {
-			try {
-				Process pr = new ProcessBuilder(cmd).redirectErrorStream(true).start();
-				if (!pr.waitFor(5, TimeUnit.SECONDS) || pr.exitValue() == 0) return true;
-			} catch (IOException | RuntimeException | InterruptedException ignored) {}
-		}
-		return false;
-	}
+	/** Opens a web address in the person's browser (see Links: every system's own way is tried). */
+	static boolean open(String url) { return dev.gatehouse.look.Links.open(url); }
 
 	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"); }
 }

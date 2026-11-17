@@ -115,6 +115,33 @@ public final class HostHelper {
 	static boolean isNative() { return builtin() || (nativeToo() && ServerTools.yes(server().get("native"))); }
 	/** What runs the servers on this machine, as launchers are told: "mcss", "builtin" (Gatekeeper itself), or "both". */
 	static String hostKind() { return builtin() ? "builtin" : nativeToo() ? "both" : "mcss"; }
+	/** Has MC Server Soft deleted this server? True for a server MCSS runs whose folder is inside MCSS's own servers
+	 *  folder, when that folder is still there but the server's is gone, or no longer holds MCSS's file for it (or
+	 *  holds another server's: deleted, and a new one made under the same name). */
+	static boolean goneFromMcss(Map<String, Object> s) {
+		if (builtin() || (nativeToo() && ServerTools.yes(s.get("native")))) return false;
+		String exe = setting("mcss_exe", ""), dirText = Json.str(s.get("dir"));
+		if (exe.isEmpty() || dirText.isEmpty()) return false;
+		try {
+			Path all = Path.of(exe).toAbsolutePath().getParent().resolve("servers").normalize(), d = Path.of(dirText).toAbsolutePath().normalize();
+			if (!Files.isDirectory(all) || !d.startsWith(all)) return false;
+			Map<String, Object> c = Json.map(Json.parse(read(d.resolve("mcss_server_config.json"))));
+			String want = Json.str(s.get("mcss_server"));
+			return c.isEmpty() || (!want.isEmpty() && !Json.str(c.get("guid")).isEmpty() && !want.equals(Json.str(c.get("guid"))));
+		} catch (RuntimeException e) { return false; }
+	}
+	static final java.util.Set<String> goneSaid = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	/** Notes in the log, once each, the servers MCSS has deleted (and forgets the note when one is back or removed). */
+	static void noteGone() {
+		java.util.Set<String> now = new java.util.HashSet<>();
+		for (Object o : new ArrayList<>(servers())) {
+			Map<String, Object> s = Json.map(o);
+			if (!goneFromMcss(s)) continue;
+			now.add(Json.str(s.get("id")));
+			if (goneSaid.add(Json.str(s.get("id")))) log(Json.str(s.get("name")) + " was deleted in MC Server Soft (its folder " + Json.str(s.get("dir")) + " is gone, or is no longer that server's). Launchers are no longer shown it; Remove it from Gatekeeper on the first screen.");
+		}
+		goneSaid.retainAll(now);
+	}
 	static final DirectHost DIRECT = new DirectHost();
 	/** Whatever runs the current server: Gatekeeper itself, or the host program. */
 	static ServerHost sh() { return isNative() ? DIRECT : host; }
@@ -378,6 +405,9 @@ public final class HostHelper {
 				}
 			}
 			add.accept(new String[] {"Servers are chosen", "ok", String.join(", ", names)});
+			List<String> deleted = new ArrayList<>();
+			for (Object o : servers()) if (goneFromMcss(Json.map(o))) deleted.add(Json.str(Json.map(o).get("name")));
+			if (!deleted.isEmpty()) add.accept(new String[] {"Every chosen server still exists", "warn", "Deleted in MCSS, but still listed here: " + String.join(", ", deleted) + ".", "Servers tab: press Remove from Gatekeeper beside it. Launchers are already no longer shown it."});
 			List<String> clash = new ArrayList<>();
 			for (Map.Entry<String, List<String>> e : byPort.entrySet()) if (e.getValue().size() > 1) clash.add(String.join(" and ", e.getValue()) + " (port " + e.getKey() + ")");
 			if (!clash.isEmpty()) {
@@ -809,6 +839,9 @@ public final class HostHelper {
 		// (for the servers Gatekeeper runs itself: their tasks by the clock, and the ones set to start with it)
 		ServerTools.schedule();
 		ServerTools.autostart();
+		// (once a minute: has MCSS deleted a server Gatekeeper still lists?)
+		Thread gone = new Thread(() -> { while (true) { try { noteGone(); Thread.sleep(60_000); } catch (InterruptedException e) { return; } catch (RuntimeException ignored) {} } }, "deleted-in-mcss");
+		gone.setDaemon(true); gone.start();
 	}
 
 	static volatile HttpServer remote;
@@ -975,6 +1008,7 @@ public final class HostHelper {
 	 *  Returns at once with what is happening; how it ended goes in the log. */
 	static String[] startServerFully(String by) {
 		if (outdated()) return new String[] {"refused", "Gatekeeper is out of date (" + ownVersion() + "; " + newestKeeper + " is out), and starts no server until it's updated: the owner does that in Gatekeeper's window."};
+		if (goneFromMcss(server())) return new String[] {"refused", serverName() + " was deleted in MC Server Soft, so there is nothing to start. Its owner removes it from Gatekeeper on the first screen."};
 		if (!sh().hasAccess()) return new String[] {"refused", "Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
 		if (sh().running()) {
 			int st = sh().serverStatus();
@@ -1108,6 +1142,7 @@ public final class HostHelper {
 					for (Object o : servers()) {
 						Map<String, Object> s = Json.map(o);
 						SERVER.set(Json.str(s.get("id")));
+						if (goneFromMcss(s)) continue;   // (deleted in MCSS: not shown to launchers)
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", setting("bind", "") + ":" + (port.isEmpty() ? "25565" : port),
@@ -1995,7 +2030,7 @@ public final class HostHelper {
 						SERVER.set(Json.str(s.get("id")));
 						boolean on = serverPhase().equals("online");
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "running", on, "phase", serverPhase(), "players", on ? onlineBy.getOrDefault(serverKey(), Map.of()).size() : 0,
-								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir")), "native", isNative()));
+								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir")), "native", isNative(), "gone", goneFromMcss(s)));
 					}
 				} finally { SERVER.set(keep); }
 				reply(x, 200, m("mcss_exe", builtin() ? serversDir() : setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list, "host", builtin() ? "builtin" : "mcss", "native_ok", nativeOk(), "native_folder", serversDir()));
@@ -2103,6 +2138,18 @@ public final class HostHelper {
 
 	/** The server Gatekeeper is looking at (its pick, when the machine has more than one). */
 	static volatile String panelServer = "";
+	/** What the window's icon shows as waiting: launchers' requests (a red circle with how many), and an update (a green one). */
+	static volatile int iconMessages = 0;
+	static volatile boolean iconUpdate = false;
+	/** A panel that is as wide as the window it scrolls in, never wider: what doesn't fit is shortened, not pushed off the edge. */
+	static final class FitWidth extends JPanel implements javax.swing.Scrollable {
+		FitWidth(java.awt.LayoutManager l) { super(l); }
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle r, int o, int d) { return 16; }
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle r, int o, int d) { return 120; }
+		@Override public boolean getScrollableTracksViewportWidth() { return true; }
+		@Override public boolean getScrollableTracksViewportHeight() { return false; }
+	}
 	static String call(String method, String path, String body) throws IOException {
 		if (!panelServer.isEmpty() && !path.contains("server=")) path += (path.contains("?") ? "&" : "?") + "server=" + panelServer;
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
@@ -2458,7 +2505,7 @@ public final class HostHelper {
 			overview.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
 			JPanel overList = new JPanel();
 			overList.setLayout(new javax.swing.BoxLayout(overList, javax.swing.BoxLayout.Y_AXIS));
-			JPanel overTop = new JPanel(new BorderLayout()); overTop.add(overList, BorderLayout.NORTH);
+			JPanel overTop = new FitWidth(new BorderLayout()); overTop.add(overList, BorderLayout.NORTH);
 			JScrollPane overScroll = new JScrollPane(overTop); overScroll.setBorder(null);
 			overview.add(overScroll, BorderLayout.CENTER);
 			javax.swing.JTabbedPane firstTabs = new javax.swing.JTabbedPane();
@@ -2503,6 +2550,7 @@ public final class HostHelper {
 						checkNow.setEnabled(true);
 						if (b2 && ownUpdateGo.isEnabled()) ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u2.get("newest")) + ".</b> This is " + Json.str(u2.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
 						if (b2 || ownUpdateGo.isEnabled()) ownUpdate.setVisible(b2);
+						iconUpdate = b2; dev.gatehouse.look.AppIcon.apply(f, true, iconMessages, iconUpdate);
 					});
 				}, "check-updates").start();
 			});
@@ -2512,6 +2560,7 @@ public final class HostHelper {
 					boolean behind = Boolean.TRUE.equals(u.get("outdated")) || "true".equals(Json.str(u.get("outdated")));
 					SwingUtilities.invokeLater(() -> {
 						if (behind && !ownUpdate.isVisible()) chime();
+						iconUpdate = behind; dev.gatehouse.look.AppIcon.apply(f, true, iconMessages, iconUpdate);
 						if (behind && ownUpdateGo.isEnabled()) ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
 						ownUpdate.setVisible(behind);
 					});
@@ -2779,7 +2828,7 @@ public final class HostHelper {
 				} catch (Exception ex) { throw new RuntimeException(ex); }
 				return steps;
 			}, id -> {
-				if (id.startsWith("open:")) { try { java.awt.Desktop.getDesktop().browse(java.net.URI.create(id.substring(5))); } catch (Exception ignored) {} }
+				if (id.startsWith("open:")) dev.gatehouse.look.Links.openOrShow(f, id.substring(5));
 				else if (id.equals("setup")) setupB.doClick();
 				else if (id.equals("newserver")) ServerToolsUi.newServer(f, null);
 				else if (id.equals("pairing")) pairB.doClick();
@@ -2862,6 +2911,7 @@ public final class HostHelper {
 							pickRow.setVisible(sv.size() > 1);
 						}
 						List<Object> asked = Json.list(r.get("requests"));
+						iconMessages = asked.size(); dev.gatehouse.look.AppIcon.apply(f, true, iconMessages, iconUpdate);   // (the red circle: requests waiting)
 						int seq = r.get("request_seq") instanceof Number n ? n.intValue() : 0;
 						if (asked.isEmpty()) {
 							if (reqRow.isVisible()) { reqRow.setVisible(false); reqRow.removeAll(); reqShown[0] = ""; f.setTitle("Gatekeeper"); }
@@ -3014,7 +3064,12 @@ public final class HostHelper {
 				return new Object[] {r, st, b};
 			};
 			@SuppressWarnings("unchecked") java.util.function.Consumer<Map<String, Object>>[] fillOverviewRef = new java.util.function.Consumer[1];
+			String[] overShown = {""};
 			java.util.function.Consumer<Map<String, Object>> fillOverview = r -> {
+				// (rebuilt only when something on it changed, so a button isn't replaced under the mouse mid-click)
+				String overSig = Json.write(r);
+				if (overSig.equals(overShown[0]) && overList.getComponentCount() > 0) return;
+				overShown[0] = overSig;
 				overList.removeAll();
 				JLabel h1 = new JLabel(builtin() ? "What runs the servers" : "MCSS on this machine"); h1.setFont(h1.getFont().deriveFont(Font.BOLD, 14f)); h1.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0)); h1.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 				overList.add(h1);
@@ -3046,6 +3101,23 @@ public final class HostHelper {
 					manageB.setEnabled(nat);
 					manageB.setToolTipText(nat ? "Its console, settings, game settings, backups and scheduled tasks" : ServerTools.HERE_MCSS);
 					manageB.addActionListener(ev -> ServerToolsUi.manage(f, id, nm));
+					if (Boolean.TRUE.equals(s.get("gone"))) {
+						// MCSS has deleted it: said so, and Manage's place is taken by the one thing left to do with it.
+						((JLabel) sr[1]).setText("Deleted in MC Server Soft: its folder is gone. Launchers are no longer shown it.   \u00b7   " + Json.str(s.get("dir")));
+						((JLabel) sr[1]).setForeground(new Color(0xFF7B72));
+						for (java.awt.event.ActionListener al : manageB.getActionListeners()) manageB.removeActionListener(al);
+						manageB.setText("Remove from Gatekeeper"); manageB.setEnabled(true);
+						manageB.setToolTipText("Takes it off Gatekeeper's list. There are no files left to delete.");
+						manageB.addActionListener(ev -> {
+							if (JOptionPane.showConfirmDialog(f, "Remove " + nm + " from Gatekeeper? MCSS has already deleted it.", "Remove from Gatekeeper", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+							new Thread(() -> {
+								String msg;
+								try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/tools/delete?server=" + id, "{\"files\":false}"))).get("message")); } catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
+								String m2 = msg;
+								try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2 + "</div></html>", "Remove from Gatekeeper", JOptionPane.PLAIN_MESSAGE); }); } catch (Exception ignored) {}
+							}, "remove-gone").start();
+						});
+					}
 					((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(manageB);
 					overList.add((JPanel) sr[0]); overList.add(javax.swing.Box.createVerticalStrut(8));
 				}
@@ -3253,6 +3325,24 @@ public final class HostHelper {
 			refresh.run();
 			f.setContentPane(p);
 			f.pack();
+			dev.gatehouse.look.AppIcon.apply(f, true, 0, false);
+			if (System.getenv("OJ_PANEL_PNG") == null) {
+				java.awt.Rectangle scr = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+				int w = Math.min(1240, scr.width), h = Math.min(800, scr.height);
+				try {
+					Map<String, Object> was = Json.map(Json.parse(read(dir.resolve("window.json"))));
+					int ww = (int) Double.parseDouble(Json.str(was.get("w"))), wh = (int) Double.parseDouble(Json.str(was.get("h")));
+					if (ww >= 700 && wh >= 480) { w = Math.min(ww, scr.width); h = Math.min(wh, scr.height); }
+				} catch (RuntimeException ignored) {}
+				f.setSize(w, h);
+				f.setMinimumSize(new Dimension(Math.min(900, scr.width), Math.min(560, scr.height)));
+				f.addComponentListener(new java.awt.event.ComponentAdapter() {
+					@Override public void componentResized(java.awt.event.ComponentEvent e) {
+						if ((f.getExtendedState() & JFrame.MAXIMIZED_BOTH) != 0 || (f.getExtendedState() & JFrame.ICONIFIED) != 0) return;
+						try { Files.writeString(dir.resolve("window.json"), Json.write(m("w", f.getWidth(), "h", f.getHeight())), StandardCharsets.UTF_8); } catch (IOException ignored) {}
+					}
+				});
+			}
 			// Testing: OJ_PANEL_PNG=<file> saves a picture of each tab (<file>-access.png, -players.png, -status.png) after
 			// the first readings, instead of showing the window.
 			String shot = System.getenv("OJ_PANEL_PNG");

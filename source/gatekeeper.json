@@ -1,7 +1,14 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.7.4",
+ "version": "2.8.0",
  "changes": [
+  {"version": "2.8.0", "date": "2026-11-16", "notes": [
+   "Fixed on SteamOS and Linux: buttons that open a web page did nothing (in the setup guide: Open Tailscale's admin page, Open MCSS's site, and the rest; and Open the EULA in New server). They now use the system's own way of opening a page, and if nothing on the machine takes it, the address is shown with a Copy button instead of nothing happening.",
+   "Buttons on the first screen could miss a click: the list of servers was redrawn every three seconds, and a button replaced between press and release did nothing. It is now redrawn only when something on it changed. A long folder path also no longer pushes a server's buttons off the right edge: the text is shortened instead.",
+   "Gatekeeper notices when MC Server Soft has deleted a server it still lists (the server's folder, or MCSS's own file in it, is gone from MCSS's servers folder). It says so in red on the first screen with a Remove from Gatekeeper button, in Host setup and once in the log, stops showing that server to launchers, and refuses to start it.",
+   "The window keeps one size: it opens at the size you last gave it (a fixed size the first time) instead of fitting itself to whatever was on screen that day, and switching tabs or screens doesn't change it.",
+   "Gatekeeper has an icon, on its window and on the taskbar: the gatehouse, with an amber gate (Gatehouse's is blue). A red circle with a number on it means launchers' requests are waiting for you; a green circle means a Gatekeeper update is ready."
+  ]},
   {"version": "2.7.4", "date": "2026-11-16", "notes": [
    "Check for updates, at the bottom of the first screen: Gatekeeper looks right now for a newer Gatekeeper instead of waiting for its next look (every five minutes), and says what it found: up to date, a newer one (Update Gatekeeper then shows at the top), or that it couldn't reach where Gatekeeper is published."
   ]},

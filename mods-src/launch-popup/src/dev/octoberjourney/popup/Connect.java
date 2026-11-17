@@ -119,7 +119,11 @@ final class Connect {
 		get.setToolTipText("Opens Tailscale's own download page (" + DOWNLOAD + ") in your browser");
 		get.addActionListener(e -> Connection.open(DOWNLOAD));
 		openTs.setToolTipText("Opens Tailscale on this device, to sign in or connect");
-		openTs.addActionListener(e -> { Path app = tailscaleApp(); if (app != null) try { new ProcessBuilder(app.toString()).start(); } catch (IOException ignored) {} });
+		openTs.addActionListener(e -> {
+			Path app = tailscaleApp();
+			try { if (app == null) throw new IOException("Tailscale's program wasn't found"); new ProcessBuilder(app.toString()).start(); }
+			catch (IOException ex) { javax.swing.JOptionPane.showMessageDialog(openTs, "<html><div style='width:380px'>Tailscale couldn't be opened from here (" + ex.getMessage() + "). Open it yourself: it is in the Start menu, and by the clock when it is running.</div></html>", "Open Tailscale", javax.swing.JOptionPane.PLAIN_MESSAGE); }
+		});
 		JPanel b1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
 		b1.add(get); b1.add(openTs);
 		b1.setAlignmentX(Component.LEFT_ALIGNMENT);

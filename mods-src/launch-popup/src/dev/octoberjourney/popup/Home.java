@@ -497,7 +497,7 @@ final class Home {
 			JButton appsList = new JButton("Open Windows' installed apps");
 			appsList.setToolTipText("Windows Settings, Apps: where a pack that was installed with its setup program is listed");
 			appsList.setVisible(planNow[0].equals("tell") && System.getProperty("os.name", "").startsWith("Windows"));
-			appsList.addActionListener(ev -> { try { new ProcessBuilder("cmd.exe", "/c", "start", "", "ms-settings:appsfeatures").start(); } catch (IOException ignored) {} });
+			appsList.addActionListener(ev -> { try { new ProcessBuilder("cmd.exe", "/c", "start", "", "ms-settings:appsfeatures").start(); } catch (IOException ex) { JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>Windows' list of installed apps couldn't be opened from here. It is in Settings, Apps, Installed apps.</div></html>", "Installed apps", JOptionPane.PLAIN_MESSAGE); } });
 			uninstallRow.add(appsList);
 			options.add(forget); options.add(uninstallRow);
 			uninstall.addActionListener(ev -> {
@@ -740,6 +740,7 @@ final class Home {
 					};
 					if (shot != null) about.run(); else new Thread(about, "about").start();
 				}
+				String[] connShown = {null};
 				Runnable poll = () -> {
 					Map<String, Object> cat = c == null ? null : catalog(c);
 					Runnable ui = () -> {
@@ -809,8 +810,12 @@ final class Home {
 							new Thread(() -> { ServerControl sc = new ServerControl(Path.of(pk[3])); String[] st = sc.ban.equals("blacklist") ? new String[] {"off", "Not shown: this launcher is blacklisted"} : !sc.configured() ? new String[] {"off", "No server set up for this pack"} : sc.status(); set.accept((JLabel) r[0], st); }, "server-status").start();
 						}
 						// ---- Connections: the machine, MCSS and each server, each with the buttons this device is allowed.
-						connList.removeAll();
-						if (c != null) {
+						// (rebuilt only when what the Gatekeeper says changed, so a button isn't replaced under the mouse mid-click)
+						String connSig = String.valueOf(cat) + "|" + (c != null);
+						boolean connSame = connSig.equals(connShown[0]) && connList.getComponentCount() > 0;
+						connShown[0] = connSig;
+						if (!connSame) connList.removeAll();
+						if (c != null && !connSame) {
 							boolean answering = cat != null && !cat.containsKey("_refused");
 							Runnable[] again2 = {null};
 							// (a press: ask Gatekeeper, say what it said, then look again)
@@ -1056,7 +1061,7 @@ final class Home {
 				return steps;
 			}, id -> {
 				if (id.startsWith("open:")) Connection.open(id.substring(5));
-				else if (id.equals("prism")) { try { new ProcessBuilder(prismFor).start(); } catch (IOException ignored) {} }
+				else if (id.equals("prism")) { try { new ProcessBuilder(prismFor).start(); } catch (IOException ex) { JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>Prism Launcher couldn't be started from here (" + LaunchPopup.esc(String.valueOf(ex.getMessage())) + "). Open it yourself, from the Start menu or your applications.</div></html>", "Prism Launcher", JOptionPane.PLAIN_MESSAGE); } }
 				else if (id.equals("add")) addB.doClick();
 				else if (id.equals("keepers")) leaveGuide.run();
 				else if (id.equals("connect")) {
@@ -1097,7 +1102,7 @@ final class Home {
 			String pretend = System.getenv("OJ_GATEHOUSE_NEWER");
 			String[][] offered = {null};
 			String[] declined = {""};
-			ownUpdateLater.addActionListener(ev -> { if (offered[0] != null) declined[0] = offered[0][1]; ownUpdate.setVisible(false); f.validate(); });
+			ownUpdateLater.addActionListener(ev -> { if (offered[0] != null) declined[0] = offered[0][1]; ownUpdate.setVisible(false); f.validate(); LaunchPopup.iconUpdate = false; LaunchPopup.icons(); });
 			ownUpdateGo.addActionListener(ev -> {
 				String[] found = offered[0];
 				if (found == null) return;
@@ -1126,6 +1131,7 @@ final class Home {
 					ownUpdateText.setText("<html><b>A " + LaunchPopup.TOOL + " update is ready" + (found[4].isEmpty() || found[4].equals(have) ? "" : ": " + LaunchPopup.esc(found[4])) + ".</b> You have " + LaunchPopup.esc(have) + "." + (bytes > 0 ? " " + Math.max(1, Math.round(bytes / 1024.0)) + " KB to download." : "") + "</html>");
 					ownUpdateGo.setEnabled(true); ownUpdateLater.setEnabled(true); ownUpdateLater.setText("Later");
 					ownUpdate.setVisible(true);
+					LaunchPopup.iconUpdate = true; LaunchPopup.icons();
 					f.validate();
 					if (shot == null) { LaunchPopup.chime(); Nav.land(ownUpdateGo); }
 				};
