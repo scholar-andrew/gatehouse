@@ -38,6 +38,10 @@ import dev.octoberjourney.popup.LaunchPopup;
  *
  *   --serve, --panel, --minimized, --uninstall-command     the Host half (see HostHelper)
  *   --choose                                               the first screen: Play or Host
+ *   --start                                                what a shortcut for the whole program opens: Play when
+ *                                                          it is set up here (the Host half runs in the background
+ *                                                          and is a button away in it), else Host's window when
+ *                                                          only that is, else the first screen
  *   anything else                                          the Play half (see LaunchPopup)
  *   nothing at all                                         the Host half's window when this file is a Gatekeeper's own
  *                                                          (it is called oj-host.jar, or has host.json beside it);
@@ -53,6 +57,13 @@ public final class Main {
 	public static void main(String[] args) throws Exception {
 		String first = args.length > 0 ? args[0] : "";
 		if (first.equals("--choose")) { choose(null); return; }
+		if (first.equals("--start")) {
+			Path script = playScript(), keeper = keeperDir();
+			if (script != null) { String t = run(openPlay(script)); if (!t.isEmpty()) choose(null); }
+			else if (keeper != null) { String t = run(openHost(keeper)); if (!t.isEmpty()) choose(null); }
+			else choose(null);
+			return;
+		}
 		if (List.of("--serve", "--panel", "--minimized", "--uninstall-command").contains(first) || (args.length == 0 && isKeeperFile())) { HostHelper.main(args); return; }
 		if (args.length == 0) { choose(null); return; }
 		LaunchPopup.main(args);
@@ -70,16 +81,17 @@ public final class Main {
 	// ------------------------------------------------------------------ where each half is on this device
 
 	/** Prism Launcher's data folders that could hold Gatehouse (OJ_PRISM_ROOT, for testing, replaces them). */
-	static List<Path> prismRoots() {
+	public static List<Path> prismRoots() {
 		List<Path> out = new ArrayList<>();
 		String forced = System.getenv("OJ_PRISM_ROOT"), home = System.getProperty("user.home", "");
 		if (forced != null && !forced.isEmpty()) { out.add(Path.of(forced)); return out; }
+		if (System.getenv("OJ_HOST_DIR") != null) return out;   // (a Gatekeeper under test never touches this device's real launcher)
 		if (WIN) { String ad = System.getenv("APPDATA"); if (ad != null) out.add(Path.of(ad, "PrismLauncher")); }
 		else { out.add(Path.of(home, ".local/share/PrismLauncher")); out.add(Path.of(home, ".var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher")); }
 		return out;
 	}
 	/** The script that opens the Play half as its shortcut does (Gatehouse's own, else one a pack carries), or null. */
-	static Path playScript() {
+	public static Path playScript() {
 		String name = WIN ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh";
 		for (Path root : prismRoots()) {
 			Path own = root.resolve("gatehouse/app/extras").resolve(name);
@@ -91,7 +103,7 @@ public final class Main {
 		return null;
 	}
 	/** The folder the Host half is installed in (the one this file is in, when it is a Gatekeeper's), or null. OJ_KEEPER_DIR, for testing, replaces the usual places. */
-	static Path keeperDir() {
+	public static Path keeperDir() {
 		String forced = System.getenv("OJ_KEEPER_DIR"), home = System.getProperty("user.home", "");
 		List<Path> places = new ArrayList<>();
 		if (forced != null && !forced.isEmpty()) places.add(Path.of(forced));
@@ -103,14 +115,56 @@ public final class Main {
 		for (Path p : places) if (Files.isRegularFile(p.resolve("oj-host.jar")) && Files.isRegularFile(p.resolve("host.json"))) return p;
 		return null;
 	}
-	/** Is that Gatekeeper's background part answering on this machine right now? */
-	static boolean keeperRunning(Path dir) {
-		int port = 25570;
+	/** The port that Gatekeeper's window (and nothing off this machine) talks to it on. */
+	public static int keeperPort(Path dir) {
 		try {
 			java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"port\"\\s*:\\s*\"?(\\d+)").matcher(Files.readString(dir.resolve("host.json"), StandardCharsets.UTF_8));
-			if (m.find()) port = Integer.parseInt(m.group(1));
+			if (m.find()) return Integer.parseInt(m.group(1));
 		} catch (IOException | RuntimeException ignored) {}
-		try (java.net.Socket s = new java.net.Socket()) { s.connect(new java.net.InetSocketAddress("127.0.0.1", port), 500); return true; } catch (IOException e) { return false; }
+		return 25570;
+	}
+	/** Is that Gatekeeper's background part answering on this machine right now? */
+	public static boolean keeperRunning(Path dir) {
+		try (java.net.Socket s = new java.net.Socket()) { s.connect(new java.net.InetSocketAddress("127.0.0.1", keeperPort(dir)), 500); return true; } catch (IOException e) { return false; }
+	}
+
+	// ------------------------------------------------------------------ one update for both halves on a device
+
+	/** The Host half has just fetched and checked a newer program file: the same file is put where the Play half on
+	 *  this device keeps its copies (Gatehouse's own, and any a pack carries), so both halves are the new one together.
+	 *  The launcher runs from a copy of its file, so these are never in use. Returns how many were replaced. */
+	public static int updatePlayCopies(Path fresh) {
+		int done = 0;
+		try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(fresh.toFile())) { if (z.getEntry("dev/gatehouse/Main.class") == null || z.getEntry("gatehouse-notes.json") == null) return 0; }
+		catch (IOException | RuntimeException e) { return 0; }
+		List<Path> copies = new ArrayList<>();
+		for (Path root : prismRoots()) {
+			copies.add(root.resolve("gatehouse/app/extras/launch-popup.jar"));
+			try (java.util.stream.Stream<Path> s = Files.list(root.resolve("instances"))) { s.forEach(i -> copies.add(i.resolve("minecraft/extras/launch-popup.jar"))); } catch (IOException | RuntimeException none) { /* no instances */ }
+		}
+		for (Path c : copies) if (Files.isRegularFile(c)) try {
+			if (Files.mismatch(c, fresh) < 0) continue;   // (already this one)
+			Path part = c.resolveSibling("launch-popup.jar.part");
+			Files.copy(fresh, part, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			Files.move(part, c, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			done++;
+		} catch (IOException | RuntimeException left) { /* that copy is left as it was; its own update gets it */ }
+		return done;
+	}
+	/** The Play half has just updated itself by its owner's press: the Gatekeeper on this same machine is told to
+	 *  update too (it waits for servers it runs itself to be off). Returns what it said, or "" when there is none here. */
+	public static String tellKeeperToUpdate() {
+		Path dir = keeperDir();
+		if (dir == null || System.getenv("OJ_HOME_DRY") != null || !keeperRunning(dir)) return "";
+		try {
+			java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL("http://127.0.0.1:" + keeperPort(dir) + "/admin/update").openConnection();
+			c.setConnectTimeout(2000); c.setReadTimeout(40000); c.setRequestMethod("POST"); c.setDoOutput(true);
+			try (java.io.OutputStream o = c.getOutputStream()) { o.write("{\"with_play\":true}".getBytes(StandardCharsets.UTF_8)); }
+			try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) {
+				java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8));
+				return m.find() ? m.group(1).replace("\\\"", "\"").replace("\\\\", "\\") : "asked";
+			}
+		} catch (IOException | RuntimeException e) { return ""; }
 	}
 	static String java() {
 		String j = ProcessHandle.current().info().command().orElse(WIN ? "javaw.exe" : "java");
@@ -118,10 +172,10 @@ public final class Main {
 	}
 
 	/** What starts each half, or sets it up. Nothing here is run when OJ_HOME_DRY is set (testing): it is printed. */
-	static List<String> openPlay(Path script) {
+	public static List<String> openPlay(Path script) {
 		return WIN ? List.of("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script.toString()) : List.of("bash", script.toString());
 	}
-	static List<String> openHost(Path dir) { return List.of(java(), "-jar", dir.resolve("oj-host.jar").toString(), "--panel"); }
+	public static List<String> openHost(Path dir) { return List.of(java(), "-jar", dir.resolve("oj-host.jar").toString(), "--panel"); }
 	/** Setting a half up runs Gatehouse's own install script, which this program carries, in a window of its own
 	 *  where it says what it does and asks before fetching anything. */
 	static List<String> setUp(boolean host) throws IOException {
@@ -139,7 +193,7 @@ public final class Main {
 				if (!dir.isEmpty() && Files.isExecutable(Path.of(dir, term[0]))) return List.of(term[0], term[1], "bash", "-c", cmd);
 		throw new IOException("no terminal program was found to run it in. Run this in a terminal yourself: bash " + to + (host ? " --gatekeeper" : ""));
 	}
-	static String run(List<String> cmd) {
+	public static String run(List<String> cmd) {
 		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would run: " + String.join(" ", cmd)); return ""; }
 		try { new ProcessBuilder(cmd).start(); return ""; } catch (IOException e) { return e.getMessage(); }
 	}

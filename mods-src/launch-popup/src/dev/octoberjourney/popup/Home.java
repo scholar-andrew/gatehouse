@@ -918,6 +918,18 @@ final class Home {
 				head.setText(LaunchPopup.TOOL + " Minecraft Launcher");
 				sub.setText(keepers.isEmpty() && !hasLoose ? "No Gatekeeper yet. Add one with the address, link or file its owner gave you." : "Pick a Gatekeeper to see its servers.");
 				backB.setVisible(false);
+				// This machine's own Gatekeeper (the Host half of this program), when it is set up here: how it is,
+				// and its window a button away. It runs in the background whether this launcher is open or not.
+				java.nio.file.Path hostHere = dev.gatehouse.Main.keeperDir();
+				if (hostHere != null) {
+					JButton openHost = new JButton("Open Gatekeeper");
+					openHost.setToolTipText("Opens the window of the Gatekeeper on this machine: its servers, who may use them, and its settings");
+					Object[] hr = row.apply("This machine hosts servers", new Component[] {openHost});
+					boolean hostUp = dev.gatehouse.Main.keeperRunning(hostHere);
+					set.accept((JLabel) hr[2], hostUp ? new String[] {"ok", "Its Gatekeeper is running in the background"} : new String[] {"warn", "Its Gatekeeper is set up but isn't running: Open Gatekeeper, or sign out and in again"});
+					openHost.addActionListener(ev -> { String t = dev.gatehouse.Main.run(dev.gatehouse.Main.openHost(hostHere)); sub.setText(t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t); });
+					keeperList.add((JPanel) hr[0]); keeperList.add(Box.createVerticalStrut(10));
+				}
 				for (String[] k : keepers) {
 					LaunchPopup.PlayButton open = new LaunchPopup.PlayButton("Open");
 					open.setToolTipText("Shows the servers this Gatekeeper looks after");
@@ -1117,6 +1129,8 @@ final class Home {
 				ownUpdateText.setText("Fetching the newer " + LaunchPopup.TOOL + "\u2026");
 				new Thread(() -> {
 					boolean ok = Notes.fetch(found);
+					// One program: the Gatekeeper on this same machine, if there is one, is updated by the same press.
+					if (ok && shot == null) dev.gatehouse.Main.tellKeeperToUpdate();
 					SwingUtilities.invokeLater(() -> {
 						if (ok) { again[0] = "\u0000relaunch"; f.dispose(); return; }
 						ownUpdateText.setText("<html>Couldn't fetch it just now. Nothing was changed; it will be offered again.</html>");

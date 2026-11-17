@@ -706,10 +706,17 @@ public final class HostHelper {
 	/** Fetches the published Gatekeeper, checks it, and arranges for it to take this one's place. Gatekeeper ends a
 	 *  moment after this returns ok. "alsoWait": the window's process, which has to end too (it holds the file open),
 	 *  and is opened again afterwards. */
+	/** An update was asked for while a server Gatekeeper runs itself was on: it is applied when none is. */
+	static volatile boolean updateWaiting = false;
 	static String[] applyUpdate(long alsoWait) {
 		lookForNewer();
 		if (newestKeeper.isEmpty() || cmpVersion(newestKeeper, ownVersion()) <= 0) return new String[] {"ok", "This is already the newest Gatekeeper (" + ownVersion() + ")."};
-		if (DirectHost.anyTracked()) return new String[] {"refused", "A Minecraft server that this Gatekeeper runs is on. Updating restarts Gatekeeper, and the server's console would be lost with it: stop the server first, then update."};
+		if (DirectHost.anyTracked()) {
+			// (asked for, so it is done as soon as it can be: when no server Gatekeeper runs itself is on)
+			updateWaiting = true;
+			return new String[] {"refused", "A Minecraft server that this Gatekeeper runs is on. Updating restarts Gatekeeper, and the server's console would be lost with it, so the update waits: Gatekeeper updates by itself as soon as that server is off (or stop the server and press Update)."};
+		}
+		updateWaiting = false;
 		try {
 			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 			if (!Files.isRegularFile(jar)) return new String[] {"refused", "Gatekeeper isn't running from a file it can replace."};
@@ -722,6 +729,9 @@ public final class HostHelper {
 			try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(fresh.toFile())) { sound = z.getEntry("dev/octoberjourney/host/HostHelper.class") != null && z.getEntry("META-INF/MANIFEST.MF") != null && z.getEntry("gatekeeper-notes.json") != null; }
 			catch (IOException | RuntimeException notAJar) { sound = false; }
 			if (!sound) { Files.deleteIfExists(fresh); return new String[] {"failed", "What was published isn't a Gatekeeper that can run. Nothing was changed."}; }
+			// One program: the Play half on this machine, if there is one, gets the same file now (it is never in use).
+			int play = dev.gatehouse.Main.updatePlayCopies(fresh);
+			if (play > 0) log("update: the Gatehouse launcher on this machine was updated with it (" + play + (play == 1 ? " copy)" : " copies)"));
 			String javaExe = ProcessHandle.current().info().command().orElse("javaw"), q = "'", folder = jar.getParent().toString();
 			java.util.function.Function<String, String> s = v -> q + v.replace("'", "''") + q;
 			// The command that takes over once this Gatekeeper has ended. It makes sure nothing of this Gatekeeper still
@@ -839,6 +849,14 @@ public final class HostHelper {
 		// (for the servers Gatekeeper runs itself: their tasks by the clock, and the ones set to start with it)
 		ServerTools.schedule();
 		ServerTools.autostart();
+		// (an update that had to wait for a server to be off: done when it is)
+		Thread waiting = new Thread(() -> {
+			while (true) {
+				try { Thread.sleep(30_000); } catch (InterruptedException e) { return; }
+				try { if (updateWaiting && !DirectHost.anyTracked()) { String[] r = applyUpdate(0); log("update that was waiting for the servers to be off: " + r[1]); } } catch (RuntimeException ignored) {}
+			}
+		}, "update-waiting");
+		waiting.setDaemon(true); waiting.start();
 		// (once a minute: has MCSS deleted a server Gatekeeper still lists?)
 		Thread gone = new Thread(() -> { while (true) { try { noteGone(); Thread.sleep(60_000); } catch (InterruptedException e) { return; } catch (RuntimeException ignored) {} } }, "deleted-in-mcss");
 		gone.setDaemon(true); gone.start();

@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.0.0",
+ "version": "3.1.0",
  "changes": [
+  {"version": "3.1.0", "date": "2026-11-16", "notes": [
+   "For someone who hosts and plays on the same machine: the first screen now shows \"This machine hosts servers\" at the top, saying whether its Gatekeeper is running in the background, with an Open Gatekeeper button. Playing and hosting are on at the same time; the Gatekeeper never needs its window open.",
+   "One update covers both halves on such a machine: pressing Update here also tells the Gatekeeper on this machine to update. If a server it runs itself is on, the Gatekeeper waits until that server is off (so the game you are in isn't interrupted) and then updates by itself."
+  ]},
   {"version": "3.0.0", "date": "2026-11-16", "notes": [
    "Gatehouse and Gatekeeper are now one program with two halves: Play (this launcher) and Host (Gatekeeper, which looks after the Minecraft servers on a machine). This is the first of four steps towards that, and nothing about playing changes in it.",
    "Options has a new Play or Host button: the program's first screen, with a card for each half that says whether it is set up on this device and a button that opens it, or sets it up if it isn't. Someone who only plays can ignore it.",
