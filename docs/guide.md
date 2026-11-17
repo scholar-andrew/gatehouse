@@ -346,10 +346,21 @@ you play, and never needs its window open.
 - **A running server isn't interrupted.** If a server Gatekeeper runs itself is on, Gatekeeper's update waits and
   is applied by itself as soon as that server is off. Servers MCSS runs aren't affected by the restart.
 
-Versions have to match for anyone to play:
+Versions have to be close enough for anyone to play. Each published version says the oldest version that still
+works with it:
 
-- An out-of-date **Gatekeeper** starts no server until the host updates it.
-- An out-of-date **launcher** isn't offered Play until that player updates it.
+- A **Gatekeeper** or **launcher** at or above that carries on as it is. The update is offered, and waits until
+  it suits (Auto and Constellation modes take it by themselves).
+- A **Gatekeeper** older than that starts no server until the host updates it.
+- A **launcher** older than that isn't offered Play until that player updates it.
+
+Most updates don't raise that oldest version, so they don't interrupt anyone.
+
+**A device that has been off for a long time** updates in one step to the newest version, however many it missed:
+there are no in-between versions to go through. If its own update ever fails, there are other ways in. A launcher
+also gets the newest program with a server's pack the next time you press Launch, and from any Gatekeeper in its
+list. A Gatekeeper also gets it from the launcher on the same machine. And the install script, run again, puts the
+newest one in place without touching settings.
 
 What changed is listed in the program: the **Gatehouse updates** and **Gatekeeper updates** tabs.
 

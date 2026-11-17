@@ -1,7 +1,14 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.12.2",
+ "version": "3.13.0",
+ "needs": "3.13.0",
  "changes": [
+  {"version": "3.13.0", "date": "2026-11-17", "notes": [
+   "A newer version being out no longer holds everything up by itself. Each published version now says the oldest version that still works with it. A Gatekeeper at or above that keeps starting servers, and a launcher at or above it is still offered Play, while the update waits for when it suits. Only a version below it is held up, as every out-of-date version used to be.",
+   "That oldest version is raised only when it has to be: when the two halves, or a launcher and a Gatekeeper, would no longer understand each other, or for a fix that mustn't wait. This version is such a point itself (every client has to reach 3.13.0 once, since no older one knows the rule); the updates after it are the ones that stop interrupting play.",
+   "Updating is unchanged: the window still says when a newer version is out, Auto and Constellation modes still update by themselves, and a version that is held up can always still update. The line about a newer version now says which it is: nothing is held up, or servers aren't started until it's updated.",
+   "A published version that says nothing about this (one from before 3.13.0) is treated as it always was: only the newest will do."
+  ]},
   {"version": "3.12.2", "date": "2026-11-17", "notes": [
    "Gatekeeper's window can now be shown by the launcher on the same machine, as a part of the launcher. That is for where Gatekeeper can't put a window on the screen itself: on a Steam Deck in Game Mode only the windows of the program in front are shown, and Gatekeeper is a background service that isn't that program.",
    "A window opened that way is the same window, with one thing it can't do: Uninstall is still listed, but greyed, because from the launcher's sandbox Gatekeeper's own folder can't be reached. Open Gatekeeper from its own entry in the applications menu (Desktop Mode on a Steam Deck) for that."

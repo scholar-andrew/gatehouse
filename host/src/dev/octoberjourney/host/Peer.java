@@ -78,7 +78,7 @@ final class Peer {
 		String v = heldVersion();
 		if (v.isEmpty() || cmpVersion(v, ownVersion()) <= 0) return;
 		if (!newestKeeper.isEmpty() && cmpVersion(v, newestKeeper) <= 0) return;
-		newestKeeper = v; newestKeeperSha = Json.str(held().get("sha256")); newestKeeperAt = "a copy handed over by " + Json.str(held().get("from")); newestHouse = v;
+		newestKeeper = v; newestKeeperSha = Json.str(held().get("sha256")); newestKeeperAt = "a copy handed over by " + Json.str(held().get("from")); newestHouse = v; newestNeeds = Json.str(held().get("needs"));
 	}
 
 	/** Takes a program file in. Returns {result, message}: ok, have (nothing newer in it) or refused. */
@@ -89,15 +89,15 @@ final class Peer {
 		Path part = dir.resolve("program-held.jar.part");
 		try {
 			Files.write(part, b);
-			String v = "";
+			String v = "", needs = "";
 			try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(part.toFile())) {
 				java.util.zip.ZipEntry notes = z.getEntry("gatekeeper-notes.json");
 				if (z.getEntry("dev/octoberjourney/host/HostHelper.class") == null || z.getEntry("dev/gatehouse/Main.class") == null || z.getEntry("META-INF/MANIFEST.MF") == null || notes == null) throw new IOException("not the program");
-				try (InputStream in = z.getInputStream(notes)) { v = Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("version")); }
+				try (InputStream in = z.getInputStream(notes)) { Map<String, Object> n = Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))); v = Json.str(n.get("version")); needs = Json.str(n.get("needs")); }
 			} catch (IOException | RuntimeException notIt) { Files.deleteIfExists(part); return new String[] {"refused", "That isn't a Gatekeeper that can run."}; }
 			if (v.isEmpty() || cmpVersion(v, ownVersion()) <= 0 || (!heldVersion().isEmpty() && cmpVersion(v, heldVersion()) <= 0)) { Files.deleteIfExists(part); return new String[] {"have", "This Gatekeeper already has that version or a newer one."}; }
 			Files.move(part, file(), StandardCopyOption.REPLACE_EXISTING);
-			meta = new LinkedHashMap<>(m("version", v, "sha256", sha, "size", b.length, "from", from));
+			meta = new LinkedHashMap<>(m("version", v, "sha256", sha, "size", b.length, "from", from, "needs", needs));
 			Files.writeString(dir.resolve("program-held.json"), Json.write(meta), StandardCharsets.UTF_8);
 			log("program: Gatekeeper " + v + " is held here now (" + from + "), for this Gatekeeper and whoever asks it");
 			prefer();
@@ -187,13 +187,13 @@ final class Peer {
 	}
 	/** GET /v1/program/...: what is held, or else the file this Gatekeeper is running. */
 	static void serve(HttpExchange x, String path) throws IOException {
-		String v = heldVersion(), sha;
+		String v = heldVersion(), sha, needs;
 		Path f;
-		if (!v.isEmpty()) { f = file(); sha = Json.str(held().get("sha256")); }
-		else { f = ownJar(); v = ownVersion(); synchronized (Peer.class) { if (ownSha == null) ownSha = sha256(Files.readAllBytes(f)); sha = ownSha; } }
+		if (!v.isEmpty()) { f = file(); sha = Json.str(held().get("sha256")); needs = Json.str(held().get("needs")); }
+		else { f = ownJar(); v = ownVersion(); needs = Json.str(notesInside("gatekeeper").get("needs")); synchronized (Peer.class) { if (ownSha == null) ownSha = sha256(Files.readAllBytes(f)); sha = ownSha; } }
 		long size = Files.size(f);
 		String rest = path.substring("/v1/program/".length());
-		if (rest.equals("gatekeeper.json")) send(x, Json.write(m("version", v, "sha256", sha, "size", size, "gatehouse", v)).getBytes(StandardCharsets.UTF_8), "application/json");
+		if (rest.equals("gatekeeper.json")) send(x, Json.write(m("version", v, "sha256", sha, "size", size, "gatehouse", v, "needs", needs)).getBytes(StandardCharsets.UTF_8), "application/json");
 		else if (rest.equals("main/update-sizes.json") || rest.equals("deck/update-sizes.json")) send(x, Json.write(m("gatehouse", v, "files", m("extras/launch-popup.jar", m("hash", sha, "size", size)))).getBytes(StandardCharsets.UTF_8), "application/json");
 		else if (rest.equals("oj-host.jar") || rest.equals("main/extras/launch-popup.jar") || rest.equals("deck/extras/launch-popup.jar")) send(x, Files.readAllBytes(f), "application/java-archive");
 		else reply(x, 404, m("error", "no such file"));

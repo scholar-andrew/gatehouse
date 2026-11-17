@@ -1,4 +1,7 @@
 [
+ {"version": "1.46.0", "date": "2026-11-17", "notes": [
+  "From this version on, an update to the program only stops play when it has to: each version says the oldest one that still works with it (Gatehouse 3.13.0). Nothing in the pack's mods or settings changed."
+ ]},
  {"version": "1.45.2", "date": "2026-11-17", "notes": [
   "On a Steam Deck that also hosts: Open Gatekeeper in the launcher now works in Game Mode (Gatehouse 3.12.2). Nothing in the pack's mods or settings changed."
  ]},

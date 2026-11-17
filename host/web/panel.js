@@ -161,7 +161,7 @@ const views = {
     const u = await api('GET', 'update');
     if (current !== 'gatekeeper') return;
     const v = el('div');
-    const line = el('div', 'card row', null, [el('div', 'grow', null, [el('h3', '', 'Gatekeeper ' + (u.own || me.version)), el('div', u.outdated ? 'amber' : 'grey', u.outdated ? u.newest + ' is out. Until it is updated Gatekeeper starts no server.' : 'Up to date.')])]);
+    const line = el('div', 'card row', null, [el('div', 'grow', null, [el('h3', '', 'Gatekeeper ' + (u.own || me.version)), el('div', u.outdated ? 'amber' : 'grey', u.outdated ? u.newest + (u.blocking === false ? ' is out. This version still works with it: nothing is held up.' : ' is out. Until it is updated Gatekeeper starts no server.') : 'Up to date.')])]);
     if (u.outdated) line.appendChild(button('Update Gatekeeper', () => act('update', {}, '', 'Update Gatekeeper now? It restarts itself; this page answers again in under a minute.')));
     v.appendChild(line);
     if (me.host === 'builtin') {

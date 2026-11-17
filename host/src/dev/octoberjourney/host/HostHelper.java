@@ -594,6 +594,12 @@ public final class HostHelper {
 	//     offer Play). A launcher that is itself behind the published Gatehouse is told the same, for itself.
 	//   - Nothing can be reached, or host.json "require_current" is false: nothing is blocked.
 	static volatile String newestKeeper = "", newestKeeperSha = "", newestKeeperAt = "", newestHouse = "";
+	/** The oldest version that still works with the newest one (the published "needs"). A client at or above it is
+	 *  not held up by a newer version being out. "": nothing was said (a version from before this), so only the
+	 *  newest will do, as it always was. */
+	static volatile String newestNeeds = "";
+	/** Is a version too old to work with the newest one that is out? */
+	static boolean tooOld(String version, String newest) { return !newest.isEmpty() && cmpVersion(newest, version) > 0 && (newestNeeds.isEmpty() || cmpVersion(version, newestNeeds) < 0); }
 	static String ownVersion() { return Json.str(notesInside("gatekeeper").get("version")); }
 	static int cmpVersion(String a, String b) {
 		String[] x = a.trim().split("\\."), y = b.trim().split("\\.");
@@ -641,26 +647,26 @@ public final class HostHelper {
 		lookReached = false;
 		// Every place is asked, and the newest version any of them has is the one (the first place, where two have the
 		// same): a place that is behind, as GitHub can be for some minutes, doesn't hide what another already has.
-		String bestV = "", bestSha = "", bestAt = "", bestHouse = "";
+		String bestV = "", bestSha = "", bestAt = "", bestHouse = "", bestNeeds = "";
 		for (String src : updateSources()) try {
 			Map<String, Object> mf = Json.map(Json.parse(new String(fetchBytes(src + "/gatekeeper.json"), StandardCharsets.UTF_8)));
 			String v = Json.str(mf.get("version")), sha = Json.str(mf.get("sha256"));
 			if (v.isEmpty() || sha.isEmpty()) continue;
 			lookReached = true;
-			if (bestV.isEmpty() || cmpVersion(v, bestV) > 0) { bestV = v; bestSha = sha; bestAt = src; bestHouse = Json.str(mf.get("gatehouse")); }
+			if (bestV.isEmpty() || cmpVersion(v, bestV) > 0) { bestV = v; bestSha = sha; bestAt = src; bestHouse = Json.str(mf.get("gatehouse")); bestNeeds = Json.str(mf.get("needs")); }
 		} catch (IOException | RuntimeException next) { /* the next place */ }
-		if (!bestV.isEmpty()) { newestKeeper = bestV; newestKeeperSha = bestSha; newestKeeperAt = bestAt; newestHouse = bestHouse; }
+		if (!bestV.isEmpty()) { newestKeeper = bestV; newestKeeperSha = bestSha; newestKeeperAt = bestAt; newestHouse = bestHouse; newestNeeds = bestNeeds; }
 		Peer.prefer();     // (a copy a client handed over, when it is newer than anything a place said)
-		if (!newestKeeper.equals(newerSaid) && cmpVersion(newestKeeper, ownVersion()) > 0) { newerSaid = newestKeeper; log("a newer Gatekeeper is published: " + newestKeeper + " (this is " + ownVersion() + "; seen at " + newestKeeperAt + "). Servers aren't started until it's updated."); }
+		if (!newestKeeper.equals(newerSaid) && cmpVersion(newestKeeper, ownVersion()) > 0) { newerSaid = newestKeeper; log("a newer Gatekeeper is published: " + newestKeeper + " (this is " + ownVersion() + "; seen at " + newestKeeperAt + "). " + (outdated() ? "Servers aren't started until it's updated." : "This version still works with it: nothing is held up.")); }
 		Peer.prefetch();   // (and it is fetched now, so this Gatekeeper can give it to its constellation)
 	}
 	static boolean requireCurrent() { return !setting("require_current", "true").equals("false"); }
-	static boolean outdated() { return requireCurrent() && !newestKeeper.isEmpty() && cmpVersion(newestKeeper, ownVersion()) > 0; }
+	static boolean outdated() { return requireCurrent() && tooOld(ownVersion(), newestKeeper); }
 	/** Why this launcher may not join right now ("": it may): Gatekeeper is behind, or that launcher's Gatehouse is. */
 	static String blockedFor(HttpExchange x) {
 		if (outdated()) return "This server's Gatekeeper is out of date (" + ownVersion() + "; " + newestKeeper + " is out). Its owner has to update it before anyone can start or join the server.";
 		String theirs = header(x, "X-Gatehouse");
-		if (requireCurrent() && !newestHouse.isEmpty() && !theirs.isEmpty() && cmpVersion(newestHouse, theirs) > 0)
+		if (requireCurrent() && !theirs.isEmpty() && tooOld(theirs, newestHouse))
 			return "Gatehouse on this device is out of date (" + theirs + "; " + newestHouse + " is out). Update it on its main window (Update Gatehouse, or Restart there), then come back.";
 		return "";
 	}
@@ -2073,7 +2079,7 @@ public final class HostHelper {
 				} else {
 					String uq = x.getRequestURI().getQuery();
 					if (uq != null && (uq.equals("1") || uq.startsWith("1&"))) lookForNewer();   // (?1: look now)
-					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", outdated(), "gatehouse", newestHouse, "from", newestKeeperAt, "reached", lookReached, "waiting", updateWaiting));
+					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", AutoUpdate.newer(), "blocking", outdated(), "needs", newestNeeds, "gatehouse", newestHouse, "from", newestKeeperAt, "reached", lookReached, "waiting", updateWaiting));
 				}
 			} else if (path.equals("/admin/whitelist/on")) {
 				String[] r = whitelistOn();
@@ -2685,7 +2691,7 @@ public final class HostHelper {
 					SwingUtilities.invokeLater(() -> {
 						checkSaid.setText(s2);
 						checkNow.setEnabled(true);
-						if (b2 && ownUpdateGo.isEnabled()) ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u2.get("newest")) + ".</b> This is " + Json.str(u2.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
+						if (b2 && ownUpdateGo.isEnabled()) ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u2.get("newest")) + ".</b> This is " + Json.str(u2.get("own")) + (Boolean.TRUE.equals(u2.get("blocking")) || !u2.containsKey("blocking") ? ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play." : ". This version still works with it, so nothing is held up: update when it suits you.") + "</html>");
 						if (b2 || ownUpdateGo.isEnabled()) ownUpdate.setVisible(b2);
 						iconUpdate = b2; dev.gatehouse.look.AppIcon.apply(f, true, iconMessages, iconUpdate);
 					});
@@ -2700,7 +2706,7 @@ public final class HostHelper {
 						iconUpdate = behind; dev.gatehouse.look.AppIcon.apply(f, true, iconMessages, iconUpdate);
 						boolean waits = Boolean.TRUE.equals(u.get("waiting")) || "true".equals(Json.str(u.get("waiting")));
 						if (behind && ownUpdateGo.isEnabled()) ownUpdateText.setText(waits ? "<html><b>Gatekeeper " + Json.str(u.get("newest")) + " is waiting to be installed.</b> A server this Gatekeeper runs is on; it updates by itself as soon as that server is off.</html>"
-								: "<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
+								: "<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + (Boolean.TRUE.equals(u.get("blocking")) || !u.containsKey("blocking") ? ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play." : ". This version still works with it, so nothing is held up: update when it suits you.") + "</html>");
 						ownUpdate.setVisible(behind);
 					});
 				} catch (Exception ignored) {}
@@ -2722,7 +2728,7 @@ public final class HostHelper {
 			if (System.getenv("OJ_PANEL_PNG") == null) { askUpdate.run(); new javax.swing.Timer(60_000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else askUpdate.run(); }).start(); }
 			else try {
 				Map<String, Object> u = Json.map(Json.parse(call("GET", "/admin/update?1", null)));
-				if (Boolean.TRUE.equals(u.get("outdated")) || "true".equals(Json.str(u.get("outdated")))) { ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>"); ownUpdate.setVisible(true); }
+				if (Boolean.TRUE.equals(u.get("outdated")) || "true".equals(Json.str(u.get("outdated")))) { ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u.get("newest")) + ".</b> This is " + Json.str(u.get("own")) + (Boolean.TRUE.equals(u.get("blocking")) || !u.containsKey("blocking") ? ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play." : ". This version still works with it, so nothing is held up: update when it suits you.") + "</html>"); ownUpdate.setVisible(true); }
 			} catch (Exception ignored) {}
 			firstTabs.addTab("Servers", serversTab); firstTabs.addTab("Gatekeeper updates", ownNotes); firstTabs.addTab("Gatehouse updates", launcherNotes);
 			// Host setup: the steps this machine needs to serve players, each with how it stands, and the invite link.

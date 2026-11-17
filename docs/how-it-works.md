@@ -333,6 +333,36 @@ their next launch; nobody has to touch a device.
 3. In `source/mods.json`, point the mod's entry at the new `filename` and `sha512`; `git rm` the old jar.
 4. Build the pack, commit, push.
 
+### What an update must never break
+Any version ever published has to be able to reach the newest one in a single step, with the updater it has: it
+can't be given a better one first. So what old versions rely on is fixed, and only ever added to.
+
+- **Where they look.** `dist/gatekeeper/gatekeeper.json` and `oj-host.jar` on each pack server and on GitHub's
+  `main` (a Gatekeeper), and `<source>/main|deck/update-sizes.json` with `extras/launch-popup.jar` (a launcher, from
+  each installed pack's `pack-sources.txt`). Those paths and the repository's address stay.
+- **What they read.** `gatekeeper.json`: `version`, `sha256`, `size`, `gatehouse`. `update-sizes.json`: `gatehouse`,
+  and `files["extras/launch-popup.jar"].hash` (SHA-256) and `.size`. Fields are added (`needs`), never renamed or
+  removed, and an old reader must be able to ignore a new one.
+- **What they do with it.** A Gatekeeper fetches the jar, checks the SHA-256, checks it holds
+  `dev/octoberjourney/host/HostHelper.class`, `META-INF/MANIFEST.MF` and `gatekeeper-notes.json`, swaps it in with
+  a script the OLD version wrote, starts it with `-jar oj-host.jar --serve`, and expects `GET /admin/update` on its
+  port to answer 200 within 30 seconds, or it puts the old jar back. A launcher replaces `extras/launch-popup.jar`
+  and runs it again. So the new program must: keep those class and entry names, start from that command line with
+  the settings files the old version left, need no newer Java than 17, and answer that call quickly.
+- **Settings and records** (`host.json`, `devices.json`, `gatekeepers.json`, ...) are read by the new version as
+  any older version wrote them: a key that is missing means what it meant then.
+- **`needs`** (`source/gatekeeper.json`) is the oldest version that still works with the one being published. It
+  holds an older client up; it never stops one updating. Raise it only when a launcher and a Gatekeeper, or the two
+  halves, would misunderstand each other, or for a fix that can't wait.
+
+`tools\update_check.ps1` tries it for real: it takes old versions out of this repository's history, starts each
+in a stand-in folder, and passes when each has updated itself to the build about to be published (`-All` for every
+version). Run it before publishing anything that touches how updates are published, fetched or applied.
+
+There are other ways in if a version's own updater ever fails: a launcher also gets the program with a pack's own
+update at Launch, and from a Gatekeeper (`/v1/program`); a Gatekeeper gets it from the launcher on its machine
+(`Main.pairUpdate`); and the install scripts replace the program and keep the settings.
+
 ### Releasing the installers and uninstallers
 The installers download everything else at run time, so they only need a new release when their own code changes.
 1. Windows: build both with the compiler that ships with Windows:

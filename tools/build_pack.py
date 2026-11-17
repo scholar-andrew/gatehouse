@@ -8,7 +8,7 @@ Source of truth: source/mods.json (one entry per mod, "deck": true for Deck-only
 configs, and jars that are not on Modrinth). Modrinth mods are referenced by URL and SHA-512, so their jars are never
 stored here. Also writes docs/mods.md (the mod list). Run: python tools/build_pack.py
 """
-import hashlib, json, os, shutil, sys
+import hashlib, json, os, re, shutil, sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Which server profile to build (docs/profiles.md). Without --profile it is the first one, October Journey, whose files
@@ -341,7 +341,14 @@ def publish_gatekeeper() -> None:
     with open(os.path.join(out, "oj-host.jar"), "wb") as f:
         f.write(data)
     house = json.load(open(os.path.join(ROOT, "source", "gatehouse.json"), encoding="utf-8")).get("version", "")
-    write(os.path.join(out, "gatekeeper.json"), json.dumps({"version": want, "sha256": sha256(data), "size": len(data), "gatehouse": house}, indent=1) + "\n")
+    # "needs": the oldest version that still works with this one. A Gatekeeper or launcher at or above it is not held
+    # up when this version comes out; one below it starts no server / is not offered Play until it updates. It is
+    # raised only when the two halves, or a launcher and a Gatekeeper, would no longer understand each other.
+    needs = json.load(open(os.path.join(ROOT, "source", "gatekeeper.json"), encoding="utf-8")).get("needs", "")
+    def parts(v): return [int(x) for x in re.findall(r"\d+", v)]
+    if not needs or parts(needs) > parts(want):
+        sys.exit(f'source/gatekeeper.json has to say "needs": the oldest version that works with {want} (it says {needs!r})')
+    write(os.path.join(out, "gatekeeper.json"), json.dumps({"version": want, "sha256": sha256(data), "size": len(data), "gatehouse": house, "needs": needs}, indent=1) + "\n")
     print(f"gatekeeper: {want} ({len(data)} bytes), with Gatehouse {house}")
 
 
