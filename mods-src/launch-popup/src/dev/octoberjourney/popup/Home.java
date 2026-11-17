@@ -382,6 +382,47 @@ final class Home {
 		}
 	}
 
+	/** When this machine also hosts (the Host half is set up and running here), this launcher links itself to that
+	 *  Gatekeeper through the door only this machine can use: no pairing link, no request, no Tailscale. It is then
+	 *  allowed everything there, and the account it plays as is whitelisted. Uses the pairing it already has with that
+	 *  Gatekeeper when there is one; otherwise adds it, reached on this machine itself. True when the list changed.
+	 *  (Not under OJ_HOME_DRY, so a test never links to the real Gatekeeper; OJ_KEEPER_DIR names a stand-in one.) */
+	static boolean linkHere(Path instances, Path home, List<String[]> keepers, List<String[]> packs) {
+		if (System.getenv("OJ_HOME_DRY") != null && System.getenv("OJ_KEEPER_DIR") == null) return false;
+		Path host = dev.gatehouse.Main.keeperDir();
+		if (host == null || !dev.gatehouse.Main.keeperRunning(host)) return false;
+		String door = "http://127.0.0.1:" + dev.gatehouse.Main.keeperPort(host);
+		try {
+			Map<String, Object> about = ServerControl.asMap(LaunchPopup.parseJson(local("GET", door + "/admin/local/link", null)));
+			if (str(about.get("port")).isEmpty()) return false;   // (a Gatekeeper from before this)
+			String bound = norm(str(about.get("bind_url"))), url = null;
+			for (String[] k : keepers) if (!bound.isEmpty() && k[0].equals(bound)) url = k[0];
+			for (String[] k : keepers) if (url == null && k[0].equals(norm(door))) url = k[0];
+			boolean changed = false;
+			if (url == null) { url = norm(door); keepers.add(0, new String[] {url, str(about.get("name")), ""}); changed = true; java.util.Set<String> gone = removedKeepers(home); }
+			ServerControl sc = client(home, url, packs);
+			// the account this device plays as, from Prism's own list (its name and its id, which a whitelist needs)
+			String player = "", uuid = "";
+			try {
+				if (ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(instances.toAbsolutePath().getParent().resolve("accounts.json")))).get("accounts") instanceof List<?> l) for (Object o : l) {
+					Map<String, Object> a = ServerControl.asMap(o), p = ServerControl.asMap(a.get("profile"));
+					if (player.isEmpty() || "true".equals(str(a.get("active")))) { player = str(p.get("name")); uuid = str(p.get("id")); }
+				}
+			} catch (RuntimeException ignored) {}
+			String name = "";
+			try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
+			local("POST", door + "/v1/hello", "{\"id\":\"" + ServerControl.jsonEsc(sc.deviceId) + "\",\"token\":\"" + ServerControl.jsonEsc(sc.deviceToken) + "\",\"name\":\"" + ServerControl.jsonEsc(name) + "\",\"os\":\"" + ServerControl.jsonEsc(ServerControl.systemName()) + "\"}");
+			local("POST", door + "/admin/local/link", "{\"id\":\"" + ServerControl.jsonEsc(sc.deviceId) + "\",\"token\":\"" + ServerControl.jsonEsc(sc.deviceToken) + "\",\"player\":\"" + ServerControl.jsonEsc(player) + "\",\"uuid\":\"" + ServerControl.jsonEsc(uuid) + "\"}");
+			return changed;
+		} catch (IOException | RuntimeException e) { return false; }
+	}
+	private static String local(String method, String url, String body) throws IOException {
+		java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+		c.setConnectTimeout(1500); c.setReadTimeout(8000); c.setRequestMethod(method);
+		if (body != null) { c.setDoOutput(true); c.setRequestProperty("Content-Type", "application/json"); try (java.io.OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
+		try (java.io.InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+	}
+
 	// ---- the window
 	private static void window(Path instances, Path home, List<String[]> packs, String openAt, String[][] chosen, boolean[] openPrism, String[] again) throws Exception {
 		// The Gatekeepers: the ones remembered, and any an installed pack names that isn't remembered yet.
@@ -392,6 +433,7 @@ final class Home {
 		boolean added = false;
 		for (String[] p : packs) if (!p[4].isEmpty()) { boolean have = false; for (String[] k : keepers) if (k[0].equals(p[4])) have = true; if (!have) { keepers.add(new String[] {p[4], "", ""}); added = true; } }
 		if (added) saveKeepers(home, keepers);
+		if (linkHere(instances, home, keepers, packs)) saveKeepers(home, keepers);
 		boolean loose = false;
 		for (String[] p : packs) if (p[4].isEmpty()) loose = true;
 		boolean hasLoose = loose;

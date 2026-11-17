@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.1.0",
+ "version": "3.2.0",
  "changes": [
+  {"version": "3.2.0", "date": "2026-11-16", "notes": [
+   "On a machine that hosts and plays, the launcher now links itself to that machine's Gatekeeper when it opens: no pairing link, no request to wait for, and no Tailscale needed between the two. The Gatekeeper appears in the list by itself if it wasn't there; if you had already paired with it, that pairing is the one used.",
+   "Linked that way, this launcher is allowed everything on that Gatekeeper (start and stop servers, MCSS, sleep, the Access Manager), and the account you play as in Prism is put on each server's whitelist, so Play works straight away.",
+   "This is only for the launcher on the same machine as the Gatekeeper. On any other device nothing changes: you pair, and the owner allows what they choose."
+  ]},
   {"version": "3.1.0", "date": "2026-11-16", "notes": [
    "For someone who hosts and plays on the same machine: the first screen now shows \"This machine hosts servers\" at the top, saying whether its Gatekeeper is running in the background, with an Open Gatekeeper button. Playing and hosting are on at the same time; the Gatekeeper never needs its window open.",
    "One update covers both halves on such a machine: pressing Update here also tells the Gatekeeper on this machine to update. If a server it runs itself is on, the Gatekeeper waits until that server is off (so the game you are in isn't interrupted) and then updates by itself."

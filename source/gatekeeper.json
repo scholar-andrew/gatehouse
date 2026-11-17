@@ -1,7 +1,13 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.1.0",
+ "version": "3.2.0",
  "changes": [
+  {"version": "3.2.0", "date": "2026-11-16", "notes": [
+   "The third step of making Gatehouse and Gatekeeper one program: the launcher on this same machine links itself to this Gatekeeper. It needs no pairing link, no request for you to answer, and no Tailscale, because it asks through the door that only answers on this machine. It shows in the Access Manager like any launcher, allowed everything.",
+   "That launcher is allowed everything here, on every server, including ones made later; and the Minecraft account it plays as is put on each server's whitelist, with the server off or on.",
+   "Only this machine's own launcher gets this. A launcher on any other device still introduces itself and waits for you to allow it, whoever plays on it.",
+   "Launchers on this machine can also reach Gatekeeper without Tailscale now, and are given this machine itself as the address to join a server at."
+  ]},
   {"version": "3.1.0", "date": "2026-11-16", "notes": [
    "The second step of making Gatehouse and Gatekeeper one program: on a machine that has both halves, one update covers both. When Gatekeeper updates, the Gatehouse launcher on the same machine gets the same file at once; when the launcher is updated, it tells this Gatekeeper to update too.",
    "An update asked for while a server Gatekeeper runs itself is on no longer has to be asked for again: it waits, and Gatekeeper updates by itself as soon as that server is off. (Updating restarts Gatekeeper, which would lose that server's console.) Servers MC Server Soft runs don't hold an update up.",

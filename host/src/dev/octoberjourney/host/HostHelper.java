@@ -844,6 +844,7 @@ public final class HostHelper {
 		// The panel's side, on this PC only.
 		HttpServer local = HttpServer.create(new InetSocketAddress("127.0.0.1", port()), 0);
 		local.createContext("/admin/", HostHelper::admin);
+		local.createContext("/v1/", HostHelper::launcher);   // (the launcher on this same machine reaches Gatekeeper here, with or without Tailscale)
 		local.start();
 		bindRemote();
 		// (for the servers Gatekeeper runs itself: their tasks by the clock, and the ones set to start with it)
@@ -1135,6 +1136,8 @@ public final class HostHelper {
 			// A launcher that is shut out: blacklisted, it is told nothing but that; suspended, it still sees how things
 			// are but may do nothing. Either way it can still ask to be let back in (/v1/request).
 			String[] ban = banOf(d);
+			// (this machine's own launcher is allowed everything, on every server, whatever is written down for it)
+			if (ServerTools.yes(d.get("local"))) { granted = true; canSleep = true; canServer = true; canAdmin = true; }
 			if (!ban[0].isEmpty()) { granted = false; canSleep = false; canServer = false; canAdmin = false; }
 			if (ban[0].equals("blacklist") && !path.equals("/v1/request")) {
 				if (path.equals("/v1/mcss")) reply(x, 200, m("state", "pending", "ban", ban[0], "ban_scope", ban[1], "ban_reason", ban[2], "requests", requestStates(id, false), "request_reasons", requestStates(id, true)));
@@ -1163,7 +1166,7 @@ public final class HostHelper {
 						if (goneFromMcss(s)) continue;   // (deleted in MCSS: not shown to launchers)
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
-						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", setting("bind", "") + ":" + (port.isEmpty() ? "25565" : port),
+						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", (x.getLocalAddress().getAddress().isLoopbackAddress() || setting("bind", "").isEmpty() ? "127.0.0.1" : setting("bind", "")) + ":" + (port.isEmpty() ? "25565" : port),
 								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
 								"kind", facts[0], "minecraft_version", facts[1], "native", isNative()));
 					}
@@ -2056,7 +2059,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
