@@ -66,14 +66,25 @@ public final class HostHelper {
 	 *  this one object (see ServerHost); MCSS is the only kind there is so far. */
 	static ServerHost host = new McssHost();
 
+	/** This is only Gatekeeper's window, opened by the launcher on this machine (see main): what needs Gatekeeper's
+	 *  own folder isn't offered. */
+	static boolean viewOnly;
 	public static void main(String[] args) throws Exception {
 		// Its folder: where this program's own file is (tools/install_host.ps1 puts it in its folder), or OJ_HOST_DIR.
 		String own;
 		try { own = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent().toString(); }
 		catch (Exception e) { own = "."; }
 		dir = Path.of(System.getenv().getOrDefault("OJ_HOST_DIR", own));
+		// Shown by the launcher on this machine (OJ_PANEL_DOOR: the running Gatekeeper's port), where Gatekeeper can't
+		// put a window on the screen itself: a game session, such as the Steam Deck's Game Mode, shows only windows
+		// of the program that is in front. This copy is only the window: it knows the door, not Gatekeeper's folder
+		// (the launcher may be in a sandbox that can't see it), and keeps the little it remembers in a folder of its own.
+		String door = System.getenv("OJ_PANEL_DOOR");
+		viewOnly = door != null && door.matches("\\d{2,5}");
+		if (viewOnly) dir = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-keeper-window");
 		Files.createDirectories(dir);
-		cfg = Json.map(Json.parse(read(dir.resolve("host.json"))));
+		cfg = viewOnly ? new LinkedHashMap<>(m("port", door)) : Json.map(Json.parse(read(dir.resolve("host.json"))));
+		if (viewOnly && !Files.exists(dir.resolve("setup-guide-shown.txt"))) Files.writeString(dir.resolve("setup-guide-shown.txt"), "shown by the launcher\n", StandardCharsets.UTF_8);
 		host = builtin() ? DIRECT : new McssHost();
 		String mode = args.length > 0 ? args[0] : "--panel";
 		startMinimized = java.util.Arrays.asList(args).contains("--minimized");
@@ -2981,6 +2992,11 @@ public final class HostHelper {
 			uninstallRow.add(uninstall); uninstallRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			JLabel uninstallSaid = new JLabel(" "); uninstallSaid.setForeground(new Color(0x8F98A0)); uninstallSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			options.add(forgetSettings); options.add(uninstallRow); options.add(uninstallSaid);
+			if (viewOnly) {   // (still listed, as what can't be done from here always is)
+				forgetSettings.setEnabled(false); uninstall.setEnabled(false);
+				uninstall.setToolTipText("Not from here");
+				uninstallSaid.setText("<html><div style='width:470px'>Not from this window: the launcher opened it, and from there Gatekeeper's own folder can't be reached. Open Gatekeeper from its own entry in the applications menu (on a Steam Deck: in Desktop Mode) to uninstall it.</div></html>");
+			}
 			uninstall.addActionListener(ev -> {
 				javax.swing.JTextField typed = new javax.swing.JTextField(16);
 				JPanel askConfirm = new JPanel(new BorderLayout(0, 8));

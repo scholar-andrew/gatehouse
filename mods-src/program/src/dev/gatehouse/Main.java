@@ -168,6 +168,18 @@ public final class Main {
 	public static String openGatekeeper() {
 		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would open Gatekeeper's window (door " + keeperDoor() + ", folder " + keeperDir() + ")"); return ""; }
 		int door = keeperDoor();
+		// Inside a sandbox on Linux (Prism Launcher's Flatpak: the Steam Deck), the window is shown from here, as a
+		// part of this launcher: Gatekeeper is a background service there, and in a game session (the Deck's Game
+		// Mode) a window it opens itself is never put on the screen. A window that is open already is switched to.
+		if (door > 0 && !WIN && Files.exists(Path.of("/.flatpak-info"))) {
+			if (askKeeper(door, "GET", "/admin/window?peek", null).matches("(?s).*\"open\"\\s*:\\s*true.*")) { askKeeper(door, "POST", "/admin/local/open", "{}"); return ""; }
+			try {
+				ProcessBuilder pb = new ProcessBuilder(java(), "-jar", own().toString(), "--panel");
+				pb.environment().put("OJ_PANEL_DOOR", String.valueOf(door));
+				pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+				return "";
+			} catch (IOException e) { return e.getMessage() == null ? e.toString() : e.getMessage(); }
+		}
 		if (door > 0 && askKeeper(door, "POST", "/admin/local/open", "{}").contains("\"ok\"")) return "";
 		Path dir = keeperDir();
 		if (dir != null) return run(openHost(dir));

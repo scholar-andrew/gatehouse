@@ -1,4 +1,7 @@
 [
+ {"version": "1.45.2", "date": "2026-11-17", "notes": [
+  "On a Steam Deck that also hosts: Open Gatekeeper in the launcher now works in Game Mode (Gatehouse 3.12.2). Nothing in the pack's mods or settings changed."
+ ]},
  {"version": "1.45.1", "date": "2026-11-17", "notes": [
   "For hosts: fixes to what the update log says about how and from where each client updated (Gatehouse 3.12.1). Nothing in the pack's mods or settings changed."
  ]},

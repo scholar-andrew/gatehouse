@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.12.1",
+ "version": "3.12.2",
  "changes": [
+  {"version": "3.12.2", "date": "2026-11-17", "notes": [
+   "Open Gatekeeper now works in the Steam Deck's Game Mode. The launcher used to ask Gatekeeper to open its own window, but Gatekeeper is a background service there, and Game Mode only shows windows of the program in front, so nothing appeared. On Linux inside Prism Launcher's sandbox (the Steam Deck), the launcher now shows Gatekeeper's window itself; if one is already open, it switches to it. Windows, and Linux outside a sandbox, are as before."
+  ]},
   {"version": "3.12.1", "date": "2026-11-17", "notes": [
    "When this launcher updates and tells the Gatekeeper on the same machine to update with it, it now says how that came about (the constellation's go, auto mode, or Update pressed), so that Gatekeeper's update log is right. Nothing else changed."
   ]},

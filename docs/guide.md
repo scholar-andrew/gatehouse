@@ -330,6 +330,9 @@ you play, and never needs its window open.
   Gatekeeper** on its card in the launcher, or open its window, which offers to. On SteamOS the launcher needs
   Prism Launcher's sandbox to be allowed to start things outside it; where it isn't, it says so.
 - **One window.** Asking for Gatekeeper's window while it is open brings that window to the front.
+- **On a Steam Deck**, the launcher shows Gatekeeper's window itself, so **Open Gatekeeper** works in Game Mode
+  too. Uninstall is greyed in a window opened that way; for that, open Gatekeeper from the applications menu in
+  Desktop Mode.
 - **Only this machine's launcher.** A launcher on any other device still pairs and waits for you to allow what you
   choose, whoever plays on it.
 

@@ -1,7 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.12.1",
+ "version": "3.12.2",
  "changes": [
+  {"version": "3.12.2", "date": "2026-11-17", "notes": [
+   "Gatekeeper's window can now be shown by the launcher on the same machine, as a part of the launcher. That is for where Gatekeeper can't put a window on the screen itself: on a Steam Deck in Game Mode only the windows of the program in front are shown, and Gatekeeper is a background service that isn't that program.",
+   "A window opened that way is the same window, with one thing it can't do: Uninstall is still listed, but greyed, because from the launcher's sandbox Gatekeeper's own folder can't be reached. Open Gatekeeper from its own entry in the applications menu (Desktop Mode on a Steam Deck) for that."
+  ]},
   {"version": "3.12.1", "date": "2026-11-17", "notes": [
    "Fixes to the update log. Nothing else changed: how updates happen is as it was.",
    "A Gatekeeper that updated on its constellation's go, on a machine that also has the launcher, was written down as \"normal (Update pressed in the launcher on this machine)\". The launcher there does tell Gatekeeper to update, but because the constellation said go, not because anyone pressed anything. The launcher now says how its own update came about, and Gatekeeper's line says the same: constellation, auto, or Update pressed.",
