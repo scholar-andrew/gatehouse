@@ -8,26 +8,36 @@
 <link rel="stylesheet" href="/panel/panel.css">
 </head>
 <body>
-<header>
-  <h1 id="title">Gatekeeper</h1>
-  <span id="whoami"></span>
-  <button id="signout" class="quiet hidden">Sign out</button>
+<header id="top">
+  <div class="brand">
+    <svg class="mark" viewBox="22 16 40 34" aria-hidden="true"><path d="M24 48V18h5v4h4v-4h5v9h8v-9h5v4h4v-4h5v30H48v-8C48 32 36 32 36 40v8z"/></svg>
+    <span>GATEKEEPER</span>
+  </div>
+  <nav id="nav" aria-label="Sections"></nav>
+  <div class="who"><span id="whoami"></span><button id="signout" class="quiet hidden">Sign out</button></div>
 </header>
 <main id="signin" class="hidden">
-  <form id="signin-form" class="card narrow">
+  <form id="signin-form" class="card sheet narrow">
     <h2>Sign in</h2>
     <label>Account <input id="user" autocomplete="username" required></label>
     <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
-    <button type="submit">Sign in</button>
+    <button type="submit" class="primary">Sign in</button>
     <p id="signin-said" class="said"></p>
     <p class="note">Accounts are made by this Gatekeeper's owner, in Gatekeeper's window on the machine itself.</p>
   </form>
 </main>
 <main id="app" class="hidden">
-  <nav id="nav"></nav>
+  <h1 id="title">Gatekeeper</h1>
+  <div id="subnav" class="row"></div>
   <p id="said" class="said"></p>
   <section id="view"></section>
 </main>
+<footer id="strip" class="hidden">
+  <span id="standing"></span>
+  <span id="pips" class="hidden"></span>
+  <span id="pipline" class="grey"></span>
+  <span class="keys"><kbd>Q</kbd><kbd>E</kbd> Sections</span>
+</footer>
 <script src="/panel/panel.js"></script>
 </body>
 </html>

@@ -1,4 +1,7 @@
 [
+ {"version": "1.42.0", "date": "2026-11-17", "notes": [
+  "For hosts: Gatekeeper's web panel has the new look, with the same five sections (Gatehouse 3.9.0). Nothing in the pack's mods or settings changed."
+ ]},
  {"version": "1.41.0", "date": "2026-11-17", "notes": [
   "For hosts: Gatekeeper's window has the new look, with the same five sections as the launcher (Gatehouse 3.8.0). Nothing in the pack's mods or settings changed."
  ]},

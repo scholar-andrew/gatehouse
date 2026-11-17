@@ -1,7 +1,14 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.8.0",
+ "version": "3.9.0",
  "changes": [
+  {"version": "3.9.0", "date": "2026-11-17", "notes": [
+   "The web panel has the new look too, with the same five sections across the top: Servers, People (Players and Launchers), Constellation (Clients and the Update log), Machine (Sleep and wake, and the Log) and Options (updating Gatekeeper, New server). Q and E flip between them. A section an account isn't allowed is still listed, greyed.",
+   "Servers are cards there, with Start as the main button. The card you are on glows. A red number on People is how many launchers are waiting for an answer.",
+   "New in the web panel: the Constellation section shows the clients with their update modes, and a strip along the bottom shows the version, how this Gatekeeper updates, and the constellation's pips while it gathers. It is for looking only: allowing a Gatekeeper in, removing one and joining another constellation stay in Gatekeeper's own window.",
+   "The account permission \"See the update log\" is now \"See the constellation and its update log\": an account that has it also sees the clients list (the same names, players, systems and versions the log already showed).",
+   "Tick boxes in the web panel are drawn as switches, as in the windows."
+  ]},
   {"version": "3.8.0", "date": "2026-11-17", "notes": [
    "Gatekeeper's window has the new look, laid out like a game's menu, with the same five sections as the launcher across the top: Servers, People, Constellation, Machine and Options. Click one, or flip with Q and E (the bumpers on a controller).",
    "Where things are now. Servers: MCSS and the list of servers, New server, Server setup, Check for updates; opening a server shows its Access Manager, Server Status and Updates Pulled as before. People: the web panel's accounts, and a button to the Access Manager of the first server. Constellation: the clients, with What's new in Gatekeeper and What's new in Gatehouse beside it. Machine: Host setup. Options: what the wheel used to open (the wheel is gone).",

@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.8.0",
+ "version": "3.9.0",
  "changes": [
+  {"version": "3.9.0", "date": "2026-11-17", "notes": [
+   "Nothing changed in the launcher: this version carries Gatekeeper's web panel in the new look."
+  ]},
   {"version": "3.8.0", "date": "2026-11-17", "notes": [
    "Nothing changed in the launcher: this version carries Gatekeeper's window in the new look."
   ]},

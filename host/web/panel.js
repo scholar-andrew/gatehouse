@@ -32,35 +32,44 @@ async function act(call, body, server, confirmText) {
   say(await api('POST', call, body, server));
   if (views[current]) views[current].draw();
 }
-function showSignin() { me = null; clearInterval(timer); $('app').classList.add('hidden'); $('signout').classList.add('hidden'); $('whoami').textContent = ''; $('signin').classList.remove('hidden'); $('user').focus(); }
+function showSignin() { me = null; clearInterval(timer); clearInterval(watch); $('strip').classList.add('hidden'); $('nav').replaceChildren(); $('app').classList.add('hidden'); $('signout').classList.add('hidden'); $('whoami').textContent = ''; $('signin').classList.remove('hidden'); $('user').focus(); }
+// A card: a square of art with the name's initials, the name, how it is (with a dot), a line under it, and its buttons.
+function card(name, stateClass, state, sub, buttons) {
+  let h = 0; for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  const initials = (name.match(/[\p{L}\p{N}]+/gu) || ['?']).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  return el('div', 'card', null, [el('div', 'art h' + (h % 8), initials), el('h3', '', name), el('div', '', null, [el('div', stateClass, state), el('div', 'note', sub)]), buttons]);
+}
 function phaseWord(s) { return s.running ? 'On, ' + s.players + ' playing' : s.phase === 'starting' ? 'Starting…' : s.phase === 'stopping' ? 'Shutting down…' : 'Off'; }
 function phaseClass(s) { return s.running ? 'green' : (s.phase === 'starting' || s.phase === 'stopping') ? 'amber' : 'grey'; }
 
 const views = {
-  servers: { name: 'Servers', needs: 'view', every: 4000, async draw() {
+  servers: { name: 'Servers', section: 'SERVERS', needs: 'view', every: 4000, async draw() {
     const o = await api('GET', 'overview');
     if (current !== 'servers' || !o.servers) return;
-    const v = el('div');
+    const v = el('div', 'grid');
     if (o.host === 'mcss') {
-      const up = o.mcss, line = el('div', 'card row', null, [el('div', 'grow', null, [el('h3', '', 'MC Server Soft'), el('div', up ? 'green' : 'grey', o.mcss_phase === 'starting' ? 'Starting…' : o.mcss_phase === 'closing' ? 'Closing…' : up ? 'Running' : 'Not running')])]);
+      const up = o.mcss, line = el('div', 'buttons row'), mc = card('MC Server Soft', (up ? 'green' : 'grey') + ' state', o.mcss_phase === 'starting' ? 'Starting…' : o.mcss_phase === 'closing' ? 'Closing…' : up ? 'Running' : 'Not running', 'The program that runs some of this machine\'s servers', line);
       if (can('control')) line.appendChild(up ? button('Close MCSS', () => act('mcss/close', {}, '', 'Close MC Server Soft on the server machine?')) : button('Start MCSS', () => act('mcss/start', {})));
-      v.appendChild(line);
+      v.appendChild(mc);
     }
     o.servers.forEach(s => {
-      const card = el('div', 'card row', null, [el('div', 'grow', null, [el('h3', '', s.name), el('div', phaseClass(s), phaseWord(s) + '   ·   port ' + s.port + (o.host === 'mcss' ? (s.native ? '   ·   run by Gatekeeper itself' : '   ·   run by MCSS') : ''))])]);
+      const row = el('div', 'buttons row'), one = card(s.name, phaseClass(s) + ' state', phaseWord(s), 'Port ' + s.port + (o.host === 'mcss' ? (s.native ? '   ·   run by Gatekeeper itself' : '   ·   run by MCSS') : ''), row);
       const up = s.running || s.phase === 'starting';
       if (can('control')) {
-        card.appendChild(up ? button('Stop', () => act('server/stop', {}, s.id, 'Stop ' + s.name + '? Anyone playing is disconnected (the world is saved first).')) : button('Start', () => act('server/start', {}, s.id)));
-        if (s.native) { const r = button('Restart', () => act('tools/action', { action: 'restart' }, s.id, 'Restart ' + s.name + '? Anyone playing is disconnected until it is back.')); r.disabled = !s.running; card.appendChild(r); }
+        row.appendChild(up ? button('Stop', () => act('server/stop', {}, s.id, 'Stop ' + s.name + '? Anyone playing is disconnected (the world is saved first).')) : button('Start', () => act('server/start', {}, s.id), 'primary'));
+        if (s.native) { const r = button('Restart', () => act('tools/action', { action: 'restart' }, s.id, 'Restart ' + s.name + '? Anyone playing is disconnected until it is back.')); r.disabled = !s.running; row.appendChild(r); }
       }
-      if (s.native) card.appendChild(button('Open', () => openServer(s.id, s.name), 'quiet'));
-      v.appendChild(card);
+      if (s.native) row.appendChild(button('Open', () => openServer(s.id, s.name), 'quiet'));
+      if (!row.children.length) row.appendChild(el('span', 'note', 'Your account may look, not start or stop.'));
+      v.appendChild(one);
     });
-    if (!o.servers.length) v.appendChild(el('p', 'note', 'This Gatekeeper looks after no servers yet.'));
-    if (o.servers.some(s => !s.native)) v.appendChild(el('p', 'note', 'Consoles, settings, backups and tasks for the servers MC Server Soft runs are kept by MCSS.'));
-    $('view').replaceChildren(v);
+    const under = el('div');
+    if (!o.servers.length) under.appendChild(el('p', 'note', 'This Gatekeeper looks after no servers yet.'));
+    if (o.servers.some(s => !s.native)) under.appendChild(el('p', 'note', 'Consoles, settings, backups and tasks for the servers MC Server Soft runs are kept by MCSS.'));
+    if (v.contains(document.activeElement)) return;   // (a button there is selected: leave it be until the next look)
+    $('view').replaceChildren(v, under);
   } },
-  players: { name: 'Players', needs: 'view', every: 8000, async draw() {
+  players: { name: 'Players', section: 'PEOPLE', needs: 'view', every: 8000, async draw() {
     const r = await api('GET', 'players');
     if (current !== 'players' || !r.players) return;
     const t = el('table'), names = Object.keys(r.players);
@@ -71,7 +80,7 @@ const views = {
       if (can('console') && p.now === 'In game') cell.appendChild(button('Kick', () => act('kick', { player: n, reason: 'Kicked from the web panel' }, '', 'Kick ' + n + '?'), 'quiet'));
       t.appendChild(el('tr', '', null, [el('td', '', n + (p.ban ? '  (' + p.ban + ')' : '')), el('td', p.now === 'In game' ? 'green' : 'grey', p.now), el('td', '', p.whitelisted ? 'Yes' : 'No'), cell]));
     });
-    const v = el('div', 'card scroll', null, [t]);
+    const v = el('div', 'card sheet scroll', null, [t]);
     if (!names.length) v.appendChild(el('p', 'note', 'Nobody yet.'));
     if (can('access') && !$('wl-name')) {
       const f = el('input'); f.id = 'wl-name'; f.placeholder = 'Minecraft name';
@@ -80,7 +89,7 @@ const views = {
     if (document.activeElement && document.activeElement.id === 'wl-name') return;
     $('view').replaceChildren(v);
   } },
-  access: { name: 'Access', needs: 'access', every: 6000, async draw() {
+  access: { name: 'Launchers', section: 'PEOPLE', needs: 'access', every: 6000, async draw() {
     const r = await api('GET', 'devices');
     if (current !== 'access' || !r.devices) return;
     const v = el('div');
@@ -97,11 +106,11 @@ const views = {
       row.appendChild(el('td', '', null, [button('Forget', () => act('forget', { id }, '', 'Forget this launcher? It can ask again later.'), 'quiet')]));
       t.appendChild(row);
     });
-    v.appendChild(el('div', 'card scroll', null, [t]));
+    v.appendChild(el('div', 'card sheet scroll', null, [t]));
     v.appendChild(el('p', 'note', 'Click a permission to allow it or take it away. Blacklisting, suspending and per-player permissions are in Gatekeeper\'s own window.'));
     $('view').replaceChildren(v);
   } },
-  machine: { name: 'Machine', needs: 'machine', async draw() {
+  machine: { name: 'Sleep and wake', section: 'MACHINE', needs: 'machine', async draw() {
     const r = await api('GET', 'wake');
     if (current !== 'machine') return;
     const v = el('div');
@@ -113,24 +122,42 @@ const views = {
     v.appendChild(el('p', 'note', 'Devices are added in Gatekeeper\'s window (Web panel tab). The wake signal is sent by the server machine on its own network, so it reaches devices in the same home, by cable or (on some adapters) Wi-Fi, that are set to wake on it.'));
     $('view').replaceChildren(v);
   } },
-  updates: { name: 'Updates', needs: 'updates', every: 15000, async draw() {
+  constellation: { name: 'Clients', section: 'CONSTELLATION', needs: 'updates', every: 5000, async draw() {
+    const r = await api('GET', 'constellation');
+    if (current !== 'constellation' || !r.gatekeeper) { if (r.message) say(r); return; }
+    const word = m => m === 'auto' ? 'Auto' : m === 'constellation' ? 'Constellation' : m === 'normal' ? 'Normal' : 'Not said yet';
+    const g = r.gatekeeper, t = el('table');
+    t.appendChild(el('tr', '', null, ['Client', 'Kind', 'Player', 'System', 'Version', 'Update mode', 'Now', 'In this constellation'].map(h => el('th', '', h))));
+    t.appendChild(el('tr', '', null, [g.name + '  (this Gatekeeper)', 'Gatekeeper', '', g.system, g.version, word(g.mode), 'Running', 'Leads it'].map(x => el('td', '', x || ''))));
+    (r.clients || []).forEach(c => {
+      const also = (c.also || []).length ? '; also ' + c.also.join(', ') : '';
+      const inIt = c.membership === 'asked' ? 'Asked to join: not allowed in yet' : c.membership === 'member' ? 'Member (a Gatekeeper that joined)' : (c.via ? 'Yes, through ' + c.via : 'Yes') + also;
+      const row = el('tr', '', null, [(c.via ? '    ' : '') + c.name + (c.here ? '  (this machine)' : ''), c.type, c.player, c.system, c.version || 'Not said', word(c.mode)].map(x => el('td', '', x || '')));
+      row.appendChild(el('td', c.open ? 'green' : 'grey', c.open ? 'Open' : 'Closed')); row.appendChild(el('td', '', inIt));
+      t.appendChild(row);
+    });
+    const v = el('div', 'card sheet scroll', null, [el('p', 'note', 'A constellation is a Gatekeeper and every client connected to it: its launchers, other Gatekeepers that have joined it, and their launchers.'), t,
+      el('p', '', 'This Gatekeeper: ' + (g.status || '')), el('p', 'note', 'Allowing a Gatekeeper in, removing one, and joining another constellation are done in Gatekeeper\'s own window.')]);
+    $('view').replaceChildren(v);
+  } },
+  updates: { name: 'Update log', section: 'CONSTELLATION', needs: 'updates', every: 15000, async draw() {
     const r = await api('GET', 'updates');
     if (current !== 'updates' || !r.entries) { if (r.message) say(r); return; }
     const t = el('table');
     t.appendChild(el('tr', '', null, ['When', 'Client', 'Kind', 'Player', 'System', 'From', 'To', 'How', 'Fetched from', 'Through'].map(h => el('th', '', h))));
     r.entries.forEach(e => t.appendChild(el('tr', '', null, [e.when, e.client, e.kind, e.player, e.system + (e.info ? ' (' + e.info + ')' : ''), e.from, e.to, e.how, e.source || 'not said', e.via].map(x => el('td', '', x || '')))));
-    const v = el('div', 'card scroll', null, [t]);
+    const v = el('div', 'card sheet scroll', null, [t]);
     if (!r.entries.length) v.appendChild(el('p', 'note', 'No updates recorded yet. A line is added each time a client of this constellation goes from one version to another.'));
     v.appendChild(el('p', 'note', r.total + ' recorded in all; the newest ' + r.entries.length + ' are shown.'));
     $('view').replaceChildren(v);
   } },
-  log: { name: 'Log', needs: 'view', every: 8000, async draw() {
+  log: { name: 'Log', section: 'MACHINE', needs: 'view', every: 8000, async draw() {
     const r = await api('GET', 'log');
     if (current !== 'log' || !r.log) return;
     const pre = el('pre', 'console', r.log.join('\n'));
     $('view').replaceChildren(pre); pre.scrollTop = pre.scrollHeight;
   } },
-  gatekeeper: { name: 'Gatekeeper', needs: 'admin', async draw() {
+  gatekeeper: { name: 'Gatekeeper', section: 'OPTIONS', needs: 'admin', async draw() {
     const u = await api('GET', 'update');
     if (current !== 'gatekeeper') return;
     const v = el('div');
@@ -160,13 +187,13 @@ const views = {
 // One server (where Gatekeeper runs it itself): its state, console, backups and tasks.
 function openServer(id, name) {
   current = 'server'; clearInterval(timer);
-  document.querySelectorAll('nav button').forEach(b => b.classList.remove('on'));
+  $('subnav').replaceChildren(); $('title').textContent = name;
   let next = 0;
   const stats = el('div', 'grey'), pre = el('pre', 'console'), line = el('input', 'grow'), extra = el('div');
   line.placeholder = 'Type a command (no slash needed) and press Enter';
   const send = async () => { const c = line.value.trim(); if (!c) return; line.value = ''; say(await api('POST', 'tools/command', { command: c }, id)); };
   line.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
-  const v = el('div', '', null, [el('div', 'row', null, [button('← Servers', () => show('servers'), 'quiet'), el('h2', 'grow', name)]), stats]);
+  const v = el('div', '', null, [el('div', 'row', null, [button('← Servers', () => show('servers'), 'quiet')]), stats]);
   if (can('console')) { v.appendChild(pre); v.appendChild(el('div', 'row', null, [line, button('Send', send)])); }
   v.appendChild(extra);
   $('view').replaceChildren(v);
@@ -191,23 +218,61 @@ function openServer(id, name) {
   tick(); timer = setInterval(tick, 2500);
 }
 
+const SECTIONS = ['SERVERS', 'PEOPLE', 'CONSTELLATION', 'MACHINE', 'OPTIONS'];
+const titled = s => s[0] + s.slice(1).toLowerCase();
+let mine = [], last = {}, watch = null;
+const inSection = s => mine.filter(k => views[k].section === s);
 function show(key) {
   current = key; clearInterval(timer); say(null);
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.key === key));
+  const sec = views[key].section, pages = inSection(sec);
+  last[sec] = key;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.section === sec));
+  $('title').textContent = titled(sec);
+  $('subnav').replaceChildren(...(pages.length > 1 ? pages.map(k => button(views[k].name, () => show(k), k === key ? 'on' : 'quiet')) : []));
   $('view').replaceChildren(el('p', 'note', 'Loading…'));
   views[key].draw();
   if (views[key].every) timer = setInterval(() => views[key].draw(), views[key].every);
 }
+function showSection(sec) { const pages = inSection(sec); if (pages.length) show(pages.includes(last[sec]) ? last[sec] : pages[0]); }
+// What stands along the bottom, and the count on People: asked again every few seconds.
+async function standing() {
+  if (!me) return;
+  if (can('access')) {
+    const r = await api('GET', 'devices'), n = (r.requests || []).length, b = document.querySelector('#nav button[data-section=PEOPLE]');
+    if (b) { const old = b.querySelector('.badge'); if (old) old.remove(); if (n) b.appendChild(el('span', 'badge', String(n))); }
+  }
+  if (can('updates')) {
+    const a = await api('GET', 'auto'), pips = (a.gather && a.gather.pips) || [];
+    $('pips').classList.toggle('hidden', !pips.length);
+    $('pips').replaceChildren(...pips.map(p => { const d = el('span', 'pip ' + p.s + (p.me ? ' me' : '')); d.title = (p.me ? 'This Gatekeeper' : p.n || (p.k === 'gatekeeper' ? 'A Gatekeeper' : 'A launcher')) + ': ' + (p.s === 'ready' ? 'ready' : p.s === 'busy' ? 'a server it runs is still on' : "hasn't seen the update yet"); return d; }));
+    const others = pips.filter(p => !p.me), wait = others.filter(p => p.s !== 'ready').length;
+    $('pipline').textContent = !pips.length ? (a.status || '') : !others.length ? 'Nobody else is open in this constellation' : wait ? 'Waiting for ' + wait + ' of ' + others.length + ' other' + (others.length === 1 ? '' : 's') : 'All ' + others.length + ' other' + (others.length === 1 ? ' is' : 's are') + ' ready';
+  }
+}
 function start(who) {
   me = who;
-  $('signin').classList.add('hidden'); $('app').classList.remove('hidden'); $('signout').classList.remove('hidden');
-  $('title').textContent = 'Gatekeeper – ' + me.gatekeeper;
+  $('signin').classList.add('hidden'); $('app').classList.remove('hidden'); $('signout').classList.remove('hidden'); $('strip').classList.remove('hidden');
   $('whoami').textContent = me.user + (me.admin ? ' (admin)' : '');
+  $('standing').textContent = 'Gatekeeper ' + me.version + '   ·   ' + me.gatekeeper + '   ·   ' + me.system;
+  mine = Object.keys(views).filter(k => views[k].needs === 'admin' ? me.admin : can(views[k].needs));
   const nav = $('nav'); nav.replaceChildren();
-  const mine = Object.keys(views).filter(k => views[k].needs === 'admin' ? me.admin : can(views[k].needs));
-  mine.forEach(k => { const b = button(views[k].name, () => show(k)); b.dataset.key = k; nav.appendChild(b); });
-  if (mine.length) show(mine[0]); else $('view').replaceChildren(el('p', 'note', 'Your account is allowed nothing yet. Its permissions are set in Gatekeeper\'s window.'));
+  SECTIONS.forEach(s => {
+    const has = inSection(s).length > 0, b = button(s, () => { if (has) showSection(s); }, has ? '' : 'off');
+    b.dataset.section = s;
+    if (!has) b.title = "Your account isn't allowed this section. Its permissions are set in Gatekeeper's window.";
+    nav.appendChild(b);
+  });
+  if (mine.length) show(mine[0]); else { $('title').textContent = 'Gatekeeper'; $('view').replaceChildren(el('p', 'note', 'Your account is allowed nothing yet. Its permissions are set in Gatekeeper\'s window.')); }
+  clearInterval(watch); standing(); watch = setInterval(standing, 6000);
 }
+// Q and E flip the sections, as the bumpers do in Gatekeeper's own window (not while something is being typed).
+document.addEventListener('keydown', e => {
+  if (!me || e.ctrlKey || e.altKey || e.metaKey || /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  const by = e.key === 'q' || e.key === 'Q' ? -1 : e.key === 'e' || e.key === 'E' ? 1 : 0;
+  if (!by) return;
+  const open = SECTIONS.filter(s => inSection(s).length), on = document.querySelector('#nav button.on'), i = on ? open.indexOf(on.dataset.section) : -1;
+  if (open.length) showSection(open[(i + by + open.length) % open.length]);
+});
 $('signin-form').addEventListener('submit', async e => {
   e.preventDefault();
   const r = await ask('POST', 'login', { user: $('user').value, password: $('password').value });

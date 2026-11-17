@@ -262,6 +262,10 @@ A page for controlling Gatekeeper from a browser, on any system, with or without
 2. Tick **The web panel is on**, and copy the address beside it (`http://100.x.y.z:25570/panel/`).
 3. Open that address in a browser on a device that is on your Tailscale network, and sign in.
 
+The panel has the same five sections across the top as the windows (Q and E flip between them): **Servers** as
+cards, **People** (Players, Launchers), **Constellation** (Clients, Update log), **Machine** (Sleep and wake, Log)
+and **Options** (updating Gatekeeper, New server). A section the account isn't allowed is listed, greyed.
+
 | An account that may... | Gets |
 |---|---|
 | See | Servers and their state, players, Gatekeeper's log |
@@ -270,7 +274,7 @@ A page for controlling Gatekeeper from a browser, on any system, with or without
 | Settings, backups, tasks | Back up now, running a task, memory and other settings that name nothing on the disk |
 | Launchers and players | Answering launchers' requests, their permissions, the whitelist |
 | Sleep and wake | Sleep for the server machine, Wake for the devices you listed |
-| See the update log | The **Updates** page: [every update in the constellation](#the-update-log) |
+| See the constellation and its update log | The **Constellation** section: the clients with their update modes, and [every update in the constellation](#the-update-log) |
 | Admin | All of those, and Update Gatekeeper and New server |
 
 What to know about it:
@@ -389,7 +393,7 @@ from which version to which, how (by hand, auto or constellation), and **where t
 pack server at an address, or GitHub). A member Gatekeeper hands its lines on to the leader. **Update log...** on
 the Constellation tab shows it; it is kept in `updates.json` in Gatekeeper's folder, the newest 5000 lines.
 "Not said" means the client didn't know (a version from before the log existed, or a launcher that arrived with a
-pack's own update or an installer). Through the web panel only an account given **See the update log** can read it;
+pack's own update or an installer). Through the web panel only an account given **See the constellation and its update log** can read it;
 at the machine itself, anyone who can open Gatekeeper's window can.
 
 ## Removing it
