@@ -107,7 +107,7 @@ the bumpers on a controller (Q and E on a keyboard):
 
 | Section | What is there |
 | --- | --- |
-| **Servers** | The Gatekeepers this device knows, as cards. **Open** one to see its servers; **Connect** if it isn't answering. Each server's card says whether it's on and has **Install** or **Launch**. Launch opens the server's own page: what changed in the pack and on the server, your mod options, and **Play**. |
+| **Servers** | The Gatekeepers this device knows, as cards, each with a picture of the machine it runs on. **Open** one to see its servers; **Connect** if it isn't answering. Each server's card says whether it's on and has **Install** or **Launch**. Launch opens the server's own page: what changed in the pack and on the server, your mod options, and **Play**. |
 | **People** | What this device may do on each installed server: whether it is on the whitelist, and what the host has allowed it. |
 | **Constellation** | How this launcher updates ([three ways](#three-ways-to-update)), **Check for updates**, and what changed in Gatehouse and in the open Gatekeeper. |
 | **Machine** | The host's machine, MCSS and each server, with the buttons the host has allowed your device: start or stop a server, start or close MCSS, wake the machine or put it to sleep. |
@@ -178,7 +178,7 @@ a controller's bumpers):
 | **People** | The web panel's accounts, and **Launchers and players**: the Access Manager of the first server (for another server, open it under Servers). A red number here is launchers waiting for an answer. |
 | **Constellation** | The clients and their update modes, joining and allowing, the update log; **What's new in Gatekeeper** and **in Gatehouse** beside it. |
 | **Machine** | Host setup: every check at once. A red number here is steps still to do. |
-| **Options** | How Gatekeeper updates, the setup guide, Play or Host, and Uninstall. |
+| **Options** | **This machine** (the picture launchers show for this Gatekeeper: a desktop, a laptop, a Steam Deck...; found by itself, and yours to correct), how Gatekeeper updates, the setup guide, Play or Host, and Uninstall. |
 
 Where this guide says a "tab" of Gatekeeper's first screen (Web panel, Constellation, Host setup), it is the page
 of that name in these sections.
@@ -265,6 +265,7 @@ A page for controlling Gatekeeper from a browser, on any system, with or without
 The panel has the same five sections across the top as the windows (Q and E flip between them): **Servers** as
 cards, **People** (Players, Launchers), **Constellation** (Clients, Update log), **Machine** (Sleep and wake, Log)
 and **Options** (updating Gatekeeper, New server). A section the account isn't allowed is listed, greyed.
+On a phone the sections fold away behind a menu button at the top right.
 
 | An account that may... | Gets |
 |---|---|

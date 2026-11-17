@@ -63,6 +63,9 @@ public final class GameCard extends JPanel {
 
 	/** The art's two colours, instead of the ones the name gives. */
 	public void art(Color from, Color to) { c1 = from; c2 = to; repaint(); }
+	private String device = "";
+	/** A kind of machine (see DeviceIcon) to draw in the art in place of the initials; "" or an unknown kind: the initials. */
+	public void device(String kind) { String k = kind == null ? "" : kind; if (!k.equals(device)) { device = k; repaint(); } }
 	/** Lit as if its button were selected (for a picture of the window). */
 	public void glow(boolean on) { hot = on; repaint(); }
 	/** Greyed: something that is listed but can't be used here. */
@@ -106,6 +109,7 @@ public final class GameCard extends JPanel {
 		for (int cy = 0; cy < 5; cy++) for (int cx = 0; cx < 5; cx++) { int v = r.nextInt(100); if (v < 38) { g.setColor(v < 19 ? new Color(255, 255, 255, 10 + v) : new Color(0, 0, 0, v)); g.fill(new Rectangle2D.Double(ax + cx * cell, ay + cy * cell, cell, cell)); } }
 		g.setPaint(new GradientPaint(0, (float) (ay + as * 0.45), new Color(0, 0, 0, 0), 0, (float) (ay + as), new Color(0, 0, 0, 110))); g.fill(new Rectangle2D.Double(ax, ay, as, as));
 		g.setClip(old);
+		if (DeviceIcon.known(device)) { java.awt.Composite was = g.getComposite(); if (dim) g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.6f)); DeviceIcon.paint(g, device, ax + 9, ay + 9, as - 18); g.setComposite(was); g.dispose(); return; }
 		String in = initials(n);
 		Font f = GameShell.font(32f, true); g.setFont(f); g.setColor(new Color(255, 255, 255, dim ? 150 : 228));
 		g.drawString(in, (float) (ax + as / 2 - g.getFontMetrics().stringWidth(in) / 2.0), (float) (ay + as / 2 + 11));

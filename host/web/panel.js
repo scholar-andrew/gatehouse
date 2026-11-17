@@ -32,7 +32,7 @@ async function act(call, body, server, confirmText) {
   say(await api('POST', call, body, server));
   if (views[current]) views[current].draw();
 }
-function showSignin() { me = null; clearInterval(timer); clearInterval(watch); $('strip').classList.add('hidden'); $('nav').replaceChildren(); $('app').classList.add('hidden'); $('signout').classList.add('hidden'); $('whoami').textContent = ''; $('signin').classList.remove('hidden'); $('user').focus(); }
+function showSignin() { me = null; clearInterval(timer); clearInterval(watch); $('strip').classList.add('hidden'); $('menu').classList.add('hidden'); menu(false); $('nav').replaceChildren(); $('app').classList.add('hidden'); $('signout').classList.add('hidden'); $('whoami').textContent = ''; $('signin').classList.remove('hidden'); $('user').focus(); }
 // A card: a square of art with the name's initials, the name, how it is (with a dot), a line under it, and its buttons.
 function card(name, stateClass, state, sub, buttons) {
   let h = 0; for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
@@ -187,7 +187,7 @@ const views = {
 // One server (where Gatekeeper runs it itself): its state, console, backups and tasks.
 function openServer(id, name) {
   current = 'server'; clearInterval(timer);
-  $('subnav').replaceChildren(); $('title').textContent = name;
+  $('subnav').replaceChildren(); $('title').textContent = name; menu(false);
   let next = 0;
   const stats = el('div', 'grey'), pre = el('pre', 'console'), line = el('input', 'grow'), extra = el('div');
   line.placeholder = 'Type a command (no slash needed) and press Enter';
@@ -219,6 +219,11 @@ function openServer(id, name) {
 }
 
 const SECTIONS = ['SERVERS', 'PEOPLE', 'CONSTELLATION', 'MACHINE', 'OPTIONS'];
+// On a narrow screen the sections fold away behind a menu button; this opens or closes them.
+function menu(open) { $('top').classList.toggle('open', open); $('menu').setAttribute('aria-expanded', open ? 'true' : 'false'); }
+$('menu').addEventListener('click', () => menu(!$('top').classList.contains('open')));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') menu(false); });
+document.addEventListener('click', e => { if (!$('top').contains(e.target)) menu(false); });
 const titled = s => s[0] + s.slice(1).toLowerCase();
 let mine = [], last = {}, watch = null;
 const inSection = s => mine.filter(k => views[k].section === s);
@@ -228,6 +233,7 @@ function show(key) {
   last[sec] = key;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.section === sec));
   $('title').textContent = titled(sec);
+  $('menu-now').textContent = sec; menu(false);
   $('subnav').replaceChildren(...(pages.length > 1 ? pages.map(k => button(views[k].name, () => show(k), k === key ? 'on' : 'quiet')) : []));
   $('view').replaceChildren(el('p', 'note', 'Loading…'));
   views[key].draw();
@@ -251,7 +257,7 @@ async function standing() {
 }
 function start(who) {
   me = who;
-  $('signin').classList.add('hidden'); $('app').classList.remove('hidden'); $('signout').classList.remove('hidden'); $('strip').classList.remove('hidden');
+  $('signin').classList.add('hidden'); $('app').classList.remove('hidden'); $('signout').classList.remove('hidden'); $('strip').classList.remove('hidden'); $('menu').classList.remove('hidden');
   $('whoami').textContent = me.user + (me.admin ? ' (admin)' : '');
   $('standing').textContent = 'Gatekeeper ' + me.version + '   ·   ' + me.gatekeeper + '   ·   ' + me.system;
   mine = Object.keys(views).filter(k => views[k].needs === 'admin' ? me.admin : can(views[k].needs));

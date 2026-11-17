@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.9.0",
+ "version": "3.10.0",
  "changes": [
+  {"version": "3.10.0", "date": "2026-11-17", "notes": [
+   "A Gatekeeper's card now shows a picture of the kind of machine it runs on, in place of its initials: a desktop, a laptop, a Steam Deck, a ROG Ally, another handheld, a mini PC, a Mac laptop, a Mac desktop, a Mac mini or a server. The Gatekeeper says which (from Gatekeeper 3.10.0), and its owner can correct it there.",
+   "The picture is remembered, so the card still shows it while that Gatekeeper's machine is asleep or off. A Gatekeeper that is older, or that recognised nothing, keeps its initials."
+  ]},
   {"version": "3.9.0", "date": "2026-11-17", "notes": [
    "Nothing changed in the launcher: this version carries Gatekeeper's web panel in the new look."
   ]},

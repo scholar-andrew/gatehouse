@@ -291,6 +291,21 @@ final class Home {
 			for (Object o : l) { String u = norm(str(ServerControl.asMap(o).get("url"))); if (!u.isEmpty()) out.add(new String[] {u, str(ServerControl.asMap(o).get("name")), Connect.invite(str(ServerControl.asMap(o).get("tailscale_share")))}); }
 		return out;
 	}
+	/** What kind of machine each Gatekeeper said it is on (gatekeeper-devices.txt: address, a tab, the kind), kept so
+	 *  its card shows the right picture while it isn't answering too. */
+	private static final Map<String, String> keeperDevices = new java.util.concurrent.ConcurrentHashMap<>();
+	private static boolean devicesRead;
+	private static synchronized String deviceOf(Path home, String url) {
+		if (!devicesRead) { devicesRead = true; for (String line : LaunchPopup.readFile(home.resolve("gatekeeper-devices.txt")).split("\\R")) { String[] p = line.split("\t"); if (p.length == 2) keeperDevices.put(p[0], p[1].trim()); } }
+		return keeperDevices.getOrDefault(url, "");
+	}
+	private static synchronized void rememberDevice(Path home, String url, String kind) {
+		if (kind.equals(deviceOf(home, url))) return;
+		if (kind.isEmpty()) keeperDevices.remove(url); else keeperDevices.put(url, kind);
+		StringBuilder sb = new StringBuilder();
+		for (Map.Entry<String, String> e : keeperDevices.entrySet()) sb.append(e.getKey()).append('\t').append(e.getValue()).append('\n');
+		try { Files.createDirectories(home); Files.writeString(home.resolve("gatekeeper-devices.txt"), sb.toString(), StandardCharsets.UTF_8); } catch (IOException ignored) {}
+	}
 	private static void saveKeepers(Path home, List<String[]> keepers) {
 		StringBuilder sb = new StringBuilder("[");
 		for (String[] k : keepers) sb.append(sb.length() > 1 ? ",\n " : "\n ").append("{\"url\": \"").append(ServerControl.jsonEsc(k[0])).append("\", \"name\": \"").append(ServerControl.jsonEsc(k[1])).append(k.length > 2 && !k[2].isEmpty() ? "\", \"tailscale_share\": \"" + ServerControl.jsonEsc(k[2]) : "").append("\"}");
@@ -1070,6 +1085,7 @@ final class Home {
 						else showKeepers[0].run();
 					});
 					keeperList.add((JPanel) r[0]);
+					((dev.gatehouse.look.GameCard) r[0]).device(deviceOf(home, k[0]));   // (the kind of machine it last said it is on)
 					ServerControl c = client(home, k[0], packs);
 					Runnable poll = () -> {
 						Map<String, Object> cat = catalog(c);
@@ -1083,6 +1099,8 @@ final class Home {
 							st = new String[] {"ok", shown(k[0]) + ": " + n + " server" + (n == 1 ? "" : "s") + (n == 0 ? "" : ", " + on + " online")};
 							String nm = str(cat.get("name"));
 							if (!nm.isEmpty() && !nm.equals(k[1])) { k[1] = nm; saveKeepers(home, keepers); SwingUtilities.invokeLater(() -> ((JLabel) r[1]).setText(nm)); }
+							// (a Gatekeeper from 3.10.0 says what kind of machine it is on: its picture; an older one says nothing, and keeps its initials)
+							if (cat.containsKey("device")) { String kind = str(cat.get("device")); rememberDevice(home, k[0], kind); SwingUtilities.invokeLater(() -> ((dev.gatehouse.look.GameCard) r[0]).device(kind)); }
 						}
 						set.accept((JLabel) r[2], st);
 						boolean silent = cat == null;

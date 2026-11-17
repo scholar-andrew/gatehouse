@@ -1,3 +1,5 @@
+== 1.43.0 | 2026-11-17
+- In the launcher, each Gatekeeper's card shows a picture of the machine it runs on: a desktop, a laptop, a Steam Deck and so on (Gatehouse 3.10.0). Nothing in the pack's mods or settings changed.
 == 1.42.0 | 2026-11-17
 - For hosts: Gatekeeper's web panel has the new look, with the same five sections (Gatehouse 3.9.0). Nothing in the pack's mods or settings changed.
 == 1.41.0 | 2026-11-17
