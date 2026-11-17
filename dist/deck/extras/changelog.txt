@@ -1,3 +1,5 @@
+== 1.35.3 | 2026-11-16
+- Nothing changed in the pack itself. Automatic updating no longer stalls when a launcher is connected to two Gatekeepers (Gatehouse 3.2.3).
 == 1.35.2 | 2026-11-16
 - Nothing changed in the pack itself. Four fixes in Gatehouse 3.2.2: a removed server no longer acts on another one, Update Gatekeeper works on a slow connection, Steam's pop-up no longer smears the window, and a machine's own Gatekeeper is listed once.
 == 1.35.1 | 2026-11-16
