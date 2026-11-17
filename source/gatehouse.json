@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_popup.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "2.9.1",
+ "version": "2.9.2",
  "changes": [
+  {"version": "2.9.2", "date": "2026-11-16", "notes": [
+   "Check for updates, at the bottom of the main window: Gatehouse looks right now for a newer Gatehouse instead of waiting, offers again an update you put off with Later, asks the Gatekeeper on screen again (so an \"Update needed\" clears as soon as its owner has updated), and says what it found."
+  ]},
   {"version": "2.9.1", "date": "2026-11-16", "notes": [
    "Connections now shows what really runs the servers on a Gatekeeper's machine. Where the Gatekeeper runs them itself (always on Linux and SteamOS), the MCSS line is still listed, but grey, saying \"Not supported on SteamOS: Gatekeeper runs the servers itself\" (or Linux; on Windows, \"Not used here\") instead of a green \"Running\", and its button is greyed. Where a Windows Gatekeeper uses both, each server says whether MCSS or Gatekeeper itself runs it.",
    "A Gatekeeper line, under Server machine: that it is answering, its version and the system it runs on. This needs Gatekeeper 2.7.2 or newer on the server machine; with an older one nothing changes."

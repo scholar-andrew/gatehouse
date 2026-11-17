@@ -970,6 +970,8 @@ final class Home {
 			Nav.tag(backB, "back");
 
 			// ---- the bottom: add a Gatekeeper, Gatehouse's own Steam shortcut, Prism Launcher, Quit
+			JButton checkB = new JButton("Check for updates");
+			checkB.setToolTipText("Looks now for a newer " + LaunchPopup.TOOL + ", and asks the Gatekeepers again");
 			JButton addB = new JButton("Add Gatekeeper…");
 			addB.setToolTipText("Connects this launcher to another Gatekeeper, with the address, pairing link or pairing file its owner gave you");
 			JButton prismB = new LaunchPopup.PlayButton("Open Prism Launcher", LaunchPopup.SLATE, Color.WHITE, 14f), quit = new LaunchPopup.PlayButton("Quit", LaunchPopup.QUIT_RED, Color.WHITE, 14f);
@@ -1070,6 +1072,8 @@ final class Home {
 			right.add(prismB); right.add(restartB); right.add(quit);
 			JPanel left = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
 			left.add(addB);
+			left.add(Box.createHorizontalStrut(6));
+			left.add(checkB);
 			JPanel bottom = new JPanel(new BorderLayout());
 			bottom.add(left, BorderLayout.WEST); bottom.add(right, BorderLayout.EAST);
 			List<Path> folders = new ArrayList<>();
@@ -1127,6 +1131,22 @@ final class Home {
 				};
 				if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
 			};
+			// Check for updates: looks right now (it looks by itself every so often), offers again one put off with
+			// Later, asks the Gatekeeper being shown again, and says what it found.
+			checkB.addActionListener(ev -> {
+				checkB.setEnabled(false);
+				declined[0] = "";
+				sub.setText("Looking for a newer " + LaunchPopup.TOOL + "\u2026");
+				new Thread(() -> {
+					look.run();
+					for (Runnable r : new ArrayList<>(polls)) try { r.run(); } catch (RuntimeException ignored) {}
+					SwingUtilities.invokeLater(() -> {
+						checkB.setEnabled(true);
+						sub.setText(ownUpdate.isVisible() ? "A newer " + LaunchPopup.TOOL + " is ready: see the top of this window."
+								: "No newer " + LaunchPopup.TOOL + " was found: this is " + Notes.version(Notes.own()) + ". If you expected one, this device may not be reaching where the pack is published (Tailscale or the internet).");
+					});
+				}, "check-updates").start();
+			});
 			if (pretend != null && shot != null) look.run();
 			else if (shot == null) {
 				new Thread(look, "self-update").start();

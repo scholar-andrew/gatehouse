@@ -583,13 +583,17 @@ public final class HostHelper {
 		try { StringBuilder sb = new StringBuilder(); for (byte x : java.security.MessageDigest.getInstance("SHA-256").digest(b)) sb.append(String.format("%02x", x)); return sb.toString(); }
 		catch (java.security.NoSuchAlgorithmException e) { return ""; }
 	}
+	/** Did the last look reach a place where Gatekeeper is published? */
+	static volatile boolean lookReached = false;
 	static synchronized void lookForNewer() {
+		lookReached = false;
 		for (String src : updateSources()) try {
 			Map<String, Object> mf = Json.map(Json.parse(new String(fetchBytes(src + "/gatekeeper.json"), StandardCharsets.UTF_8)));
 			String v = Json.str(mf.get("version")), sha = Json.str(mf.get("sha256"));
 			if (v.isEmpty() || sha.isEmpty()) continue;
 			if (!v.equals(newestKeeper) && cmpVersion(v, ownVersion()) > 0) log("a newer Gatekeeper is published: " + v + " (this is " + ownVersion() + "). Servers aren't started until it's updated.");
 			newestKeeper = v; newestKeeperSha = sha; newestKeeperAt = src; newestHouse = Json.str(mf.get("gatehouse"));
+			lookReached = true;
 			return;
 		} catch (IOException | RuntimeException next) { /* the next place */ }
 	}
@@ -1927,8 +1931,9 @@ public final class HostHelper {
 					String[] r = applyUpdate(pid);
 					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else {
-					if ("1".equals(x.getRequestURI().getQuery())) lookForNewer();   // (?1: look now)
-					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", outdated(), "gatehouse", newestHouse, "from", newestKeeperAt));
+					String uq = x.getRequestURI().getQuery();
+					if (uq != null && (uq.equals("1") || uq.startsWith("1&"))) lookForNewer();   // (?1: look now)
+					reply(x, 200, m("own", ownVersion(), "newest", newestKeeper, "outdated", outdated(), "gatehouse", newestHouse, "from", newestKeeperAt, "reached", lookReached));
 				}
 			} else if (path.equals("/admin/whitelist/on")) {
 				String[] r = whitelistOn();
@@ -2469,6 +2474,38 @@ public final class HostHelper {
 			ownUpdate.setVisible(false);
 			JPanel serversTab = new JPanel(new BorderLayout());
 			serversTab.add(ownUpdate, BorderLayout.NORTH); serversTab.add(overview, BorderLayout.CENTER);
+			// Check for updates: looks right now (Gatekeeper looks by itself every five minutes) and says what it found.
+			JButton checkNow = new JButton("Check for updates");
+			checkNow.setToolTipText("Looks now for a newer Gatekeeper, instead of waiting for the next look (every five minutes)");
+			JLabel checkSaid = new JLabel(" ");
+			checkSaid.setForeground(new Color(0x8F98A0));
+			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 6)); checkRow.add(checkNow); checkRow.add(checkSaid);
+			serversTab.add(checkRow, BorderLayout.SOUTH);
+			checkNow.addActionListener(ev -> {
+				checkNow.setEnabled(false);
+				checkSaid.setText("Looking\u2026");
+				new Thread(() -> {
+					String said;
+					boolean behind = false;
+					Map<String, Object> u = new LinkedHashMap<>();
+					try {
+						u = Json.map(Json.parse(call("GET", "/admin/update?1", null)));
+						behind = Boolean.TRUE.equals(u.get("outdated")) || "true".equals(Json.str(u.get("outdated")));
+						boolean reached = Boolean.TRUE.equals(u.get("reached")) || "true".equals(Json.str(u.get("reached")));
+						String at = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+						said = !reached ? "Looked at " + at + ": couldn't reach where Gatekeeper is published (this machine's pack server, or GitHub). This is " + Json.str(u.get("own")) + "."
+								: behind ? "Looked at " + at + ": Gatekeeper " + Json.str(u.get("newest")) + " is out. Update Gatekeeper is at the top."
+								: "Looked at " + at + ": up to date. This is Gatekeeper " + Json.str(u.get("own")) + ", the newest published.";
+					} catch (Exception ex) { said = "Couldn't ask Gatekeeper: is it running?"; }
+					String s2 = said; boolean b2 = behind; Map<String, Object> u2 = u;
+					SwingUtilities.invokeLater(() -> {
+						checkSaid.setText(s2);
+						checkNow.setEnabled(true);
+						if (b2 && ownUpdateGo.isEnabled()) ownUpdateText.setText("<html><b>A Gatekeeper update is ready: " + Json.str(u2.get("newest")) + ".</b> This is " + Json.str(u2.get("own")) + ". Until it's updated, Gatekeeper starts no server and launchers aren't offered Play.</html>");
+						if (b2 || ownUpdateGo.isEnabled()) ownUpdate.setVisible(b2);
+					});
+				}, "check-updates").start();
+			});
 			Runnable askUpdate = () -> new Thread(() -> {
 				try {
 					Map<String, Object> u = Json.map(Json.parse(call("GET", "/admin/update", null)));

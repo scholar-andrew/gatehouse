@@ -1,7 +1,10 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_host.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "2.7.3",
+ "version": "2.7.4",
  "changes": [
+  {"version": "2.7.4", "date": "2026-11-16", "notes": [
+   "Check for updates, at the bottom of the first screen: Gatekeeper looks right now for a newer Gatekeeper instead of waiting for its next look (every five minutes), and says what it found: up to date, a newer one (Update Gatekeeper then shows at the top), or that it couldn't reach where Gatekeeper is published."
+  ]},
   {"version": "2.7.3", "date": "2026-11-16", "notes": [
    "A server can be deleted: Manage, Settings, Delete this server. It asks which you mean: take it out of Gatekeeper and leave its files where they are, or delete it for good, folder and world included. Deleting for good needs the server's name typed, and can't be undone. Either way the server has to be off first, backups Gatekeeper made of it are kept, and launchers stop listing it.",
    "This is for servers Gatekeeper runs itself. A server MC Server Soft runs is deleted in MCSS; Gatekeeper stops looking after it when you untick it in Server setup. Deleting can't be done from the web panel."
