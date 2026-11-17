@@ -1,4 +1,7 @@
 [
+ {"version": "1.38.2", "date": "2026-11-17", "notes": [
+  "Nothing changed in the pack or in how the program works: a test update, for watching a constellation update together (Gatehouse 3.5.2)."
+ ]},
  {"version": "1.38.1", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself. Gatekeeper's update log also says where each update was fetched from (Gatehouse 3.5.1)."
  ]},

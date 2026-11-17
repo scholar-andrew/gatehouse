@@ -1,7 +1,10 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.5.1",
+ "version": "3.5.2",
  "changes": [
+  {"version": "3.5.2", "date": "2026-11-17", "notes": [
+   "A test update: nothing changed. It is here so that a constellation updating together can be watched on real devices: the chime as it goes, where each client fetched it from in the update log, and how quickly word of it travels."
+  ]},
   {"version": "3.5.1", "date": "2026-11-16", "notes": [
    "The update log says where each update was fetched from: a new \"Fetched from\" column, in Gatekeeper's window and on the web panel's Updates page. For Gatekeeper it is the place it downloaded its own update from (the pack server at an address, or GitHub). For a launcher it is the place that launcher noted when it fetched its update; a launcher that was updated by the Gatekeeper on its own machine says so, with where that Gatekeeper got it.",
    "\"Not said\" there means the client didn't know: it is on a version from before this, or its launcher arrived with a pack's own update or an installer and not through the launcher's Update.",

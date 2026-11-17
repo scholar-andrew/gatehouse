@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.5.1",
+ "version": "3.5.2",
  "changes": [
+  {"version": "3.5.2", "date": "2026-11-17", "notes": [
+   "A test update: nothing changed. It is here so that a constellation updating together can be watched on real devices: the chime as it goes, where each client fetched it from in the update log, and how quickly word of it travels."
+  ]},
   {"version": "3.5.1", "date": "2026-11-16", "notes": [
    "When Gatehouse updates itself it now notes where it fetched the update from (the pack server at an address, or GitHub), and tells the Gatekeepers in your list. Their update log shows it.",
    "In constellation mode a launcher that sees a new version before its Gatekeeper has now passes that on straight away, so the whole constellation finds out sooner.",
