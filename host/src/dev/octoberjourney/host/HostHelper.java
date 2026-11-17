@@ -1739,6 +1739,14 @@ public final class HostHelper {
 	}
 
 	/** Opens Gatekeeper minimized, unless one is open already (an open panel sees the request itself). */
+	/** Gatekeeper's window, opened now and in front (asked for by the person at this machine). */
+	static void openPanelNow() {
+		try {
+			String java = ProcessHandle.current().info().command().orElse("javaw");
+			String jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).toString();
+			new ProcessBuilder(java, "-jar", jar, "--panel").start();
+		} catch (Exception e) { log("couldn't open Gatekeeper: " + e); }
+	}
 	static void openPanel() {
 		if (System.currentTimeMillis() - panelSeen < 8000) return;
 		try {

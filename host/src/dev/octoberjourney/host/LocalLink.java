@@ -27,6 +27,12 @@ final class LocalLink {
 	 *  POST {id, token, player, uuid}: marks that launcher (which has said hello with that id and secret) as this
 	 *  machine's own. */
 	static boolean admin(HttpExchange x, String path) throws IOException {
+		if (path.equals("/admin/local/open")) {   // (the launcher on this machine asks for Gatekeeper's window: Gatekeeper opens it itself)
+			panelSeen = 0;
+			openPanelNow();
+			reply(x, 200, m("result", "ok", "message", "Opening Gatekeeper's window."));
+			return true;
+		}
 		if (!path.equals("/admin/local/link")) return false;
 		String bind = setting("bind", ""), name = setting("name", "");
 		if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }

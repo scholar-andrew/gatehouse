@@ -60,7 +60,7 @@ public final class Main {
 		if (first.equals("--start")) {
 			Path script = playScript(), keeper = keeperDir();
 			if (script != null) { String t = run(openPlay(script)); if (!t.isEmpty()) choose(null); }
-			else if (keeper != null) { String t = run(openHost(keeper)); if (!t.isEmpty()) choose(null); }
+			else if (keeper != null || keeperDoor() > 0) { String t = openGatekeeper(); if (!t.isEmpty()) choose(null); }
 			else choose(null);
 			return;
 		}
@@ -128,6 +128,45 @@ public final class Main {
 		try (java.net.Socket s = new java.net.Socket()) { s.connect(new java.net.InetSocketAddress("127.0.0.1", keeperPort(dir)), 500); return true; } catch (IOException e) { return false; }
 	}
 
+	/** The port a Gatekeeper on this machine answers its window on right now, or 0. It is asked for, at the port its
+	 *  settings name (when its folder can be seen) and at the usual one, because its folder can't always be seen: on
+	 *  a Steam Deck the launcher runs inside Prism Launcher's Flatpak, which is shown only its own files, while the
+	 *  Gatekeeper is installed outside it. What answers has to say it is a Gatekeeper. */
+	public static int keeperDoor() {
+		List<Integer> ports = new ArrayList<>();
+		String only = System.getenv("OJ_KEEPER_PORT");   // (testing: a stand-in Gatekeeper whose folder is kept out of sight)
+		if (only != null && only.matches("[0-9]+")) return askKeeper(Integer.parseInt(only), "GET", "/admin/about", null).isEmpty() ? 0 : Integer.parseInt(only);
+		Path dir = keeperDir();
+		if (dir != null) ports.add(keeperPort(dir));
+		if (System.getenv("OJ_KEEPER_DIR") == null && !ports.contains(25570)) ports.add(25570);   // (a stand-in under test is only asked for at its own port)
+		for (int port : ports) if (!askKeeper(port, "GET", "/admin/about", null).isEmpty()) return port;
+		return 0;
+	}
+	/** Asks the Gatekeeper on this machine something; "" when nothing answers there, or what answers isn't a Gatekeeper. */
+	public static String askKeeper(int port, String method, String path, String body) {
+		try {
+			java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL("http://127.0.0.1:" + port + path).openConnection();
+			c.setConnectTimeout(700); c.setReadTimeout(path.equals("/admin/update") ? 40000 : 4000); c.setRequestMethod(method);
+			if (body != null) { c.setDoOutput(true); try (java.io.OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
+			try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) {
+				String said = in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8);
+				return path.equals("/admin/about") && !said.contains("\"gatekeeper\"") ? "" : c.getResponseCode() < 400 ? (said.isEmpty() ? "{}" : said) : "";
+			}
+		} catch (IOException | RuntimeException e) { return ""; }
+	}
+	/** Is the Host half set up on this machine (its folder is here, or it answers)? */
+	public static boolean hostHere() { return keeperDir() != null || keeperDoor() > 0; }
+	/** Opens Gatekeeper's window: by asking the running Gatekeeper to open it itself (which works from inside a
+	 *  sandbox too), else by starting it from its folder. "" when it went, else why not. */
+	public static String openGatekeeper() {
+		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would open Gatekeeper's window (door " + keeperDoor() + ", folder " + keeperDir() + ")"); return ""; }
+		int door = keeperDoor();
+		if (door > 0 && askKeeper(door, "POST", "/admin/local/open", "{}").contains("\"ok\"")) return "";
+		Path dir = keeperDir();
+		if (dir != null) return run(openHost(dir));
+		return door > 0 ? "this Gatekeeper is from before it could be asked to open its window: update it, or open it from its own shortcut" : "no Gatekeeper was found on this machine";
+	}
+
 	// ------------------------------------------------------------------ one update for both halves on a device
 
 	/** The Host half has just fetched and checked a newer program file: the same file is put where the Play half on
@@ -154,17 +193,11 @@ public final class Main {
 	/** The Play half has just updated itself by its owner's press: the Gatekeeper on this same machine is told to
 	 *  update too (it waits for servers it runs itself to be off). Returns what it said, or "" when there is none here. */
 	public static String tellKeeperToUpdate() {
-		Path dir = keeperDir();
-		if (dir == null || System.getenv("OJ_HOME_DRY") != null || !keeperRunning(dir)) return "";
-		try {
-			java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL("http://127.0.0.1:" + keeperPort(dir) + "/admin/update").openConnection();
-			c.setConnectTimeout(2000); c.setReadTimeout(40000); c.setRequestMethod("POST"); c.setDoOutput(true);
-			try (java.io.OutputStream o = c.getOutputStream()) { o.write("{\"with_play\":true}".getBytes(StandardCharsets.UTF_8)); }
-			try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) {
-				java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8));
-				return m.find() ? m.group(1).replace("\\\"", "\"").replace("\\\\", "\\") : "asked";
-			}
-		} catch (IOException | RuntimeException e) { return ""; }
+		if (System.getenv("OJ_HOME_DRY") != null) return "";
+		int door = keeperDoor();
+		if (door <= 0) return "";
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(askKeeper(door, "POST", "/admin/update", "{\"with_play\":true}"));
+		return m.find() ? m.group(1).replace("\\\"", "\"").replace("\\\\", "\\") : "asked";
 	}
 	static String java() {
 		String j = ProcessHandle.current().info().command().orElse(WIN ? "javaw.exe" : "java");
@@ -222,7 +255,7 @@ public final class Main {
 	/** Builds the first screen's two cards as things stand now. said: where a press says what happened. */
 	static JPanel cards(Component owner, JLabel said) {
 		Path script = playScript(), keeper = keeperDir();
-		boolean up = keeper != null && keeperRunning(keeper);
+		boolean up = keeperDoor() > 0, hasHost = keeper != null || up;
 		JPanel both = new JPanel(new GridLayout(1, 2, 12, 0));
 		java.util.function.BiConsumer<Boolean, String> setUpIt = (host, name) -> {
 			if (JOptionPane.showConfirmDialog(owner, "<html><div style='width:400px'>Set up " + name + " on this device? Its setup opens in a window of its own, says what it will do, and asks before it fetches anything.</div></html>", "Set up " + name, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
@@ -235,8 +268,8 @@ public final class Main {
 				script != null ? "Set up on this device" : "Not set up on this device yet", script != null ? GREEN : GREY, script != null ? "Open Gatehouse" : "Set up Gatehouse\u2026",
 				() -> { if (script == null) { setUpIt.accept(false, "Gatehouse"); return; } String t = run(openPlay(script)); said.setForeground(t.isEmpty() ? GREY : AMBER); said.setText(t.isEmpty() ? "Opening Gatehouse\u2026" : "Couldn't open Gatehouse: " + t); }));
 		both.add(card("Host", "<b>Gatekeeper.</b> Looks after the Minecraft servers on this machine: who may join and control them, starting and stopping, backups. For whoever runs the servers.",
-				keeper == null ? "Not set up on this device yet" : up ? "Set up here, and running" : "Set up here, but its background part isn't running", keeper == null ? GREY : up ? GREEN : AMBER, keeper != null ? "Open Gatekeeper" : "Set up Gatekeeper\u2026",
-				() -> { if (keeper == null) { setUpIt.accept(true, "Gatekeeper"); return; } String t = run(openHost(keeper)); said.setForeground(t.isEmpty() ? GREY : AMBER); said.setText(t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t); }));
+				!hasHost ? "Not set up on this device yet" : up ? "Set up here, and running" : "Set up here, but its background part isn't running", !hasHost ? GREY : up ? GREEN : AMBER, hasHost ? "Open Gatekeeper" : "Set up Gatekeeper\u2026",
+				() -> { if (!hasHost) { setUpIt.accept(true, "Gatekeeper"); return; } String t = openGatekeeper(); said.setForeground(t.isEmpty() ? GREY : AMBER); said.setText("<html><div style='width:600px'>" + (t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t) + "</div></html>"); }));
 		return both;
 	}
 
@@ -245,7 +278,8 @@ public final class Main {
 		if (GraphicsEnvironment.isHeadless()) {
 			Path s = playScript(), k = keeperDir();
 			System.out.println("Play (Gatehouse): " + (s == null ? "not set up" : "set up, " + s));
-			System.out.println("Host (Gatekeeper): " + (k == null ? "not set up" : "set up in " + k + (keeperRunning(k) ? ", running" : ", not running")));
+			int door = keeperDoor();
+			System.out.println("Host (Gatekeeper): " + (k == null && door <= 0 ? "not set up" : (k == null ? "answering on this machine (its folder isn't visible from here)" : "set up in " + k) + (door > 0 ? ", running" : ", not running")));
 			return;
 		}
 		Runnable ui = () -> {

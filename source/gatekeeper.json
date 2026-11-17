@@ -1,7 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.2.0",
+ "version": "3.2.1",
  "changes": [
+  {"version": "3.2.1", "date": "2026-11-16", "notes": [
+   "Fixed on Steam Deck: the launcher didn't recognise the Gatekeeper on the same machine, so Play or Host offered to set it up again, there was no This machine line, and the launcher didn't link itself. The launcher looked for Gatekeeper's folder, which it can't see there (it runs inside Prism Launcher's Flatpak). It now asks for a Gatekeeper on the machine instead, and this Gatekeeper answers.",
+   "The launcher can ask this Gatekeeper to open its own window, which is how Open Gatekeeper works from inside that sandbox."
+  ]},
   {"version": "3.2.0", "date": "2026-11-16", "notes": [
    "The third step of making Gatehouse and Gatekeeper one program: the launcher on this same machine links itself to this Gatekeeper. It needs no pairing link, no request for you to answer, and no Tailscale, because it asks through the door that only answers on this machine. It shows in the Access Manager like any launcher, allowed everything.",
    "That launcher is allowed everything here, on every server, including ones made later; and the Minecraft account it plays as is put on each server's whitelist, with the server off or on.",

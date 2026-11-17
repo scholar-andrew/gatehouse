@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.2.0",
+ "version": "3.2.1",
  "changes": [
+  {"version": "3.2.1", "date": "2026-11-16", "notes": [
+   "Fixed on Steam Deck: Gatehouse didn't recognise the Gatekeeper on the same machine. Play or Host showed Host as not set up, the This machine hosts servers line was missing, and the launcher didn't link itself to it. Gatehouse looked for Gatekeeper's folder, which it can't see on a Deck (it runs inside Prism Launcher's Flatpak, which is shown only its own files). It now asks whether a Gatekeeper is answering on the machine.",
+   "Open Gatekeeper now asks the running Gatekeeper to open its own window, so it works from inside that sandbox too. This needs Gatekeeper 3.2.1 on that machine as well."
+  ]},
   {"version": "3.2.0", "date": "2026-11-16", "notes": [
    "On a machine that hosts and plays, the launcher now links itself to that machine's Gatekeeper when it opens: no pairing link, no request to wait for, and no Tailscale needed between the two. The Gatekeeper appears in the list by itself if it wasn't there; if you had already paired with it, that pairing is the one used.",
    "Linked that way, this launcher is allowed everything on that Gatekeeper (start and stop servers, MCSS, sleep, the Access Manager), and the account you play as in Prism is put on each server's whitelist, so Play works straight away.",

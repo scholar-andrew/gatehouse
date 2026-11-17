@@ -389,9 +389,9 @@ final class Home {
 	 *  (Not under OJ_HOME_DRY, so a test never links to the real Gatekeeper; OJ_KEEPER_DIR names a stand-in one.) */
 	static boolean linkHere(Path instances, Path home, List<String[]> keepers, List<String[]> packs) {
 		if (System.getenv("OJ_HOME_DRY") != null && System.getenv("OJ_KEEPER_DIR") == null) return false;
-		Path host = dev.gatehouse.Main.keeperDir();
-		if (host == null || !dev.gatehouse.Main.keeperRunning(host)) return false;
-		String door = "http://127.0.0.1:" + dev.gatehouse.Main.keeperPort(host);
+		int doorPort = dev.gatehouse.Main.keeperDoor();   // (asked for, not looked for: its folder isn't visible from inside a sandbox)
+		if (doorPort <= 0) return false;
+		String door = "http://127.0.0.1:" + doorPort;
 		try {
 			Map<String, Object> about = ServerControl.asMap(LaunchPopup.parseJson(local("GET", door + "/admin/local/link", null)));
 			if (str(about.get("port")).isEmpty()) return false;   // (a Gatekeeper from before this)
@@ -962,14 +962,13 @@ final class Home {
 				backB.setVisible(false);
 				// This machine's own Gatekeeper (the Host half of this program), when it is set up here: how it is,
 				// and its window a button away. It runs in the background whether this launcher is open or not.
-				java.nio.file.Path hostHere = dev.gatehouse.Main.keeperDir();
-				if (hostHere != null) {
+				boolean hostUp = dev.gatehouse.Main.keeperDoor() > 0;
+				if (hostUp || dev.gatehouse.Main.keeperDir() != null) {
 					JButton openHost = new JButton("Open Gatekeeper");
 					openHost.setToolTipText("Opens the window of the Gatekeeper on this machine: its servers, who may use them, and its settings");
 					Object[] hr = row.apply("This machine hosts servers", new Component[] {openHost});
-					boolean hostUp = dev.gatehouse.Main.keeperRunning(hostHere);
 					set.accept((JLabel) hr[2], hostUp ? new String[] {"ok", "Its Gatekeeper is running in the background"} : new String[] {"warn", "Its Gatekeeper is set up but isn't running: Open Gatekeeper, or sign out and in again"});
-					openHost.addActionListener(ev -> { String t = dev.gatehouse.Main.run(dev.gatehouse.Main.openHost(hostHere)); sub.setText(t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t); });
+					openHost.addActionListener(ev -> { String t = dev.gatehouse.Main.openGatekeeper(); sub.setText(t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t); });
 					keeperList.add((JPanel) hr[0]); keeperList.add(Box.createVerticalStrut(10));
 				}
 				for (String[] k : keepers) {
