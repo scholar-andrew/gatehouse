@@ -1,7 +1,16 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.5.2",
+ "version": "3.6.0",
  "changes": [
+  {"version": "3.6.0", "date": "2026-11-17", "notes": [
+   "Gatehouse has a new look, laid out like a game's menu. Five sections run across the top: Servers, People, Constellation, Machine and Options. The left and right bumpers flip between them (Q and E on a keyboard), or click one.",
+   "Gatekeepers and servers are cards now, each with its art, its name, how it is, and its buttons. The card you are on glows. A card's colours and initials come from its name until servers can have pictures of their own.",
+   "Servers is where you pick a Gatekeeper and then a server, as before. People shows what this device may do on each installed server. Constellation has how this launcher updates (moved here from Options), Check for updates, and what changed in Gatehouse and in the open Gatekeeper. Machine is what used to be the Connections tab. Options keeps the setup guide, Play or Host and Uninstall.",
+   "A strip along the bottom shows the version and update mode on the left (and the constellation's pips while it gathers), and what the buttons do on the right. It shows a controller's buttons or the keyboard's keys, whichever you used last.",
+   "B on a controller, or Esc, now goes back at once instead of only selecting the back button. X selects Open Prism Launcher. Y and Start select Restart and Quit as before, for A to confirm.",
+   "Tick boxes are drawn as switches and round buttons are clearer, so on and off can't be mistaken.",
+   "Not changed yet: a server's own page (what opens after Launch) still has its old layout. It is next."
+  ]},
   {"version": "3.5.2", "date": "2026-11-17", "notes": [
    "A test update: nothing changed. It is here so that a constellation updating together can be watched on real devices: the chime as it goes, where each client fetched it from in the update log, and how quickly word of it travels."
   ]},

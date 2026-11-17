@@ -20,8 +20,8 @@ final class Pad {
 	private Pad() {}
 
 	// What is held right now, from whichever source.
-	static final int A = 0, B = 1, X = 2, Y = 3, START = 4, BACK = 5, UP = 6, DOWN = 7, LEFT = 8, RIGHT = 9, RT = 10, COUNT = 11;
-	static final String[] WORDS = {"a", "b", "x", "y", "start", "back", "up", "down", "left", "right", "rt"};
+	static final int A = 0, B = 1, X = 2, Y = 3, START = 4, BACK = 5, UP = 6, DOWN = 7, LEFT = 8, RIGHT = 9, RT = 10, LB = 11, RB = 12, COUNT = 13;
+	static final String[] WORDS = {"a", "b", "x", "y", "start", "back", "up", "down", "left", "right", "rt", "lb", "rb"};
 	private static final boolean[] held = new boolean[COUNT];
 	private static volatile boolean started;
 	static volatile String source = "none";
@@ -54,7 +54,7 @@ final class Pad {
 							if (s != null) {
 								int b = s[0];
 								held[A] = (b & 0x1000) != 0; held[B] = (b & 0x2000) != 0; held[X] = (b & 0x4000) != 0; held[Y] = (b & 0x8000) != 0;
-								held[START] = (b & 0x10) != 0; held[BACK] = (b & 0x20) != 0;
+								held[START] = (b & 0x10) != 0; held[BACK] = (b & 0x20) != 0; held[LB] = (b & 0x100) != 0; held[RB] = (b & 0x200) != 0;
 								held[UP] = (b & 0x1) != 0 || s[3] > 20000; held[DOWN] = (b & 0x2) != 0 || s[3] < -20000;
 								held[LEFT] = (b & 0x4) != 0 || s[2] < -20000; held[RIGHT] = (b & 0x8) != 0 || s[2] > 20000;
 								held[RT] = s[1] > 120;
@@ -103,7 +103,7 @@ final class Pad {
 									int value = (short) ((e[4] & 0xFF) | (e[5] << 8)), type = e[6] & 0x7F, n = e[7] & 0xFF;
 									synchronized (held) {
 										if (type == 1) {
-											int k = n == 0 ? A : n == 1 ? B : n == 2 ? X : n == 3 ? Y : n == 6 ? BACK : n == 7 ? START : -1;
+											int k = n == 0 ? A : n == 1 ? B : n == 2 ? X : n == 3 ? Y : n == 4 ? LB : n == 5 ? RB : n == 6 ? BACK : n == 7 ? START : -1;
 											if (k >= 0) held[k] = value != 0;
 										} else if (type == 2) {
 											if (n == 0) { stickX[0] = value < -20000; stickX[1] = value > 20000; }

@@ -1,7 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.5.2",
+ "version": "3.6.0",
  "changes": [
+  {"version": "3.6.0", "date": "2026-11-17", "notes": [
+   "The first step of the new look, which starts with the launcher: Gatekeeper's own window is laid out as before for now. Its turn is next.",
+   "What you will notice here already: tick boxes are drawn as switches (green with the knob to the right when on, grey when off), and the chosen one of a set of round buttons has a bright ring with a filled middle, so on and off can't be mistaken."
+  ]},
   {"version": "3.5.2", "date": "2026-11-17", "notes": [
    "A test update: nothing changed. It is here so that a constellation updating together can be watched on real devices: the chime as it goes, where each client fetched it from in the update log, and how quickly word of it travels."
   ]},

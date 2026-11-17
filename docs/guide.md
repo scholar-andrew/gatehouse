@@ -102,18 +102,24 @@ The steps:
 
 ### Day to day
 
-Gatehouse's main window has three levels:
+Gatehouse is laid out like a game's menu. Five sections run across the top; click one, or flip between them with
+the bumpers on a controller (Q and E on a keyboard):
 
-- **Gatekeepers**: the hosts this device knows. **Open** one to see its servers; **Connect** if it isn't answering.
-- **Servers**: each server, whether it's on, and **Install** or **Launch**. The **Connections** tab beside it shows
-  the host's machine, MCSS and each server, with the buttons the host has allowed your device: start or stop a
-  server, start or close MCSS, wake the machine or put it to sleep.
-- **The server's own page**: what changed in the pack and on the server, your mod options, and **Play**.
+| Section | What is there |
+| --- | --- |
+| **Servers** | The Gatekeepers this device knows, as cards. **Open** one to see its servers; **Connect** if it isn't answering. Each server's card says whether it's on and has **Install** or **Launch**. Launch opens the server's own page: what changed in the pack and on the server, your mod options, and **Play**. |
+| **People** | What this device may do on each installed server: whether it is on the whitelist, and what the host has allowed it. |
+| **Constellation** | How this launcher updates ([three ways](#three-ways-to-update)), **Check for updates**, and what changed in Gatehouse and in the open Gatekeeper. |
+| **Machine** | The host's machine, MCSS and each server, with the buttons the host has allowed your device: start or stop a server, start or close MCSS, wake the machine or put it to sleep. |
+| **Options** | The setup guide, Play or Host, and Uninstall. |
 
-If a button you need isn't there, the host hasn't allowed it for your device. Where the page offers a **Request**
-button (to be whitelisted, or to have the server started), pressing it tells the host.
+The card you are on glows. A strip along the bottom shows the version and update mode on the left, and what the
+buttons do on the right: **A** (Enter) presses what is selected, **B** (Esc) goes back, **X** selects Open Prism
+Launcher, **Y** Restart and **Start** Quit. It shows a controller's buttons or the keyboard's keys, whichever you
+used last. Everything can also be clicked.
 
-Along the bottom: **Open Prism Launcher**, **Restart**, and **Quit**.
+If a button you need isn't there, the host hasn't allowed it for your device. Where a server's page offers a
+**Request** button (to be whitelisted, or to have the server started), pressing it tells the host.
 
 ---
 

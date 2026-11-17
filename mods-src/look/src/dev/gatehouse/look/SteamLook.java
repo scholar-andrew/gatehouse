@@ -55,7 +55,7 @@ public final class SteamLook {
 			"Panel.background", BACK, "OptionPane.background", BACK, "OptionPane.messageForeground", TEXT, "Viewport.background", BACK,
 			"Label.foreground", TEXT, "Label.disabledForeground", DIM,
 			"Button.background", RAISED, "Button.foreground", TEXT, "Button.margin", new Insets(6, 14, 6, 14),
-			"CheckBox.background", BACK, "CheckBox.foreground", TEXT, "RadioButton.background", BACK, "RadioButton.foreground", TEXT,
+			"CheckBox.icon", toggle(), "RadioButton.icon", ring(), "CheckBox.background", BACK, "CheckBox.foreground", TEXT, "RadioButton.background", BACK, "RadioButton.foreground", TEXT,
 			"TextField.background", DEEP, "TextField.foreground", TEXT, "TextField.caretForeground", TEXT, "TextField.selectionBackground", HOVER, "TextField.selectionForeground", Color.WHITE,
 			"PasswordField.background", DEEP, "PasswordField.foreground", TEXT, "PasswordField.caretForeground", TEXT,
 			"TextArea.background", DEEP, "TextArea.foreground", TEXT, "TextArea.selectionBackground", HOVER, "TextArea.selectionForeground", Color.WHITE,
@@ -190,6 +190,45 @@ public final class SteamLook {
 
 	/** For a component that should sit in the window as a card: the deep background and a thin line round it. */
 	/** A settings wheel, drawn (the fonts at hand don't all have one): eight teeth around a ring. */
+	/** A tick box drawn as a switch: green with its knob to the right when on, grey with it to the left when off. */
+	public static javax.swing.Icon toggle() {
+		return new javax.swing.Icon() {
+			@Override public int getIconWidth() { return 38; }
+			@Override public int getIconHeight() { return 20; }
+			@Override public void paintIcon(Component c, java.awt.Graphics g0, int x, int y) {
+				java.awt.Graphics2D g = (java.awt.Graphics2D) g0.create();
+				g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+				boolean on = c instanceof javax.swing.AbstractButton b && b.isSelected(), can = c.isEnabled();
+				g.setColor(!can ? new Color(0x2C3948) : on ? new Color(0x3FB950) : new Color(0x445262));
+				g.fill(new java.awt.geom.RoundRectangle2D.Double(x, y, 38, 20, 20, 20));
+				g.setColor(can ? Color.WHITE : new Color(0x6B7785));
+				g.fill(new java.awt.geom.Ellipse2D.Double(on ? x + 20.5 : x + 2.5, y + 2.5, 15, 15));
+				if (c.isFocusOwner()) { g.setColor(ACCENT); g.setStroke(new java.awt.BasicStroke(1.6f)); g.draw(new java.awt.geom.RoundRectangle2D.Double(x - 2, y - 2, 42, 24, 24, 24)); }
+				g.dispose();
+			}
+		};
+	}
+
+	/** A radio button drawn so the chosen one can't be missed: a bright ring with a filled middle; the others a dull ring. */
+	public static javax.swing.Icon ring() {
+		return new javax.swing.Icon() {
+			@Override public int getIconWidth() { return 20; }
+			@Override public int getIconHeight() { return 20; }
+			@Override public void paintIcon(Component c, java.awt.Graphics g0, int x, int y) {
+				java.awt.Graphics2D g = (java.awt.Graphics2D) g0.create();
+				g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+				g.setRenderingHint(java.awt.RenderingHints.KEY_STROKE_CONTROL, java.awt.RenderingHints.VALUE_STROKE_PURE);
+				boolean on = c instanceof javax.swing.AbstractButton b && b.isSelected(), can = c.isEnabled();
+				g.setColor(!can ? new Color(0x445262) : on ? ACCENT : new Color(0x7A8794));
+				g.setStroke(new java.awt.BasicStroke(on ? 2.2f : 1.6f));
+				g.draw(new java.awt.geom.Ellipse2D.Double(x + 2, y + 2, 16, 16));
+				if (on) g.fill(new java.awt.geom.Ellipse2D.Double(x + 6, y + 6, 8, 8));
+				if (c.isFocusOwner()) { g.setColor(GameShell.a(ACCENT, 120)); g.setStroke(new java.awt.BasicStroke(1.4f)); g.draw(new java.awt.geom.Ellipse2D.Double(x - 1, y - 1, 22, 22)); }
+				g.dispose();
+			}
+		};
+	}
+
 	public static javax.swing.Icon gear(int size) {
 		return new javax.swing.Icon() {
 			@Override public int getIconWidth() { return size; }

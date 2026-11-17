@@ -1,3 +1,5 @@
+== 1.39.0 | 2026-11-17
+- The launcher has a new look, laid out like a game's menu: sections across the top, servers as cards, and a strip along the bottom that says what the buttons do (Gatehouse 3.6.0). Nothing in the pack's mods or settings changed.
 == 1.38.2 | 2026-11-17
 - Nothing changed in the pack or in how the program works: a test update, for watching a constellation update together (Gatehouse 3.5.2).
 == 1.38.1 | 2026-11-16

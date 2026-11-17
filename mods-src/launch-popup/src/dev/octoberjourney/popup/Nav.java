@@ -31,6 +31,8 @@ final class Nav {
 	private Nav() {}
 
 	private static boolean on;
+	/** What the bumpers (and Q and E) do: the window's sections, one back or one on. */
+	static volatile java.util.function.IntConsumer flip;
 
 	/** Marks a button as the one B / Select, Y or Start goes to. */
 	static void tag(JComponent c, String what) { c.putClientProperty("nav", what); }
@@ -40,9 +42,21 @@ final class Nav {
 		rightClickIsLeftClick();
 		if (on) return;
 		on = true;
-		Pad.start(word -> SwingUtilities.invokeLater(() -> act(word)));
+		Pad.start(word -> { dev.gatehouse.look.GameShell.pad(true); SwingUtilities.invokeLater(() -> act(word)); });
+		try { if (java.nio.file.Files.exists(java.nio.file.Path.of("/dev/input/js0"))) dev.gatehouse.look.GameShell.pad(true); } catch (RuntimeException ignored) {}   // (a Steam Deck: the controller's buttons from the start)
 		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
 			if (e.getID() != java.awt.event.KeyEvent.KEY_PRESSED || e.getModifiersEx() != 0) return false;
+			dev.gatehouse.look.GameShell.pad(false);
+			{   // (Q and E flip the sections, Esc goes back: unless something is being typed, or a question is open)
+				Component typing = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+				Window active = KeyboardFocusManager.getCurrentKeyboardFocusManager().getActiveWindow();
+				int key = e.getKeyCode();
+				if (active instanceof javax.swing.JFrame && !(typing instanceof JTextComponent || typing instanceof JTable || typing instanceof JComboBox)) {
+					if (key == java.awt.event.KeyEvent.VK_Q) { act("lb"); return true; }
+					if (key == java.awt.event.KeyEvent.VK_E) { act("rb"); return true; }
+					if (key == java.awt.event.KeyEvent.VK_ESCAPE) { act("b"); return true; }
+				}
+			}
 			Component fo = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
 			int k = e.getKeyCode();
 			String dir = k == java.awt.event.KeyEvent.VK_UP ? "up" : k == java.awt.event.KeyEvent.VK_DOWN ? "down" : k == java.awt.event.KeyEvent.VK_LEFT ? "left" : k == java.awt.event.KeyEvent.VK_RIGHT ? "right" : null;
@@ -92,7 +106,14 @@ final class Nav {
 				if (fo instanceof AbstractButton b && b.isEnabled()) b.doClick();
 				else if (fo instanceof JComboBox<?> cb) cb.setPopupVisible(!cb.isPopupVisible());
 			}
-			case "b", "back" -> { if (!select(w, "back")) selectByText(w, "Cancel", "No", "Close"); }
+			case "b", "back" -> {
+				// (a back button marked "navNow" is pressed at once; any other is only selected, for A to confirm)
+				for (Component c : stops(w)) if (c instanceof AbstractButton ab && "back".equals(ab.getClientProperty("nav")) && Boolean.TRUE.equals(ab.getClientProperty("navNow"))) { ab.doClick(); return; }
+				if (!select(w, "back")) selectByText(w, "Cancel", "No", "Close");
+			}
+			case "lb" -> { if (flip != null && w instanceof javax.swing.JFrame) flip.accept(-1); }
+			case "rb" -> { if (flip != null && w instanceof javax.swing.JFrame) flip.accept(1); }
+			case "x" -> select(w, "extra");
 			case "y" -> select(w, "restart");
 			case "start" -> select(w, "quit");
 			case "rt-down", "rt-up" -> {
