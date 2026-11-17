@@ -43,6 +43,7 @@ final class PanelUi {
 		JLabel said = new JLabel(" "); said.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		DefaultTableModel um = new DefaultTableModel(new Object[] {"Account", "Admin", "On", "May", "Last signed in", "Signed in now"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable ut = new JTable(um);
+		HostHelper.roomy(ut);
 		DefaultTableModel wm = new DefaultTableModel(new Object[] {"Device", "MAC address"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable wt = new JTable(wm);
 		List<Map<String, Object>> users = new ArrayList<>();

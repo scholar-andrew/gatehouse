@@ -646,7 +646,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   function drawDrafts() { var box = $("r-atts"); box.textContent = ""; drafts.forEach(function (a, i) { box.appendChild(attView(a, function () { drafts.splice(i, 1); drawDrafts(); if (assets) assets.delete(a.id).catch(function () {}); })); }); if (!drafts.length) box.appendChild(el("span", "meta", "None yet.")); }
   function saveReq(r) {
     if (!db) { say("Not saved: sign in to claude.ai to keep requests", true); return Promise.resolve(); }
-    var doc = {}; ["n", "ref", "category", "title", "description", "attachments", "status", "created", "updated", "reply", "added_in"].forEach(function (k) { if (r[k] !== undefined) doc[k] = r[k]; });
+    var doc = {}; ["n", "ref", "category", "title", "description", "attachments", "status", "created", "updated", "reply", "added_in", "answer", "answer_at"].forEach(function (k) { if (r[k] !== undefined) doc[k] = r[k]; });
     doc.updated = new Date().toISOString();
     reqs[r.id] = Object.assign({}, r, doc);
     say("Saving…");
@@ -695,7 +695,17 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       atts.appendChild(ab); atts.appendChild(pb); atts.appendChild(pick);
       c.appendChild(atts); c.appendChild(box);
     } else if ((r.attachments || []).length) c.appendChild(atts);
-    if (r.reply) { var rp = el("div", "reply"); rp.appendChild(el("b", null, "Claude")); rp.appendChild(document.createTextNode(String(r.reply))); c.appendChild(rp); }
+    if (r.reply) {
+      var rp = el("div", "reply"); rp.appendChild(el("b", null, "Claude")); rp.appendChild(document.createTextNode(String(r.reply))); c.appendChild(rp);
+      // (the owner's answer to it: saved as it is typed, read by Claude at the next pull)
+      var an = el("div", "note"), al = el("label", null, "Your answer to Claude"), at = el("textarea");
+      at.id = "ra-" + r.id; al.htmlFor = at.id; at.rows = 2; at.maxLength = 8000; at.value = r.answer || ""; at.placeholder = "What you want, or what Claude asked. It saves as you type.";
+      var atimer = null;
+      at.addEventListener("input", function () { clearTimeout(atimer); atimer = setTimeout(function () { saveReq(Object.assign({}, reqs[r.id], { answer: at.value, answer_at: new Date().toISOString() })); }, 900); });
+      an.appendChild(al); an.appendChild(at);
+      c.appendChild(an);
+      if (r.answer_at) c.appendChild(el("div", "meta", "Your answer saved " + new Date(r.answer_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })));
+    }
     c.appendChild(el("div", "meta", "Added " + (r.created ? new Date(r.created).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "") + (r.updated && r.updated !== r.created ? "  ·  changed " + new Date(r.updated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "")));
     return c;
   }
@@ -795,7 +805,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       // (copies: what the store hands back can't be written on)
       snap.docs.forEach(function (doc) { next[doc.id] = Object.assign({}, doc.data() || {}, { id: doc.id }); });
       reqs = next;
-      if (mode() === "requests" && document.activeElement && /^re-|^r-title$|^r-desc$/.test(document.activeElement.id || "")) { rcounts(); var mn = $("m-req-n"); return; }   // (not redrawn under the words being typed)
+      if (mode() === "requests" && document.activeElement && /^re-|^ra-|^r-title$|^r-desc$/.test(document.activeElement.id || "")) { rcounts(); var mn = $("m-req-n"); return; }   // (not redrawn under the words being typed)
       rrender();
     }, function (e) { rloaded = true; $("rempty").textContent = "The requests couldn't be loaded: " + ((e && e.message) || "the store didn't answer") + "."; });
     db.collection("results").onSnapshot(function (snap) {

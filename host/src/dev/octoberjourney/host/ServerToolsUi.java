@@ -336,6 +336,7 @@ final class ServerToolsUi {
 			tm.addRow(new Object[] {Boolean.TRUE.equals(t.get("enabled")), Json.str(t.get("name")), word(WHEN, Json.str(t.get("when"))), Json.str(t.get("at")), num(t.get("minutes")), word(WHO, Json.str(t.get("players"))), word(JOB, Json.str(t.get("job"))), String.join(" ; ", cmds)});
 		}
 		JTable tt = new JTable(tm);
+		HostHelper.roomy(tt);
 		tt.putClientProperty("terminateEditOnFocusLost", true);
 		tt.setRowHeight(24);
 		tt.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(new JComboBox<>(words(WHEN))));

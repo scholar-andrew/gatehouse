@@ -2281,7 +2281,35 @@ public final class HostHelper {
 	static volatile int iconMessages = 0;
 	static volatile boolean iconUpdate = false;
 	/** A panel that is as wide as the window it scrolls in, never wider: what doesn't fit is shortened, not pushed off the edge. */
-	static final class FitWidth extends JPanel implements javax.swing.Scrollable {
+	/** A page in a scroll pane: it fills the room there is, and scrolls when there isn't enough (a small screen, such
+	 *  as the Steam Deck's), rather than running off the bottom of the window. */
+	static javax.swing.JScrollPane scrolled(java.awt.Component page) {
+		JPanel holder = new FitWidth(new BorderLayout()) {
+			@Override public boolean getScrollableTracksViewportHeight() { return getParent() instanceof javax.swing.JViewport v && v.getHeight() > getPreferredSize().height; }
+		};
+		holder.add(page, BorderLayout.CENTER);
+		javax.swing.JScrollPane sp = new javax.swing.JScrollPane(holder, javax.swing.JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		sp.setBorder(null); sp.getVerticalScrollBar().setUnitIncrement(16);
+		return sp;
+	}
+	/** A table whose columns keep room for their headings: when the window is too narrow for them all, it scrolls
+	 *  sideways instead of cutting every heading short; when there is room, the columns share it out as before. */
+	static void roomy(JTable t) {
+		java.awt.FontMetrics fm = t.getTableHeader().getFontMetrics(t.getTableHeader().getFont());
+		int[] want = new int[t.getColumnCount()];
+		for (int i = 0; i < want.length; i++) {
+			want[i] = Math.max(70, fm.stringWidth(String.valueOf(t.getColumnModel().getColumn(i).getHeaderValue())) + 26);
+			t.getColumnModel().getColumn(i).setPreferredWidth(Math.max(want[i], t.getColumnModel().getColumn(i).getPreferredWidth()));
+		}
+		Runnable fit = () -> {
+			if (!(t.getParent() instanceof javax.swing.JViewport v)) return;
+			int total = 0; for (int i = 0; i < t.getColumnCount(); i++) total += t.getColumnModel().getColumn(i).getPreferredWidth();
+			int mode = v.getWidth() >= total ? JTable.AUTO_RESIZE_SUBSEQUENT_COLUMNS : JTable.AUTO_RESIZE_OFF;
+			if (t.getAutoResizeMode() != mode) { t.setAutoResizeMode(mode); t.revalidate(); }
+		};
+		t.addHierarchyListener(e -> { if (t.getParent() instanceof javax.swing.JViewport v && v.getClientProperty("roomy") == null) { v.putClientProperty("roomy", Boolean.TRUE); v.addComponentListener(new java.awt.event.ComponentAdapter() { @Override public void componentResized(java.awt.event.ComponentEvent ev) { fit.run(); } }); fit.run(); } });
+	}
+	static class FitWidth extends JPanel implements javax.swing.Scrollable {
 		FitWidth(java.awt.LayoutManager l) { super(l); }
 		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
 		@Override public int getScrollableUnitIncrement(java.awt.Rectangle r, int o, int d) { return 16; }
@@ -2374,6 +2402,7 @@ public final class HostHelper {
 			String[] cols = {"Launcher", "Player", "Tailscale device", "System", "First seen", "Last seen", "Server control", "MCSS control", "Machine wake/sleep", "Gatekeeper control", "Controls the server", "Status", "Now"};
 			DefaultTableModel model = new DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable table = new JTable(model);
+			roomy(table);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			table.setRowHeight(24);
 			List<String> ids = new ArrayList<>();
@@ -2433,6 +2462,7 @@ public final class HostHelper {
 				@Override public Class<?> getColumnClass(int c) { return c == 1 ? Boolean.class : Object.class; }
 			};
 			JTable ptable = new JTable(pmodel);
+			roomy(ptable);
 			ptable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 			ptable.setRowHeight(24);
 			List<String> pnames = new ArrayList<>();
@@ -2622,6 +2652,7 @@ public final class HostHelper {
 			// Updates Pulled: each update a launcher fetched from this machine: who, when, what, and how big.
 			DefaultTableModel pullModel = new DefaultTableModel(new String[] {"When", "Launcher", "Player", "System", "Update", "Files", "Mods", "Size", "From this machine"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 			JTable pullTable = new JTable(pullModel);
+			roomy(pullTable);
 			pullTable.setRowHeight(26);
 			pullTable.getColumnModel().getColumn(0).setPreferredWidth(150); pullTable.getColumnModel().getColumn(4).setPreferredWidth(220);
 			javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
@@ -2882,8 +2913,8 @@ public final class HostHelper {
 				SwingUtilities.invokeLater(() -> { shareSaid.setText(msg); f.getRootPane().requestFocusInWindow(); loadSteps.run(); });
 			}, "name").start());
 			firstTabs.addTab("Host setup", hostSetup);
-			firstTabs.addTab("Web panel", PanelUi.tab(f));
-			firstTabs.addTab("Constellation", ConstellationUi.tab(f));
+			firstTabs.addTab("Web panel", scrolled(PanelUi.tab(f)));
+			firstTabs.addTab("Constellation", scrolled(ConstellationUi.tab(f)));
 			firstTabs.addTab("Chat", ChatUi.tab(f));   // (index 6: a page of the People section)
 			firstTabs.addChangeListener(ev -> { if (firstTabs.getSelectedIndex() == 3) loadSteps.run(); });
 			new javax.swing.Timer(5000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else if (firstTabs.getSelectedIndex() == 3 && hostSetup.isShowing()) loadSteps.run(); }).start();
@@ -3375,7 +3406,7 @@ public final class HostHelper {
 				boolean snat = "true".equals(w[2]);
 				panelServer = sid; inServer[0] = true; head.setText("Gatekeeper \u2013 " + snm); backB.setVisible(true);
 				while (tabs.getTabCount() > 3) tabs.removeTabAt(3);
-				tabs.addTab("Pack", PackUi.tab(f, "?server=" + sid));
+				tabs.addTab("Pack", scrolled(PackUi.tab(f, "?server=" + sid)));
 				if (snat && farUrl == null) ServerToolsUi.manageTabs(f, sid, true, tabs);
 				tabs.setSelectedIndex(which.equals("pack") ? 3 : which.equals("manage") && tabs.getTabCount() > 4 ? 4 : 0);
 				levels.show(stack, "server"); refresh.run();
@@ -3798,7 +3829,7 @@ public final class HostHelper {
 				front.setDaemon(true);
 				front.start();
 			}
-			if (System.getenv("OJ_PANEL_PNG") != null) f.setSize(1240, 800);
+			if (System.getenv("OJ_PANEL_PNG") != null) f.setSize(1280, 800);   // (the Steam Deck's screen in Game Mode)
 			dev.gatehouse.look.AppIcon.apply(f, true, 0, false);
 			if (System.getenv("OJ_PANEL_PNG") == null) {
 				java.awt.Rectangle scr = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();

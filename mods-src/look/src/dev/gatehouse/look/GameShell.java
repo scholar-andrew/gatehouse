@@ -40,6 +40,8 @@ import javax.swing.JPanel;
  * picked, and says back which one to light up.
  */
 public final class GameShell extends JPanel {
+	/** Gatehouse's own colour (its castle); Gatekeeper's is the blue accent. */
+	public static final Color GATEHOUSE = new Color(0xF5BE1E);
 	public static final Color BG0 = new Color(0x0D141D), BG1 = SteamLook.BACK, TEXT = new Color(0xE6EEF5), DIM = SteamLook.DIM, ACC = SteamLook.ACCENT, RED = new Color(0xE5484D);
 	private static volatile boolean pad;
 
@@ -350,7 +352,7 @@ public final class GameShell extends JPanel {
 				gate.moveTo(24, 48); gate.lineTo(24, 18); gate.lineTo(29, 18); gate.lineTo(29, 22); gate.lineTo(33, 22); gate.lineTo(33, 18); gate.lineTo(38, 18); gate.lineTo(38, 27);
 				gate.lineTo(46, 27); gate.lineTo(46, 18); gate.lineTo(51, 18); gate.lineTo(51, 22); gate.lineTo(55, 22); gate.lineTo(55, 18); gate.lineTo(60, 18); gate.lineTo(60, 48);
 				gate.lineTo(48, 48); gate.lineTo(48, 40); gate.curveTo(48, 32, 36, 32, 36, 40); gate.lineTo(36, 48); gate.closePath();
-				g.setColor(ACC); g.fill(gate);
+				g.setColor(shown.equals("GATEKEEPER") ? ACC : GATEHOUSE); g.fill(gate);
 				g.setFont(spaced(17f, 0.12f)); g.setColor(TEXT); g.drawString(shown, 72, 40);
 				g.dispose();
 			}

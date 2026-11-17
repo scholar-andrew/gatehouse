@@ -56,7 +56,7 @@ final class PackUi {
 	/** A server's pack in a window of its own: for any server, also one MC Server Soft runs (which has no Manage window). */
 	static void pack(javax.swing.JFrame f, String id, String name) {
 		javax.swing.JDialog d = new javax.swing.JDialog(f, name + ": pack", false);
-		d.setContentPane(tab(d, "?server=" + id));
+		d.setContentPane(HostHelper.scrolled(tab(d, "?server=" + id)));
 		d.pack(); d.setLocationRelativeTo(f); d.setVisible(true);
 	}
 

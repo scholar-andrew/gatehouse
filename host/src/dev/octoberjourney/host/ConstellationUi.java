@@ -53,6 +53,7 @@ final class ConstellationUi {
 		JLabel head = ServerToolsUi.note(ServerToolsUi.wrap("A constellation is a Gatekeeper and every client connected to it: its launchers, other Gatekeepers that have joined it, and their launchers. Normal: updates when Update is pressed there. Auto: updates itself as soon as it sees a new version. Constellation: waits for the group and updates with it. Each client's mode is chosen in its own Options.", 900));
 		DefaultTableModel model = new DefaultTableModel(new Object[] {"Client", "Kind", "Player", "System", "Version", "Update mode", "Now", "In this constellation"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(model);
+		HostHelper.roomy(table);
 		table.setRowHeight(24);
 		List<String[]> rowIds = new ArrayList<>();   // {its id here (a Gatekeeper that joined or asked), how it stands} per row
 		JLabel said = new JLabel(" "), did = new JLabel(" "), leadSaid = new JLabel(" ");

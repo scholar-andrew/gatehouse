@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.20.0",
+ "version": "3.20.1",
  "changes": [
+  {"version": "3.20.1", "date": "2026-11-17", "notes": [
+   "Gatehouse's castle is yellow-orange, at the top left of its windows and in its window and taskbar icon; Gatekeeper's is blue.",
+   "Fixed: the panel beside the server cards cut its words off at the right, under its own scroll bar. It wraps them now.",
+   "Options no longer repeats the setup guide, which is in the menu."
+  ]},
   {"version": "3.20.0", "date": "2026-11-17", "notes": [
    "Remove: an installed server's card has Remove. It asks first, then deletes the server's instance in Prism Launcher on this device (close Prism Launcher first). The server and its world aren't touched, and Install sets it up again.",
    "A server its Gatekeeper no longer has says so on its card, in red, with Remove beside it.",

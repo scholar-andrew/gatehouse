@@ -53,7 +53,7 @@ public final class AppIcon {
 		g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 		double k = size / 512.0;
 		boolean small = size < 40;
-		Color accent = keeper ? new Color(0xF0B429) : new Color(0x66C0F4), stone = new Color(0xE3EAF2), stoneDark = new Color(0xC6D2DF), ink = new Color(0x15202D);
+		Color accent = keeper ? new Color(0x66C0F4) : GameShell.GATEHOUSE, stone = new Color(0xE3EAF2), stoneDark = new Color(0xC6D2DF), ink = new Color(0x15202D);
 
 		// the tile
 		RoundRectangle2D tile = new RoundRectangle2D.Double(0, 0, size, size, 112 * k, 112 * k);

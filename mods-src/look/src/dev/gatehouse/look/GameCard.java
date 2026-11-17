@@ -49,7 +49,7 @@ public final class GameCard extends JPanel {
 			rows.setOpaque(false);
 			rows.setLayout(new javax.swing.BoxLayout(rows, javax.swing.BoxLayout.Y_AXIS));
 			// (in a window too short for all of it, it scrolls: nothing is cut off at the bottom)
-			JPanel holder = new JPanel(new java.awt.BorderLayout());
+			JPanel holder = new Fit();
 			holder.setOpaque(false);
 			holder.add(rows, java.awt.BorderLayout.NORTH);
 			javax.swing.JScrollPane sc = new javax.swing.JScrollPane(holder);
@@ -61,15 +61,24 @@ public final class GameCard extends JPanel {
 			setPreferredSize(new Dimension(340, 200));
 			clear();
 		}
-		private JLabel line(String text, float size, boolean bold, Color c, int above) {
-			JLabel l = new JLabel("<html><div style='width:" + 262 + "px'>" + text.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>");
+		private JComponent line(String text, float size, boolean bold, Color c, int above) {
+			javax.swing.JTextArea l = new javax.swing.JTextArea(text) {
+				@Override public Dimension getPreferredSize() {
+					java.awt.Container p = getParent();
+					int w = p == null ? 0 : p.getWidth() - p.getInsets().left - p.getInsets().right;
+					if (w > 0 && getWidth() != w) setSize(w, Short.MAX_VALUE);   // (so the height asked for is the wrapped one)
+					return super.getPreferredSize();
+				}
+			};
+			l.setEditable(false); l.setFocusable(false); l.setOpaque(false); l.setLineWrap(true); l.setWrapStyleWord(true);
 			l.setFont(GameShell.font(size, bold)); l.setForeground(c);
-			l.setBorder(javax.swing.BorderFactory.createEmptyBorder(above, 0, 0, 0));
+			l.setBorder(javax.swing.BorderFactory.createEmptyBorder(above, 0, 0, 4));
 			l.setAlignmentX(Component.LEFT_ALIGNMENT);
 			return l;
 		}
 		public void clear() { showing = null; rows.removeAll(); rows.add(line("Move to a server to see more about it here.", 13f, false, GameShell.DIM, 0)); rows.revalidate(); repaint(); }
 		public void show(GameCard card) {
+			javax.swing.SwingUtilities.invokeLater(() -> { rows.revalidate(); rows.repaint(); });   // (measured again once it has its width)
 			showing = card;
 			rows.removeAll();
 			rows.add(line(card.name.getText() == null ? "" : card.name.getText(), 20f, true, GameShell.TEXT, 0));
@@ -89,6 +98,15 @@ public final class GameCard extends JPanel {
 		}
 	}
 
+	/** A panel as wide as the place that shows it (less its scroll bar), so the words in it wrap rather than go under the bar. */
+	private static final class Fit extends JPanel implements javax.swing.Scrollable {
+		Fit() { super(new java.awt.BorderLayout()); }
+		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+		@Override public int getScrollableUnitIncrement(java.awt.Rectangle r, int o, int d) { return 16; }
+		@Override public int getScrollableBlockIncrement(java.awt.Rectangle r, int o, int d) { return 96; }
+		@Override public boolean getScrollableTracksViewportWidth() { return true; }
+		@Override public boolean getScrollableTracksViewportHeight() { return false; }
+	}
 	/** A label whose words wrap inside whatever width the card gives it. */
 	private static final class Wrapped extends JLabel {
 		@Override public void setText(String t) { String s = t == null ? "" : t; super.setText(s.startsWith("<html>") ? s : "<html>" + s.replace("&", "&amp;").replace("<", "&lt;") + "</html>"); }

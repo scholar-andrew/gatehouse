@@ -672,12 +672,6 @@ final class Home {
 			optLine.accept("About", true);
 			optLine.accept(LaunchPopup.TOOL + " " + Notes.version(Notes.own()) + ". " + (byItself ? "Installed by itself, in " + Notes.app(instances) + "." : "It came with a pack installed in Prism Launcher on this device.")
 					+ " " + packs.size() + (packs.size() == 1 ? " server is" : " servers are") + " installed here.", false);
-			optLine.accept("Setup guide", true);
-			optLine.accept("The steps from a device with nothing set up to playing on a server, each with a check for whether it's done.", false);
-			JButton guideB = new JButton("Open the setup guide");
-			JPanel guideRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
-			guideRow.add(guideB); guideRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-			options.add(guideRow);
 			Runnable[] openGuide = {null};
 			java.util.function.Supplier<String>[] firstKeeper = new java.util.function.Supplier[] {() -> {
 				String last = LaunchPopup.readFile(home.resolve("last-keeper.txt")).trim();
