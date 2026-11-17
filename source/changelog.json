@@ -1,4 +1,7 @@
 [
+ {"version": "1.29.0", "date": "2026-11-16", "notes": [
+  "Nothing changed in the pack itself, or in the Gatehouse launcher. Where Gatekeeper runs the servers itself, it can now make a Minecraft server from nothing and has a console, settings, backups and scheduled tasks for each (Gatekeeper 2.7.0)."
+ ]},
  {"version": "1.28.0", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack itself, or in the Gatehouse launcher. Gatekeeper can now run Minecraft servers itself, without MC Server Soft, which is what hosting on Linux and SteamOS needs (Gatekeeper 2.6.0)."
  ]},

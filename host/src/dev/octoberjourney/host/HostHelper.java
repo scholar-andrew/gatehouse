@@ -327,7 +327,7 @@ public final class HostHelper {
 			if (!WIN) add.accept(new String[] {"MC Server Soft", "na", "MCSS is Windows only, so Gatekeeper runs the Minecraft servers itself here."});
 			Path all = Path.of(serversDir());
 			if (Files.isDirectory(all)) add.accept(new String[] {"The servers folder is found", "ok", all.toString()});
-			else add.accept(new String[] {"The servers folder is found", "todo", "There's no folder at " + all + ".", "Make that folder, and inside it one folder per server with the server's program in it (server.jar from minecraft.net/download/server, or what Fabric's or Forge's installer makes). Another place: Servers tab, Server setup."});
+			else add.accept(new String[] {"The servers folder is found", "todo", "There's no folder at " + all + ".", "New server (first screen) makes that folder and a server in it. Servers you already have: put each in a folder of its own inside it, or point Server setup at where they are."});
 			List<String> cant = new ArrayList<>();
 			for (Object o : servers()) { String why = DirectHost.blocker(Json.map(o)); if (!why.isEmpty()) cant.add(Json.str(Json.map(o).get("name")) + ": " + why); }
 			if (!servers().isEmpty()) {
@@ -791,6 +791,9 @@ public final class HostHelper {
 		local.createContext("/admin/", HostHelper::admin);
 		local.start();
 		bindRemote();
+		// (for the servers Gatekeeper runs itself: their tasks by the clock, and the ones set to start with it)
+		ServerTools.schedule();
+		ServerTools.autostart();
 	}
 
 	static volatile HttpServer remote;
@@ -836,7 +839,7 @@ public final class HostHelper {
 			String folder = exe.isEmpty() ? serversDir() : exe, trouble = "";
 			List<Object> have = new ArrayList<>();
 			List<Path> dirs = new ArrayList<>();
-			if (!Files.isDirectory(Path.of(folder))) trouble = "There's no folder at " + folder + " yet. Make it, and inside it one folder per server with the server's program in it (server.jar from minecraft.net/download/server, or what Fabric's or Forge's installer makes); or Browse to where your servers are.";
+			if (!Files.isDirectory(Path.of(folder))) trouble = "There's no folder at " + folder + " yet. New server (on Gatekeeper's first screen) makes it, with a server in it; or Browse to where your servers already are.";
 			else try (java.util.stream.Stream<Path> s = Files.list(Path.of(folder))) { s.filter(p -> Files.isDirectory(p) && DirectHost.looksLikeServer(p)).sorted().forEach(dirs::add); }
 			catch (IOException e) { trouble = "That folder can't be read."; }
 			for (Path d : dirs) {
@@ -1968,7 +1971,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
@@ -2011,8 +2014,8 @@ public final class HostHelper {
 		if (builtin()) add.apply(new Object[] {"mcss", "Install MC Server Soft", "na", "MC Server Soft is a Windows program, and Gatekeeper is set to do without it: on this machine Gatekeeper runs the Minecraft servers itself. There is nothing to install for this step.", noMcssShort().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
 		else add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo", "MC Server Soft (MCSS) is the program that runs the Minecraft servers. Download it from its site and unpack it somewhere permanent, for example " + say("C:\\Minecraft\\MCSS", "an MCSS folder in your home folder (this machine needs MCSS's Linux build)") + ". It has no installer: the folder is the program.\n\nIf Gatekeeper doesn't find it by itself, use Server setup and Browse to " + mcssFile() + ".\n\nThis step is done when Gatekeeper knows where " + mcssFile() + " is.", mcss ? exe : "",
 				"Open MCSS's site", "open:https://www.mcserversoft.com/", "Server setup\u2026", "setup"});
-		if (builtin()) add.apply(new Object[] {"mcss_server", "Make a server", inMcss > 0 ? "ok" : "todo", "A server is a folder with the server's program in it. Gatekeeper looks for servers in " + serversDir() + ": make that folder, and inside it a folder for your server, named as you like.\n\nPut the server's program in it. For the plain game that is server.jar from Minecraft's own download page. For mods, run Fabric's or Forge's server installer into that folder instead.\n\nGatekeeper downloads nothing itself. This step is done when it finds at least one server folder; Server setup can look somewhere else.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server folder" : " server folders") + " in " + serversDir() : mcss ? "No server folders in " + serversDir() + " yet" : "There's no folder at " + serversDir() + " yet",
-				"Open Minecraft's server download page", "open:https://www.minecraft.net/download/server", "Server setup\u2026", "setup"});
+		if (builtin()) add.apply(new Object[] {"mcss_server", "Make a server", inMcss > 0 ? "ok" : "todo", "Press New server: give it a name, pick its kind (Vanilla is the plain game; Paper takes plugins; Fabric and Forge take mods) and the Minecraft version, and Gatekeeper fetches the server's program from its makers, checks it and sets it up in a folder of its own in " + serversDir() + ". It asks you to agree to Minecraft's EULA, which is yours to do.\n\nA server you already have: put its folder in there instead (or point Server setup at where it is).\n\nThis step is done when there is at least one server folder.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server folder" : " server folders") + " in " + serversDir() : mcss ? "No server folders in " + serversDir() + " yet" : "There's no folder at " + serversDir() + " yet",
+				"New server\u2026", "newserver", "Server setup\u2026", "setup"});
 		else add.apply(new Object[] {"mcss_server", "Make a server in MCSS", !mcss ? "wait" : inMcss > 0 ? "ok" : "todo", "In MCSS: Add Server, give it a name, pick the server type and Minecraft version (Vanilla is the plain game; Fabric or Forge are for mods), and create it. Start it once in MCSS and accept Minecraft's EULA when asked, so its files are made, then stop it again.\n\nThis step is done when MCSS has at least one server.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server" : " servers") + " in MCSS" : ""});
 		if (builtin()) add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", "na", "Gatekeeper runs the servers itself on this machine, so there is no MCSS web API to turn on.", noMcssShort().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
 		else add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo", "Gatekeeper talks to MCSS through MCSS's own web API, on this machine only. In MCSS: Options, then Web API (or Web Panel), switch it on, and leave the port at 25560. MCSS has to be running for this.\n\nThis step is done when MCSS answers on that port.", api ? "MCSS answers" : mcss ? "No answer on " + setting("mcss_panel", "http://127.0.0.1:25560").replaceFirst("^https?://", "") + " (is MCSS running?)" : ""});
@@ -2021,7 +2024,7 @@ public final class HostHelper {
 				"Server setup\u2026", "setup"});
 		if (builtin()) {
 			add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", "na", "Gatekeeper runs the servers itself on this machine, so there is nothing to sign in to.", noMcssShort().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
-			add.apply(new Object[] {"eula", "Accept Minecraft's EULA", !chosen.equals("ok") ? "wait" : st.apply("Each server can be started", "todo"), "Minecraft's server won't run until you have accepted Minecraft's End User Licence Agreement, and that is yours to do: Gatekeeper never accepts it for you.\n\nRead it, then open the file eula.txt in the server's folder (make it if it isn't there) and put this line in it: eula=true\n\nThis step is done when every chosen server has its program and its EULA accepted.", dt.apply("Each server can be started"),
+			add.apply(new Object[] {"eula", "Accept Minecraft's EULA", !chosen.equals("ok") ? "wait" : st.apply("Each server can be started", "todo"), "Minecraft's server won't run until you have accepted Minecraft's End User Licence Agreement, and that is yours to do: Gatekeeper never accepts it for you.\n\nA server made with New server has it already, because you ticked the box there. For one you brought yourself: read the EULA, then tick the box under Manage, Settings (or put the line eula=true in eula.txt in the server's folder).\n\nThis step is done when every chosen server has its program and its EULA accepted.", dt.apply("Each server can be started"),
 					"Open Minecraft's EULA", "open:https://aka.ms/MinecraftEULA"});
 		} else add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", !chosen.equals("ok") || !api ? "wait" : st.apply("Gatekeeper can use MCSS", "todo"), "Gatekeeper needs MCSS's permission to start and stop servers. Go to Servers, open one of your servers, and on its Server Status tab choose Sign in to MCSS. You sign in once with your MCSS web panel user; Gatekeeper then makes a key of its own and your password isn't kept.\n\nThis step is done when Gatekeeper has a key that MCSS accepts.", dt.apply("Gatekeeper can use MCSS"),
 				"Go to Servers", "servers"});
@@ -2713,6 +2716,7 @@ public final class HostHelper {
 			}, id -> {
 				if (id.startsWith("open:")) { try { java.awt.Desktop.getDesktop().browse(java.net.URI.create(id.substring(5))); } catch (Exception ignored) {} }
 				else if (id.equals("setup")) setupB.doClick();
+				else if (id.equals("newserver")) ServerToolsUi.newServer(f, null);
 				else if (id.equals("pairing")) pairB.doClick();
 				else if (id.equals("hostsetup")) { leaveGuide.run(); firstTabs.setSelectedIndex(3); }
 				else if (id.equals("servers")) { leaveGuide.run(); firstTabs.setSelectedIndex(0); }
@@ -2944,6 +2948,7 @@ public final class HostHelper {
 				r.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, 84));
 				return new Object[] {r, st, b};
 			};
+			@SuppressWarnings("unchecked") java.util.function.Consumer<Map<String, Object>>[] fillOverviewRef = new java.util.function.Consumer[1];
 			java.util.function.Consumer<Map<String, Object>> fillOverview = r -> {
 				overList.removeAll();
 				JLabel h1 = new JLabel(builtin() ? "What runs the servers" : "MCSS on this machine"); h1.setFont(h1.getFont().deriveFont(Font.BOLD, 14f)); h1.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0)); h1.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
@@ -2971,15 +2976,26 @@ public final class HostHelper {
 					((JButton) sr[2]).setToolTipText("Access Manager, Server Status and Updates Pulled for this server");
 					String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
 					((JButton) sr[2]).addActionListener(ev -> { panelServer = id; inServer[0] = true; head.setText("Gatekeeper \u2013 " + nm); backB.setVisible(true); levels.show(stack, "server"); refresh.run(); });
+					JButton manageB = new JButton("Manage\u2026");
+					manageB.setEnabled(builtin());
+					manageB.setToolTipText(builtin() ? "Its console, settings, game settings, backups and scheduled tasks" : ServerTools.HERE_MCSS);
+					manageB.addActionListener(ev -> ServerToolsUi.manage(f, id, nm));
+					((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(manageB);
 					overList.add((JPanel) sr[0]); overList.add(javax.swing.Box.createVerticalStrut(8));
 				}
 				JButton setupHere = new JButton("Server setup…");
 				setupHere.setToolTipText("Which MCSS and which of its servers Gatekeeper looks after, and this machine's Tailscale address");
 				setupHere.addActionListener(ev -> setup.run());
-				JPanel setupLine = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8)); setupLine.add(setupHere); setupLine.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				JButton newHere = new JButton("New server\u2026");
+				newHere.setEnabled(builtin());
+				newHere.setToolTipText(builtin() ? "Makes a Minecraft server from nothing: Gatekeeper fetches its program and sets it up" : ServerTools.HERE_MCSS);
+				newHere.addActionListener(ev -> ServerToolsUi.newServer(f, () -> new Thread(() -> { try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); }); } catch (Exception ignored) {} }, "overview").start()));
+				JPanel setupLine = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 8)); setupLine.add(newHere); setupLine.add(setupHere); setupLine.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+				if (!builtin()) { JLabel inMcss = new JLabel("New server and Manage: done in MC Server Soft here"); inMcss.setForeground(new Color(0x8F98A0)); setupLine.add(inMcss); }
 				overList.add(setupLine);
 				overList.revalidate(); overList.repaint();
 			};
+			fillOverviewRef[0] = fillOverview;
 			Runnable loadOverview = () -> new Thread(() -> {
 				try { Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/overview", null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverview.accept(r); }); } catch (Exception ignored) {}
 			}, "overview").start();
@@ -3209,6 +3225,7 @@ public final class HostHelper {
 							javax.imageio.ImageIO.write(img, "png", new java.io.File(shot + (i == 0 ? "-access.png" : i == 1 ? "-players.png" : "-status.png")));
 						}
 					} catch (IOException ex) { ex.printStackTrace(); }
+					ServerToolsUi.shots(shot, serverIds.isEmpty() ? "" : serverIds.get(0));
 					System.exit(0);
 				});
 				once.setRepeats(false);

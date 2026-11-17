@@ -127,7 +127,31 @@ are `ServerHost`). What it does:
   Sign in, Set key, the MCSS control permission, and the guide's `mcss`, `mcss_api` and `mcss_key` steps (state
   `na`). The guide gains `eula`. Launchers still show an MCSS line; its buttons answer with the same words.
 
-Tested with a stand-in for a Minecraft server (`FakeServer` in the test scratch folder): start, the Done line,
+**Making and managing those servers (`ServerTools`, `ServerToolsUi`).** What MCSS does for its servers, for the
+ones `DirectHost` runs; every call is `/admin/tools/...` and is refused (with "MCSS does this here") under `McssHost`.
+
+- **New server** (`/admin/tools/new`): `vanilla` from Mojang's version list (SHA-1 checked), `paper` from PaperMC's
+  `fill.papermc.io/v3` (SHA-256 checked), `fabric` from `meta.fabricmc.net` (its server launcher; no checksum is
+  published), `forge` (an installer the owner picked, run with `--installServer`), `file` (a jar the owner picked).
+  It runs in the background (`making` says how far it is); a failure removes the folder it made. Refused without
+  the owner's EULA tick; `eula.txt` is written only with it. Java: the one chosen, else the lowest found that the
+  version's `javaVersion.majorVersion` allows (found by the `release` file in each Java's folder; none is installed).
+  `source_mojang`, `source_fabric`, `source_paper` in `host.json` replace the three lists (the tests' stand-in).
+- **A server's entry in `host.json`** holds its settings: `memory`, `java`, `start`, `autostart`, `keep_online`
+  (`crash`: started again when it ends unasked, at most three times in ten minutes), `backup_what` (`world`/`all`),
+  `backup_keep`, `backup_dir`, `tasks`.
+- **Console**: `DirectHost.Run.lines` keeps the newest 2000 lines; `/admin/tools/console` hands out what is new since
+  a line number. `restart()` stops and starts again; `kill()` ends it at once.
+- **Forge/NeoForge** are started as `<java> -Xmx<memory> @user_jvm_args.txt @libraries/.../win_args.txt|unix_args.txt
+  nogui` when that file exists (before `run.sh`), so the chosen Java and memory apply and Windows needs no `run.bat`.
+- **Backups**: `save-off`, `save-all flush`, wait for "Saved the game" (up to a minute), zip, `save-on`. A server
+  whose console was lost has to be stopped first. Only zips named `backup_*.zip` in the backup folder are pruned.
+- **Tasks**: checked every 20 seconds while Gatekeeper runs; `daily` at `HH:MM`, `every` N minutes (counted from when
+  the list was saved or Gatekeeper started), or `manual`.
+- **Not replicated**: MCSS's web panel, API keys and users, Bedrock and proxy server types, plugin management.
+
+Tested with a stand-in for a Minecraft server (`FakeServer` in the test scratch folder), and for making servers a
+stand-in download source and installer: start, the Done line,
 console commands, stop, a failed start, and a Gatekeeper ending and a new one taking the server over. Not yet with
 a real Minecraft server, and not on real Linux.
 

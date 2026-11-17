@@ -44,9 +44,16 @@ final class DirectHost implements ServerHost {
 	static final class Run {
 		Process process;
 		OutputStream console;
-		volatile boolean ready, stopping;
+		volatile boolean ready, stopping, restart;
 		final java.util.ArrayDeque<String> last = new java.util.ArrayDeque<>();
+		/** What it has printed (the newest 2000 lines), and how many lines it has printed in all. */
+		final java.util.ArrayDeque<String> lines = new java.util.ArrayDeque<>();
+		long printed;
+		final long started = System.currentTimeMillis();
+		long cpuNanos = -1, cpuAt;
 	}
+	/** When servers that ended unasked were started again (crash handling), so a server that can't stay up isn't started for ever. */
+	static final Map<String, List<Long>> revived = new ConcurrentHashMap<>();
 	static final Map<String, Run> runs = new ConcurrentHashMap<>();
 
 	private static String id() { return Json.str(server().get("id")); }
@@ -81,20 +88,37 @@ final class DirectHost implements ServerHost {
 		Path d = Path.of(Json.str(s.get("dir")));
 		String custom = Json.str(s.get("start"));
 		if (!custom.isEmpty()) return WIN ? List.of("cmd", "/c", custom) : List.of("sh", "-c", custom);
-		if (!WIN && Files.isRegularFile(d.resolve("run.sh"))) return List.of("sh", "run.sh", "nogui");
-		Path jar = serverJar(d);
-		if (jar == null) return null;
 		String java = Json.str(s.get("java")), memory = Json.str(s.get("memory"));
 		if (java.isEmpty()) java = setting("server_java", ProcessHandle.current().info().command().orElse("java"));
 		if (memory.isEmpty()) memory = setting("server_memory", "4G");
+		// (what Forge's and NeoForge's installers make: a list of arguments for Java, which run.sh / run.bat hand it)
+		Path args = modArgs(d);
+		if (args != null) {
+			List<String> cmd = new ArrayList<>(List.of(java, "-Xmx" + memory));
+			if (Files.isRegularFile(d.resolve("user_jvm_args.txt"))) cmd.add("@user_jvm_args.txt");
+			cmd.add("@" + d.relativize(args).toString().replace('\\', '/'));
+			cmd.add("nogui");
+			return cmd;
+		}
+		if (!WIN && Files.isRegularFile(d.resolve("run.sh"))) return List.of("sh", "run.sh", "nogui");
+		Path jar = serverJar(d);
+		if (jar == null) return null;
 		return List.of(java, "-Xmx" + memory, "-jar", jar.getFileName().toString(), "nogui");
+	}
+	/** Forge's or NeoForge's argument file for this system (libraries/.../win_args.txt or unix_args.txt), or null. */
+	static Path modArgs(Path d) {
+		Path lib = d.resolve("libraries");
+		if (!Files.isDirectory(lib)) return null;
+		String want = WIN ? "win_args.txt" : "unix_args.txt";
+		try (java.util.stream.Stream<Path> s = Files.walk(lib, 6)) { return s.filter(p -> p.getFileName().toString().equals(want)).sorted(java.util.Comparator.reverseOrder()).findFirst().orElse(null); }
+		catch (IOException | RuntimeException e) { return null; }
 	}
 	/** Why one of host.json's servers can't be started as it stands, or "" when it can. */
 	static String blocker(Map<String, Object> s) {
 		Path d = Path.of(Json.str(s.get("dir")));
 		if (!Files.isDirectory(d)) return "its folder is gone (" + d + ")";
-		if (launch(s) == null) return "there is no server program in " + d + " (put the server's jar there: server.jar from minecraft.net/download/server, or what Fabric's or Forge's installer makes)";
-		if (!eulaAccepted(d)) return "Minecraft's EULA isn't accepted for it yet: read it (aka.ms/MinecraftEULA), then put the line eula=true in " + d.resolve("eula.txt");
+		if (launch(s) == null) return "there is no server program in " + d + " (New server in Gatekeeper makes one; or put the server's jar there yourself)";
+		if (!eulaAccepted(d)) return "Minecraft's EULA isn't accepted for it yet: read it (aka.ms/MinecraftEULA), then put the line eula=true in " + d.resolve("eula.txt") + " (or tick the box in Manage, Settings)";
 		return "";
 	}
 
@@ -170,20 +194,64 @@ final class DirectHost implements ServerHost {
 			for (String line; (line = in.readLine()) != null; ) {
 				if (line.contains("Done (") && line.contains("For help")) r.ready = true;
 				synchronized (r.last) { r.last.addLast(line); if (r.last.size() > 6) r.last.removeFirst(); }
+				synchronized (r.lines) { r.lines.addLast(line); r.printed++; if (r.lines.size() > 2000) r.lines.removeFirst(); }
 			}
 		} catch (IOException ignored) {}
 		int code = -1;
 		try { code = r.process.waitFor(); } catch (InterruptedException ignored) {}
 		runs.remove(id, r);
+		ended.put(id, r);
 		try { Files.deleteIfExists(pidFile(d)); } catch (IOException ignored) {}
 		if (!r.stopping) { met(awaitedAs); phaseSeen.clear(); }   // (it is off, whatever was being waited for)
 		String said;
 		synchronized (r.last) { said = String.join(" / ", r.last); }
 		log(name + (r.stopping ? " stopped" : r.ready ? " ended without being asked to" : " ended before it had finished starting") + " (exit code " + code + ")"
 				+ (r.stopping ? "" : ". The last it said: " + (said.isEmpty() ? "nothing" : said)));
+		// Started again: because a restart was asked for, or (crash handling) because it ended unasked and this server
+		// is set to be kept on. Not more than three times in ten minutes: a server that can't stay up is left off.
+		boolean again = r.restart;
+		if (!again && !r.stopping) {
+			String keep = "";
+			for (Object o : servers()) if (id.equals(Json.str(Json.map(o).get("id")))) keep = Json.str(Json.map(o).get("keep_online"));
+			if (keep.equals("crash")) {
+				List<Long> when = revived.computeIfAbsent(id, k -> new java.util.concurrent.CopyOnWriteArrayList<>());
+				when.removeIf(t -> t < System.currentTimeMillis() - 600_000);
+				if (when.size() >= 3) log(name + " has ended three times in ten minutes: Gatekeeper leaves it off (Manage, Console shows what it said)");
+				else { when.add(System.currentTimeMillis()); again = true; log(name + " ended unasked and is set to be kept on: starting it again"); }
+			}
+		}
+		if (again) {
+			try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+			SERVER.set(id);
+			String[] s = startServerFully(r.restart ? "a restart" : "crash handling");
+			log("start " + name + " again: " + s[1]);
+		}
+	}
+	/** The last run of each server that has ended (so what it said can still be read). */
+	static final Map<String, Run> ended = new ConcurrentHashMap<>();
+	/** The run whose console the current server has (alive), or null. */
+	static Run run(String id) { Run r = runs.get(id); return r != null && r.process.isAlive() ? r : null; }
+
+	/** Stop, then start again once it has stopped. */
+	static String[] restart() {
+		Run r = run(id());
+		if (r == null) return adopted(serverDir()) != null ? new String[] {"refused", serverName() + " was started before Gatekeeper last restarted, so Gatekeeper can't restart it: stop it from inside the game first"} : startServerFully("the owner");
+		r.restart = true; r.stopping = true;
+		String[] t = type(r, "stop");
+		return t[0].equals("ok") ? new String[] {"ok", "Restart requested: the server saves the world, shuts down and starts again"} : t;
+	}
+	/** Ends it at once, without saving: for a server that no longer answers. */
+	static String[] kill() {
+		Run r = run(id());
+		ProcessHandle h = r != null ? r.process.toHandle() : adopted(serverDir());
+		if (h == null) return new String[] {"ok", "The server isn't running"};
+		if (r != null) { r.stopping = true; r.restart = false; }
+		h.descendants().forEach(ProcessHandle::destroyForcibly);
+		h.destroyForcibly();
+		return new String[] {"ok", "Ended at once. Anything it hadn't saved yet is lost."};
 	}
 
-	private static String[] type(Run r, String line) {
+	static String[] type(Run r, String line) {
 		try { r.console.write((line + "\n").getBytes(StandardCharsets.UTF_8)); r.console.flush(); return new String[] {"ok", "sent"}; }
 		catch (IOException e) { return new String[] {"failed", "The server's console didn't take it: " + e.getMessage()}; }
 	}

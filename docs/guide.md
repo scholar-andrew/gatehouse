@@ -171,28 +171,47 @@ The steps on Windows (Linux and SteamOS differ in steps 4 to 8: see [below](#on-
 
 ### On Linux and SteamOS: the servers
 
-There is no MCSS on Linux, so Gatekeeper runs the servers itself. Steps 4 to 8 above become these (the MCSS steps
-stay in the guide, greyed and marked "Not supported on Linux"):
+There is no MCSS on Linux, so Gatekeeper runs the servers itself, and does for them what MCSS does on Windows.
+Steps 4 to 8 above become these (the MCSS steps stay in the guide, greyed and marked "Not supported on Linux"):
 
-1. **Make a server.** Make a folder called `minecraft-servers` in your home folder, and inside it one folder per
-   server, named as you like. Put the server's program in it: `server.jar` from
-   [Minecraft's server download page](https://www.minecraft.net/download/server) for the plain game, or run Fabric's
-   or Forge's server installer into that folder for mods. Gatekeeper downloads nothing itself.
-2. **Choose the servers.** **Server setup** lists the server folders it found (Browse if yours are somewhere else).
-   Tick them and Save.
-3. **Accept Minecraft's EULA.** Read [the EULA](https://aka.ms/MinecraftEULA), then put the line `eula=true` in a
-   file called `eula.txt` in the server's folder. Gatekeeper never accepts it for you, and doesn't start a server
-   without it.
+1. **Make a server.** On Gatekeeper's first screen press **New server**. Give it a name, pick its kind and the
+   Minecraft version, and press **Make the server**:
 
-Gatekeeper then starts a server with the Java it runs on itself and 4 GB of memory. To change that for a server,
-add `"java"` or `"memory"` (for example `"6G"`) to that server's entry in `host.json` in Gatekeeper's folder; a
-`"start"` entry replaces the whole command. A folder with a `run.sh` (Forge, NeoForge) is started with that.
+   | Kind | For | Where its program comes from |
+   |---|---|---|
+   | Vanilla | The plain game | Mojang, checked against Mojang's checksum |
+   | Paper | Plugins | PaperMC, checked against PaperMC's checksum |
+   | Fabric | Mods | Fabric (which publishes no checksum for it) |
+   | Forge or NeoForge | Mods | An installer you download yourself; Gatekeeper runs it |
+   | A server jar I already have | Anything else | A file you pick |
+
+   Gatekeeper finds a free port and a Java the version can run on. If no Java on the machine fits, it says which
+   one is needed; it doesn't install Java. Nothing is fetched until you press the button.
+2. **Agree to Minecraft's EULA.** New server has a box for it, with a button that opens
+   [the EULA](https://aka.ms/MinecraftEULA). That is yours to do: Gatekeeper makes no server without the tick, and
+   writes `eula.txt` only when you gave it.
+3. **A server you already have** goes in a folder of its own inside `minecraft-servers` in your home folder (or
+   point **Server setup** at where your servers are), then tick it in Server setup. Its EULA box is under
+   **Manage**, Settings.
+
+**Manage**, beside each server, is where the rest is:
+
+| Tab | What it has |
+|---|---|
+| Console | What the server prints, a line to type commands into, uptime, memory, processor and players, and Start/Stop, Restart and End it now |
+| Settings | Name, memory, port, which Java, an own start command, start with Gatekeeper, start again after a crash |
+| Game settings | The server's own `server.properties` (difficulty, game mode, how many may play...) |
+| Backups | A zip of the world or of the whole folder, keeping the newest few. With the server on, it is told to hold its saving still while the copy is made |
+| Tasks | Things done by the clock: restart, stop, start, back up or type commands, every day at a time or every so many minutes |
 
 Two things to know:
 
 - **Update Gatekeeper with the servers off.** A server's console belongs to the Gatekeeper that started it, so
   Gatekeeper won't update itself while one is on: stop it, update, start it again.
-- **The server's console is in Gatekeeper, not in a window.** Its output is in the server's own `logs/latest.log`.
+- **Tasks and crash handling need Gatekeeper running.** It is a background service, so it normally is.
+
+On Windows the same works without MCSS when `host.json` in Gatekeeper's folder says `"host": "builtin"`. With MCSS,
+New server and Manage are greyed: MCSS does those for its own servers.
 
 ### 3. Let players in
 
@@ -251,6 +270,7 @@ Gatekeeper where it would be, marked "Not supported on SteamOS" or "Not supporte
 | Seeing, starting and stopping servers | Yes, through MCSS | Yes, Gatekeeper runs them | Yes, Gatekeeper runs them |
 | MCSS's own controls (Start MCSS, Sign in, MCSS control) | Yes | Not supported | Not supported |
 | Updating while a server is on | Yes | Stop the server first | Stop the server first |
+| New server and Manage (console, settings, backups, tasks) in Gatekeeper | In MCSS instead | Yes | Yes |
 | Access Manager, Host setup, setup guide | Yes | Yes | Yes |
 | Starts when you sign in | Yes | Yes | Yes |
 | Updates itself | Yes | Yes | Yes |
