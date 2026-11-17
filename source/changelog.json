@@ -1,6 +1,6 @@
 [
  {"version": "1.36.0", "date": "2026-11-16", "notes": [
-  "Nothing changed in the pack itself. The program has three update modes (normal, auto, constellation), and Gatekeeper has a Constellation tab showing every connected client and its mode (Gatehouse 3.3.0)."
+  "Nothing changed in the pack itself. The program has three update modes (normal, auto, constellation), Gatekeeper has a Constellation tab showing every connected client and its mode, and Gatekeepers can join one constellation and update together (Gatehouse 3.3.0)."
  ]},
  {"version": "1.35.4", "date": "2026-11-16", "notes": [
   "Nothing changed in the pack or in how the program works: a test update, for trying out updating (Gatehouse 3.2.4)."
