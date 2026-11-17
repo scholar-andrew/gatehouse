@@ -1,7 +1,7 @@
 {
- "version": "3.18.0",
- "sha256": "b4946fa2b583584ea3db4cf3f2b463a091d42d7c5049c078a88e1ab9ecc0c2c4",
- "size": 1276965,
- "gatehouse": "3.18.0",
+ "version": "3.18.1",
+ "sha256": "97e2d5859224387c7ac465930d4217dad73909789a48c787d5f2d82747412de8",
+ "size": 1279983,
+ "gatehouse": "3.18.1",
  "needs": "3.13.0"
 }

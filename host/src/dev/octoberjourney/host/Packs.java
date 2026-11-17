@@ -309,7 +309,8 @@ final class Packs {
 					"mods", all, "deck_mods", deck, "own_mods", own, "switchable", toggles, "notes", log.isEmpty() ? new ArrayList<>() : Json.list(Json.map(log.get(0)).get("notes"))));
 		} catch (IOException | RuntimeException e) { out.put("message", "The pack's definition can't be read: " + e.getMessage()); }
 		Map<String, Object> art = new LinkedHashMap<>();
-		for (String slot : PackArt.SLOTS) art.put(slot, Files.isRegularFile(def(id).resolve("art").resolve(slot + ".png")) ? "chosen" : "made");
+		// (chosen: one the owner picked here; pack: the picture the pack came with; made: one Gatekeeper makes)
+		for (String slot : PackArt.SLOTS) art.put(slot, Files.isRegularFile(def(id).resolve("art").resolve(slot + ".chosen")) ? "chosen" : Files.isRegularFile(def(id).resolve("art").resolve(slot + ".png")) ? "pack" : "made");
 		out.putAll(m("art", art, "built_version", Json.str(i.get("version")), "built_at", Json.str(i.get("built_at")), "built_with", Json.str(i.get("gatehouse")), "said", Json.str(i.get("said"))));
 		return out;
 	}
@@ -342,11 +343,24 @@ final class Packs {
 			byte[] b;
 			try (InputStream in = x.getRequestBody()) { b = in.readNBytes(MAX_ART + 1); }
 			if (b.length > MAX_ART) { reply(x, 200, m("result", "refused", "message", "That file is too big for a picture.")); return true; }
-			if (b.length == 0) { Files.deleteIfExists(own); log("packs: " + Json.str(s.get("name")) + "'s " + PackArt.SLOTS[slot] + " picture for Steam went back to the made one"); reply(x, 200, m("result", "ok", "message", "Back to the one Gatekeeper makes. It goes out with the next build.")); return true; }
+			// A chosen picture is marked as one (<slot>.chosen), and the picture the pack came with is put aside the first
+			// time it is replaced (art-first), so undoing a choice gives back what was there, not a made one.
+			Path mark = own.resolveSibling(PackArt.SLOTS[slot] + ".chosen"), first = def(id).resolve("art-first").resolve(PackArt.SLOTS[slot] + ".png");
+			if (b.length == 0) {
+				if (!Files.isRegularFile(mark)) { reply(x, 200, m("result", "refused", "message", "This picture isn't one you chose, so there is no choice to undo.")); return true; }
+				Files.delete(mark);
+				boolean had = Files.isRegularFile(first);
+				if (had) Files.copy(first, own, java.nio.file.StandardCopyOption.REPLACE_EXISTING); else Files.deleteIfExists(own);
+				log("packs: " + Json.str(s.get("name")) + "'s " + PackArt.SLOTS[slot] + " picture for Steam went back to " + (had ? "the one the pack came with" : "the made one"));
+				reply(x, 200, m("result", "ok", "message", (had ? "Back to the picture the pack came with." : "Back to the one Gatekeeper makes.") + " It goes out with the next build."));
+				return true;
+			}
 			try {
 				byte[] png = PackArt.fit(b, slot);
 				Files.createDirectories(own.getParent());
+				if (Files.isRegularFile(own) && !Files.isRegularFile(mark) && !Files.isRegularFile(first)) { Files.createDirectories(first.getParent()); Files.copy(own, first); }
 				Files.write(own, png);
+				Files.writeString(mark, "chosen here\n", StandardCharsets.UTF_8);
 				log("packs: a " + PackArt.SLOTS[slot] + " picture for Steam was chosen for " + Json.str(s.get("name")));
 				reply(x, 200, m("result", "ok", "message", "Saved, at " + PackArt.SIZE[slot][0] + " x " + PackArt.SIZE[slot][1] + ". It goes out with the next build."));
 			} catch (IOException e) { reply(x, 200, m("result", "refused", "message", "That file isn't a picture this can read (PNG, JPEG, GIF and BMP are).")); }

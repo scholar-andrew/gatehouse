@@ -48,7 +48,16 @@ public final class GameCard extends JPanel {
 			setBorder(javax.swing.BorderFactory.createEmptyBorder(20, 22, 18, 22));
 			rows.setOpaque(false);
 			rows.setLayout(new javax.swing.BoxLayout(rows, javax.swing.BoxLayout.Y_AXIS));
-			add(rows, java.awt.BorderLayout.NORTH);
+			// (in a window too short for all of it, it scrolls: nothing is cut off at the bottom)
+			JPanel holder = new JPanel(new java.awt.BorderLayout());
+			holder.setOpaque(false);
+			holder.add(rows, java.awt.BorderLayout.NORTH);
+			javax.swing.JScrollPane sc = new javax.swing.JScrollPane(holder);
+			sc.setBorder(null);
+			sc.setHorizontalScrollBarPolicy(javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			sc.getVerticalScrollBar().setUnitIncrement(16);
+			GameShell.clear(sc);
+			add(sc, java.awt.BorderLayout.CENTER);
 			setPreferredSize(new Dimension(340, 200));
 			clear();
 		}

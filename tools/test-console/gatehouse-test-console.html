@@ -86,6 +86,8 @@ textarea, input[type="text"], select { background: var(--deep); color: var(--tex
 textarea { min-height: 44px; resize: vertical; }
 textarea:focus, input[type="text"]:focus, select:focus { border-color: var(--acc); outline: none; }
 .shots { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 2px; }
+.paste { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.paste input { flex: 1 1 220px; border-style: dashed; border-color: var(--acc); }
 .shot { position: relative; }
 .shot img { height: 72px; width: auto; max-width: 150px; border-radius: 6px; border: 1px solid var(--line); display: block; }
 .shot button { position: absolute; top: -7px; right: -7px; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: var(--deep); color: var(--text); font: 700 12px var(--ui); cursor: pointer; line-height: 1; }
@@ -275,16 +277,37 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       results[kk] = Object.assign({}, res(it, d), { note: k.ta.value });
       clearTimeout(timers[kk]); timers[kk] = setTimeout(function () { save(it, d); }, 900);
     });
-    k.ta.addEventListener("paste", function (ev) { var fs = ev.clipboardData && ev.clipboardData.files; if (assets && fs && fs.length && /^image\//.test(fs[0].type)) { ev.preventDefault(); addShot(id, fs[0]); } });
+    c.addEventListener("paste", function (ev) {
+      var f = pictureIn(ev);
+      if (f) { ev.preventDefault(); ev.stopPropagation(); addShot(id, f); k.paste.hidden = true; k.pasteIn.value = ""; }
+      else if (ev.target === k.pasteIn) { ev.preventDefault(); say("What you pasted isn't a picture. Copy the picture itself (a screenshot, or Copy image), then paste again.", true); }
+    });
     k.note.appendChild(k.lab); k.note.appendChild(k.ta);
     k.shots = el("div", "shots full");
     k.pick = el("input"); k.pick.type = "file"; k.pick.accept = "image/*"; k.pick.hidden = true; k.pick.id = "f-" + id;
     k.pick.addEventListener("change", function () { if (k.pick.files && k.pick.files[0]) addShot(id, k.pick.files[0]); k.pick.value = ""; });
+    // Pasting from the clipboard. A page here can't read the clipboard by itself, only take what you paste into
+    // it, so the button opens a small box to paste into: Ctrl+V, or press and hold then Paste on a phone.
+    k.paste = el("div", "paste full"); k.paste.hidden = true;
+    k.pasteIn = el("input"); k.pasteIn.type = "text"; k.pasteIn.id = "p-" + id; k.pasteIn.autocomplete = "off";
+    k.pasteIn.placeholder = "Paste here: Ctrl+V, or press and hold, then Paste";
+    k.pasteIn.setAttribute("aria-label", "Paste a picture here");
+    k.pasteIn.addEventListener("input", function () { k.pasteIn.value = ""; });
+    var pasteNo = el("button", "btn quiet", "Cancel"); pasteNo.type = "button"; pasteNo.addEventListener("click", function () { k.paste.hidden = true; });
+    k.paste.appendChild(k.pasteIn); k.paste.appendChild(pasteNo);
     k.past = el("div", "past full");
     k.meta = el("div", "meta full");
-    [left, side, k.reply, k.devs, k.out, k.note, k.shots, k.pick, k.past, k.meta].forEach(function (n) { c.appendChild(n); });
+    [left, side, k.reply, k.devs, k.out, k.note, k.shots, k.paste, k.pick, k.past, k.meta].forEach(function (n) { c.appendChild(n); });
     cards[id] = k;
     return c;
+  }
+  /** The picture in something pasted, or null. */
+  function pictureIn(ev) {
+    var cd = ev.clipboardData, i;
+    if (!cd) return null;
+    if (cd.files) for (i = 0; i < cd.files.length; i++) if (/^image\//.test(cd.files[i].type)) return cd.files[i];
+    if (cd.items) for (i = 0; i < cd.items.length; i++) if (cd.items[i].kind === "file" && /^image\//.test(cd.items[i].type)) { var f = cd.items[i].getAsFile(); if (f) return f; }
+    return null;
   }
   function addShot(id, file) {
     var item = items[id], d = chosen(item);
@@ -348,7 +371,9 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       x.addEventListener("click", function () { change(item, d, { shots: (res(item, d).shots || []).filter(function (s) { return s !== sid; }) }); if (assets) assets.delete(sid).catch(function () {}); });
       w.appendChild(x); k.shots.appendChild(w);
     });
-    if (assets && (r.shots || []).length < 4) { var add = el("button", "btn quiet", "Add a picture"); add.type = "button"; add.title = "A screenshot or photo of what you saw. You can also paste one into the text box."; add.addEventListener("click", function () { k.pick.click(); }); k.shots.appendChild(add); }
+    if (assets && (r.shots || []).length < 4) { var add = el("button", "btn quiet", "Add a picture"); add.type = "button"; add.title = "A screenshot or photo of what you saw, chosen from this device"; add.addEventListener("click", function () { k.pick.click(); }); k.shots.appendChild(add);
+      var pb = el("button", "btn quiet", "Paste a picture"); pb.type = "button"; pb.id = "pb-" + id; pb.title = "Opens a box to paste a copied picture into. You can also paste straight into the text box above."; pb.addEventListener("click", function () { k.paste.hidden = false; k.pasteIn.focus(); }); k.shots.appendChild(pb); }
+    if (!assets || k.shots.hidden || (r.shots || []).length >= 4) k.paste.hidden = true;
     // earlier versions
     var p = past(item);
     k.past.hidden = !p.length;

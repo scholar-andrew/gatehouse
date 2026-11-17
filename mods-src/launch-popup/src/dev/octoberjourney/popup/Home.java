@@ -957,13 +957,13 @@ final class Home {
 									String ph = str(s.get("phase")), kindIs = str(s.get("kind")), ver = str(s.get("minecraft_version"));
 									List<String[]> facts = new ArrayList<>();
 									facts.add(new String[] {"Now", up ? "Online" : ph.equals("starting") ? "Starting" : ph.equals("stopping") ? "Shutting down" : "Off"});
+									String vis = str(s.get("visibility"));
+									if (!vis.isEmpty()) facts.add(new String[] {"Who it is for", vis.equals("public") ? "Public: every launcher that connects. You can invite people." : vis.equals("shareable") ? "Shareable: launchers its owner let in, and anyone they invite. You can invite people." : "Private: only launchers its owner let in"});
 									facts.add(new String[] {"Game", (kindIs.isEmpty() ? "" : kindIs.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + kindIs.substring(1)) + (ver.isEmpty() ? "" : (kindIs.isEmpty() ? "" : ", ") + "Minecraft " + ver)});
 									facts.add(new String[] {"Address", str(s.get("address"))});
 									facts.add(new String[] {"Run by", "true".equals(str(s.get("native"))) ? "Gatekeeper itself" : "MC Server Soft, through Gatekeeper"});
 									facts.add(new String[] {"On this device", r[1] != null ? "Installed: Launch updates its pack, then shows its page with Play" : str(s.get("profile")).isEmpty() && !kindIs.equals("vanilla") ? "Not installed, and its pack isn't published for launchers: ask the owner" : "Not installed yet: Install sets it up in Prism Launcher"});
 									facts.add(new String[] {"What you may do", "true".equals(str(s.get("allowed"))) ? "Start and stop this server from here (under Machine)" : "Play, once you are on its whitelist. Starting and stopping it is the host's to allow."});
-									String vis = str(s.get("visibility"));
-									if (!vis.isEmpty()) facts.add(new String[] {"Who it is for", vis.equals("public") ? "Public: every launcher that connects to this Gatekeeper. You can invite people." : vis.equals("shareable") ? "Shareable: launchers its owner let in, and anyone they invite. You can invite people." : "Private: only launchers its owner let in"});
 									card.facts(facts);
 								}
 								{   // (Invite: for a server its owner made shareable or public)
@@ -1498,6 +1498,14 @@ final class Home {
 			systemsB.addActionListener(ev -> SystemsBox.show(f, home, keepers, packs));
 			JPanel systemsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4)); systemsRow.setOpaque(false); systemsRow.add(systemsB);
 			constPage.add(systemsRow, BorderLayout.SOUTH);
+			// (without anyone opening Systems: this launcher tells each Gatekeeper which machine it is part of, and
+			// takes on the id of the Gatekeeper beside it, so the two are listed as one system everywhere)
+			if (System.getenv("OJ_POPUP_PNG") == null && System.getenv("OJ_HOME_DRY") == null) {
+				Thread systemsT = new Thread(() -> {
+					try { Thread.sleep(6000); while (f.isDisplayable()) { try { SystemsBox.gather(home, new ArrayList<>(keepers), packs); } catch (RuntimeException ignored) {} Thread.sleep(300_000); } } catch (InterruptedException ignored) {}
+				}, "systems");
+				systemsT.setDaemon(true); systemsT.start();
+			}
 			deck.add(dev.gatehouse.look.GameShell.sheet(constPage), "constellation");
 			// What this device may do on each server it has installed, from what its Gatekeeper last said.
 			Runnable people = () -> {

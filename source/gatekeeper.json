@@ -1,8 +1,14 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.18.0",
+ "version": "3.18.1",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.18.1", "date": "2026-11-17", "notes": [
+   "Fixed: choosing a picture for Steam replaced the picture the pack came with, and going back gave a made one instead. The pack's own picture is now kept the first time it is replaced, and the button is now Undo my choice, which gives it back. (A picture already lost this way comes back by pressing Bring in a pack from a folder again.)",
+   "Fixed: in Systems, the same machine could be listed twice, once for its Gatekeeper and once for its launcher. A Gatekeeper now knows its own launcher's ids and tells the Gatekeeper it joined, and each launcher says which machine it is part of a few seconds after opening, so this no longer waits for someone to open Systems.",
+   "A system that has a Gatekeeper is listed under that Gatekeeper's name. Systems has a new column, Last heard from.",
+   "The Pack page now lists who you let in to the server and why (this machine's own launcher, may start and stop it, plays as someone on its whitelist, your invite), and how many other launchers known here don't have it. Those you let in have the server whatever it is set to, which is why setting it to private doesn't take it from them."
+  ]},
   {"version": "3.18.0", "date": "2026-11-17", "notes": [
    "Fixed: a server that MC Server Soft runs had no way to its Pack page, because that page was only inside Manage, which such a server doesn't have. Every server on the Servers page now has a Pack button of its own, beside Open: its pack and mods, its pictures for Steam, who it is for, and invites.",
    "Systems, on the Constellation tab. A system is what one machine has of the program: its Gatehouse, its Gatekeeper, or both. A Gatekeeper and the launcher linked to it on the same machine are now listed as one system.",

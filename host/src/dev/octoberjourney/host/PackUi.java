@@ -82,7 +82,8 @@ final class PackUi {
 		release.setToolTipText("Gives the pack its next version number with notes players read before updating, then builds it");
 		bring.setToolTipText("<html>Takes a pack's definition from a folder on this machine: the folder October Journey is built from, or one laid out the same way.<br>What this server's pack was before is kept beside it until the next time.</html>");
 		JComboBox<String> slotBox = new JComboBox<>(PackArt.SAYS);
-		JButton choose = new JButton("Choose a picture…"), back = new JButton("Use the one Gatekeeper makes");
+		JButton choose = new JButton("Choose a picture…"), back = new JButton("Undo my choice");
+		back.setToolTipText("Goes back to the picture this pack came with, or, where it came with none, to the one Gatekeeper makes");
 		preview.setBorder(BorderFactory.createLineBorder(ServerToolsUi.GREY));
 		preview.setPreferredSize(new java.awt.Dimension(300, 170));
 		preview.setHorizontalAlignment(JLabel.CENTER);
@@ -95,7 +96,8 @@ final class PackUi {
 			choose.setEnabled(defined); back.setEnabled(defined && "chosen".equals(Json.str(Json.map(now[0].get("art")).get(slot))));
 			if (!defined) { preview.setIcon(null); artSaid.setText(" "); return; }
 			artSaid.setForeground(ServerToolsUi.GREY);
-			artSaid.setText("chosen".equals(Json.str(Json.map(now[0].get("art")).get(slot))) ? "A picture you chose." : "Made by Gatekeeper from the pack's name and the server's picture.");
+			String how = Json.str(Json.map(now[0].get("art")).get(slot));
+			artSaid.setText(how.equals("chosen") ? "A picture you chose. Undo my choice goes back to what was here before." : how.equals("pack") ? "The picture this pack came with." : "Made by Gatekeeper from the pack's name and the server's picture.");
 			Runnable fetch = () -> {
 				try {
 					java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(artCall(q, slot, null)));
@@ -137,7 +139,12 @@ final class PackUi {
 				filling[0] = false;
 				StringBuilder came = new StringBuilder();
 				for (Object o : Json.list(s.get("invited"))) { Map<String, Object> c = Json.map(o); came.append(came.length() == 0 ? "" : "; ").append(Json.str(c.get("name"))).append(" (invited by ").append(Json.str(c.get("by"))).append(ServerTools.yes(c.get("counts")) ? ")" : ", not counting while this is private)"); }
-				invitedSaid.setText(ServerToolsUi.wrap((came.length() == 0 ? "Nobody has come in by invite." : "Came in by invite: " + came + ".") + " Invites that haven't run out: " + ServerToolsUi.num(s.get("invites_live")) + ".", 560));
+				StringBuilder in = new StringBuilder();
+				for (Object o : Json.list(s.get("let_in"))) { Map<String, Object> c = Json.map(o); in.append(in.length() == 0 ? "" : "; ").append(Json.str(c.get("name"))).append(" (").append(Json.str(c.get("why"))).append(")"); }
+				String others = ServerToolsUi.num(s.get("others"));
+				invitedSaid.setText(ServerToolsUi.wrap("Let in by you, so they have this server at every setting: " + (in.length() == 0 ? "nobody yet" : in.toString()) + ". "
+						+ (others.equals("0") || others.isEmpty() ? "No other launcher is known here." : others + " other launcher(s) known here " + (Json.str(s.get("visibility")).equals("public") ? "have it because it is public." : "don't have it."))
+						+ " " + (came.length() == 0 ? "Nobody has come in by invite." : "Came in by invite: " + came + ".") + " Invites that haven't run out: " + ServerToolsUi.num(s.get("invites_live")) + ".", 560));
 				takeBackB.setEnabled(came.length() > 0 || !ServerToolsUi.num(s.get("invites_live")).equals("0"));
 				p.revalidate();
 				showArt.run();
@@ -282,11 +289,11 @@ final class PackUi {
 
 	/** Systems: every machine this one knows of, how it stands with each, and Remember / Forget. */
 	static void systems(java.awt.Component over) {
-		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands", "Its Gatekeeper's address", "Seen through"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands", "Its Gatekeeper's address", "Seen through", "Last heard from"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(tm);
 		table.setRowHeight(24);
 		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-		int[] wide = {170, 90, 170, 250, 170, 130};
+		int[] wide = {170, 90, 170, 230, 160, 120, 120};
 		for (int i = 0; i < wide.length; i++) table.getColumnModel().getColumn(i).setPreferredWidth(wide[i]);
 		java.util.List<Map<String, Object>> shown = new java.util.ArrayList<>();
 		JLabel said = new JLabel(" ");
@@ -303,7 +310,7 @@ final class PackUi {
 				Map<String, Object> s = Json.map(o);
 				shown.add(s);
 				boolean house = ServerTools.yes(s.get("gatehouse")), keeper = ServerTools.yes(s.get("gatekeeper"));
-				tm.addRow(new Object[] {Json.str(s.get("name")), Json.str(s.get("device")), house && keeper ? "Gatehouse and Gatekeeper" : keeper ? "Gatekeeper" : "Gatehouse", Json.str(s.get("status")), Json.str(s.get("address")), Json.str(s.get("via"))});
+				tm.addRow(new Object[] {Json.str(s.get("name")), Json.str(s.get("device")), house && keeper ? "Gatehouse and Gatekeeper" : keeper ? "Gatekeeper" : "Gatehouse", Json.str(s.get("status")), Json.str(s.get("address")), Json.str(s.get("via")), ServerTools.yes(s.get("this")) ? "" : ServerTools.yes(s.get("open")) ? "Now" : Json.str(s.get("last_seen"))});
 				if (!wasId.isEmpty() && wasId.equals(Json.str(s.get("id")))) table.setRowSelectionInterval(tm.getRowCount() - 1, tm.getRowCount() - 1);
 			}
 			pick.run();

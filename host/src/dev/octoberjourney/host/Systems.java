@@ -77,7 +77,7 @@ final class Systems {
 		return false;
 	}
 	private static Map<String, Object> row(String sid, String name, String device) {
-		return m("id", sid, "name", name, "device", device, "gatehouse", false, "gatekeeper", false, "address", "", "neighbor", false, "unknown", false, "this", false, "via", "", "remembers", new ArrayList<>(), "open", false);
+		return m("id", sid, "name", name, "device", device, "gatehouse", false, "gatekeeper", false, "address", "", "neighbor", false, "unknown", false, "this", false, "via", "", "remembers", new ArrayList<>(), "open", false, "last_seen", "", "halves", new ArrayList<>());
 	}
 	@SuppressWarnings("unchecked") private static void addAll(Map<String, Object> row, Object remembers) { for (Object o : Json.list(remembers)) if (!id(o).isEmpty() && !((List<Object>) row.get("remembers")).contains(id(o)) && ((List<Object>) row.get("remembers")).size() < 300) ((List<Object>) row.get("remembers")).add(id(o)); }
 
@@ -90,22 +90,40 @@ final class Systems {
 		self.put("gatekeeper", true); self.put("address", ownAddress()); self.put("this", true); self.put("open", true);
 		addAll(self, remembers());
 		out.put(mine, self);
-		for (Map.Entry<String, Object> e : devices().entrySet()) {
+		Map<String, Object> devs = devices();
+		self.put("halves", new ArrayList<Object>(halves(devs)));
+		// The same machine under another id: a launcher goes by its own id until it has heard, from the Gatekeeper
+		// beside it, which system it is part of. The Gatekeeper already knows which launcher is its machine's own
+		// (LocalLink), and one that joined says which is its own ("halves"), so those ids are read as the system's.
+		Map<String, String> same = new LinkedHashMap<>();
+		for (String h : halves(devs)) same.put(h, mine);
+		// (and the Gatekeeper this one joined says the same of itself and of the others that joined it)
+		if (AutoUpdate.leadMember && now - leadHeard < 180_000) for (Object o : leadRows) { Map<String, Object> c = Json.map(o); if (!id(c.get("id")).isEmpty()) for (Object h : Json.list(c.get("halves"))) if (!id(h).isEmpty() && !same.containsKey(id(h))) same.put(id(h), id(c.get("id"))); }
+		for (Map.Entry<String, Object> e : devs.entrySet()) {
+			Map<String, Object> d = Json.map(e.getValue()), t = told.get(e.getKey());
+			if (!Json.str(d.get("kind")).equals("gatekeeper") || t == null) continue;
+			String sid = id(d.get("machine"));
+			if (!sid.isEmpty()) for (Object h : Json.list(t.get("halves"))) if (!id(h).isEmpty() && !same.containsKey(id(h))) same.put(id(h), sid);
+		}
+		for (Map.Entry<String, Object> e : devs.entrySet()) {
 			Map<String, Object> d = Json.map(e.getValue()), t = told.get(e.getKey());
 			boolean keeper = Json.str(d.get("kind")).equals("gatekeeper");
 			if (ServerTools.yes(d.get("local")) && !keeper) {   // (this machine's own launcher: the other half of this system, and the systems it meets at other Gatekeepers are this system's neighbors too)
 				self.put("gatehouse", true);
-				if (t != null) subs(out, mine, mine, "this machine's launcher", t);
+				if (t != null) subs(out, mine, mine, "this machine's launcher", t, same);
 				continue;
 			}
 			String sid = id(d.get("machine"));
 			if (sid.isEmpty()) sid = id(d.get("install"));
 			if (sid.isEmpty()) sid = id(e.getKey());
-			if (sid.isEmpty() || sid.equals(mine)) continue;
+			if (!keeper) { if (same.containsKey(id(d.get("install")))) sid = same.get(id(d.get("install"))); else if (same.containsKey(id(e.getKey()))) sid = same.get(id(e.getKey())); else sid = same.getOrDefault(sid, sid); }
+			if (sid.isEmpty()) continue;
+			if (sid.equals(mine)) { if (!keeper) self.put("gatehouse", true); continue; }
 			boolean in = inside(d) && banOf(d)[0].isEmpty();
 			Map<String, Object> r = out.computeIfAbsent(sid, k -> row(k, "", ""));
 			String nm = word(Json.str(d.get("name")).replace(" (Gatekeeper)", ""), 60);
 			if (Json.str(r.get("name")).isEmpty() || keeper) r.put("name", nm);
+			if (keeper && t != null) r.put("halves", Json.list(t.get("halves")));
 			if (keeper) { r.put("gatekeeper", true); if (t != null && !Json.str(t.get("address")).isEmpty()) r.put("address", Json.str(t.get("address"))); if (t != null && ServerTools.yes(t.get("gatehouse"))) r.put("gatehouse", true); }
 			else r.put("gatehouse", true);
 			if (t != null && !Json.str(t.get("device")).isEmpty()) r.put("device", Json.str(t.get("device")));
@@ -114,17 +132,20 @@ final class Systems {
 			if (now - contact.getOrDefault(e.getKey(), 0L) < 30_000) r.put("open", true);
 			if (t != null) addAll(r, t.get("remembers"));
 			// (a Gatekeeper that joined also tells of the systems on its side: its own launchers)
-			if (keeper && in && t != null) subs(out, mine, sid, nm, t);
+			if (Json.str(r.get("last_seen")).compareTo(Json.str(d.get("last_seen"))) < 0) r.put("last_seen", Json.str(d.get("last_seen")));
+			if (keeper && in && t != null) subs(out, mine, sid, nm, t, same);
 		}
 		// what the Gatekeeper this one joined counts as its constellation (while this one is a member there, and it answered lately)
 		if (AutoUpdate.leadMember && now - leadHeard < 180_000) for (Object o : leadRows) {
 			Map<String, Object> c = Json.map(o);
-			String cid = id(c.get("id"));
-			if (cid.isEmpty() || cid.equals(mine)) continue;
+			String cid = same.getOrDefault(id(c.get("id")), id(c.get("id")));
+			if (cid.isEmpty()) continue;
+			if (cid.equals(mine)) { if (ServerTools.yes(c.get("gatehouse"))) self.put("gatehouse", true); continue; }
 			Map<String, Object> cr = out.computeIfAbsent(cid, k -> row(k, word(c.get("name"), 60), word(c.get("device"), 20)));
 			if (Json.str(cr.get("name")).isEmpty()) cr.put("name", word(c.get("name"), 60));
 			if (ServerTools.yes(c.get("gatehouse"))) cr.put("gatehouse", true);
-			if (ServerTools.yes(c.get("gatekeeper"))) { cr.put("gatekeeper", true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
+			// (a system with a Gatekeeper goes by the name its owner gave that Gatekeeper, not its launcher's machine name)
+			if (ServerTools.yes(c.get("gatekeeper"))) { if (!ServerTools.yes(cr.get("gatekeeper")) && !word(c.get("name"), 60).isEmpty()) cr.put("name", word(c.get("name"), 60)); cr.put("gatekeeper", true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
 			cr.put("neighbor", true);
 			if (ServerTools.yes(c.get("open"))) cr.put("open", true);
 			addAll(cr, c.get("remembers"));
@@ -154,15 +175,26 @@ final class Systems {
 		if (changed) save(store);
 		return out;
 	}
-	private static void subs(Map<String, Map<String, Object>> out, String mine, String sid, String through, Map<String, Object> t) {
+	/** The ids this machine's own launcher goes by: they all mean this system. */
+	private static List<String> halves(Map<String, Object> devs) {
+		List<String> out = new ArrayList<>();
+		for (Map.Entry<String, Object> e : devs.entrySet()) {
+			Map<String, Object> d = Json.map(e.getValue());
+			if (!ServerTools.yes(d.get("local")) || Json.str(d.get("kind")).equals("gatekeeper")) continue;
+			for (String h : new String[] {id(e.getKey()), id(d.get("install"))}) if (!h.isEmpty() && !out.contains(h)) out.add(h);
+		}
+		return out;
+	}
+	private static void subs(Map<String, Map<String, Object>> out, String mine, String sid, String through, Map<String, Object> t, Map<String, String> same) {
 		for (Object o : Json.list(t.get("systems"))) {
 			Map<String, Object> c = Json.map(o);
-			String cid = id(c.get("id"));
+			String cid = same.getOrDefault(id(c.get("id")), id(c.get("id")));
 			if (cid.isEmpty() || cid.equals(mine) || cid.equals(sid)) continue;
 			Map<String, Object> cr = out.computeIfAbsent(cid, k -> row(k, word(c.get("name"), 60), word(c.get("device"), 20)));
 			if (Json.str(cr.get("name")).isEmpty()) cr.put("name", word(c.get("name"), 60));
 			if (ServerTools.yes(c.get("gatehouse"))) cr.put("gatehouse", true);
-			if (ServerTools.yes(c.get("gatekeeper"))) { cr.put("gatekeeper", true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
+			// (a system with a Gatekeeper goes by the name its owner gave that Gatekeeper, not its launcher's machine name)
+			if (ServerTools.yes(c.get("gatekeeper"))) { if (!ServerTools.yes(cr.get("gatekeeper")) && !word(c.get("name"), 60).isEmpty()) cr.put("name", word(c.get("name"), 60)); cr.put("gatekeeper", true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
 			if (!ServerTools.yes(cr.get("neighbor")) && Json.str(cr.get("via")).isEmpty()) cr.put("via", through);
 			cr.put("neighbor", true);
 			addAll(cr, c.get("remembers"));
@@ -211,7 +243,7 @@ final class Systems {
 		for (Map<String, Object> r : rows().values()) {
 			if (Json.str(r.get("id")).equals(asking)) continue;
 			if (!ServerTools.yes(r.get("this")) && !ServerTools.yes(r.get("neighbor"))) continue;
-			out.add(m("id", r.get("id"), "name", r.get("name"), "device", r.get("device"), "gatehouse", r.get("gatehouse"), "gatekeeper", r.get("gatekeeper"), "address", r.get("address"), "open", r.get("open"), "remembers", r.get("remembers")));
+			out.add(m("id", r.get("id"), "name", r.get("name"), "device", r.get("device"), "gatehouse", r.get("gatehouse"), "gatekeeper", r.get("gatekeeper"), "address", r.get("address"), "open", r.get("open"), "remembers", r.get("remembers"), "halves", r.get("halves")));
 		}
 		return out;
 	}
@@ -229,7 +261,7 @@ final class Systems {
 		String machine = local ? me() : id(b.get("machine"));
 		List<Object> theirs = new ArrayList<>();
 		for (Object o : Json.list(b.get("systems"))) { if (theirs.size() >= 60) break; Map<String, Object> c = Json.map(o); if (!id(c.get("id")).isEmpty()) theirs.add(m("id", id(c.get("id")), "name", word(c.get("name"), 60), "device", word(c.get("device"), 20), "gatehouse", ServerTools.yes(c.get("gatehouse")), "gatekeeper", ServerTools.yes(c.get("gatekeeper")), "address", word(c.get("address"), 60), "remembers", idList(c.get("remembers")))); }
-		told.put(devId, m("device", word(b.get("device"), 20), "address", word(b.get("address"), 60).replaceAll("[^0-9A-Za-z.:\\-\\[\\]]", ""), "gatehouse", ServerTools.yes(b.get("gatehouse")), "remembers", local ? new ArrayList<>() : idList(b.get("remembers")), "systems", theirs));
+		told.put(devId, m("device", word(b.get("device"), 20), "address", word(b.get("address"), 60).replaceAll("[^0-9A-Za-z.:\\-\\[\\]]", ""), "gatehouse", ServerTools.yes(b.get("gatehouse")), "remembers", local ? new ArrayList<>() : idList(b.get("remembers")), "systems", theirs, "halves", idList(b.get("halves"))));
 		if (!machine.isEmpty() && !machine.equals(Json.str(d.get("machine")))) { d.put("machine", machine); devs.put(devId, d); saveDevices(devs); }
 		if (!banOf(d)[0].isEmpty() || !inside(d)) { reply(x, 200, m("result", "refused", "systems", new ArrayList<>(), "message", "This launcher isn't part of this Gatekeeper's constellation: its owner hasn't let it in anywhere.")); return; }
 		Map<String, Object> out = m("result", "ok", "me", m("id", me(), "name", AutoUpdate.myName()), "you_are_local", local, "systems", forOthers(machine));
@@ -255,7 +287,7 @@ final class Systems {
 				for (Object o : leadRows) if (Json.str(r.get("id")).equals(Json.str(Json.map(o).get("id")))) fromLead = true;
 				if (!fromLead && mine.size() < 60) mine.add(m("id", r.get("id"), "name", r.get("name"), "device", r.get("device"), "gatehouse", r.get("gatehouse"), "gatekeeper", r.get("gatekeeper"), "address", r.get("address"), "remembers", r.get("remembers")));
 			}
-			Map<String, Object> r = Json.map(Json.parse(AutoUpdate.leadCall("/v1/systems", Json.write(m("machine", self, "name", AutoUpdate.myName(), "device", Device.kind(), "address", ownAddress(), "gatehouse", launcherHere, "remembers", remembers(), "systems", mine)))));
+			Map<String, Object> r = Json.map(Json.parse(AutoUpdate.leadCall("/v1/systems", Json.write(m("machine", self, "name", AutoUpdate.myName(), "device", Device.kind(), "address", ownAddress(), "gatehouse", launcherHere, "remembers", remembers(), "systems", mine, "halves", new ArrayList<Object>(halves(devices())))))));
 			if (Json.str(r.get("result")).equals("ok")) { leadRows = Json.list(r.get("systems")); leadHeard = now; }
 			else leadRows = new ArrayList<>();
 		} catch (IOException | RuntimeException ignored) { /* (not answering, or from before systems: next time) */ }

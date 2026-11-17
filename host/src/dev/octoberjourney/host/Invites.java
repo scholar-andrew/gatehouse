@@ -62,6 +62,21 @@ final class Invites {
 		} catch (RuntimeException e) { return false; }
 		finally { SERVER.set(keep); }
 	}
+	/** By what the owner let this launcher onto the server, in a few words; empty when they didn't. */
+	static String whyIn(Map<String, Object> d, Map<String, Object> s) {
+		if (ServerTools.yes(d.get("local"))) return "this machine's own launcher";
+		if (ServerTools.yes(d.get("admin"))) return "has Gatekeeper control";
+		if (Boolean.TRUE.equals(d.get("granted"))) return "has MCSS control";
+		String keep = SERVER.get();
+		try {
+			SERVER.set(Json.str(s.get("id")));
+			if (Boolean.TRUE.equals(d.get(serverKey()))) return "may start and stop this server";
+			String player = Json.str(d.get("player"));
+			if (!player.isEmpty() && whitelisted(player)) return "plays as " + player + ", who is on its whitelist";
+		} catch (RuntimeException ignored) {}
+		finally { SERVER.set(keep); }
+		return "";
+	}
 	/** Is the server (and its pack) for this launcher? */
 	static boolean mayHave(Map<String, Object> d, Map<String, Object> s) {
 		if (d == null || d.isEmpty() || s == null) return false;
@@ -178,7 +193,18 @@ final class Invites {
 		for (Object o : devices().values()) { Map<String, Object> d = Json.map(o); String how = Json.str(d.get("invited:" + sid)); if (!how.isEmpty()) came.add(m("name", who(d), "by", Json.str(d.get("invited_by:" + sid)), "counts", how.equals("host") || mode(s).equals("shareable") || mode(s).equals("public"))); }
 		int codes = 0;
 		for (Object o : live()) if (sid.equals(Json.str(Json.map(o).get("server")))) codes++;
-		return m("visibility", mode(s), "visibility_says", says(mode(s)), "invited", came, "invites_live", codes);
+		// who the owner let in, and by what: these have the server whatever it is set to, which is why switching it to private doesn't take it from them
+		List<Object> in = new ArrayList<>();
+		int others = 0;
+		for (Object o : devices().values()) {
+			Map<String, Object> d = Json.map(o);
+			if (Json.str(d.get("kind")).equals("gatekeeper") || !banOf(d)[0].isEmpty()) continue;
+			String why = whyIn(d, s);
+			if (why.isEmpty() && Json.str(d.get("invited:" + sid)).equals("host")) why = "your invite";
+			if (why.isEmpty()) { if (Json.str(d.get("invited:" + sid)).isEmpty()) others++; continue; }
+			in.add(m("name", who(d), "why", why));
+		}
+		return m("visibility", mode(s), "visibility_says", says(mode(s)), "invited", came, "invites_live", codes, "let_in", in, "others", others);
 	}
 	static synchronized String[] setMode(Map<String, Object> s, String mode) throws IOException {
 		if (!List.of("private", "shareable", "public").contains(mode)) return new String[] {"refused", "Choose private, shareable or public."};

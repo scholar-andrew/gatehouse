@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.18.0",
+ "version": "3.18.1",
  "changes": [
+  {"version": "3.18.1", "date": "2026-11-17", "notes": [
+   "Fixed: the panel beside a server listed who it is for last, where a window of the usual size cut it off. It is now near the top, and the panel scrolls when the window is too short for all of it.",
+   "This launcher now tells each Gatekeeper which machine it is part of soon after it opens, so it is listed as one system with the Gatekeeper beside it."
+  ]},
   {"version": "3.18.0", "date": "2026-11-17", "notes": [
    "Systems, on the Constellation page: the other machines in a constellation with this one (neighbors), and the ones you chose to remember. Pick a neighbor and press Remember to keep it listed after the constellation is left.",
    "When this machine also has a Gatekeeper that this launcher is linked to, the two are one system, and what it remembers is kept by that Gatekeeper.",
