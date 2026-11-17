@@ -133,13 +133,17 @@ final class AutoUpdate {
 				Map<String, Object> d = Json.map(devs.get(id));
 				if (!d.isEmpty()) {
 					allowed = !keeper || ServerTools.yes(d.get("constellation"));
-					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && r.own.equals(Json.str(d.get("version"))) && r.install.equals(Json.str(d.get("install"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
+					String kept = Json.str(d.get("version"));
+					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && (r.own.equals(kept) || (!kept.isEmpty() && !r.own.isEmpty() && cmpVersion(r.own, kept) < 0)) && r.install.equals(Json.str(d.get("install"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
 						// (a version it reports that isn't the one it reported before: it has updated, and that goes in the update log.
 						// Not for a Gatekeeper: it writes the line for its own update, where it was fetched from included, and hands
 						// it on; a second line from here would say the same update twice, and without the source)
 						String before = Json.str(d.get("version"));
-						if (!keeper && !before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info, r.source, r.install);
-						d.put("update_mode", r.mode); d.put("version", r.own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
+						// (two launchers reporting as one device, an old one still open beside its updated copy, would
+						// otherwise turn the version back and forth every few seconds: only a newer version counts)
+						String own = !before.isEmpty() && !r.own.isEmpty() && cmpVersion(r.own, before) < 0 ? before : r.own;
+						if (!keeper && !before.isEmpty() && !own.isEmpty() && !before.equals(own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, own, r.mode, r.info, r.source, r.install);
+						d.put("update_mode", r.mode); d.put("version", own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
 						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);
 						if (keeper && !ServerTools.yes(d.get("constellation")) && !ServerTools.yes(d.get("asked_said"))) { d.put("asked_said", true); saveDevices(devs); log("the Gatekeeper " + name + " asks to join this Gatekeeper's constellation: allow it on the Constellation tab"); }

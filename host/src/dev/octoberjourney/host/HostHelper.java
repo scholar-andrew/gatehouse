@@ -218,7 +218,11 @@ public final class HostHelper {
 		Files.move(tmp, dir.resolve("devices.json"), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 	}
 
-	static synchronized void log(String s) {
+	/** host.log has a lock of its own: anything may write a line while holding another lock (Peer's, the devices'),
+	 *  so writing one must never wait on HostHelper's (3.20.3: a Gatekeeper locked up that way and stopped answering). */
+	private static final Object LOG_LOCK = new Object();
+	static void log(String s) { synchronized (LOG_LOCK) { logLine(s); } }
+	private static void logLine(String s) {
 		String tag = "";
 		try { if (cfg != null && servers().size() > 1 && !SERVER.get().isEmpty()) tag = "[" + serverName() + "] "; } catch (RuntimeException ignored) {}
 		try { Files.writeString(dir.resolve("host.log"), LocalDateTime.now().format(TIME) + "  " + tag + s + "\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
@@ -655,7 +659,11 @@ public final class HostHelper {
 	/** Did the last look reach a place where Gatekeeper is published? */
 	static volatile boolean lookReached = false;
 	private static String newerSaid = "";
-	static synchronized void lookForNewer() {
+	/** Looking for a newer version has a lock of its own, not HostHelper's: it asks places over the network, which can
+	 *  be slow, and it takes Peer's lock (prefer, prefetch); while Peer, holding its lock, writes to the log. */
+	private static final Object LOOK_LOCK = new Object();
+	static void lookForNewer() { synchronized (LOOK_LOCK) { lookForNewerLocked(); } }
+	private static void lookForNewerLocked() {
 		lookReached = false;
 		// Every place is asked, and the newest version any of them has is the one (the first place, where two have the
 		// same): a place that is behind, as GitHub can be for some minutes, doesn't hide what another already has.

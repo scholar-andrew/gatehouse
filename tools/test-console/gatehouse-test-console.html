@@ -60,6 +60,26 @@ h2 { font-size: 22px; font-weight: 700; margin: 0 0 2px; text-wrap: balance; }
 .first button { background: none; border: 0; color: var(--acc); font: inherit; text-decoration: underline; cursor: pointer; padding: 0; }
 .reply { background: #1C3550; border: 1px solid var(--acc); border-radius: 8px; padding: 8px 11px; font-size: 14px; }
 .reply b { color: var(--acc); letter-spacing: .08em; font-size: 12px; text-transform: uppercase; margin-right: 6px; }
+.thread { display: flex; flex-direction: column; gap: 8px; }
+.post { border-radius: 8px; padding: 8px 11px; font-size: 14px; border: 1px solid var(--line); background: var(--deep); }
+.post.claude { background: #1C3550; border-color: var(--acc); }
+.post.owner { margin-left: 28px; border-color: var(--raised); }
+.post .who { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--acc); }
+.post.owner .who { color: var(--warn); }
+.post .when { font-size: 12px; color: var(--dim); margin-left: 8px; }
+.post .txt { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 3px; }
+.post .tools { margin-top: 6px; display: flex; gap: 6px; }
+.post .tools button { font-size: 12.5px; padding: 4px 10px; }
+.compose { margin-left: 28px; display: flex; flex-direction: column; gap: 6px; }
+.compose .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.zoom { position: fixed; inset: 0; z-index: 50; background: rgba(5, 9, 14, .92); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.zoom img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 6px; box-shadow: 0 10px 40px rgba(0,0,0,.6); background: var(--deep); }
+.zoom button { position: absolute; background: rgba(20, 29, 41, .9); color: #fff; border: 1px solid var(--line); border-radius: 50%; width: 46px; height: 46px; font: 700 22px var(--ui); cursor: pointer; }
+.zoom .zx { top: max(16px, env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); }
+.zoom .zp { left: max(16px, env(safe-area-inset-left, 0px)); top: 50%; transform: translateY(-50%); }
+.zoom .zn { right: max(16px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%); }
+.zoom .zc { position: absolute; bottom: max(16px, env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); color: var(--dim); font-size: 13px; }
+.shot img, .att.pic img { cursor: zoom-in; }
 .past { font-size: 13px; color: var(--dim); }
 .side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); background: none; border: 0; padding: 4px; border-radius: 16px; font-family: var(--ui); }
@@ -635,6 +655,39 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     assets.upload(file).then(function (a) { done({ id: a.id, name: file.name || "pasted picture.png", type: a.contentType || file.type || "", size: a.sizeBytes || file.size || 0 }); say("Attached"); },
       function (e) { say((file.name || "That file") + " wasn't attached: " + ((e && e.message) || "this kind of file isn't taken") + ". Pictures, videos, PDFs and text files are.", true); });
   }
+  // ---- the picture inspector: a picture clicked on opens large over the page; arrows go through the others in the same card
+  var zoomList = [], zoomAt = 0, zoomBox = null;
+  function zoomShow() {
+    if (!zoomBox) {
+      zoomBox = el("div", "zoom"); zoomBox.setAttribute("role", "dialog"); zoomBox.setAttribute("aria-label", "Picture");
+      var im = el("img"); im.id = "zoom-img"; im.alt = "The picture, large";
+      var x = el("button", "zx", "×"), pv = el("button", "zp", "‹"), nx = el("button", "zn", "›"), cnt = el("div", "zc"); cnt.id = "zoom-n";
+      x.type = pv.type = nx.type = "button"; x.setAttribute("aria-label", "Close"); pv.setAttribute("aria-label", "The picture before"); nx.setAttribute("aria-label", "The next picture");
+      x.addEventListener("click", zoomClose); pv.addEventListener("click", function (e) { e.stopPropagation(); zoomStep(-1); }); nx.addEventListener("click", function (e) { e.stopPropagation(); zoomStep(1); });
+      zoomBox.addEventListener("click", function (e) { if (e.target === zoomBox) zoomClose(); });
+      im.addEventListener("click", function (e) { e.stopPropagation(); });
+      [im, x, pv, nx, cnt].forEach(function (n) { zoomBox.appendChild(n); });
+      document.body.appendChild(zoomBox);
+    }
+    zoomBox.hidden = false;
+    $("zoom-img").src = zoomList[zoomAt];
+    var many = zoomList.length > 1;
+    zoomBox.querySelector(".zp").hidden = !many; zoomBox.querySelector(".zn").hidden = !many;
+    $("zoom-n").textContent = many ? (zoomAt + 1) + " of " + zoomList.length : "";
+    zoomBox.querySelector(".zx").focus();
+  }
+  function zoomStep(by) { if (!zoomList.length) return; zoomAt = (zoomAt + by + zoomList.length) % zoomList.length; zoomShow(); }
+  function zoomClose() { if (zoomBox) { zoomBox.hidden = true; $("zoom-img").src = ""; } }
+  document.addEventListener("keydown", function (e) { if (!zoomBox || zoomBox.hidden) return; if (e.key === "Escape") zoomClose(); else if (e.key === "ArrowLeft") zoomStep(-1); else if (e.key === "ArrowRight") zoomStep(1); });
+  document.addEventListener("click", function (e) {
+    var img = e.target && e.target.closest ? e.target.closest(".att.pic img, .shot img") : null;
+    if (!img) return;
+    e.preventDefault(); e.stopPropagation();
+    var card = img.closest(".card, .rcard, .form") || document.body;
+    zoomList = Array.prototype.map.call(card.querySelectorAll(".att.pic img, .shot img"), function (i) { return i.src; });
+    zoomAt = Math.max(0, zoomList.indexOf(img.src));
+    zoomShow();
+  }, true);
   function attView(a, onRemove) {
     var pic = /^image\//.test(a.type || "");
     var link = el("a", "att" + (pic ? " pic" : "")); link.href = "/_blob/" + a.id; link.target = "_blank"; link.rel = "noopener"; link.title = (a.name || "attachment") + (a.size ? " (" + size(a.size) + ")" : "");
@@ -646,7 +699,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   function drawDrafts() { var box = $("r-atts"); box.textContent = ""; drafts.forEach(function (a, i) { box.appendChild(attView(a, function () { drafts.splice(i, 1); drawDrafts(); if (assets) assets.delete(a.id).catch(function () {}); })); }); if (!drafts.length) box.appendChild(el("span", "meta", "None yet.")); }
   function saveReq(r) {
     if (!db) { say("Not saved: sign in to claude.ai to keep requests", true); return Promise.resolve(); }
-    var doc = {}; ["n", "ref", "category", "title", "description", "attachments", "status", "created", "updated", "reply", "added_in", "answer", "answer_at"].forEach(function (k) { if (r[k] !== undefined) doc[k] = r[k]; });
+    var doc = {}; ["n", "ref", "category", "title", "description", "attachments", "status", "created", "updated", "reply", "added_in", "answer", "answer_at", "thread", "draft"].forEach(function (k) { if (r[k] !== undefined) doc[k] = r[k]; });
     doc.updated = new Date().toISOString();
     reqs[r.id] = Object.assign({}, r, doc);
     say("Saving…");
@@ -695,20 +748,62 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       atts.appendChild(ab); atts.appendChild(pb); atts.appendChild(pick);
       c.appendChild(atts); c.appendChild(box);
     } else if ((r.attachments || []).length) c.appendChild(atts);
-    if (r.reply) {
-      var rp = el("div", "reply"); rp.appendChild(el("b", null, "Claude")); rp.appendChild(document.createTextNode(String(r.reply))); c.appendChild(rp);
-      // (the owner's answer to it: saved as it is typed, read by Claude at the next pull)
-      var an = el("div", "note"), al = el("label", null, "Your answer to Claude"), at = el("textarea");
-      at.id = "ra-" + r.id; al.htmlFor = at.id; at.rows = 2; at.maxLength = 8000; at.value = r.answer || ""; at.placeholder = "What you want, or what Claude asked. It saves as you type.";
-      var atimer = null;
-      at.addEventListener("input", function () { clearTimeout(atimer); atimer = setTimeout(function () { saveReq(Object.assign({}, reqs[r.id], { answer: at.value, answer_at: new Date().toISOString() })); }, 900); });
-      an.appendChild(al); an.appendChild(at);
-      c.appendChild(an);
-      if (r.answer_at) c.appendChild(el("div", "meta", "Your answer saved " + new Date(r.answer_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })));
-    }
+    c.appendChild(threadView(r));
     c.appendChild(el("div", "meta", "Added " + (r.created ? new Date(r.created).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "") + (r.updated && r.updated !== r.created ? "  ·  changed " + new Date(r.updated).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "")));
     return c;
   }
+  // ---- a request's thread: Claude's replies and the owner's, in order. The owner writes in a box (a draft, kept as it is
+  // typed) and it joins the thread when Post is pressed; the owner can edit a post of theirs afterwards.
+  function threadOf(r) {
+    if (Array.isArray(r.thread)) return r.thread.slice();
+    var out = [];   // (from before threads: the one reply and the one answer)
+    if (r.reply) out.push({ who: "claude", text: String(r.reply), at: r.updated || r.created || "" });
+    if (r.answer) out.push({ who: "owner", text: String(r.answer), at: r.answer_at || "" });
+    return out;
+  }
+  function when(s) { return s ? new Date(s).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : ""; }
+  function threadView(r) {
+    var box = el("div", "thread"), posts = threadOf(r);
+    posts.forEach(function (pst, i) {
+      var pv = el("div", "post " + (pst.who === "claude" ? "claude" : "owner"));
+      var hd = el("div"); hd.appendChild(el("span", "who", pst.who === "claude" ? "Claude" : "You")); hd.appendChild(el("span", "when", when(pst.at) + (pst.edited ? " · edited " + when(pst.edited) : ""))); pv.appendChild(hd);
+      var tx = el("div", "txt", pst.text || ""); pv.appendChild(tx);
+      if (pst.who !== "claude") {
+        var tools = el("div", "tools"), eb = el("button", "btn quiet", "Edit"); eb.type = "button";
+        eb.addEventListener("click", function () {
+          var ta = el("textarea"); ta.id = "rt-" + r.id + "-" + i; ta.rows = 3; ta.maxLength = 8000; ta.value = pst.text || "";
+          var sv = el("button", "btn", "Save"), cn = el("button", "btn quiet", "Cancel"); sv.type = cn.type = "button";
+          tx.replaceWith(ta); tools.textContent = ""; tools.appendChild(sv); tools.appendChild(cn); ta.focus();
+          cn.addEventListener("click", function () { rrender(); });
+          sv.addEventListener("click", function () {
+            var th = threadOf(reqs[r.id]); if (!th[i]) return;
+            th[i] = Object.assign({}, th[i], { text: ta.value.trim(), edited: new Date().toISOString() });
+            saveReq(Object.assign({}, reqs[r.id], { thread: th })).then(rrender);
+          });
+        });
+        tools.appendChild(eb); pv.appendChild(tools);
+      }
+      box.appendChild(pv);
+    });
+    // the box to write in: a draft until Post
+    var cp = el("div", "compose"), lab = el("label", null, posts.length ? "Reply" : "Add to this request"), ta = el("textarea");
+    ta.id = "rd-" + r.id; lab.htmlFor = ta.id; ta.rows = 2; ta.maxLength = 8000; ta.value = r.draft || "";
+    ta.placeholder = "Write as much as you like: it is kept as a draft, and only Post adds it to the thread.";
+    var row = el("div", "row"), post = el("button", "btn", "Post"), kept = el("span", "meta", r.draft ? "Draft kept" : ""); post.type = "button";
+    var dtimer = null;
+    ta.addEventListener("input", function () { kept.textContent = "Draft…"; clearTimeout(dtimer); dtimer = setTimeout(function () { saveReq(Object.assign({}, reqs[r.id], { draft: ta.value })).then(function () { kept.textContent = "Draft kept"; }); }, 900); });
+    post.addEventListener("click", function () {
+      var tx = ta.value.trim(); if (!tx) { ta.focus(); return; }
+      clearTimeout(dtimer);
+      var th = threadOf(reqs[r.id]); th.push({ who: "owner", text: tx, at: new Date().toISOString() });
+      saveReq(Object.assign({}, reqs[r.id], { thread: th, draft: "" })).then(rrender);
+    });
+    row.appendChild(post); row.appendChild(kept);
+    cp.appendChild(lab); cp.appendChild(ta); cp.appendChild(row);
+    box.appendChild(cp);
+    return box;
+  }
+
   function rchips(holder, list, k) {
     Array.prototype.slice.call(holder.querySelectorAll("button")).forEach(function (b) { b.remove(); });
     list.forEach(function (o) { var b = el("button", "chip", o[1]); b.type = "button"; b.setAttribute("aria-pressed", rview[k] === o[0] ? "true" : "false"); b.addEventListener("click", function () { rview[k] = o[0]; rkeep(); rrender(); }); holder.appendChild(b); });
@@ -805,7 +900,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       // (copies: what the store hands back can't be written on)
       snap.docs.forEach(function (doc) { next[doc.id] = Object.assign({}, doc.data() || {}, { id: doc.id }); });
       reqs = next;
-      if (mode() === "requests" && document.activeElement && /^re-|^ra-|^r-title$|^r-desc$/.test(document.activeElement.id || "")) { rcounts(); var mn = $("m-req-n"); return; }   // (not redrawn under the words being typed)
+      if (mode() === "requests" && document.activeElement && /^re-|^ra-|^rd-|^rt-|^r-title$|^r-desc$/.test(document.activeElement.id || "")) { rcounts(); var mn = $("m-req-n"); return; }   // (not redrawn under the words being typed)
       rrender();
     }, function (e) { rloaded = true; $("rempty").textContent = "The requests couldn't be loaded: " + ((e && e.message) || "the store didn't answer") + "."; });
     db.collection("results").onSnapshot(function (snap) {

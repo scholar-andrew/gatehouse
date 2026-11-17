@@ -1,8 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.20.2",
+ "version": "3.20.3",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.20.3", "date": "2026-11-17", "notes": [
+   "Gatekeeper: fixed a lock-up where Gatekeeper kept running but stopped answering (its window showed nothing and it stopped updating). Two of its parts could each wait on the other forever while a newer version was being handed over.",
+   "Update log: a device with two copies of Gatehouse open (an old one beside its updated copy) no longer makes the log flip between their two versions every few seconds."
+  ]},
   {"version": "3.20.2", "date": "2026-11-17", "notes": [
    "Chat: each room's card has a small castle on the corner of its picture: blue for a Gatekeeper's room, yellow for a server's."
   ]},
