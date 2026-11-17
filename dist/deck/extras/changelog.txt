@@ -1,3 +1,5 @@
+== 1.38.1 | 2026-11-16
+- Nothing changed in the pack itself. Gatekeeper's update log also says where each update was fetched from (Gatehouse 3.5.1).
 == 1.38.0 | 2026-11-16
 - Nothing changed in the pack itself. Gatekeeper keeps an update log for its whole constellation: who updated, when, from which version to which, how, and on what system (Gatehouse 3.5.0).
 == 1.37.1 | 2026-11-16
