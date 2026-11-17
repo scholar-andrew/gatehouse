@@ -163,9 +163,11 @@ final class ServerToolsUi {
 	// ------------------------------------------------------------------ Manage one server
 
 	/** One server's console, settings, game settings, backups and tasks, as tabs. */
-	static JTabbedPane manageTabs(java.awt.Component owner, String id, boolean live) {
+	static JTabbedPane manageTabs(java.awt.Component owner, String id, boolean live) { return manageTabs(owner, id, live, null); }
+	/** into: a tab pane to add them to (a server's own page), or null for a pane of their own. */
+	static JTabbedPane manageTabs(java.awt.Component owner, String id, boolean live, JTabbedPane into) {
 		String q = "?server=" + id;
-		JTabbedPane tabs = new JTabbedPane();
+		JTabbedPane tabs = into != null ? into : new JTabbedPane();
 		Map<String, Object> first = ask("GET", "/admin/tools/server" + q, null);
 		if (Json.str(first.get("id")).isEmpty()) { JPanel p = new JPanel(new BorderLayout()); p.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16)); p.add(new JLabel(wrap(Json.str(first.get("message")).isEmpty() ? "Couldn't ask Gatekeeper: is it running?" : Json.str(first.get("message")), 460)), BorderLayout.NORTH); tabs.addTab("Manage", p); return tabs; }
 
@@ -363,11 +365,12 @@ final class ServerToolsUi {
 		JPanel taskBottom = new JPanel(new BorderLayout()); taskBottom.add(line(addT, delT, runT, saveT), BorderLayout.NORTH); taskBottom.add(taskSaid, BorderLayout.SOUTH);
 		tasks.add(taskBottom, BorderLayout.SOUTH);
 		tabs.addTab("Tasks", tasks);
-		tabs.addTab("Pack", PackUi.tab(owner, q));
+		if (into == null) tabs.addTab("Pack", PackUi.tab(owner, q));
 
 		showStats.accept(first);
 		if (live) {
-			Timer tick = new Timer(1500, e -> { if (!tabs.isDisplayable()) { ((Timer) e.getSource()).stop(); return; } later(readConsole); if (tabs.getSelectedIndex() == 3) readBackups.run(); });
+			// (stops once its console has gone: the window closed, or the server's page shows another server now)
+			Timer tick = new Timer(1500, e -> { if (!console.isDisplayable()) { ((Timer) e.getSource()).stop(); return; } later(readConsole); if (tabs.getSelectedComponent() == back) readBackups.run(); });
 			tick.start();
 		}
 		later(readConsole);

@@ -602,6 +602,10 @@ final class Home {
 			dev.gatehouse.look.Pips gatherPips = new dev.gatehouse.look.Pips();
 			JPanel subRow = new JPanel(new BorderLayout(0, 2));
 			subRow.add(sub, BorderLayout.CENTER);
+			// (on a Gatekeeper's servers: the other Gatekeepers a press away, so there is no list of them to go back to)
+			JPanel keeperChips = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+			keeperChips.setOpaque(false); keeperChips.setVisible(false);
+			subRow.add(keeperChips, BorderLayout.SOUTH);
 			top.add(headRow, BorderLayout.NORTH); top.add(subRow, BorderLayout.CENTER); top.add(ownUpdate, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
 			for (javax.swing.JComponent clear : new javax.swing.JComponent[] {p, top, headRow, headButtons, subRow}) clear.setOpaque(false);
@@ -674,7 +678,11 @@ final class Home {
 			guideRow.add(guideB); guideRow.setAlignmentX(Component.LEFT_ALIGNMENT);
 			options.add(guideRow);
 			Runnable[] openGuide = {null};
-			guideB.addActionListener(ev -> { if (openGuide[0] != null) openGuide[0].run(); });
+			java.util.function.Supplier<String>[] firstKeeper = new java.util.function.Supplier[] {() -> {
+				String last = LaunchPopup.readFile(home.resolve("last-keeper.txt")).trim();
+				for (String[] k : keepers) if (k[0].equals(last)) return last;
+				return !keepers.isEmpty() ? keepers.get(0)[0] : hasLoose ? "" : null;
+			}};
 			// How this launcher updates: normal unless changed here (kept in Gatehouse's own folder on this device).
 			updLine.accept("Updating", true);
 			String modeNow = updateMode(home);
@@ -685,13 +693,6 @@ final class Home {
 			java.awt.event.ActionListener pickMode = ev -> { try { Files.createDirectories(home); Files.writeString(home.resolve("gatehouse-options.json"), "{\"update_mode\": \"" + (modeAuto.isSelected() ? "auto" : modeGroup.isSelected() ? "constellation" : "normal") + "\"}\n", StandardCharsets.UTF_8); } catch (IOException ignored) {} };
 			for (javax.swing.JRadioButton rb : new javax.swing.JRadioButton[] {modeNormal, modeAuto, modeGroup}) { modeGroupOf.add(rb); rb.setAlignmentX(Component.LEFT_ALIGNMENT); rb.addActionListener(pickMode); updating.add(rb); }
 			updLine.accept("Normal is what it is unless you choose otherwise. Auto: while this window is open, " + LaunchPopup.TOOL + " updates itself as soon as it sees a new version, without waiting for anyone. Constellation: " + LaunchPopup.TOOL + " waits for a Gatekeeper in your list that is in constellation mode too; that Gatekeeper waits until every such launcher has seen the new version, and then they all update at once. With a Gatekeeper that isn't in constellation mode, you press Update as in Normal.", false);
-			optLine.accept("Play and Host", true);
-			optLine.accept(LaunchPopup.TOOL + " is one program with two halves: Play (this launcher) and Host (Gatekeeper, which looks after the Minecraft servers on a machine). The first screen opens either one, or sets up the one this device doesn't have yet.", false);
-			JButton halvesB = new JButton("Play or Host\u2026");
-			halvesB.addActionListener(ev -> dev.gatehouse.Main.choose(f));
-			JPanel halvesRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
-			halvesRow.add(halvesB); halvesRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-			options.add(halvesRow);
 			optLine.accept("Uninstall", true);
 			String[] planNow = uninstallPlan(instances, false);
 			optLine.accept(planNow[1], false);
@@ -755,13 +756,14 @@ final class Home {
 				sub.setText("About this " + LaunchPopup.TOOL + ", and removing it.");
 				backB.setVisible(false);
 				cards.show(deck, "options");
-				shell[0].light("OPTIONS");
+				shell[0].menuLight("options");
 			});
 			deck.setPreferredSize(new Dimension(680, 330));
 			p.add(deck, BorderLayout.CENTER);
 			List<Runnable> polls = new ArrayList<>();   // (what the open level asks again every few seconds)
 			Runnable[] showKeepers = {null};
 			java.util.function.Consumer<String> showServers;
+			java.util.List<java.util.function.Consumer<String>> toServers = new java.util.ArrayList<>();   // (showServers, for itself to call)
 
 			// A row: a name, a line under it with a dot, and things on the right.
 			java.util.function.BiFunction<String, Component[], Object[]> row = (name, right) -> {
@@ -782,7 +784,21 @@ final class Home {
 				for (String[] k : keepers) if (k[0].equals(url)) kname = k[1];
 				head.setText(url.isEmpty() ? "Other packs" : kname.isEmpty() ? "Gatekeeper at " + shown(url) : kname);
 				sub.setText(url.isEmpty() ? "Packs on this device that no Gatekeeper looks after." : "Pick a server to play. The pack updates first, as always.");
-				backB.setVisible(true);
+				backB.setVisible(false);
+				try { if (!url.isEmpty()) { Files.createDirectories(home); Files.writeString(home.resolve("last-keeper.txt"), url + "\n", StandardCharsets.UTF_8); } } catch (IOException ignored) {}
+				keeperChips.removeAll();
+				List<String[]> shownKeepers = new ArrayList<>(keepers);
+				if (hasLoose) shownKeepers.add(new String[] {"", "Other packs", ""});
+				if (shownKeepers.size() > 1) for (String[] k : shownKeepers) {
+					boolean here = k[0].equals(url);
+					JButton kb = new JButton((here ? "\u25cf  " : "") + (k[0].isEmpty() ? "Other packs" : k[1].isEmpty() ? shown(k[0]) : k[1]));
+					if (here) kb.setFont(kb.getFont().deriveFont(Font.BOLD));
+					kb.setToolTipText(k[0].isEmpty() ? "Packs on this device that no Gatekeeper looks after" : "This Gatekeeper's servers");
+					kb.addActionListener(ev -> { if (!here) toServers.get(0).accept(k[0]); });
+					keeperChips.add(kb);
+				}
+				keeperChips.setVisible(keeperChips.getComponentCount() > 0);
+				keeperChips.revalidate(); keeperChips.repaint();
 				Map<String, Object[]> rows = new LinkedHashMap<>();   // server id -> {state label, pack or null, Play button, name label}
 				java.util.function.BiConsumer<String, String[]> add = (id, pack) -> {
 					LaunchPopup.PlayButton go = new LaunchPopup.PlayButton("Launch");   // (not "Play": it opens the server's launcher, which has Play)
@@ -963,7 +979,7 @@ final class Home {
 									facts.add(new String[] {"Address", str(s.get("address"))});
 									facts.add(new String[] {"Run by", "true".equals(str(s.get("native"))) ? "Gatekeeper itself" : "MC Server Soft, through Gatekeeper"});
 									facts.add(new String[] {"On this device", r[1] != null ? "Installed: Launch updates its pack, then shows its page with Play" : str(s.get("profile")).isEmpty() && !kindIs.equals("vanilla") ? "Not installed, and its pack isn't published for launchers: ask the owner" : "Not installed yet: Install sets it up in Prism Launcher"});
-									facts.add(new String[] {"What you may do", "true".equals(str(s.get("allowed"))) ? "Start and stop this server from here (under Machine)" : "Play, once you are on its whitelist. Starting and stopping it is the host's to allow."});
+									facts.add(new String[] {"What you may do", "true".equals(str(s.get("allowed"))) ? "Start and stop this server from here (menu, The host's machine)" : "Play, once you are on its whitelist. Starting and stopping it is the host's to allow."});
 									card.facts(facts);
 								}
 								{   // (Invite: for a server its owner made shareable or public)
@@ -1155,10 +1171,12 @@ final class Home {
 				SwingUtilities.invokeLater(() -> Nav.home(f));
 			};
 
+			toServers.add(showServers);
 			// ---- level 1: the Gatekeepers
 			showKeepers[0] = () -> {
 				polls.clear();
 				keeperList.removeAll();
+				keeperChips.setVisible(false);
 				head.setText(LaunchPopup.TOOL + " Minecraft Launcher");
 				sub.setText(keepers.isEmpty() && !hasLoose ? "No Gatekeeper yet. Add one with the address, link or file its owner gave you." : "Pick a Gatekeeper to see its servers.");
 				backB.setVisible(false);
@@ -1272,7 +1290,8 @@ final class Home {
 					keeperList.add((JPanel) r[0]);
 				}
 				cards.show(deck, "keepers");
-				shell[0].light("SERVERS"); atServers[0] = false;
+				if (keepers.isEmpty() && !hasLoose) shell[0].light("SERVERS"); else shell[0].menuLight("gatekeepers");
+				atServers[0] = false;
 				keeperList.revalidate(); keeperList.repaint();
 				SwingUtilities.invokeLater(() -> Nav.home(f));
 			};
@@ -1385,7 +1404,7 @@ final class Home {
 				}
 			}, leaveGuide, LaunchPopup.class);
 			deck.add(dev.gatehouse.look.GameShell.sheet(guide[0]), "wizard");
-			openGuide[0] = () -> { head.setText("Setup guide"); sub.setText("From nothing set up to playing, a step at a time."); backB.setVisible(true); cards.show(deck, "wizard"); shell[0].light("OPTIONS"); guide[0].open(); };
+			openGuide[0] = () -> { head.setText("Setup guide"); sub.setText("From nothing set up to playing, a step at a time."); backB.setVisible(true); cards.show(deck, "wizard"); shell[0].menuLight("guide"); guide[0].open(); };
 			headButtons.add(addB, 0);
 			// ---- the other sections' pages
 			JPanel peopleList = new JPanel();
@@ -1436,7 +1455,7 @@ final class Home {
 						chatLast.put(k[0] + "|" + str(rm.get("id")), numOf.apply(str(rm.get("last"))));
 					}
 				} catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before chat */ }
-				boolean open = "PEOPLE".equals(shell[0].lit());
+				boolean open = "CHAT".equals(shell[0].lit());
 				int at = chatRooms.getSelectedIndex();
 				String[] sel = at >= 0 && at < chatKeys.size() ? chatKeys.get(at) : null;
 				Map<String, Object> got = null;
@@ -1466,7 +1485,7 @@ final class Home {
 					}
 					int unread = 0;
 					for (Map.Entry<String, Long> e : chatLast.entrySet()) if (e.getValue() > chatSeen.getOrDefault(e.getKey(), 0L)) unread++;
-					shell[0].badge("PEOPLE", unread);
+					shell[0].badge("CHAT", unread);
 				});
 			};
 			Runnable chatSay = () -> { String tx = chatLine.getText().trim(); if (tx.isEmpty()) return; chatLine.setText(""); new Thread(() -> chatRound.accept(tx), "chat-say").start(); };
@@ -1482,22 +1501,27 @@ final class Home {
 			chatBox.add(chatTop, BorderLayout.NORTH); chatBox.add(new JScrollPane(chatLog), BorderLayout.CENTER); chatBox.add(chatBottom, BorderLayout.SOUTH);
 			javax.swing.JComponent chatSheet = dev.gatehouse.look.GameShell.sheet(chatBox);
 			chatSheet.setPreferredSize(new Dimension(460, 300));
-			JPanel peopleBoth = new JPanel(new BorderLayout(14, 0)); peopleBoth.setOpaque(false);
-			peopleBoth.add(peopleSc, BorderLayout.CENTER); peopleBoth.add(chatSheet, BorderLayout.EAST);
-			deck.add(peopleBoth, "people");
+			deck.add(chatSheet, "chat");
+			deck.add(peopleSc, "access");
 			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8));
 			checkRow.add(checkB);
+			// How this launcher updates: a tab of its own beside what changed, so the notes have the whole page
 			JPanel updTop = new JPanel(new BorderLayout());
-			updTop.setBorder(BorderFactory.createEmptyBorder(4, 8, 0, 8));
-			updTop.add(updating, BorderLayout.CENTER); updTop.add(checkRow, BorderLayout.SOUTH);
+			updTop.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
+			updTop.add(updating, BorderLayout.NORTH); updTop.add(checkRow, BorderLayout.CENTER);
+			JPanel updHold = new JPanel(new BorderLayout()); updHold.add(updTop, BorderLayout.NORTH);
+			JScrollPane updScroll = new JScrollPane(updHold); updScroll.setBorder(null);
+			updScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			updScroll.getVerticalScrollBar().setUnitIncrement(16);
+			news.addTab("Update options", updScroll);
 			JPanel constPage = new JPanel(new BorderLayout(0, 8));
-			constPage.add(updTop, BorderLayout.NORTH); constPage.add(news, BorderLayout.CENTER);
+			constPage.add(news, BorderLayout.CENTER);
 			// Systems: the other machines in this one's constellations, and the ones it remembers
 			JButton systemsB = new JButton("Systems…");
 			systemsB.setToolTipText("<html>The other machines in a constellation with this one (neighbors), and the ones you chose to remember.<br>A neighbor can be remembered from here; it then stays listed after the constellation is left.</html>");
 			systemsB.addActionListener(ev -> SystemsBox.show(f, home, keepers, packs));
 			JPanel systemsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4)); systemsRow.setOpaque(false); systemsRow.add(systemsB);
-			constPage.add(systemsRow, BorderLayout.SOUTH);
+			// (Systems is in the menu now)
 			// (without anyone opening Systems: this launcher tells each Gatekeeper which machine it is part of, and
 			// takes on the id of the Gatekeeper beside it, so the two are listed as one system everywhere)
 			if (System.getenv("OJ_POPUP_PNG") == null && System.getenv("OJ_HOME_DRY") == null) {
@@ -1539,35 +1563,55 @@ final class Home {
 			java.util.function.Consumer<String> pickSection = s -> {
 				if (guide[0] != null) guide[0].stop();
 				switch (s) {
-					case "SERVERS" -> { if (atServers[0] && openUrl[0] != null) showServers.accept(openUrl[0]); else showKeepers[0].run(); }
-					case "PEOPLE" -> {
-						head.setText("People");
-						sub.setText("What this device may do on each server. The host decides, in their Gatekeeper's Access Manager.");
-						backB.setVisible(false);
-						if (shot != null) people.run(); else { new Thread(people, "people").start(); new Thread(() -> chatRound.accept(null), "chat").start(); }
-						cards.show(deck, "people"); shell[0].light("PEOPLE");
+					case "SERVERS" -> {
+						String to = openUrl[0] != null ? openUrl[0] : firstKeeper[0].get();
+						if (to != null) showServers.accept(to); else showKeepers[0].run();
 					}
-					case "CONSTELLATION" -> {
-						head.setText("Constellation");
-						sub.setText("How this launcher updates, and what changed.");
-						backB.setVisible(false);
-						cards.show(deck, "constellation"); shell[0].light("CONSTELLATION");
+					case "CHAT" -> {
+						head.setText("Chat");
+						sub.setText("A room for each Gatekeeper, and for each of its servers this device is on.");
+						backB.setVisible(false); keeperChips.setVisible(false);
+						if (shot == null) new Thread(() -> chatRound.accept(null), "chat").start();
+						cards.show(deck, "chat"); shell[0].light("CHAT");
+					}
+					case "UPDATES" -> {
+						head.setText("Updates");
+						sub.setText("How this launcher updates, and what changed in it, in its servers' packs and in its Gatekeepers.");
+						backB.setVisible(false); keeperChips.setVisible(false);
+						cards.show(deck, "constellation"); shell[0].light("UPDATES");
 						if (news.getSelectedIndex() == 0) seenNow.run();
+					}
+					case "ACCESS" -> {
+						head.setText("What this device may do");
+						sub.setText("On each server installed here. The host decides, in their Gatekeeper's Access Manager.");
+						backB.setVisible(false); keeperChips.setVisible(false);
+						if (shot != null) people.run(); else new Thread(people, "people").start();
+						cards.show(deck, "access"); shell[0].menuLight("access");
 					}
 					case "MACHINE" -> {
 						String u = openUrl[0] != null && !openUrl[0].isEmpty() ? openUrl[0] : keepers.isEmpty() ? null : keepers.get(0)[0];
 						if (u != null) showServers.accept(u);   // (asks that Gatekeeper again, which fills this page too)
 						else { polls.clear(); connList.removeAll(); Object[] r = row.apply("No Gatekeeper yet", new Component[0]); ((dev.gatehouse.look.GameCard) r[0]).dim(true); ((JLabel) r[2]).setText("Add a Gatekeeper first: its machine, MC Server Soft and servers are then shown here, with what this device may switch on and off."); connList.add((JPanel) r[0]); connList.revalidate(); head.setText("Machine"); }
 						sub.setText("The host's machine and its servers: what this device may switch on and off. Open another Gatekeeper under Servers to see its machine.");
-						backB.setVisible(false);
-						cards.show(deck, "machine"); shell[0].light("MACHINE");
+						backB.setVisible(false); keeperChips.setVisible(false);
+						cards.show(deck, "machine"); shell[0].menuLight("machine");
 					}
-					default -> gear.doClick(0);
+					case "OPTIONS" -> gear.doClick(0);
+					default -> { }
 				}
 				SwingUtilities.invokeLater(() -> Nav.home(f));
 			};
-			news.addChangeListener(ev -> { if (news.getSelectedIndex() == 0 && "CONSTELLATION".equals(shell[0].lit())) seenNow.run(); });
-			shell[0] = new dev.gatehouse.look.GameShell(LaunchPopup.TOOL, new String[] {"SERVERS", "PEOPLE", "CONSTELLATION", "MACHINE", "OPTIONS"}, pickSection);
+			news.addChangeListener(ev -> { if (news.getSelectedIndex() == 0 && "UPDATES".equals(shell[0].lit())) seenNow.run(); });
+			shell[0] = new dev.gatehouse.look.GameShell(LaunchPopup.TOOL, new String[] {"SERVERS", "CHAT", "UPDATES"}, pickSection);
+			// The menu down the left: the pages that are about this device and its setup rather than playing.
+			shell[0].menu("Servers", "gatekeepers", "Gatekeepers", () -> showKeepers[0].run());
+			shell[0].menu("Servers", "machine", "The host's machine", () -> pickSection.accept("MACHINE"));
+			shell[0].menu("This device", "access", "What this device may do", () -> pickSection.accept("ACCESS"));
+			shell[0].menu("This device", "systems", "Systems" + "\u2026", () -> SystemsBox.show(f, home, keepers, packs));
+			shell[0].menu("This device", "options", "Options", () -> gear.doClick(0));
+			shell[0].menu("Help", "guide", "Setup guide", () -> { if (openGuide[0] != null) openGuide[0].run(); });
+			shell[0].menu("Help", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
+			shell[0].afterMenu(() -> Nav.home(f));
 			shell[0].body(p);
 			shell[0].corner("This device: " + ServerControl.systemName());
 			// the bottom strip: where this launcher stands, and what the buttons do
@@ -1601,8 +1645,10 @@ final class Home {
 			p.add(south, BorderLayout.SOUTH);
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent ev) { closed.countDown(); } });
 			f.setContentPane(shell[0]);
+			// It always opens on Servers: on the Gatekeeper it was on last (or the only one). After an update, Updates is
+			// marked instead of being opened.
 			if (openAt != null && (openAt.isEmpty() ? hasLoose : true)) showServers.accept(openAt);
-			else { showKeepers[0].run(); if (fresh && !seenVersion.isEmpty()) pickSection.accept("CONSTELLATION"); }
+			else { String to = firstKeeper[0].get(); if (to != null) showServers.accept(to); else showKeepers[0].run(); }
 			if (openAt == null && shot == null && keepers.isEmpty() && packs.isEmpty()) openGuide[0].run();   // (nothing here yet: the guide)
 			// Opened directly (not on the way back from a server): look for a newer Gatehouse; with one in place, close
 			// and let the shortcut's script open it. (GATEHOUSE_UPDATED: just reopened for that, so not again.)
@@ -1649,7 +1695,7 @@ final class Home {
 					ownUpdateText.setText("<html><b>A " + LaunchPopup.TOOL + " update is ready" + (found[4].isEmpty() || found[4].equals(have) ? "" : ": " + LaunchPopup.esc(found[4])) + ".</b> You have " + LaunchPopup.esc(have) + "." + (bytes > 0 ? " " + Math.max(1, Math.round(bytes / 1024.0)) + " KB to download." : "") + "</html>");
 					ownUpdateGo.setEnabled(true); ownUpdateLater.setEnabled(true); ownUpdateLater.setText("Later");
 					ownUpdate.setVisible(true);
-					shell[0].badge("CONSTELLATION", 1);
+					shell[0].badge("UPDATES", 1);
 					LaunchPopup.iconUpdate = true; LaunchPopup.icons();
 					f.validate();
 					if (shot == null) { LaunchPopup.chime(); Nav.land(ownUpdateGo); }
@@ -1739,9 +1785,12 @@ final class Home {
 						snap.accept("servers");
 						pickSection.accept("MACHINE"); snap.accept("connections");
 					}
-					pickSection.accept("PEOPLE"); snap.accept("people");
-					pickSection.accept("CONSTELLATION"); snap.accept("constellation");
-					pickSection.accept("OPTIONS"); snap.accept("options");
+					pickSection.accept("CHAT"); snap.accept("chat");
+					pickSection.accept("ACCESS"); snap.accept("people");
+					pickSection.accept("UPDATES"); snap.accept("updates");
+					news.setSelectedIndex(news.getTabCount() - 1); snap.accept("updateoptions"); news.setSelectedIndex(0);
+					pickSection.accept("OPTIONS"); if (!shell[0].menuOpen()) shell[0].toggleMenu(); shell[0].validate(); snap.accept("options");
+					shell[0].toggleMenu();
 					cards.show(deck, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); snap.accept("wizard");
 				} catch (java.io.UncheckedIOException ex) { ex.printStackTrace(); }
 				f.dispose();

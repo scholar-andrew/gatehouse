@@ -3367,6 +3367,19 @@ public final class HostHelper {
 			pickRow.removeAll(); pickRow.add(backB);   // (the list of servers replaces the drop-down that picked one)
 			boolean[] inServer = {false};
 			JButton[] firstEnter = {null};   // (the button that opens the first server in the list)
+			// A server's page: Access Manager, Server Status and Updates Pulled, then its Pack, then (for a server
+			// Gatekeeper runs itself) its console, settings, game settings, backups and tasks. One page, not windows
+			// opened from it. which: the tab to show ("" for the first, "pack", "manage").
+			java.util.function.Consumer<String[]> openServer = w -> {
+				String sid = w[0], snm = w[1], which = w[3];
+				boolean snat = "true".equals(w[2]);
+				panelServer = sid; inServer[0] = true; head.setText("Gatekeeper \u2013 " + snm); backB.setVisible(true);
+				while (tabs.getTabCount() > 3) tabs.removeTabAt(3);
+				tabs.addTab("Pack", PackUi.tab(f, "?server=" + sid));
+				if (snat && farUrl == null) ServerToolsUi.manageTabs(f, sid, true, tabs);
+				tabs.setSelectedIndex(which.equals("pack") ? 3 : which.equals("manage") && tabs.getTabCount() > 4 ? 4 : 0);
+				levels.show(stack, "server"); refresh.run();
+			};
 			java.util.function.BiFunction<String, String, Object[]> overRow = (title, button) -> {
 				JPanel r = new dev.gatehouse.look.GameCard.Strip(new BorderLayout(14, 0));   // (a slim card: it glows while one of its buttons is selected)
 				r.setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
@@ -3413,14 +3426,14 @@ public final class HostHelper {
 					boolean nat = Boolean.TRUE.equals(s.get("native"));
 					((JLabel) sr[1]).setText((on ? "Running, " + players + " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off") + "   \u00b7   port " + Json.str(s.get("port")) + (Json.str(r.get("host")).equals("mcss") ? nat ? "   \u00b7   run by Gatekeeper itself" : "   \u00b7   run by MCSS" : "") + "   \u00b7   " + Json.str(s.get("dir")));
 					((JLabel) sr[1]).setForeground(on ? new Color(0x8BD46E) : ph.equals("starting") || ph.equals("stopping") ? new Color(0xE9B949) : new Color(0x8F98A0));
-					((JButton) sr[2]).setToolTipText("Access Manager, Server Status and Updates Pulled for this server");
+					((JButton) sr[2]).setToolTipText("This server's page: who may join and what each launcher may do, how it is, its pack" + (nat ? ", and its console, settings and backups" : ""));
 					if (firstEnter[0] == null) firstEnter[0] = (JButton) sr[2];
 					String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
-					((JButton) sr[2]).addActionListener(ev -> { panelServer = id; inServer[0] = true; head.setText("Gatekeeper \u2013 " + nm); backB.setVisible(true); levels.show(stack, "server"); refresh.run(); });
+					((JButton) sr[2]).addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), ""}));
 					JButton manageB = new JButton("Manage\u2026");
 					manageB.setEnabled(nat);
 					manageB.setToolTipText(nat ? "Its console, settings, game settings, backups and scheduled tasks" : ServerTools.HERE_MCSS);
-					manageB.addActionListener(ev -> ServerToolsUi.manage(f, id, nm));
+					manageB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), "manage"}));
 					if (Boolean.TRUE.equals(s.get("gone"))) {
 						// MCSS has deleted it: said so, and Manage's place is taken by the one thing left to do with it.
 						((JLabel) sr[1]).setText("Deleted in MC Server Soft: its folder is gone. Launchers are no longer shown it.   \u00b7   " + Json.str(s.get("dir")));
@@ -3443,7 +3456,7 @@ public final class HostHelper {
 					if (!Boolean.TRUE.equals(s.get("gone"))) {
 						JButton packB = new JButton("Pack…");
 						packB.setToolTipText("<html>What players' launchers install for this server: its pack and the mods in it, its pictures for Steam,<br>who the server is for (private, shareable or public), and invites</html>");
-						packB.addActionListener(ev -> PackUi.pack(f, id, nm));
+						packB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), "pack"}));
 						((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(packB);
 					}
 					((JButton) sr[2]).getParent().add(javax.swing.Box.createHorizontalStrut(8)); ((JButton) sr[2]).getParent().add(manageB);
@@ -3661,38 +3674,57 @@ public final class HostHelper {
 			java.util.function.Consumer<String> pickSection = s -> {
 				switch (s) {
 					case "SERVERS" -> { toOverview.run(); firstTabs.setSelectedIndex(0); }
-					case "PEOPLE" -> { toOverview.run(); firstTabs.setSelectedIndex(4); }
-					case "CONSTELLATION" -> { toOverview.run(); firstTabs.setSelectedIndex(5); }
+					case "CHAT" -> { toOverview.run(); firstTabs.setSelectedIndex(6); }
+					case "UPDATES" -> { toOverview.run(); firstTabs.setSelectedIndex(1); }
 					case "MACHINE" -> { toOverview.run(); firstTabs.setSelectedIndex(3); }
-					default -> { if (!optionsScroll.isVisible()) { if (guide[0].isVisible()) leaveGuide.run(); gear.doClick(0); } }
+					case "WEB" -> { toOverview.run(); firstTabs.setSelectedIndex(4); }
+					case "CONSTELLATION" -> { toOverview.run(); firstTabs.setSelectedIndex(5); }
+					case "PLAYERS" -> { if (firstEnter[0] == null) { JOptionPane.showMessageDialog(f, "There is no server yet. Add one under Servers first."); return; } toOverview.run(); peopleJump[0] = true; firstEnter[0].doClick(0); tabs.setSelectedIndex(0); }
+					case "OPTIONS" -> { if (!optionsScroll.isVisible()) { if (guide[0].isVisible()) leaveGuide.run(); gear.doClick(0); } }
+					case "GUIDE" -> { if (inServer[0]) backB.doClick(); if (optionsScroll.isVisible()) optBack.doClick(); openGuide.run(); }
+					default -> { }
 				}
 			};
-			dev.gatehouse.look.GameShell shell = new dev.gatehouse.look.GameShell("Gatekeeper", new String[] {"SERVERS", "PEOPLE", "CONSTELLATION", "MACHINE", "OPTIONS"}, pickSection);
+			dev.gatehouse.look.GameShell shell = new dev.gatehouse.look.GameShell("Gatekeeper", new String[] {"SERVERS", "CHAT", "UPDATES"}, pickSection);
+			// The menu down the left: what is about setting this machine and its constellation up, rather than its servers.
+			shell.menu("This machine", "machine", "Host setup", () -> pickSection.accept("MACHINE"));
+			shell.menu("This machine", "players", "Launchers and players", () -> pickSection.accept("PLAYERS"));
+			shell.menu("This machine", "web", "Web panel", () -> pickSection.accept("WEB"));
+			shell.menu("Constellation", "constellation", "Constellation", () -> pickSection.accept("CONSTELLATION"));
+			shell.menu("Constellation", "systems", "Systems" + "\u2026", () -> PackUi.systems(f));
+			shell.menu("Constellation", "history", "History of servers" + "\u2026", () -> PackUi.history(f));
+			shell.menu("Gatekeeper", "options", "Options", () -> pickSection.accept("OPTIONS"));
+			shell.menu("Gatekeeper", "guide", "Setup guide", () -> pickSection.accept("GUIDE"));
+			shell.menu("Gatekeeper", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
+			shell.afterMenu(() -> dev.octoberjourney.popup.Nav.home(f));
 			shell.body(p);
 			String[] subShown = {null};
 			Runnable sync = () -> {
 				boolean aside = optionsScroll.isVisible() || guide[0].isVisible();
 				int at = firstTabs.getSelectedIndex();
 				if (!inServer[0]) peopleJump[0] = false;
-				String lit = aside ? "OPTIONS" : inServer[0] ? (peopleJump[0] && tabs.getSelectedIndex() == 0 ? "PEOPLE" : "SERVERS") : at == 0 ? "SERVERS" : at == 3 ? "MACHINE" : at == 4 || at == 6 ? "PEOPLE" : "CONSTELLATION";
-				shell.light(lit);
-				// (what is waiting: launchers' requests on People, setup steps still to do on Machine)
-				shell.badge("PEOPLE", reqRow.isVisible() ? reqRow.getComponentCount() : 0);
+				// (a page of the menu is lit there, and puts out the sections; any other page lights its section)
+				String item = optionsScroll.isVisible() ? "options" : guide[0].isVisible() ? "guide" : inServer[0] ? (peopleJump[0] && tabs.getSelectedIndex() == 0 ? "players" : "") : at == 3 ? "machine" : at == 4 ? "web" : at == 5 ? "constellation" : "";
+				String lit = !item.isEmpty() ? "MENU" : inServer[0] || at == 0 ? "SERVERS" : at == 6 ? "CHAT" : "UPDATES";
+				if (!aside && !inServer[0]) { String hd = at == 0 ? "Gatekeeper" : at == 6 ? "Chat" : at == 1 || at == 2 ? "Updates" : at == 3 ? "Host setup" : at == 4 ? "Web panel" : "Constellation"; if (!hd.equals(head.getText())) head.setText(hd); }
+				if (!item.isEmpty()) { if (!item.equals(shell.menuLit())) shell.menuLight(item); }
+				else if (!lit.equals(shell.lit())) shell.light(lit);
+				// (what is waiting: launchers' requests, setup steps still to do)
+				shell.menuBadge("players", reqRow.isVisible() ? reqRow.getComponentCount() : 0);
 				java.util.regex.Matcher todoM = java.util.regex.Pattern.compile("\\((\\d+) to do\\)").matcher(firstTabs.getTitleAt(3));
-				shell.badge("MACHINE", todoM.find() ? Integer.parseInt(todoM.group(1)) : 0);
+				shell.menuBadge("machine", todoM.find() ? Integer.parseInt(todoM.group(1)) : 0);
 				String want = aside || inServer[0] ? "" : lit + at;
 				if (want.equals(subShown[0])) return;
 				subShown[0] = want;
 				subRow.removeAll();
-				String[][] pages = want.isEmpty() ? new String[0][] : lit.equals("PEOPLE") ? new String[][] {{"Chat", "6"}, {"Web panel accounts", "4"}, {"Launchers and players\u2026", "enter"}}
-						: lit.equals("CONSTELLATION") ? new String[][] {{"Clients", "5"}, {"What's new in Gatekeeper", "1"}, {"What's new in Gatehouse", "2"}} : new String[0][];
+				String[][] pages = want.isEmpty() ? new String[0][] : lit.equals("UPDATES") ? new String[][] {{"What's new in Gatekeeper", "1"}, {"What's new in Gatehouse", "2"}, {"Update log\u2026", "log"}} : new String[0][];
 				for (String[] pg : pages) {
 					boolean here = pg[1].equals(String.valueOf(at));
 					JButton b = new JButton((here ? "\u25cf  " : "") + pg[0]);
 					if (here) b.setFont(b.getFont().deriveFont(Font.BOLD));
-					if (pg[1].equals("enter")) {
-						b.setToolTipText("The Access Manager of the first server in the list: who may join it and what each launcher may do. For another server, open it under Servers.");
-						b.addActionListener(ev -> { if (firstEnter[0] == null) { JOptionPane.showMessageDialog(f, "There is no server yet. Add one under Servers first."); return; } peopleJump[0] = true; firstEnter[0].doClick(0); tabs.setSelectedIndex(0); });
+					if (pg[1].equals("log")) {
+						b.setToolTipText("Every update of every client in this constellation: when, from which version to which, how, and its system");
+						b.addActionListener(ev -> ConstellationUi.updateLog(f));
 					} else b.addActionListener(ev -> firstTabs.setSelectedIndex(Integer.parseInt(pg[1])));
 					subRow.add(b);
 				}
@@ -3727,6 +3759,7 @@ public final class HostHelper {
 							if (!f.isDisplayable()) return;
 							int now = (int) Double.parseDouble(Json.str(Json.map(Json.parse(call("GET", "/admin/window", null))).get("raise")));
 							if (was >= 0 && now != was) SwingUtilities.invokeLater(() -> {
+								if (!f.isActive()) { if (shell.menuOpen()) shell.toggleMenu(); pickSection.accept("SERVERS"); }   // (opened again from Gatehouse: on Servers, as when it starts)
 								if ((f.getExtendedState() & JFrame.ICONIFIED) != 0) f.setExtendedState(f.getExtendedState() & ~JFrame.ICONIFIED);
 								f.setAlwaysOnTop(true); f.toFront(); f.requestFocus(); f.setAlwaysOnTop(false);
 							});
@@ -3786,6 +3819,12 @@ public final class HostHelper {
 						java.awt.image.BufferedImage cni = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D cng = cni.createGraphics(); shell.paint(cng); cng.dispose();
 						javax.imageio.ImageIO.write(cni, "png", new java.io.File(shot + "-constellation.png"));
+						// (the menu open, over the Servers page: <file>-menu.png)
+						firstTabs.setSelectedIndex(0); if (!shell.menuOpen()) shell.toggleMenu(); sync.run(); shell.validate();
+						java.awt.image.BufferedImage mi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						java.awt.Graphics2D mg = mi.createGraphics(); shell.paint(mg); mg.dispose();
+						javax.imageio.ImageIO.write(mi, "png", new java.io.File(shot + "-menu.png"));
+						shell.toggleMenu();
 						gear.doClick(0); sync.run(); shell.validate();
 						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D gg2 = gi2.createGraphics(); shell.paint(gg2); gg2.dispose();
@@ -3798,6 +3837,18 @@ public final class HostHelper {
 						levels.show(stack, "overview");
 						firstTabs.setSelectedIndex(0);
 					} catch (IOException ex) { ex.printStackTrace(); }
+					if (!serverIds.isEmpty()) {   // (a server's own page, on its Pack tab and on its console: <file>-serverpack.png, -serverconsole.png)
+						try {
+							openServer.accept(new String[] {serverIds.get(0), "the first server", "true", "pack"}); Thread.sleep(1500); sync.run(); shell.validate();
+							java.awt.image.BufferedImage si = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D sg = si.createGraphics(); shell.paint(sg); sg.dispose();
+							javax.imageio.ImageIO.write(si, "png", new java.io.File(shot + "-serverpack.png"));
+							if (tabs.getTabCount() > 4) { tabs.setSelectedIndex(4); sync.run(); shell.validate();
+								java.awt.image.BufferedImage ci = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+								java.awt.Graphics2D cg = ci.createGraphics(); shell.paint(cg); cg.dispose();
+								javax.imageio.ImageIO.write(ci, "png", new java.io.File(shot + "-serverconsole.png")); }
+						} catch (IOException | InterruptedException ex) { ex.printStackTrace(); }
+					}
 					inServer[0] = true; backB.setVisible(true); levels.show(stack, "server");
 					try {
 						// (the Updates Pulled tab, filled in directly: <file>-pulls.png)

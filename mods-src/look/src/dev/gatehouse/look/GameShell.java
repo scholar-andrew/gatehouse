@@ -32,6 +32,10 @@ import javax.swing.JPanel;
  * sections (flipped with the bumpers, or Q and E), the page itself in the middle on a dark gradient, and a strip
  * along the bottom with where the program stands on the left and what the buttons do on the right.
  *
+ * Beside the sections there can be a menu (the button at the far left of the top bar, the controller's View button,
+ * or M): a column down the left of the window with the window's other, more technical pages, in groups. It opens and
+ * closes with that button and stays as it is while pages are chosen from it.
+ *
  * It only draws and arranges. Which page a section shows is the window's own business: it is told when a section is
  * picked, and says back which one to light up.
  */
@@ -142,6 +146,106 @@ public final class GameShell extends JPanel {
 		}
 	}
 
+	// ---- the menu down the left
+	private final JPanel drawer = new JPanel(), drawerList = new JPanel();
+	private final Map<String, Item> items = new LinkedHashMap<>();
+	private String litItem = "";
+	private final Burger burger = new Burger();
+	private Runnable afterMenu;
+
+	/** One of the menu's pages: its name, a count when something there is waiting, and lit while it is showing. */
+	private final class Item extends JButton {
+		final String id, label; int badge;
+		Item(String id, String label, Runnable run) {
+			super(label); this.id = id; this.label = label;
+			setContentAreaFilled(false); setBorderPainted(false); setFocusPainted(false); setOpaque(false); setRolloverEnabled(true);
+			setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+			setAlignmentX(LEFT_ALIGNMENT);
+			addActionListener(e -> run.run());
+		}
+		@Override public Dimension getPreferredSize() { return new Dimension(236, 40); }
+		@Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, 40); }
+		@Override protected void paintComponent(Graphics g0) {
+			Graphics2D g = smooth(g0);
+			boolean sel = id.equals(litItem), over = getModel().isRollover();
+			if (sel || over || isFocusOwner()) { g.setColor(a(sel ? ACC : TEXT, sel ? 34 : 16)); g.fill(new RoundRectangle2D.Double(6, 2, getWidth() - 12, getHeight() - 4, 10, 10)); }
+			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(6, 2, getWidth() - 12, getHeight() - 4, 10, 10)); }
+			if (sel) { g.setColor(ACC); g.fill(new RoundRectangle2D.Double(6, 10, 4, getHeight() - 20, 3, 3)); }
+			g.setFont(font(14.5f, sel)); g.setColor(sel ? TEXT : over ? a(TEXT, 225) : a(TEXT, 190));
+			g.drawString(label, 22, getHeight() / 2 + 5);
+			if (badge != 0) {
+				String n = badge < 0 ? "" : badge > 99 ? "99" : String.valueOf(badge);
+				int d = badge < 0 ? 9 : 18, x = getWidth() - 18 - d;
+				g.setColor(RED); g.fill(new Ellipse2D.Double(x, getHeight() / 2.0 - d / 2.0, d, d));
+				if (!n.isEmpty()) { g.setFont(font(11.5f, true)); g.setColor(Color.WHITE); g.drawString(n, x + d / 2f - g.getFontMetrics().stringWidth(n) / 2f, getHeight() / 2f + 4.5f); }
+			}
+			g.dispose();
+		}
+	}
+	/** The button that opens and closes the menu: three lines, with a dot when something in the menu is waiting. */
+	private final class Burger extends JButton {
+		Burger() {
+			setContentAreaFilled(false); setBorderPainted(false); setFocusPainted(false); setOpaque(false); setRolloverEnabled(true);
+			setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+			setToolTipText("Menu: the other pages (also the controller's View button, or M)");
+			getAccessibleContext().setAccessibleName("Menu");
+			addActionListener(e -> toggleMenu());
+		}
+		@Override public Dimension getPreferredSize() { return new Dimension(44, 44); }
+		@Override protected void paintComponent(Graphics g0) {
+			Graphics2D g = smooth(g0);
+			boolean open = drawer.isVisible(), over = getModel().isRollover();
+			if (open || over || isFocusOwner()) { g.setColor(a(open ? ACC : TEXT, open ? 40 : 18)); g.fill(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, 12, 12)); }
+			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, 12, 12)); }
+			g.setColor(open ? ACC : TEXT);
+			int cx = getWidth() / 2, cy = getHeight() / 2;
+			for (int i = -1; i <= 1; i++) g.fill(new RoundRectangle2D.Double(cx - 10, cy + i * 7 - 1.5, 20, 3, 3, 3));
+			boolean waiting = false;
+			for (Item it : items.values()) if (it.badge != 0) waiting = true;
+			if (waiting && !open) { g.setColor(RED); g.fill(new Ellipse2D.Double(getWidth() - 13, 5, 9, 9)); }
+			g.dispose();
+		}
+	}
+
+	/** Adds a page to the menu, under a heading (a new heading starts a new group). */
+	public void menu(String heading, String id, String label, Runnable run) {
+		boolean first = items.isEmpty();
+		String lastHeading = (String) drawerList.getClientProperty("heading");
+		if (heading != null && !heading.equals(lastHeading)) {
+			JLabel h = new JLabel(heading.toUpperCase(java.util.Locale.ROOT));
+			h.setFont(spaced(11f, 0.12f)); h.setForeground(DIM);
+			h.setBorder(BorderFactory.createEmptyBorder(drawerList.getComponentCount() == 0 ? 6 : 18, 22, 6, 0));
+			h.setAlignmentX(LEFT_ALIGNMENT);
+			drawerList.add(h);
+			drawerList.putClientProperty("heading", heading);
+		}
+		Item it = new Item(id, label, run);
+		items.put(id, it);
+		drawerList.add(it);
+		if (first) burger.setVisible(true);
+		drawerList.revalidate();
+	}
+	/** A count beside a menu page (0 for none, -1 for a dot). */
+	public void menuBadge(String id, int count) { Item it = items.get(id); if (it != null && it.badge != count) { it.badge = count; it.repaint(); burger.repaint(); } }
+	/** Which menu page is showing ("" for none). Lighting one puts out the sections, and the other way round. */
+	public void menuLight(String id) { litItem = id == null ? "" : id; if (!litItem.isEmpty()) { lit = ""; for (Tab t : tabs.values()) t.repaint(); } for (Item it : items.values()) it.repaint(); }
+	public String menuLit() { return litItem; }
+	public boolean menuOpen() { return drawer.isVisible(); }
+	public boolean hasMenu() { return !items.isEmpty(); }
+	/** Opens or closes the menu. Opening it puts the selection on the page that is showing (or the first). */
+	public void toggleMenu() {
+		if (items.isEmpty()) return;
+		boolean open = !drawer.isVisible();
+		drawer.setVisible(open);
+		revalidate(); repaint();
+		if (open) {
+			Item to = items.getOrDefault(litItem, items.values().iterator().next());
+			javax.swing.SwingUtilities.invokeLater(to::requestFocusInWindow);
+		} else if (afterMenu != null) javax.swing.SwingUtilities.invokeLater(afterMenu);
+	}
+	/** What to do once the menu has closed (the window puts the selection back on its page). */
+	public void afterMenu(Runnable r) { afterMenu = r; }
+
 	private final Map<String, Tab> tabs = new LinkedHashMap<>();
 	private final Consumer<String> pick;
 	private String lit = "";
@@ -242,6 +346,7 @@ public final class GameShell extends JPanel {
 				Graphics2D g = smooth(g0);
 				g.setColor(a(BG0, 150)); g.fillRect(0, 0, getWidth(), 64); g.setColor(a(TEXT, 20)); g.fillRect(0, 64, getWidth(), 1);
 				Path2D gate = new Path2D.Double();   // (a small gatehouse: two towers and an arch)
+				g.translate(items.isEmpty() ? 0 : 50, 0);
 				gate.moveTo(24, 48); gate.lineTo(24, 18); gate.lineTo(29, 18); gate.lineTo(29, 22); gate.lineTo(33, 22); gate.lineTo(33, 18); gate.lineTo(38, 18); gate.lineTo(38, 27);
 				gate.lineTo(46, 27); gate.lineTo(46, 18); gate.lineTo(51, 18); gate.lineTo(51, 22); gate.lineTo(55, 22); gate.lineTo(55, 18); gate.lineTo(60, 18); gate.lineTo(60, 48);
 				gate.lineTo(48, 48); gate.lineTo(48, 40); gate.curveTo(48, 32, 36, 32, 36, 40); gate.lineTo(36, 48); gate.closePath();
@@ -255,7 +360,8 @@ public final class GameShell extends JPanel {
 		bar.setOpaque(false);
 		sections(sections, s -> s);
 		// (the same room on both sides, so the sections sit in the middle of the window)
-		JPanel west = new JPanel() { @Override public Dimension getPreferredSize() { return new Dimension(side(), 64); } }; west.setOpaque(false);
+		JPanel west = new JPanel(null) { @Override public Dimension getPreferredSize() { return new Dimension(side(), 64); } }; west.setOpaque(false);
+		burger.setBounds(14, 10, 44, 44); burger.setVisible(false); west.add(burger);
 		JPanel east = new JPanel(new BorderLayout()) { @Override public Dimension getPreferredSize() { return new Dimension(Math.max(24, Math.min(230, GameShell.this.getWidth() - side() - bar.getPreferredSize().width)), 64); } }; east.setOpaque(false);
 		corner.setForeground(DIM); corner.setFont(font(12.5f, false)); corner.setHorizontalAlignment(JLabel.RIGHT); corner.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 24));
 		east.add(corner, BorderLayout.CENTER);
@@ -268,7 +374,32 @@ public final class GameShell extends JPanel {
 		left.setOpaque(false); right.setOpaque(false);
 		bottom.add(left, BorderLayout.WEST); bottom.add(right, BorderLayout.EAST);
 		middle.setOpaque(false);
-		add(top, BorderLayout.NORTH); add(middle, BorderLayout.CENTER); add(bottom, BorderLayout.SOUTH);
+		drawerList.setOpaque(false);
+		drawerList.putClientProperty("navMenu", "menu");
+		drawerList.setLayout(new javax.swing.BoxLayout(drawerList, javax.swing.BoxLayout.Y_AXIS));
+		drawerList.setBorder(BorderFactory.createEmptyBorder(8, 6, 8, 6));
+		JPanel drawerTop = new JPanel(new BorderLayout()); drawerTop.setOpaque(false); drawerTop.add(drawerList, BorderLayout.NORTH);
+		javax.swing.JScrollPane drawerScroll = new javax.swing.JScrollPane(drawerTop, javax.swing.JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		drawerScroll.getVerticalScrollBar().setUnitIncrement(16);
+		clear(drawerScroll);
+		drawer.setLayout(new BorderLayout());
+		drawer.setOpaque(false);
+		drawer.add(drawerScroll, BorderLayout.CENTER);
+		drawer.setVisible(false);
+		JPanel holder = new JPanel(new BorderLayout()) {
+			@Override protected void paintComponent(Graphics g0) {
+				if (!drawer.isVisible()) return;
+				Graphics2D g = smooth(g0);
+				g.setColor(a(BG0, 175)); g.fillRect(0, 0, 252, getHeight());
+				g.setColor(a(TEXT, 20)); g.fillRect(251, 0, 1, getHeight());
+				g.dispose();
+			}
+		};
+		holder.setOpaque(false);
+		JPanel drawerSized = new JPanel(new BorderLayout()) { @Override public Dimension getPreferredSize() { return new Dimension(drawer.isVisible() ? 252 : 0, 10); } };
+		drawerSized.setOpaque(false); drawerSized.add(drawer, BorderLayout.CENTER);
+		holder.add(drawerSized, BorderLayout.WEST); holder.add(middle, BorderLayout.CENTER);
+		add(top, BorderLayout.NORTH); add(holder, BorderLayout.CENTER); add(bottom, BorderLayout.SOUTH);
 	}
 
 	@Override protected void paintComponent(Graphics g0) {
@@ -281,12 +412,16 @@ public final class GameShell extends JPanel {
 
 	/** How wide the left of the top bar is: as wide as the right when there is room (so the sections sit in the
 	 *  middle), never narrower than the program's mark and name. */
-	private int side() { return Math.max(205, Math.min(230, (getWidth() - bar.getPreferredSize().width) / 2)); }
+	private int side() { int least = items.isEmpty() ? 205 : 255; return Math.max(least, Math.min(least + 25, (getWidth() - bar.getPreferredSize().width) / 2)); }
 
 	/** The page: whatever the window shows between the two bars. */
 	public void body(JComponent page) { middle.removeAll(); middle.add(page, BorderLayout.CENTER); middle.revalidate(); }
 	/** Which section is lit in the top bar ("" for none: a page that belongs to no section). */
-	public void light(String section) { lit = section == null ? "" : section; for (Tab t : tabs.values()) t.repaint(); }
+	public void light(String section) {
+		lit = section == null ? "" : section;
+		if (!lit.isEmpty() && !litItem.isEmpty()) { litItem = ""; for (Item it : items.values()) it.repaint(); }
+		for (Tab t : tabs.values()) t.repaint();
+	}
 	public String lit() { return lit; }
 	/** The next section (by 1) or the one before (by -1), as the bumpers do it. */
 	public void flip(int by) {

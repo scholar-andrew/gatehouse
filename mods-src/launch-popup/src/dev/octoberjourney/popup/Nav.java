@@ -32,6 +32,7 @@ public final class Nav {
 
 	private static boolean on;
 	/** What the bumpers (and Q and E) do: the sections of the window in front, one back or one on. */
+	static dev.gatehouse.look.GameShell shellOf(Window w) { return w instanceof javax.swing.JFrame jf && jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs ? gs : null; }
 	private static void flip(Window w, int by) { if (w instanceof javax.swing.JFrame jf && jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs) gs.flip(by); }
 
 	/** Marks a button as the one B / Select, Y or Start goes to. */
@@ -55,6 +56,7 @@ public final class Nav {
 					if (key == java.awt.event.KeyEvent.VK_Q) { act("lb"); return true; }
 					if (key == java.awt.event.KeyEvent.VK_E) { act("rb"); return true; }
 					if (key == java.awt.event.KeyEvent.VK_ESCAPE) { act("b"); return true; }
+					if (key == java.awt.event.KeyEvent.VK_M && shellOf(active) != null && shellOf(active).hasMenu()) { act("back"); return true; }
 				}
 			}
 			Component fo = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
@@ -106,7 +108,15 @@ public final class Nav {
 				if (fo instanceof AbstractButton b && b.isEnabled()) b.doClick();
 				else if (fo instanceof JComboBox<?> cb) cb.setPopupVisible(!cb.isPopupVisible());
 			}
-			case "b", "back" -> {
+			case "back" -> {   // (the View button: the window's menu, where it has one; otherwise as B)
+				dev.gatehouse.look.GameShell gs = shellOf(w);
+				if (gs != null && gs.hasMenu()) { gs.toggleMenu(); return; }
+				if (!select(w, "back")) selectByText(w, "Cancel", "No", "Close");
+			}
+			case "b" -> {
+				// (B with the menu open closes it first)
+				dev.gatehouse.look.GameShell gm = shellOf(w);
+				if (gm != null && gm.menuOpen() && fo != null && SwingUtilities.isDescendingFrom(fo, gm) && fo.getParent() != null && "menu".equals(String.valueOf(((JComponent) fo.getParent()).getClientProperty("navMenu")))) { gm.toggleMenu(); return; }
 				// (a back button marked "navNow" is pressed at once; any other is only selected, for A to confirm)
 				for (Component c : stops(w)) if (c instanceof AbstractButton ab && "back".equals(ab.getClientProperty("nav")) && Boolean.TRUE.equals(ab.getClientProperty("navNow"))) { ab.doClick(); return; }
 				if (!select(w, "back")) selectByText(w, "Cancel", "No", "Close");
@@ -203,7 +213,7 @@ public final class Nav {
 
 	/** Puts the selection on the window's main button (the first Play-style button) when nothing is selected, so the
 	 *  first press of A or a direction has somewhere to start from. */
-	static void home(Window w) {
+	public static void home(Window w) {
 		if (w == null || !w.isShowing()) return;
 		Component fo = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
 		List<Component> stops = stops(w);

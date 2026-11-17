@@ -1,7 +1,14 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.18.1",
+ "version": "3.19.0",
  "changes": [
+  {"version": "3.19.0", "date": "2026-11-17", "notes": [
+   "A new layout. Three sections across the top: Servers, Chat (what was People) and Updates (in place of Constellation). The rest is in a menu down the left, opened and closed with the three lines at the top left (on a controller, the View button; on a keyboard, M).",
+   "The menu: Gatekeepers, The host's machine, What this device may do, Systems, Options, Setup guide, and Play or Host.",
+   "Gatehouse always opens on Servers, on the Gatekeeper you used last. The list of Gatekeepers is no longer a step on the way: with more than one, a button for each is under the heading, and the full list is in the menu.",
+   "Updates has three tabs: what changed in Gatehouse, what changed in your Gatekeepers, and Update options (how Gatehouse updates, and Check for updates). After an update Gatehouse no longer jumps there; Updates gets a red dot instead.",
+   "Options keeps About and Uninstall; the setup guide and Play or Host are in the menu."
+  ]},
   {"version": "3.18.1", "date": "2026-11-17", "notes": [
    "Fixed: the panel beside a server listed who it is for last, where a window of the usual size cut it off. It is now near the top, and the panel scrolls when the window is too short for all of it.",
    "This launcher now tells each Gatekeeper which machine it is part of soon after it opens, so it is listed as one system with the Gatekeeper beside it."

@@ -1,8 +1,15 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.18.1",
+ "version": "3.19.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.19.0", "date": "2026-11-17", "notes": [
+   "A new layout. Three sections across the top: Servers, Chat and Updates. Everything about setting this machine and its constellation up is in a menu down the left, opened and closed with the three lines at the top left (on a controller, the View button; on a keyboard, M).",
+   "The menu: Host setup, Launchers and players, Web panel, Constellation, Systems, History of servers, Options, Setup guide, and Play or Host. A red number beside Host setup is steps still to do; beside Launchers and players, launchers asking for something. A red dot on the menu button means one of these is waiting.",
+   "A server is one page now. Open, Pack and Manage all go to it, each on its own tab: Access Manager, Server Status, Updates Pulled, Pack, and, for a server Gatekeeper runs itself, Console, Settings, Game settings, Backups and Tasks. Pack and Manage no longer open windows of their own.",
+   "Updates has what's new in Gatekeeper and in Gatehouse, and the update log.",
+   "The window always opens on Servers, also when Gatehouse brings it to the front."
+  ]},
   {"version": "3.18.1", "date": "2026-11-17", "notes": [
    "Fixed: choosing a picture for Steam replaced the picture the pack came with, and going back gave a made one instead. The pack's own picture is now kept the first time it is replaced, and the button is now Undo my choice, which gives it back. (A picture already lost this way comes back by pressing Bring in a pack from a folder again.)",
    "Fixed: in Systems, the same machine could be listed twice, once for its Gatekeeper and once for its launcher. A Gatekeeper now knows its own launcher's ids and tells the Gatekeeper it joined, and each launcher says which machine it is part of a few seconds after opening, so this no longer waits for someone to open Systems.",

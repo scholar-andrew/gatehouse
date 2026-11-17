@@ -30,6 +30,23 @@ import javax.swing.table.DefaultTableModel;
 final class ConstellationUi {
 	static String modeWord(String m) { return m.equals("auto") ? "Auto" : m.equals("constellation") ? "Constellation" : m.equals("normal") ? "Normal" : "Not said yet"; }
 
+	/** The update log: every update of every client in this constellation, newest first, in a window over p. */
+	static void updateLog(java.awt.Component p) {
+		ServerToolsUi.later(() -> {
+			Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/updates", null);
+			SwingUtilities.invokeLater(() -> {
+				DefaultTableModel lm = new DefaultTableModel(new Object[] {"When", "Client", "Kind", "Player", "System", "From", "To", "How", "Fetched from", "Through"}, 0) { @Override public boolean isCellEditable(int rr, int cc) { return false; } };
+				for (Object o : Json.list(r.get("entries"))) { Map<String, Object> en = Json.map(o); lm.addRow(new Object[] {Json.str(en.get("when")), Json.str(en.get("client")), Json.str(en.get("kind")), Json.str(en.get("player")), Json.str(en.get("system")) + (Json.str(en.get("info")).isEmpty() ? "" : "  (" + Json.str(en.get("info")) + ")"), Json.str(en.get("from")), Json.str(en.get("to")), Json.str(en.get("how")), Json.str(en.get("source")).isEmpty() ? "not said" : Json.str(en.get("source")), (Json.str(en.get("via")).isEmpty() && !Json.str(en.get("also")).isEmpty() ? "(also heard through " + Json.str(en.get("also")) + ")" : Json.str(en.get("via")))}); }
+				JTable lt = new JTable(lm); lt.setRowHeight(24);
+				JScrollPane ls = new JScrollPane(lt); ls.setPreferredSize(new java.awt.Dimension(1100, 420));
+				JPanel lp = new JPanel(new BorderLayout(0, 6));
+				lp.add(ServerToolsUi.note(ServerToolsUi.wrap(lm.getRowCount() == 0 ? "No updates recorded yet. A line is added each time a client of this constellation, or this Gatekeeper, goes from one version to another." : "Newest first: " + lm.getRowCount() + " of " + ServerToolsUi.num(r.get("total")) + " recorded. Kept in updates.json in Gatekeeper's folder; through the web panel only an account given \"See the constellation and its update log\" can read it.", 1000)), BorderLayout.NORTH);
+				lp.add(ls, BorderLayout.CENTER);
+				javax.swing.JOptionPane.showMessageDialog(p, lp, "Update log", javax.swing.JOptionPane.PLAIN_MESSAGE);
+			});
+		});
+	}
+
 	static JPanel tab(JFrame f) {
 		JPanel p = new JPanel(new BorderLayout(0, 8));
 		p.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
@@ -121,19 +138,7 @@ final class ConstellationUi {
 		// The update log: who went from which version to which, when and how, for the whole constellation.
 		JButton logB = new JButton("Update log\u2026");
 		logB.setToolTipText("Every update of every client in this constellation: when, from which version to which, how, and its system");
-		logB.addActionListener(e -> ServerToolsUi.later(() -> {
-			Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/updates", null);
-			SwingUtilities.invokeLater(() -> {
-				DefaultTableModel lm = new DefaultTableModel(new Object[] {"When", "Client", "Kind", "Player", "System", "From", "To", "How", "Fetched from", "Through"}, 0) { @Override public boolean isCellEditable(int rr, int cc) { return false; } };
-				for (Object o : Json.list(r.get("entries"))) { Map<String, Object> en = Json.map(o); lm.addRow(new Object[] {Json.str(en.get("when")), Json.str(en.get("client")), Json.str(en.get("kind")), Json.str(en.get("player")), Json.str(en.get("system")) + (Json.str(en.get("info")).isEmpty() ? "" : "  (" + Json.str(en.get("info")) + ")"), Json.str(en.get("from")), Json.str(en.get("to")), Json.str(en.get("how")), Json.str(en.get("source")).isEmpty() ? "not said" : Json.str(en.get("source")), (Json.str(en.get("via")).isEmpty() && !Json.str(en.get("also")).isEmpty() ? "(also heard through " + Json.str(en.get("also")) + ")" : Json.str(en.get("via")))}); }
-				JTable lt = new JTable(lm); lt.setRowHeight(24);
-				JScrollPane ls = new JScrollPane(lt); ls.setPreferredSize(new java.awt.Dimension(1100, 420));
-				JPanel lp = new JPanel(new BorderLayout(0, 6));
-				lp.add(ServerToolsUi.note(ServerToolsUi.wrap(lm.getRowCount() == 0 ? "No updates recorded yet. A line is added each time a client of this constellation, or this Gatekeeper, goes from one version to another." : "Newest first: " + lm.getRowCount() + " of " + ServerToolsUi.num(r.get("total")) + " recorded. Kept in updates.json in Gatekeeper's folder; through the web panel only an account given \"See the constellation and its update log\" can read it.", 1000)), BorderLayout.NORTH);
-				lp.add(ls, BorderLayout.CENTER);
-				javax.swing.JOptionPane.showMessageDialog(p, lp, "Update log", javax.swing.JOptionPane.PLAIN_MESSAGE);
-			});
-		}));
+		logB.addActionListener(e -> updateLog(p));
 		JPanel buttons = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2)); buttons.add(allow); buttons.add(remove); buttons.add(manageLet); buttons.add(manageStop); buttons.add(manageOpen); buttons.add(logB);
 		JButton historyB = new JButton("History of servers\u2026");
 		historyB.setToolTipText("Every server a Gatekeeper of this constellation has made or looked after, and which Gatekeeper that was: kept after a server is gone, and handed to a Gatekeeper that joins later");

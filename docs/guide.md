@@ -79,8 +79,8 @@ would happen without doing it.
 
 The first time, Gatehouse opens on its **setup guide**. Each step says what to do, has a button for it where there is
 one, and shows a mark: green when it's done, red when it isn't. The guide looks again every few seconds, so a step
-ticks by itself once you've done it. You can leave the guide at any point; it's always under **Options**, in
-the top bar.
+ticks by itself once you've done it. You can leave the guide at any point; it's always in the menu
+(the three lines at the top left), as **Setup guide**.
 
 The steps:
 
@@ -102,16 +102,26 @@ The steps:
 
 ### Day to day
 
-Gatehouse is laid out like a game's menu. Five sections run across the top; click one, or flip between them with
-the bumpers on a controller (Q and E on a keyboard):
+Gatehouse is laid out like a game's menu. Three sections run across the top; click one, or flip between them with
+the bumpers on a controller (Q and E on a keyboard). It always opens on **Servers**.
 
 | Section | What is there |
 | --- | --- |
-| **Servers** | The Gatekeepers this device knows, as cards, each with a picture of the machine it runs on. **Open** one to see its servers; **Connect** if it isn't answering. Each server's card says whether it's on and has **Install** or **Launch**. Launch opens the server's own page: what changed in the pack and on the server, your mod options, and **Play**. |
-| **People** | What this device may do on each installed server, and **chat**: a room for each Gatekeeper and each of its servers you have been let onto. **Files** in a room shows what was offered there, saves a copy, or offers one of yours. |
-| **Constellation** | How this launcher updates ([three ways](#three-ways-to-update)), **Check for updates**, and what changed in Gatehouse and in the open Gatekeeper. |
-| **Machine** | The host's machine, MCSS and each server, with the buttons the host has allowed your device: start or stop a server, start or close MCSS, wake the machine or put it to sleep. |
-| **Options** | The setup guide, Play or Host, and Uninstall. |
+| **Servers** | The servers of the Gatekeeper you used last, as cards. Each says whether it's on and has **Install** or **Launch**; the panel beside them says more about the one you are on. With more than one Gatekeeper, a button for each sits under the heading. **Add Gatekeeper** is at the top right. |
+| **Chat** | A room for each Gatekeeper and each of its servers you have been let onto. **Files** in a room shows what was offered there, saves a copy, or offers one of yours. |
+| **Updates** | Three tabs: what changed in **Gatehouse**, what changed in your **Gatekeepers**, and **Update options** (how this launcher updates, [three ways](#three-ways-to-update), and **Check for updates**). A red dot here means a new version has arrived. |
+
+The **menu** (the three lines at the top left, the controller's **View** button, or **M**) opens a column down the left
+with the rest. It stays open until you press it again.
+
+| Menu | What is there |
+| --- | --- |
+| **Gatekeepers** | Every Gatekeeper this device knows, with **Connect** if one isn't answering, and **Start Gatekeeper** for this machine's own. |
+| **The host's machine** | The host's machine, MCSS and each server, with the buttons the host has allowed your device: start or stop a server, start or close MCSS, wake the machine or put it to sleep. |
+| **What this device may do** | On each installed server, as its Gatekeeper last said. |
+| **Systems** | The other machines in a constellation with this one, and the ones you remember. |
+| **Options** | About this Gatehouse, and Uninstall. |
+| **Setup guide**, **Play or Host** | As before. |
 
 A server's own page is laid out the same way, with its own sections across the top: **Updates** (what changed in
 the pack on this device), **Server news**, **Connection** (the server's controls and a network check), **Server**,
@@ -169,22 +179,30 @@ Prism Launcher fetches, so install Prism Launcher from Discover and open it once
 ### 2. Follow the setup guide
 
 Gatekeeper's window opens on its **setup guide** the first time. As in Gatehouse, each step shows whether it's done
-and ticks by itself. It's always under **Options** in the top bar, and **Machine** (Host setup) shows the same checks
+and ticks by itself. It's always in the menu (**Setup guide**), and **Host setup** there shows the same checks
 all at once.
 
-Gatekeeper's window has the same five sections across the top as the launcher (click one, or flip with Q and E, or
-a controller's bumpers):
+Gatekeeper's window is laid out the same way as the launcher: **Servers**, **Chat** and **Updates** across the top
+(click one, or flip with Q and E, or a controller's bumpers), and the menu at the top left for the rest. It always
+opens on Servers, also when Gatehouse brings it to the front.
 
 | Section | What is there |
 | --- | --- |
-| **Servers** | MCSS and the list of servers, **New server**, **Server setup**, **Check for updates**. **Open** a server for its Access Manager, Server Status and Updates Pulled; **Manage** for the ones Gatekeeper runs itself. |
-| **People** | **Chat** (the rooms, where you write as Host, pass files and can empty a room), the web panel's accounts, and **Launchers and players**: the Access Manager of the first server (for another server, open it under Servers). A red number here is launchers waiting for an answer. |
-| **Constellation** | The clients and their update modes, joining and allowing, the update log; **What's new in Gatekeeper** and **in Gatehouse** beside it. |
-| **Machine** | Host setup: every check at once. A red number here is steps still to do. |
-| **Options** | **Pictures** (a picture for this Gatekeeper and each server, shown on launchers' cards; a server with none uses its own `server-icon.png`), **This machine** (the picture launchers show for this Gatekeeper: a desktop, a laptop, a Steam Deck...; found by itself, and yours to correct), how Gatekeeper updates, the setup guide, Play or Host, and Uninstall. |
+| **Servers** | MCSS and the list of servers, **New server**, **Server setup**, **Check for updates**. Each server has **Open**, **Pack** and **Manage**, which all open the server's own page, on a different tab: **Access Manager**, **Server Status**, **Updates Pulled**, **Pack**, and for a server Gatekeeper runs itself **Console**, **Settings**, **Game settings**, **Backups** and **Tasks**. |
+| **Chat** | The rooms, where you write as Host, pass files and can empty a room. |
+| **Updates** | **What's new in Gatekeeper** and **in Gatehouse**, and the **Update log**. |
 
-Where this guide says a "tab" of Gatekeeper's first screen (Web panel, Constellation, Host setup), it is the page
-of that name in these sections.
+| Menu | What is there |
+| --- | --- |
+| **Host setup** | Every check at once. A red number is steps still to do. |
+| **Launchers and players** | The Access Manager of the first server (for another server, open it under Servers). A red number is launchers asking for something. |
+| **Web panel** | Turning the panel on, and its accounts. |
+| **Constellation** | The clients and their update modes, joining and allowing. **Systems** and **History of servers** are beside it. |
+| **Options** | **Pictures** (a picture for this Gatekeeper and each server, shown on launchers' cards; a server with none uses its own `server-icon.png`), **This machine** (the picture launchers show for this Gatekeeper), and Gatekeeper's other settings. |
+| **Setup guide**, **Play or Host** | As before. |
+
+Where this guide says a "tab" of Gatekeeper's first screen (Web panel, Constellation, Host setup), it is the page of
+that name in the menu.
 
 The steps on Windows (Linux and SteamOS differ in steps 4 to 8: see [below](#on-linux-and-steamos-the-servers)):
 
@@ -369,7 +387,7 @@ What changed is listed in the program: the **Gatehouse updates** and **Gatekeepe
 
 ### Three ways to update
 
-Each launcher and each Gatekeeper chooses for itself, under **Options**, **Updating**. Nothing changes unless you
+Each launcher chooses for itself under **Updates**, **Update options**, and each Gatekeeper under **Options** in its menu, **Updating**. Nothing changes unless you
 choose: Normal is what a new install is in.
 
 | Mode | What happens when a new version is out |
