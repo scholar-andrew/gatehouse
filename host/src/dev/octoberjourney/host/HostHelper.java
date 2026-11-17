@@ -2250,6 +2250,23 @@ public final class HostHelper {
 	}
 
 	static void panel() throws Exception {
+		if (System.getenv("OJ_PANEL_PNG") == null) {
+			// One window: when one is already open, that one is brought to the front and this one isn't opened.
+			boolean running = true;
+			try { if (Boolean.TRUE.equals(Json.map(Json.parse(call("GET", "/admin/window?peek", null))).get("open"))) { call("POST", "/admin/local/open", "{}"); return; } }
+			catch (IOException | RuntimeException notAnswering) { running = false; }
+			// Gatekeeper itself isn't running (ended, or not started yet): offered here, since nothing works without it.
+			if (!running && !GraphicsEnvironment.isHeadless()) {
+				dev.gatehouse.look.SteamLook.apply();
+				int go = JOptionPane.showConfirmDialog(null, "<html><div style='width:380px'>Gatekeeper isn't running on this machine, so this window has nothing to show.<br><br>Start it now? It runs in the background, as it does after you sign in. A server set to start with Gatekeeper starts too.</div></html>", "Gatekeeper", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+				if (go == JOptionPane.YES_OPTION) {
+					String why = dev.gatehouse.Main.startKeeper();
+					boolean up = false;
+					for (int i = 0; why.isEmpty() && i < 40 && !up; i++) { Thread.sleep(500); try { call("GET", "/admin/window?peek", null); up = true; } catch (IOException | RuntimeException wait) { /* not yet */ } }
+					if (!up) JOptionPane.showMessageDialog(null, "<html><div style='width:380px'>" + (why.isEmpty() ? "Gatekeeper was asked to start but isn't answering yet. Open this window again in a moment." : "Couldn't start Gatekeeper: " + why.replace("<", "&lt;")) + "</div></html>", "Gatekeeper", JOptionPane.WARNING_MESSAGE);
+				}
+			}
+		}
 		if (GraphicsEnvironment.isHeadless()) { System.out.println(call("GET", "/admin/devices", null)); return; }
 		SwingUtilities.invokeAndWait(() -> {
 			dev.gatehouse.look.SteamLook.apply();
@@ -2928,6 +2945,26 @@ public final class HostHelper {
 			java.awt.event.ActionListener pickMode = ev -> { if (autoFilling[0]) return; String want = modeAuto.isSelected() ? "auto" : modeGroup.isSelected() ? "constellation" : "normal"; new Thread(() -> { try { call("POST", "/admin/auto", Json.write(m("mode", want))); } catch (Exception ignored) {} autoRead.run(); }, "update-mode").start(); };
 			modeNormal.addActionListener(pickMode); modeAuto.addActionListener(pickMode); modeGroup.addActionListener(pickMode);
 			if (System.getenv("OJ_PANEL_PNG") == null) { autoRead.run(); new Timer(5000, ev -> { if (options.isShowing()) autoRead.run(); }).start(); }
+			// Ending the background Gatekeeper (this window is only a view of it): for when it should not be running.
+			optLine.accept("End Gatekeeper", true);
+			optLine.accept("Gatekeeper runs in the background whether this window is open or not; closing the window stops nothing. Ending it stops it until you next sign in, or until it is started again (Start Gatekeeper in the launcher on this machine, or opening this window). While it is ended, launchers can't see or start this machine's servers.", false);
+			JButton endB = new JButton("End Gatekeeper\u2026");
+			JLabel endSaid = new JLabel(" ");
+			JPanel endRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
+			endRow.add(endB); endRow.add(javax.swing.Box.createHorizontalStrut(10)); endRow.add(endSaid); endRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(endRow);
+			endB.addActionListener(ev -> {
+				if (JOptionPane.showConfirmDialog(f, "<html><div style='width:400px'>End Gatekeeper on this machine now?<br><br>Launchers lose sight of its servers until it is started again. Servers MC Server Soft runs keep running. This window closes too.</div></html>", "End Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
+				new Thread(() -> {
+					Map<String, Object> r;
+					try { r = Json.map(Json.parse(call("POST", "/admin/quit", "{}"))); } catch (Exception e) { r = m("result", "failed", "message", "Gatekeeper didn't answer: it may not be running."); }
+					Map<String, Object> said = r;
+					SwingUtilities.invokeLater(() -> {
+						if ("ok".equals(Json.str(said.get("result")))) { f.dispose(); System.exit(0); }
+						endSaid.setForeground(new Color(0xE9B949)); endSaid.setText("<html><div style='width:420px'>" + Json.str(said.get("message")).replace("<", "&lt;") + "</div></html>");
+					});
+				}, "end").start();
+			});
 			optLine.accept("Uninstall", true);
 			optLine.accept("Removes Gatekeeper from this machine: it is stopped, and " + say("its start-up task, its Start menu shortcut", "its start-up service, its entry in the applications menu") + " and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
 			javax.swing.JCheckBox forgetSettings = new javax.swing.JCheckBox("Also remove its settings: who is allowed to do what, its key for MCSS, and its log");
@@ -3553,6 +3590,26 @@ public final class HostHelper {
 			if (System.getenv("OJ_PANEL_PNG") == null) dev.octoberjourney.popup.Nav.start();
 			f.setContentPane(shell);
 			f.pack();
+			if (System.getenv("OJ_PANEL_PNG") == null) {
+				Thread front = new Thread(() -> {
+					int was = -1;
+					while (true) {
+						try {
+							Thread.sleep(700);
+							if (!f.isDisplayable()) return;
+							int now = (int) Double.parseDouble(Json.str(Json.map(Json.parse(call("GET", "/admin/window", null))).get("raise")));
+							if (was >= 0 && now != was) SwingUtilities.invokeLater(() -> {
+								if ((f.getExtendedState() & JFrame.ICONIFIED) != 0) f.setExtendedState(f.getExtendedState() & ~JFrame.ICONIFIED);
+								f.setAlwaysOnTop(true); f.toFront(); f.requestFocus(); f.setAlwaysOnTop(false);
+							});
+							was = now;
+						} catch (InterruptedException e) { return; }
+						catch (IOException | RuntimeException notNow) { /* Gatekeeper isn't answering just now */ }
+					}
+				}, "front");
+				front.setDaemon(true);
+				front.start();
+			}
 			if (System.getenv("OJ_PANEL_PNG") != null) f.setSize(1240, 800);
 			dev.gatehouse.look.AppIcon.apply(f, true, 0, false);
 			if (System.getenv("OJ_PANEL_PNG") == null) {

@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.11.1",
+ "version": "3.12.0",
  "changes": [
+  {"version": "3.12.0", "date": "2026-11-17", "notes": [
+   "Start Gatekeeper. When the Gatekeeper on this same machine isn't running, its card has a Start Gatekeeper button, on Windows and on SteamOS and Linux. It starts in the background, as it does when you sign in; when it answers, the launcher reopens and links itself to it. A server you set to start with Gatekeeper starts too.",
+   "On SteamOS the launcher runs inside Prism Launcher's sandbox and asks the system outside it to start Gatekeeper. Where the sandbox isn't allowed to do that, the launcher says so, and nothing else changes.",
+   "The launcher now remembers which Gatekeeper is this machine's, so it still shows it as such (with Start Gatekeeper) while it isn't running.",
+   "Open Gatekeeper switches to Gatekeeper's window when it is already open, instead of opening another."
+  ]},
   {"version": "3.11.1", "date": "2026-11-17", "notes": [
    "A test update: nothing changed. It is here so that an update being passed from client to client can be watched on real devices: who raises its hand first, which copy each client takes, and what the update log says each fetched it from."
   ]},

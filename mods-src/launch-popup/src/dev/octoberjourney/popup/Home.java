@@ -455,6 +455,8 @@ final class Home {
 			boolean changed = false;
 			if (url == null) { url = norm(door); keepers.add(0, new String[] {url, str(about.get("name")), ""}); changed = true; java.util.Set<String> gone = removedKeepers(home); }
 			hereUrl = url;
+			// (remembered, so the launcher still knows which Gatekeeper is this machine's while it isn't running)
+			try { Files.createDirectories(home); if (!url.equals(LaunchPopup.readFile(home.resolve("keeper-here.txt")).trim())) Files.writeString(home.resolve("keeper-here.txt"), url + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) {}
 			ServerControl sc = client(home, url, packs);
 			// the account this device plays as, from Prism's own list (its name and its id, which a whitelist needs)
 			String player = "", uuid = "";
@@ -1048,13 +1050,36 @@ final class Home {
 				// and its window a button away. It runs in the background whether this launcher is open or not.
 				boolean hostUp = dev.gatehouse.Main.keeperDoor() > 0;
 				boolean listedHere = false;
-				for (String[] k : keepers) if (k[0].equals(hereUrl)) listedHere = true;
+				String hereKnown = hereUrl.isEmpty() ? LaunchPopup.readFile(home.resolve("keeper-here.txt")).trim() : hereUrl;
+				// Starting it: in the background, as signing in does. When it answers, the window is opened afresh, so the
+				// launcher links itself to it again and its servers are listed.
+				java.util.function.Consumer<JButton> startKeeper = b -> {
+					b.setEnabled(false);
+					sub.setText("Starting Gatekeeper\u2026");
+					new Thread(() -> {
+						String why = dev.gatehouse.Main.startKeeper();
+						boolean up = false;
+						if (why.isEmpty() && System.getenv("OJ_HOME_DRY") == null) for (int i = 0; i < 40 && !up; i++) { try { Thread.sleep(500); } catch (InterruptedException e) { return; } up = dev.gatehouse.Main.keeperDoor() > 0; }
+						boolean answers = up;
+						SwingUtilities.invokeLater(() -> {
+							b.setEnabled(true);
+							if (!why.isEmpty()) sub.setText("Couldn't start Gatekeeper: " + why);
+							else if (answers) { cameBack = f.getBounds(); again[0] = "\u0000restart"; f.dispose(); }
+							else sub.setText("Gatekeeper was asked to start, but isn't answering yet. Give it a moment, then Restart.");
+						});
+					}, "start-keeper").start();
+				};
+				for (String[] k : keepers) if (k[0].equals(hereKnown)) listedHere = true;
 				// (when it is in the list below, that line is this machine's: no separate one above it)
 				if (!listedHere && (hostUp || dev.gatehouse.Main.keeperDir() != null)) {
 					JButton openHost = new JButton("Open Gatekeeper");
 					openHost.setToolTipText("Opens the window of the Gatekeeper on this machine: its servers, who may use them, and its settings");
-					Object[] hr = row.apply("This machine hosts servers", new Component[] {openHost});
-					set.accept((JLabel) hr[2], hostUp ? new String[] {"ok", "Its Gatekeeper is running in the background"} : new String[] {"warn", "Its Gatekeeper is set up but isn't running: Open Gatekeeper, or sign out and in again"});
+					JButton startHost = new JButton("Start Gatekeeper");
+					startHost.setToolTipText("Starts this machine's Gatekeeper in the background, as signing in does. A server set to start with Gatekeeper starts too.");
+					startHost.setVisible(!hostUp);
+					startHost.addActionListener(ev -> startKeeper.accept(startHost));
+					Object[] hr = row.apply("This machine hosts servers", new Component[] {startHost, openHost});
+					set.accept((JLabel) hr[2], hostUp ? new String[] {"ok", "Its Gatekeeper is running in the background"} : new String[] {"warn", "Its Gatekeeper is set up but isn't running: Start Gatekeeper starts it"});
 					openHost.addActionListener(ev -> { String t = dev.gatehouse.Main.openGatekeeper(); sub.setText(t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t); });
 					keeperList.add((JPanel) hr[0]);
 				}
@@ -1073,12 +1098,16 @@ final class Home {
 					boolean used = false;
 					for (String[] pk : packs) if (pk[4].equals(k[0])) used = true;
 					boolean usedHere = used;
-					boolean here = k[0].equals(hereUrl);
+					boolean here = k[0].equals(hereKnown);
+					JButton startHere = new JButton("Start Gatekeeper");
+					startHere.setToolTipText("Starts this machine's Gatekeeper in the background, as signing in does. A server set to start with Gatekeeper starts too.");
+					startHere.setVisible(false);
+					startHere.addActionListener(ev -> startKeeper.accept(startHere));
 					JButton openHostHere = new JButton("Open Gatekeeper");
 					openHostHere.setToolTipText("Opens the window of the Gatekeeper on this machine: its servers, who may use them, and its settings");
 					openHostHere.setVisible(here);
 					openHostHere.addActionListener(ev -> { String t = dev.gatehouse.Main.openGatekeeper(); sub.setText(t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t); });
-					Object[] r = row.apply((k[1].isEmpty() ? "Gatekeeper at " + shown(k[0]) : k[1]) + (here ? "  (this machine)" : ""), new Component[] {remove, connect, openHostHere, open});
+					Object[] r = row.apply((k[1].isEmpty() ? "Gatekeeper at " + shown(k[0]) : k[1]) + (here ? "  (this machine)" : ""), new Component[] {remove, connect, startHere, openHostHere, open});
 					open.addActionListener(ev -> showServers.accept(k[0]));
 					remove.addActionListener(ev -> {
 						String who = k[1].isEmpty() ? "the Gatekeeper at " + shown(k[0]) : k[1];
@@ -1110,7 +1139,9 @@ final class Home {
 						}
 						set.accept((JLabel) r[2], st);
 						boolean silent = cat == null;
-						SwingUtilities.invokeLater(() -> { if (connect.isVisible() != silent) { connect.setVisible(silent); keeperList.revalidate(); } });
+						// (this machine's own Gatekeeper not answering: it isn't running, and can be started from here)
+						boolean off = here && silent && dev.gatehouse.Main.keeperDoor() <= 0;
+						SwingUtilities.invokeLater(() -> { if (connect.isVisible() != (silent && !off) || startHere.isVisible() != off) { connect.setVisible(silent && !off); startHere.setVisible(off); openHostHere.setVisible(here && !off); keeperList.revalidate(); } });
 					};
 					polls.add(poll);
 					if (shot != null) poll.run(); else new Thread(poll, "catalog").start();

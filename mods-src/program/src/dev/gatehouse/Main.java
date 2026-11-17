@@ -274,6 +274,40 @@ public final class Main {
 				if (!dir.isEmpty() && Files.isExecutable(Path.of(dir, term[0]))) return List.of(term[0], term[1], "bash", "-c", cmd);
 		throw new IOException("no terminal program was found to run it in. Run this in a terminal yourself: bash " + to + (host ? " --gatekeeper" : ""));
 	}
+	/** Starts the Gatekeeper on this machine in the background, as signing in does: its scheduled task on Windows (or
+	 *  the program itself, from its folder, where there is no task), its service on Linux and SteamOS (asked of the
+	 *  system outside the sandbox when this runs inside one). "" when it was asked to start, else why not. */
+	public static String startKeeper() {
+		if (keeperDoor() > 0) return "";
+		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would start the Gatekeeper on this machine (folder " + keeperDir() + ")"); return ""; }
+		try {
+			if (WIN) {
+				Path dir = keeperDir();
+				if (dir == null) return "no Gatekeeper was found on this machine";
+				boolean standIn = System.getenv("OJ_KEEPER_DIR") != null;   // (testing: a stand-in folder; the real task is never touched)
+				if (!standIn) try {
+					Process task = new ProcessBuilder("schtasks", "/run", "/tn", "Gatehouse Keeper").redirectErrorStream(true).start();
+					task.getOutputStream().close(); task.getInputStream().readAllBytes();
+					if (task.waitFor(10, java.util.concurrent.TimeUnit.SECONDS) && task.exitValue() == 0) return "";
+				} catch (IOException noTask) { /* started directly instead */ }
+				ProcessBuilder direct = new ProcessBuilder(java(), "-jar", dir.resolve("oj-host.jar").toString(), "--serve").directory(dir.toFile());
+				if (standIn) direct.environment().put("OJ_HOST_DIR", dir.toString());
+				direct.start();
+				return "";
+			}
+			boolean boxed = Files.exists(Path.of("/.flatpak-info"));
+			List<String> cmd = boxed ? List.of("flatpak-spawn", "--host", "systemctl", "--user", "start", "gatehouse-keeper") : List.of("systemctl", "--user", "start", "gatehouse-keeper");
+			Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+			p.getOutputStream().close();
+			String said = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
+			if (!p.waitFor(15, java.util.concurrent.TimeUnit.SECONDS)) { p.destroyForcibly(); return "the system didn't answer"; }
+			if (p.exitValue() == 0) return "";
+			return boxed && (said.contains("org.freedesktop.Flatpak") || said.contains("ServiceUnknown") || said.contains("AccessDenied") || said.isEmpty())
+					? "Prism Launcher's sandbox isn't allowed to start things outside it here. Start Gatekeeper from the applications menu, or sign out and in."
+					: said.isEmpty() ? "the system refused" : said.length() > 200 ? said.substring(0, 200) : said;
+		} catch (IOException e) { return e.getMessage() == null ? e.toString() : e.getMessage(); }
+		catch (InterruptedException e) { Thread.currentThread().interrupt(); return "interrupted"; }
+	}
 	public static String run(List<String> cmd) {
 		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would run: " + String.join(" ", cmd)); return ""; }
 		try { new ProcessBuilder(cmd).start(); return ""; } catch (IOException e) { return e.getMessage(); }

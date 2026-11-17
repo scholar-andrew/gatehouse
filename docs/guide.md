@@ -324,6 +324,12 @@ you play, and never needs its window open.
   server's whitelist. Play works straight away.
 - **Gatekeeper is a button away.** The launcher's first screen shows **This machine hosts servers** at the top, with
   whether its Gatekeeper is running and an **Open Gatekeeper** button.
+- **Starting and ending it.** Gatekeeper is a background program: it starts when you sign in and has no window of
+  its own; the window you open only shows it, and closing that stops nothing. To end it, use **End Gatekeeper** in
+  its Options (it won't while a server it runs itself is on). To start it again without signing out, press **Start
+  Gatekeeper** on its card in the launcher, or open its window, which offers to. On SteamOS the launcher needs
+  Prism Launcher's sandbox to be allowed to start things outside it; where it isn't, it says so.
+- **One window.** Asking for Gatekeeper's window while it is open brings that window to the front.
 - **Only this machine's launcher.** A launcher on any other device still pairs and waits for you to allow what you
   choose, whoever plays on it.
 

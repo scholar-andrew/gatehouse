@@ -26,11 +26,31 @@ final class LocalLink {
 	/** GET: where this Gatekeeper is reached (for the launcher to find the pairing it may already have).
 	 *  POST {id, token, player, uuid}: marks that launcher (which has said hello with that id and secret) as this
 	 *  machine's own. */
+	/** When Gatekeeper's window last said it is open, and how many times it has been asked to come to the front. */
+	static volatile long windowSeen = 0;
+	static volatile int raise = 0;
 	static boolean admin(HttpExchange x, String path) throws IOException {
 		if (path.equals("/admin/local/open")) {   // (the launcher on this machine asks for Gatekeeper's window: Gatekeeper opens it itself)
+			// (a window that is already open is brought to the front instead: it asks every moment whether it should come)
+			if (System.currentTimeMillis() - windowSeen < 2500) { raise++; reply(x, 200, m("result", "ok", "message", "Switching to Gatekeeper's window.")); return true; }
 			panelSeen = 0;
 			openPanelNow();
 			reply(x, 200, m("result", "ok", "message", "Opening Gatekeeper's window."));
+			return true;
+		}
+		if (path.equals("/admin/window")) {   // (Gatekeeper's window, saying it is open; or "?peek": is one open?)
+			String q = x.getRequestURI().getQuery();
+			if (q != null && q.startsWith("peek")) { reply(x, 200, m("open", System.currentTimeMillis() - windowSeen < 2500)); return true; }
+			windowSeen = System.currentTimeMillis();
+			reply(x, 200, m("raise", raise));
+			return true;
+		}
+		if (path.equals("/admin/quit") && x.getRequestMethod().equals("POST")) {   // (ended from its own window)
+			if (DirectHost.anyTracked()) { reply(x, 200, m("result", "refused", "message", "A Minecraft server that this Gatekeeper runs is on. Stop it first: ending Gatekeeper would leave it running with nobody able to reach its console.")); return true; }
+			log("Gatekeeper was ended from its window. It starts again when you next sign in, or from Start Gatekeeper.");
+			reply(x, 200, m("result", "ok", "message", "Gatekeeper has ended."));
+			Thread end = new Thread(() -> { try { Thread.sleep(600); } catch (InterruptedException ignored) {} System.exit(0); }, "quit");
+			end.setDaemon(true); end.start();
 			return true;
 		}
 		if (!path.equals("/admin/local/link")) return false;

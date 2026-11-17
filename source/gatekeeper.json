@@ -1,7 +1,13 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.11.1",
+ "version": "3.12.0",
  "changes": [
+  {"version": "3.12.0", "date": "2026-11-17", "notes": [
+   "Options has a new part, End Gatekeeper. Gatekeeper runs in the background whether its window is open or not, and closing the window stops nothing; this ends it, until you next sign in or start it again. It asks first, and won't end while a server it runs itself is on (stop that server first). Servers MC Server Soft runs keep running.",
+   "One window. If Gatekeeper's window is already open, opening it again (from the launcher's Open Gatekeeper, the Play or Host screen, or its own shortcut) brings that window to the front instead of opening a second one.",
+   "Opening Gatekeeper's window while Gatekeeper itself isn't running now says so and offers to start it, instead of showing an empty window.",
+   "Starting it by hand uses what signing in uses: its scheduled task on Windows (or the program from its folder where there is no task), its background service on Linux and SteamOS."
+  ]},
   {"version": "3.11.1", "date": "2026-11-17", "notes": [
    "A test update: nothing changed. It is here so that an update being passed from client to client can be watched on real devices: who raises its hand first, which copy each client takes, and what the update log says each fetched it from."
   ]},
