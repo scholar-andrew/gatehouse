@@ -1,3 +1,5 @@
+== 1.35.1 | 2026-11-16
+- Nothing changed in the pack itself. On a Steam Deck, Gatehouse now recognises the Gatekeeper on the same machine (Gatehouse 3.2.1).
 == 1.35.0 | 2026-11-16
 - Nothing changed in the pack itself. On a machine that both hosts and plays, the launcher links itself to its Gatekeeper, is allowed everything there, and its player is whitelisted (Gatehouse 3.2.0).
 == 1.34.0 | 2026-11-16
