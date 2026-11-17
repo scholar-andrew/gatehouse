@@ -873,6 +873,7 @@ public final class HostHelper {
 		ServerTools.schedule();
 		ServerTools.autostart();
 		menuEntry();
+		AutoUpdate.start();
 		// (an update that had to wait for a server to be off: done when it is)
 		Thread waiting = new Thread(() -> {
 			while (true) {
@@ -1157,6 +1158,8 @@ public final class HostHelper {
 				for (Object o : servers()) if (askedServer.equals(Json.str(Json.map(o).get("id")))) named = Json.map(o);
 				if (named == null || goneFromMcss(named)) { reply(x, 410, m("state", "gone", "error", "That server is no longer on this Gatekeeper: its owner removed it, or it was deleted.")); return; }
 			}
+			// (automatic updating: a launcher that has it on says it is open, and is told when everyone goes)
+			if (path.equals("/v1/update/state") && x.getRequestMethod().equals("POST")) { reply(x, 200, AutoUpdate.report(id, who(d), body(x))); return; }
 			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
@@ -2099,7 +2102,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
@@ -2837,6 +2840,25 @@ public final class HostHelper {
 			JPanel guideRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
 			guideRow.add(guideB); guideRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			options.add(guideRow);
+			// Automatic updating: off unless ticked here.
+			optLine.accept("Updating", true);
+			javax.swing.JCheckBox autoBox = new javax.swing.JCheckBox("Update automatically, together with the launchers that are open");
+			autoBox.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(autoBox);
+			optLine.accept("Off unless you tick it. With it on, when a newer version is out Gatekeeper waits until every open launcher that has this on too has seen the update, waits for any server it runs itself to be off, and then they all update at once. A launcher takes part only if the same box is ticked in its own Options; the others update when their player presses Update. With it off, nothing updates until you press Update Gatekeeper.", false);
+			JLabel autoSaid = new JLabel(" ");
+			autoSaid.setForeground(new Color(0x8F98A0)); autoSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(autoSaid);
+			boolean[] autoFilling = {false};
+			Runnable autoRead = () -> new Thread(() -> {
+				try {
+					Map<String, Object> a = Json.map(Json.parse(call("GET", "/admin/auto", null)));
+					List<Object> open = Json.list(a.get("launchers"));
+					SwingUtilities.invokeLater(() -> { autoFilling[0] = true; autoBox.setSelected(Boolean.TRUE.equals(a.get("on"))); autoFilling[0] = false; autoSaid.setText("<html><div style='width:470px'>" + Json.str(a.get("status")).replace("<", "&lt;") + (Boolean.TRUE.equals(a.get("on")) ? " Launchers open with it on right now: " + (open.isEmpty() ? "none" : open.toString().replaceAll("[\\[\\]]", "").replace("<", "&lt;")) + "." : "") + "</div></html>"); });
+				} catch (Exception ignored) {}
+			}, "auto-update").start();
+			autoBox.addActionListener(ev -> { if (autoFilling[0]) return; boolean want = autoBox.isSelected(); new Thread(() -> { try { call("POST", "/admin/auto", Json.write(m("on", want))); } catch (Exception ignored) {} autoRead.run(); }, "auto-update").start(); });
+			if (System.getenv("OJ_PANEL_PNG") == null) { autoRead.run(); new Timer(5000, ev -> { if (options.isShowing()) autoRead.run(); }).start(); }
 			optLine.accept("Uninstall", true);
 			optLine.accept("Removes Gatekeeper from this machine: it is stopped, and " + say("its start-up task, its Start menu shortcut", "its start-up service, its entry in the applications menu") + " and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
 			javax.swing.JCheckBox forgetSettings = new javax.swing.JCheckBox("Also remove its settings: who is allowed to do what, its key for MCSS, and its log");

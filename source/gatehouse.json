@@ -5,6 +5,7 @@
   {"version": "3.2.2", "date": "2026-11-16", "notes": [
    "Fixed: a pack or connection left on this device for a server its Gatekeeper no longer has (the owner removed or deleted it) showed as a working server, and its buttons acted on a different server on that Gatekeeper. It now says \"No longer on this Gatekeeper\" and can't be launched; delete it in Prism Launcher when you no longer need it.",
    "Fixed: Steam's pop-up was drawn into Gatehouse's window, sometimes over the buttons at the bottom right, and left a smear behind. Gatehouse had a setting against this that was being applied too late to take effect; it is now applied first. The window also redraws itself for a while after it opens.",
+   "New, and off unless you turn it on: Options, Updating, \"Update automatically, together with my Gatekeepers\". With it on, while Gatehouse's window is open it tells the Gatekeepers in your list that it is here. A Gatekeeper whose owner has turned on the same thing waits until every open launcher has seen a new version and then has them all update at once, this one included, without Update being pressed. With it off nothing changes: you press Update.",
    "On a machine that hosts and plays, its own Gatekeeper is listed once. If it was already in your list from pairing by hand, that line is marked \"(this machine)\" and has the Open Gatekeeper button; the separate line above it is gone."
   ]},
   {"version": "3.2.1", "date": "2026-11-16", "notes": [
