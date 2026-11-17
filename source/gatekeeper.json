@@ -1,7 +1,17 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.10.0",
+ "version": "3.11.0",
  "changes": [
+  {"version": "3.11.0", "date": "2026-11-17", "notes": [
+   "An update is now passed from client to client, so a constellation fetches it from outside only once. Each Gatekeeper keeps the newest program file it has heard of and gives it to its launchers and to Gatekeepers that joined it. It fetches a newer version as soon as it sees one, not only when it updates.",
+   "The first to see a newer version raises its hand: it tells its Gatekeeper it is fetching it, the others are told it is in hand and wait for that copy, and when it arrives it is handed over. A Gatekeeper that joined another hands on what it gets to that one, and takes what that one has. The log says who saw it first and where each copy came from.",
+   "Who may hand a file over: the launcher on this same machine, a launcher you gave Gatekeeper control, and a Gatekeeper you allowed into this constellation. Nobody else. What is handed over has to be a Gatekeeper that can run, newer than this one, and match the checksum sent with it. Nothing checks who made the file: it is trusted because the client handing it over is. So allowing a Gatekeeper into your constellation now also means trusting it to pass program updates, both ways.",
+   "On a Gatekeeper that joined another: Constellation has a switch, Share program updates with that Gatekeeper. It is on unless you turn it off; off, this Gatekeeper fetches its own again. (A Steam Deck beside a PC used to fetch every update from GitHub, because it only ever looked on its own machine and then there.)",
+   "One file for a machine with both halves. When the launcher there fetches an update, it hands the same file to its Gatekeeper, which manages its own update with it, instead of fetching a second copy. When Gatekeeper updates, it puts the same file where the launcher keeps its own, as before.",
+   "Gatekeeper now asks every place it knows for the newest version and takes the newest, instead of stopping at the first place that answers. A place that is a few minutes behind, as GitHub can be, no longer hides a version another place already has.",
+   "Fixed: the update log wrote two lines each time a joined Gatekeeper updated, one of them saying \"fetched from: not said\". Only the line that Gatekeeper hands on itself is kept now.",
+   "For later: each published program can be signed on GitHub, with the key kept in the repository's secrets (tools/setup_signing_key.ps1 sets it up; you run it). Nothing requires a signature yet."
+  ]},
   {"version": "3.10.0", "date": "2026-11-17", "notes": [
    "Gatekeeper now tells launchers what kind of machine it is on, so they can show a picture of it in their list: a desktop, a laptop, a Steam Deck, a ROG Ally, another handheld, a mini PC, a Mac laptop, a Mac desktop, a Mac mini or a server.",
    "It works that out by itself when it starts, from what the machine says about itself (its maker, model and case type; nothing is changed, and nothing leaves the machine but the kind). Options has a new line, This machine, that says what it found and lets you choose another kind if it got it wrong.",

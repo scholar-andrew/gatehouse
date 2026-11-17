@@ -43,6 +43,8 @@ import javax.swing.WindowConstants;
  *  and for each Gatekeeper a small folder with this device's id and secret for it (the same ones the packs use, so a
  *  Gatekeeper sees one launcher per device). */
 final class Home {
+	/** A Gatekeeper said, in answer to this launcher's report, that it knows of a newer version than this launcher is. */
+	private static volatile boolean keeperSaysNewer;
 	private Home() {}
 
 	/** A pack installed in Prism: {instance id, name, address to join, game folder, its Gatekeeper's address or ""}. */
@@ -487,6 +489,10 @@ final class Home {
 		for (String[] p : packs) if (!p[4].isEmpty()) { boolean have = false; for (String[] k : keepers) if (k[0].equals(p[4])) have = true; if (!have) { keepers.add(new String[] {p[4], "", ""}); added = true; } }
 		if (added) saveKeepers(home, keepers);
 		if (linkHere(instances, home, keepers, packs)) saveKeepers(home, keepers);
+		// (each Gatekeeper is a place the program is found, and is handed one this launcher finds first)
+		List<String[]> peers = new ArrayList<>();
+		for (String[] k : keepers) { ServerControl sc = client(home, k[0], packs); peers.add(new String[] {k[0], str(sc.deviceId), str(sc.deviceToken)}); }
+		Notes.peers = peers;
 		boolean loose = false;
 		for (String[] p : packs) if (p[4].isEmpty()) loose = true;
 		boolean hasLoose = loose;
@@ -1357,7 +1363,9 @@ final class Home {
 				new Thread(() -> {
 					boolean ok = Notes.fetch(found);
 					// One program: the Gatekeeper on this same machine, if there is one, is updated by the same press.
-					if (ok && shot == null) dev.gatehouse.Main.tellKeeperToUpdate();
+					// It is given this same file (one fetch for the pair): a Gatekeeper that is running takes it and manages
+					// its own update; one that isn't has its file replaced, where this launcher can reach it.
+					if (ok && shot == null) dev.gatehouse.Main.pairUpdate(Path.of(found[2]).resolve("extras/launch-popup.jar"), found[1]);
 					SwingUtilities.invokeLater(() -> {
 						if (ok) { again[0] = "\u0000relaunch"; f.dispose(); return; }
 						ownUpdateText.setText("<html>Couldn't fetch it just now. Nothing was changed; it will be offered again.</html>");
@@ -1369,6 +1377,7 @@ final class Home {
 			Runnable look = () -> {
 				String[] found = pretend != null ? new String[] {"", "pretend", "", pretend.replaceAll("^.*\\|", ""), pretend.replaceAll("\\|.*$", "")} : Notes.newer(instances);
 				if (found == null) return;
+				if (pretend == null && shot == null) { Thread hand = new Thread(() -> Notes.handOver(found), "hand-over"); hand.setDaemon(true); hand.start(); }
 				Runnable ui = () -> {
 					if ((!f.isDisplayable() && shot == null) || LaunchPopup.embedded) return;
 					if (found[1].equals(declined[0]) || (offered[0] != null && offered[0][1].equals(found[1]) && ownUpdate.isVisible())) return;
@@ -1428,11 +1437,14 @@ final class Home {
 							String[] found = offered[0];
 							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"source\":\"" + ServerControl.jsonEsc(cameFrom) + "\",\"install\":\"" + installId(home) + "\",\"info\":\"" + ServerControl.jsonEsc(System.getProperty("os.name", "") + " " + System.getProperty("os.version", "") + " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", "")) + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
 							if ("go".equals(str(r.get("state")))) go = true;
+							if (Notes.cmp(str(r.get("version")).isEmpty() ? "0" : str(r.get("version")), Notes.version(Notes.own()).isEmpty() ? "99999" : Notes.version(Notes.own())) > 0) keeperSaysNewer = true;
 							if ("gathering".equals(str(r.get("state")))) gathering = true;
 							if (r.get("gather") != null && gatherSaid[0] == null) gatherSaid[0] = r.get("gather");
 						} catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before this */ }
 						Object shown = mode.equals("constellation") ? gatherSaid[0] : null;
 						SwingUtilities.invokeLater(() -> gatherPips.set(shown));
+						// (a Gatekeeper knows of a newer version than this launcher is: look now, in any mode, not at the next round)
+						if (keeperSaysNewer && offered[0] == null && System.currentTimeMillis() - lookedAt > 30_000) { keeperSaysNewer = false; lookedAt = System.currentTimeMillis(); look.run(); }
 						if (mode.equals("normal")) continue;
 						boolean lookNow = mode.equals("auto") ? System.currentTimeMillis() - lookedAt > 60_000 : (go || gathering);
 						if (lookNow && offered[0] == null) { lookedAt = System.currentTimeMillis(); look.run(); }

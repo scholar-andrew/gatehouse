@@ -40,6 +40,9 @@ final class ConstellationUi {
 		List<String[]> rowIds = new ArrayList<>();   // {its id here (a Gatekeeper that joined or asked), how it stands} per row
 		JLabel said = new JLabel(" "), did = new JLabel(" "), leadSaid = new JLabel(" ");
 		said.setForeground(new Color(0x8F98A0)); leadSaid.setForeground(new Color(0x8F98A0));
+		javax.swing.JCheckBox leadUpdates = new javax.swing.JCheckBox("Share program updates with that Gatekeeper");
+		leadUpdates.setToolTipText("<html>On unless you turn it off. This Gatekeeper takes a newer version from the Gatekeeper it joined as soon as that one has it,<br>and hands on one it finds first, so the constellation fetches it from outside only once.<br>That trusts the other Gatekeeper's machine to supply this Gatekeeper's program: turn it off for a machine that isn't yours.</html>");
+		boolean[] leadFilling = {false};
 		JButton allow = new JButton("Allow into this constellation"), remove = new JButton("Remove from this constellation"), join = new JButton("Join"), leave = new JButton("Leave");
 		allow.setToolTipText("For a Gatekeeper that has asked to join: in constellation mode it then updates on this Gatekeeper's go, and its launchers are listed here. It gets no control of anything.");
 		JTextField address = new JTextField(22);
@@ -78,6 +81,11 @@ final class ConstellationUi {
 				leadSaid.setText("<html><div style='width:900px'>" + (joined ? Json.str(lead.get("said")).replace("<", "&lt;") : "This Gatekeeper leads its own constellation. To make it part of another Gatekeeper's instead, give that Gatekeeper's address and press Join; its owner then allows it in.") + "</div></html>");
 				if (!address.isFocusOwner()) address.setText(Json.str(lead.get("address")));
 				address.setEditable(!joined); join.setEnabled(!joined); leave.setEnabled(joined);
+				leadFilling[0] = true;
+				leadUpdates.setEnabled(joined); leadUpdates.setSelected(joined && Boolean.TRUE.equals(lead.get("updates")));
+				String pk = Json.str(lead.get("pack"));
+				leadUpdates.setText("Share program updates with that Gatekeeper" + (""));
+				leadFilling[0] = false;
 			});
 		});
 		loadRef[0] = load;
@@ -90,6 +98,7 @@ final class ConstellationUi {
 		allow.addActionListener(e -> pick.accept(true));
 		remove.addActionListener(e -> pick.accept(false));
 		join.addActionListener(e -> post.accept(m("join", address.getText().trim()), ""));
+		leadUpdates.addActionListener(e -> { if (!leadFilling[0]) post.accept(m("lead_updates", leadUpdates.isSelected()), ""); });
 		leave.addActionListener(e -> post.accept(m("leave", true), ""));
 		// The update log: who went from which version to which, when and how, for the whole constellation.
 		JButton logB = new JButton("Update log\u2026");
@@ -108,7 +117,7 @@ final class ConstellationUi {
 			});
 		}));
 		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); buttons.add(allow); buttons.add(remove); buttons.add(logB);
-		JPanel joinRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave);
+		JPanel joinRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave); joinRow.add(leadUpdates);
 		JPanel bottom = new JPanel();
 		bottom.setLayout(new javax.swing.BoxLayout(bottom, javax.swing.BoxLayout.Y_AXIS));
 		dev.gatehouse.look.Pips pips = new dev.gatehouse.look.Pips();

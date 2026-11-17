@@ -380,9 +380,25 @@ whoever is ready.
 can make them one constellation. On the Gatekeeper that is to join: Constellation tab, type the other Gatekeeper's
 address (`100.x.y.z:25570`) or its pairing link, and press **Join**. On the leading Gatekeeper it then shows as
 "Asked to join": click it and press **Allow into this constellation**. From then on the member updates on the
-leader's go, and its launchers are listed with the leader's. Joining gives no control of anything: a member can't
+leader's go, and its launchers are listed with the leader's. Joining gives no control of a server or a setting: a member can't
 start, stop or change anything on the leader, or the other way round. **Leave** on the member, or **Remove from
 this constellation** on the leader, ends it.
+
+**Passing an update round.** A constellation fetches a new version from outside once. Every Gatekeeper keeps the
+newest program file it has heard of and gives it to its launchers and to Gatekeepers that joined it. Whoever sees
+a new version first raises its hand (the others then wait for that copy instead of fetching one each), fetches it,
+and hands it over; a Gatekeeper that joined another passes it on to that one. A launcher asks the Gatekeepers in
+its list before it looks anywhere outside.
+
+- **Who may hand a file over** to a Gatekeeper: the launcher on the same machine, a launcher with Gatekeeper
+  control, and a Gatekeeper allowed into its constellation. What arrives must be a Gatekeeper that can run, newer
+  than the one taking it, and match the checksum sent with it.
+- **What that means for trust.** Nothing checks who made the file; it is trusted because the client handing it over
+  is. Allowing a Gatekeeper into your constellation therefore also trusts it to pass program updates, both ways. On
+  a Gatekeeper that joined another, **Share program updates with that Gatekeeper** (Constellation page) turns it
+  off for that Gatekeeper: it then fetches its own.
+- **A machine with both halves** fetches once: the launcher hands its file to its Gatekeeper, and Gatekeeper puts
+  its file where the launcher keeps its own.
 
 **The same device twice.** A launcher paired with both the leader and a member would show up two ways. It is listed
 and counted once, with the other way beside it ("also ...").

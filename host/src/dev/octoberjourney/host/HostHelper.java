@@ -598,11 +598,21 @@ public final class HostHelper {
 		List<String> out = new ArrayList<>();
 		for (Object o : Json.list(cfg.get("update_sources"))) { String s = Json.str(o).trim().replaceAll("/+$", ""); if (!s.isEmpty()) out.add(s); }
 		if (!out.isEmpty()) return out;
-		String bind = setting("bind", "");
-		if (!bind.isEmpty()) out.add("http://" + bind + ":" + setting("pack_port", "8467") + "/gatekeeper");
+		if (!ownPack().isEmpty()) out.add(ownPack());
+		// A Gatekeeper that joined another's constellation, and whose owner chose it (host.json "lead_updates"): the
+		// machine of the Gatekeeper it joined next. Only ever that machine itself: what it said is used only when it
+		// names the same address this Gatekeeper joined.
+		String lead = setting("constellation_lead", ""), leadPack = setting("lead_pack", "");
+		// (what that Gatekeeper itself holds or runs comes first: it has the file as soon as anyone in the constellation does)
+		if (setting("lead_updates", "true").equals("true") && !lead.isEmpty()) out.add(lead.replaceAll("/+$", "") + "/v1/program");
+		if (setting("lead_updates", "true").equals("true") && !lead.isEmpty() && !leadPack.isEmpty()) try {
+			if (java.net.URI.create(leadPack).getHost().equals(java.net.URI.create(lead).getHost()) && !out.contains(leadPack)) out.add(leadPack);
+		} catch (RuntimeException ignored) {}
 		out.add("https://raw.githubusercontent.com/scholar-andrew/gatehouse/main/dist/gatekeeper");
 		return out;
 	}
+	/** Where this machine's own pack server publishes the program ("" where this Gatekeeper has no address to say). */
+	static String ownPack() { String bind = setting("bind", ""); return bind.isEmpty() ? "" : "http://" + bind + ":" + setting("pack_port", "8467") + "/gatekeeper"; }
 	static byte[] fetchBytes(String url) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
 		c.setConnectTimeout(4000); c.setReadTimeout(20000);
@@ -615,17 +625,23 @@ public final class HostHelper {
 	}
 	/** Did the last look reach a place where Gatekeeper is published? */
 	static volatile boolean lookReached = false;
+	private static String newerSaid = "";
 	static synchronized void lookForNewer() {
 		lookReached = false;
+		// Every place is asked, and the newest version any of them has is the one (the first place, where two have the
+		// same): a place that is behind, as GitHub can be for some minutes, doesn't hide what another already has.
+		String bestV = "", bestSha = "", bestAt = "", bestHouse = "";
 		for (String src : updateSources()) try {
 			Map<String, Object> mf = Json.map(Json.parse(new String(fetchBytes(src + "/gatekeeper.json"), StandardCharsets.UTF_8)));
 			String v = Json.str(mf.get("version")), sha = Json.str(mf.get("sha256"));
 			if (v.isEmpty() || sha.isEmpty()) continue;
-			if (!v.equals(newestKeeper) && cmpVersion(v, ownVersion()) > 0) log("a newer Gatekeeper is published: " + v + " (this is " + ownVersion() + "). Servers aren't started until it's updated.");
-			newestKeeper = v; newestKeeperSha = sha; newestKeeperAt = src; newestHouse = Json.str(mf.get("gatehouse"));
 			lookReached = true;
-			return;
+			if (bestV.isEmpty() || cmpVersion(v, bestV) > 0) { bestV = v; bestSha = sha; bestAt = src; bestHouse = Json.str(mf.get("gatehouse")); }
 		} catch (IOException | RuntimeException next) { /* the next place */ }
+		if (!bestV.isEmpty()) { newestKeeper = bestV; newestKeeperSha = bestSha; newestKeeperAt = bestAt; newestHouse = bestHouse; }
+		Peer.prefer();     // (a copy a client handed over, when it is newer than anything a place said)
+		if (!newestKeeper.equals(newerSaid) && cmpVersion(newestKeeper, ownVersion()) > 0) { newerSaid = newestKeeper; log("a newer Gatekeeper is published: " + newestKeeper + " (this is " + ownVersion() + "; seen at " + newestKeeperAt + "). Servers aren't started until it's updated."); }
+		Peer.prefetch();   // (and it is fetched now, so this Gatekeeper can give it to its constellation)
 	}
 	static boolean requireCurrent() { return !setting("require_current", "true").equals("false"); }
 	static boolean outdated() { return requireCurrent() && !newestKeeper.isEmpty() && cmpVersion(newestKeeper, ownVersion()) > 0; }
@@ -742,7 +758,8 @@ public final class HostHelper {
 		try {
 			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 			if (!Files.isRegularFile(jar)) return new String[] {"refused", "Gatekeeper isn't running from a file it can replace."};
-			byte[] b = fetchBytes(newestKeeperAt + "/oj-host.jar");
+			byte[] b = Peer.heldBytes(newestKeeperSha);   // (the copy already here: fetched when it was first seen, or handed over)
+			if (b == null) b = fetchBytes(newestKeeperAt + "/oj-host.jar");
 			if (!sha256(b).equalsIgnoreCase(newestKeeperSha)) return new String[] {"failed", "What was fetched doesn't match what was published (its checksum differs). Nothing was changed."};
 			Path fresh = jar.resolveSibling("oj-host.jar.new");
 			Files.write(fresh, b);
@@ -1124,6 +1141,8 @@ public final class HostHelper {
 		try {
 			String path = x.getRequestURI().getPath(), ip = x.getRemoteAddress().getAddress().getHostAddress();
 			Map<String, Object> devs = devices();
+			// (the program file this Gatekeeper holds or runs: the published program, given to whoever asks)
+			if (path.startsWith("/v1/program/") && x.getRequestMethod().equals("GET")) { Peer.serve(x, path); return; }
 			if (path.equals("/v1/hello") && x.getRequestMethod().equals("POST")) {
 				Map<String, Object> b = body(x);
 				String id = Json.str(b.get("id")), token = Json.str(b.get("token"));
@@ -1163,6 +1182,7 @@ public final class HostHelper {
 			}
 			// (automatic updating: a launcher that has it on says it is open, and is told when everyone goes)
 			if (path.equals("/v1/update/state") && x.getRequestMethod().equals("POST")) { reply(x, 200, AutoUpdate.report(id, who(d), body(x))); return; }
+			if ((path.equals("/v1/program") || path.equals("/v1/program/hand")) && x.getRequestMethod().equals("POST")) { Peer.take(x, path, who(d), d); return; }
 			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
@@ -2107,7 +2127,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}

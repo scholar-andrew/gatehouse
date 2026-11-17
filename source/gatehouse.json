@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.10.0",
+ "version": "3.11.0",
  "changes": [
+  {"version": "3.11.0", "date": "2026-11-17", "notes": [
+   "Gatehouse now takes a newer version of itself from a Gatekeeper in your list when one has it, before it looks anywhere outside. That is usually quicker, and it works when the place a pack names can't be reached.",
+   "When a Gatekeeper tells this launcher it knows of a newer version, the launcher looks straight away instead of at its next round.",
+   "When this launcher is the first to see a newer version, it raises its hand with the Gatekeepers that trust it for that (the one on this same machine, or one where you have Gatekeeper control), fetches the file once, and hands it over, so the rest of the constellation gets it from there.",
+   "On a machine with both halves, updating the launcher gives the same file to its Gatekeeper: one fetch for the pair. A Gatekeeper that is running takes it and updates itself with it. One that is set up but not running has its file replaced (Windows; not supported on Linux or SteamOS, where the launcher can't be sure it isn't running, or can't reach its folder)."
+  ]},
   {"version": "3.10.0", "date": "2026-11-17", "notes": [
    "A Gatekeeper's card now shows a picture of the kind of machine it runs on, in place of its initials: a desktop, a laptop, a Steam Deck, a ROG Ally, another handheld, a mini PC, a Mac laptop, a Mac desktop, a Mac mini or a server. The Gatekeeper says which (from Gatekeeper 3.10.0), and its owner can correct it there.",
    "The picture is remembered, so the card still shows it while that Gatekeeper's machine is asleep or off. A Gatekeeper that is older, or that recognised nothing, keeps its initials."

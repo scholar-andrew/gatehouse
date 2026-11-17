@@ -53,7 +53,7 @@ final class UpdateLog {
 		if (source == null || source.isBlank()) return "not said";
 		java.util.regex.Matcher u = java.util.regex.Pattern.compile("https?://([^/\\s]+)").matcher(source);
 		if (!u.find()) return word(source, 160);
-		String host = u.group(1), place = host.contains("githubusercontent.com") || host.contains("github.com") ? "GitHub (" + host + ")" : "the pack server at " + host;
+		String host = u.group(1), place = host.contains("githubusercontent.com") || host.contains("github.com") ? "GitHub (" + host + ")" : source.contains("/v1/program") ? "the Gatekeeper at " + host : "the pack server at " + host;
 		return word(source.substring(0, u.start()) + place + source.substring(u.end()).replaceAll("^/[\\w./\\-]*", ""), 160);
 	}
 	static void record(String client, String kind, String player, String system, String from, String to, String mode, String info, String source) {

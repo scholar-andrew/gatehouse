@@ -212,6 +212,41 @@ public final class Main {
 		java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"message\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(askKeeper(door, "POST", "/admin/update", "{\"with_play\":true}"));
 		return m.find() ? m.group(1).replace("\\\"", "\"").replace("\\\\", "\\") : "asked";
 	}
+	/** The Play half has just fetched a newer program file: the Host half on this same machine gets that same file, so
+	 *  the pair needs it fetched only once.
+	 *    - Gatekeeper is running: it is handed the file, and manages its own update with it (waiting, as always, for
+	 *      servers it runs itself to be off);
+	 *    - Gatekeeper is set up but not running: its file is replaced where this launcher can reach it (the old one is
+	 *      kept beside it as oj-host.jar.old). Windows only: elsewhere a launcher can't be sure it isn't running, and
+	 *      inside a sandbox it can't see the folder at all.
+	 *  Returns what happened, in a few words ("" for nothing). */
+	public static String pairUpdate(Path jar, String sha) {
+		if (System.getenv("OJ_HOME_DRY") != null && System.getenv("OJ_KEEPER_DIR") == null) return "";
+		try {
+			int door = keeperDoor();
+			if (door > 0) {
+				java.net.HttpURLConnection c = (java.net.HttpURLConnection) java.net.URI.create("http://127.0.0.1:" + door + "/admin/program").toURL().openConnection();
+				byte[] b = Files.readAllBytes(jar);
+				c.setConnectTimeout(2000); c.setReadTimeout(30000); c.setRequestMethod("POST"); c.setDoOutput(true);
+				c.setRequestProperty("Content-Type", "application/java-archive"); c.setRequestProperty("X-Sha256", sha);
+				c.setFixedLengthStreamingMode(b.length);
+				try (java.io.OutputStream o = c.getOutputStream()) { o.write(b); }
+				c.getResponseCode();
+				String said = tellKeeperToUpdate();
+				return said.isEmpty() ? "handed to the Gatekeeper on this machine" : said;
+			}
+			Path dir = keeperDir();
+			if (dir == null || !WIN) return "";
+			Path target = dir.resolve("oj-host.jar");
+			if (Files.mismatch(target, jar) < 0) return "";
+			try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(jar.toFile())) { if (z.getEntry("dev/octoberjourney/host/HostHelper.class") == null || z.getEntry("gatekeeper-notes.json") == null) return ""; }
+			Path part = dir.resolve("oj-host.jar.part");
+			Files.copy(jar, part, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			Files.copy(target, dir.resolve("oj-host.jar.old"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			try { Files.move(part, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(part); }   // (in use after all: left as it was)
+			return "the Gatekeeper on this machine, which isn't running, was updated with it";
+		} catch (IOException | RuntimeException e) { return ""; }
+	}
 	static String java() {
 		String j = ProcessHandle.current().info().command().orElse(WIN ? "javaw.exe" : "java");
 		return WIN ? j.replaceAll("(?i)java\\.exe$", "javaw.exe") : j;

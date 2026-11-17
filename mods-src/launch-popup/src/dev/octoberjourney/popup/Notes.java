@@ -165,6 +165,38 @@ final class Notes {
 		return null;
 	}
 
+	/** The Gatekeepers this launcher knows ({address, this device's id there, its token there}). Each holds the newest
+	 *  program file it has heard of and gives it out (/v1/program), so they are asked before any place outside. */
+	static volatile List<String[]> peers = List.of();
+	private static final java.util.Set<String> handed = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+	private static String post(String[] peer, String path, byte[] body, String type, String sha) throws IOException {
+		java.net.HttpURLConnection c = (java.net.HttpURLConnection) java.net.URI.create(peer[0].replaceAll("/+$", "") + path).toURL().openConnection();
+		c.setConnectTimeout(3000); c.setReadTimeout(30000); c.setRequestMethod("POST"); c.setDoOutput(true);
+		c.setRequestProperty("Content-Type", type); c.setRequestProperty("X-Device", peer[1]); c.setRequestProperty("X-Token", peer[2]);
+		if (!sha.isEmpty()) c.setRequestProperty("X-Sha256", sha);
+		c.setFixedLengthStreamingMode(body.length);
+		try (java.io.OutputStream o = c.getOutputStream()) { o.write(body); }
+		try (java.io.InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+	}
+
+	/** This launcher has seen a newer version at a place outside before its Gatekeepers have it: it raises its hand
+	 *  with each (only one that trusts this launcher with it says go: the one on this machine, or one where it has
+	 *  Gatekeeper control), fetches the file once, and hands it over. Once for each version. */
+	static void handOver(String[] found) {
+		if (found == null || found.length < 5 || found[4].isEmpty() || found[0].contains("/v1/program") || !handed.add(found[4])) return;
+		List<String[]> go = new ArrayList<>();
+		for (String[] p : peers) try {
+			if ("true".equals(str(ServerControl.asMap(LaunchPopup.parseJson(post(p, "/v1/program/hand", ("{\"version\":\"" + ServerControl.jsonEsc(found[4]) + "\"}").getBytes(StandardCharsets.UTF_8), "application/json", ""))).get("go")))) go.add(p);
+		} catch (IOException | RuntimeException notNow) { /* that one isn't answering */ }
+		if (go.isEmpty()) return;
+		try {
+			byte[] jar = LaunchPopup.fetchBytes(found[0] + "/extras/launch-popup.jar");
+			if (!found[1].equals(LaunchPopup.sha256(jar))) return;
+			for (String[] p : go) try { post(p, "/v1/program", jar, "application/java-archive", found[1]); } catch (IOException | RuntimeException notNow) { /* it fetches its own */ }
+		} catch (IOException | RuntimeException | java.security.NoSuchAlgorithmException e) { handed.remove(found[4]); }
+	}
+
 	/** The fetching half: {where the pack is served, the hash wanted, the pack folder here to put it in, ...} from newer(). */
 	static boolean fetch(String[] found) {
 		try {
@@ -201,6 +233,15 @@ final class Notes {
 			// (the newest copy among them is the one that gets run)
 			Path target = packs.get(0);
 			for (Path p : packs) if (Files.getLastModifiedTime(p.resolve("extras/launch-popup.jar")).compareTo(Files.getLastModifiedTime(target.resolve("extras/launch-popup.jar"))) > 0) target = p;
+			// (a Gatekeeper that already holds a newer program than this one: taken from there, with nothing asked outside)
+			String mineV = version(own());
+			for (String[] peer : peers) try {
+				String base = peer[0].replaceAll("/+$", "") + "/v1/program/main";
+				Map<String, Object> sizes = ServerControl.asMap(LaunchPopup.parseJson(new String(LaunchPopup.fetchBytes(base + "/update-sizes.json"), StandardCharsets.UTF_8)));
+				Map<String, Object> entry = ServerControl.asMap(ServerControl.asMap(sizes.get("files")).get("extras/launch-popup.jar"));
+				String want = str(entry.get("hash")), v = str(sizes.get("gatehouse"));
+				if (!want.isEmpty() && !want.equals(mine) && !v.isEmpty() && !mineV.isEmpty() && cmp(v, mineV) > 0) return new String[] {base, want, target.toString(), str(entry.get("size")).replaceAll("\\..*$", ""), v};
+			} catch (IOException | RuntimeException next) { /* that Gatekeeper isn't answering, or is from before this */ }
 			List<String> tried = new ArrayList<>();
 			for (Path p : packs) for (String line : Files.readAllLines(p.resolve("pack-sources.txt"), StandardCharsets.UTF_8)) {
 				String src = line.strip().replaceAll("/+$", "");

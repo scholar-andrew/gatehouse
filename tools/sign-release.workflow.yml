@@ -1,0 +1,42 @@
+# Signs each published program file with the release key kept in this repository's secrets (RELEASE_SIGNING_KEY),
+# and adds the signature to the "signatures" release as <sha256 of the file>.sig.
+#
+# tools/setup_signing_key.ps1 puts this file at .github/workflows/sign-release.yml, makes the key and stores it.
+# Nothing requires a signature yet: clients take updates as before. This only makes sure every published program has
+# one, so that requiring them later is a change to the clients alone. To check one by hand:
+#   openssl pkeyutl -verify -pubin -inkey source/release-key.pub.pem -rawin -in oj-host.jar -sigfile <sha256>.sig
+name: Sign the published program
+on:
+  push:
+    branches: [main]
+    paths: ['dist/gatekeeper/gatekeeper.json']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: sign-release
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sign the program file
+        env:
+          KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEY:-}" ]; then echo "No signing key is set up (tools/setup_signing_key.ps1): nothing was signed."; exit 0; fi
+          file=dist/gatekeeper/oj-host.jar
+          sha=$(sha256sum "$file" | cut -d' ' -f1)
+          want=$(python3 -c "import json; print(json.load(open('dist/gatekeeper/gatekeeper.json', encoding='utf-8-sig'))['sha256'].lower())")
+          if [ "$sha" != "$want" ]; then echo "The program file and its published checksum differ: not signed."; exit 1; fi
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/key.pem"
+          openssl pkeyutl -sign -inkey "$RUNNER_TEMP/key.pem" -rawin -in "$file" -out "$sha.sig"
+          rm -f "$RUNNER_TEMP/key.pem"
+          # (the signature has to fit the public key in the repository, or it is not published)
+          openssl pkeyutl -verify -pubin -inkey source/release-key.pub.pem -rawin -in "$file" -sigfile "$sha.sig"
+          gh release view signatures >/dev/null 2>&1 || gh release create signatures --latest=false --title "Signatures" \
+            --notes "Signatures of each published program file (dist/gatekeeper/oj-host.jar), named by the file's SHA-256. The public key is source/release-key.pub.pem. Not a download for installing anything."
+          gh release upload signatures "$sha.sig" --clobber
+          echo "Signed $sha"

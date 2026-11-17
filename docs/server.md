@@ -385,6 +385,30 @@ counts as ready when it has seen the update, its own constellation-mode launcher
 on. If the lead can't be reached it carries on by itself. `{"leave": true}` on the member, or allow `false` on the
 lead, ends it.
 
+**Passing the program round (`Peer`).** A Gatekeeper keeps the newest program file it has heard of
+(`program-held.jar`, `program-held.json`: version, sha256, size, from) and serves it, or else the jar it runs, to
+anyone who asks: `GET /v1/program/gatekeeper.json` and `/oj-host.jar` (a pack server's `gatekeeper/` layout), and
+`/v1/program/main|deck/update-sizes.json` and `.../extras/launch-popup.jar` (a pack's layout, for `Notes.newer`).
+`lookForNewer` asks every source and takes the newest, prefers a held copy that is newer still (`Peer.prefer`), and
+fetches what it sees at once (`Peer.prefetch`). `POST /v1/program/hand {"version"}` raises a hand (`go`, or `have`,
+or `by` whoever has it in hand for the next 90 seconds); `POST /v1/program` (the jar as the body, `X-Sha256`) hands
+a file over. Both only from a device marked `local`, `admin` or `constellation`; `/admin/program` is the same for
+the launcher on the machine. `Peer.store` checks the size, the checksum, that it is the program, and that its
+`gatekeeper-notes.json` names a version newer than this one and than what is held. `applyUpdate` uses the held
+bytes when their checksum is the one wanted. A member adds `<lead>/v1/program` to its sources and hands on what it
+stores (`host.json` `lead_updates`, `true` unless set `false`; `{"lead_updates": false}` to the member's
+`/admin/constellation`). The lead also still tells a member its own pack server (`pack`, kept as `lead_pack`).
+A launcher's side: `Notes.peers` (asked first in `Notes.newer`), `Notes.handOver`, `Main.pairUpdate`.
+
+**Signing (not required yet).** `tools/setup_signing_key.ps1`, run by the owner, makes an Ed25519 key, stores it
+as the repository secret `RELEASE_SIGNING_KEY`, and adds `source/release-key.pub.pem` and the workflow
+(`tools/sign-release.workflow.yml`, installed as `.github/workflows/sign-release.yml`). The workflow signs
+`dist/gatekeeper/oj-host.jar` on each publish and uploads `<sha256>.sig` to the `signatures` release. No client
+looks at signatures yet.
+
+**The log and member Gatekeepers.** The lead writes no line of its own when a Gatekeeper's reported version
+changes; that Gatekeeper's own line, handed on in `events`, is the record.
+
 **The same client twice (`AutoUpdate.withoutDuplicates`).** A launcher known both directly and through a member is
 matched by `install` id, or failing that by name, player and system (`same_by`), listed once, with the other way
 in `also`.

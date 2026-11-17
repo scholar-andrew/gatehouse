@@ -1,3 +1,5 @@
+== 1.44.0 | 2026-11-17
+- Updates to the program are passed from client to client: the first to see one fetches it and hands it on, and a machine with both halves fetches it once (Gatehouse 3.11.0). Nothing in the pack's mods or settings changed.
 == 1.43.0 | 2026-11-17
 - In the launcher, each Gatekeeper's card shows a picture of the machine it runs on: a desktop, a laptop, a Steam Deck and so on (Gatehouse 3.10.0). Nothing in the pack's mods or settings changed.
 == 1.42.0 | 2026-11-17

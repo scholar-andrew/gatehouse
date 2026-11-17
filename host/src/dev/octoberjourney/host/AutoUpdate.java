@@ -132,9 +132,11 @@ final class AutoUpdate {
 				if (!d.isEmpty()) {
 					allowed = !keeper || ServerTools.yes(d.get("constellation"));
 					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && r.own.equals(Json.str(d.get("version"))) && r.install.equals(Json.str(d.get("install"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
-						// (a version it reports that isn't the one it reported before: it has updated, and that goes in the update log)
+						// (a version it reports that isn't the one it reported before: it has updated, and that goes in the update log.
+						// Not for a Gatekeeper: it writes the line for its own update, where it was fetched from included, and hands
+						// it on; a second line from here would say the same update twice, and without the source)
 						String before = Json.str(d.get("version"));
-						if (!before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info, r.source);
+						if (!keeper && !before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info, r.source);
 						d.put("update_mode", r.mode); d.put("version", r.own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
 						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);
@@ -152,6 +154,7 @@ final class AutoUpdate {
 			else if (!newer() && !r.own.isEmpty() && cmpVersion(ownVersion(), r.own) > 0) state = "go";   // (this Gatekeeper is ahead already: catch up)
 		}
 		Map<String, Object> out = m("state", state, "version", newer() ? newestKeeper : ownVersion(), "mode", mode(), "member", allowed, "lead", myName());
+		if (keeper && allowed) out.put("pack", ownPack());
 		// (while the constellation is gathering or going, each client is shown who is being waited for)
 		if (!state.equals("idle") && newer()) out.put("gather", gatherFor(id));
 		return out;
@@ -262,6 +265,9 @@ final class AutoUpdate {
 			// (and word travels down: the Gatekeeper this one joined is gathering or going for a version this one hasn't seen yet)
 			if ((leadState.equals("gathering") || leadState.equals("go")) && !newer()) hint(leadName);
 			if (leadMember) UpdateLog.handedOn(handing.size());   // (taken there: not handed on again)
+			// (where that Gatekeeper's machine publishes the program: remembered, and looked at only if this one's owner chose that)
+			String pack = Json.str(r.get("pack"));
+			if (leadMember && r.containsKey("pack") && !pack.equals(setting("lead_pack", ""))) { if (pack.isEmpty()) cfg.remove("lead_pack"); else cfg.put("lead_pack", pack); ServerTools.saveCfg(); }
 			leadSaid = leadMember ? "Part of " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation." : "Asked to join " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation: waiting for its owner to allow it (on its Constellation tab).";
 		} catch (IOException | RuntimeException e) {
 			leadState = ""; leadGather = new java.util.LinkedHashMap<>();
@@ -353,7 +359,8 @@ final class AutoUpdate {
 		String mode = mode();
 		return m("gatekeeper", m("type", "Gatekeeper", "name", myName(), "system", systemName(), "version", ownVersion(), "mode", mode, "newest", newestKeeper,
 						"status", mode.equals("normal") ? (newer() ? newestKeeper + " is out: press Update Gatekeeper." : "Up to date.") : (status.isEmpty() ? "On." : status)),
-				"clients", clients, "duplicates", merged, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName, "member", leadMember, "said", lead().isEmpty() ? "" : leadSaid));
+				"clients", clients, "duplicates", merged, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName, "member", leadMember, "said", lead().isEmpty() ? "" : leadSaid,
+						"updates", setting("lead_updates", "true").equals("true"), "pack", setting("lead_pack", "").replaceFirst("^https?://", "").replaceFirst("/gatekeeper$", "")));
 	}
 
 	/** The same client can be in a constellation more than one way: a launcher paired with this Gatekeeper that is
@@ -412,8 +419,17 @@ final class AutoUpdate {
 				talkToLead();
 				log("constellation: joining the Gatekeeper at " + at.group(1) + ":" + at.group(2) + ". " + leadSaid);
 				msg = leadSaid;
+			} else if (b.containsKey("lead_updates")) {
+				// (the owner's own choice, made at this machine: the Gatekeeper it joined may supply this one's program)
+				boolean on = ServerTools.yes(b.get("lead_updates"));
+				if (lead().isEmpty()) { reply(x, 200, m("result", "refused", "message", "This Gatekeeper hasn't joined another's constellation.")); return true; }
+				cfg.put("lead_updates", on ? "true" : "false");   // (on unless turned off: the two Gatekeepers pass the program file between them)
+				ServerTools.saveCfg();
+				log("constellation: the program file is " + (on ? "shared with the Gatekeeper this one joined again (taken from it, and handed to it)" : "no longer shared with the Gatekeeper this one joined: this one fetches its own"));
+				msg = on ? "This Gatekeeper takes updates from the Gatekeeper it joined, and hands on any it finds first." : "This Gatekeeper fetches its own updates again, from its own machine's pack server or GitHub.";
+				new Thread(() -> { try { lookForNewer(); } catch (RuntimeException ignored) {} }, "look").start();
 			} else if (b.containsKey("leave")) {
-				cfg.remove("constellation_lead"); ServerTools.saveCfg();
+				cfg.remove("constellation_lead"); cfg.remove("lead_updates"); cfg.remove("lead_pack"); ServerTools.saveCfg();
 				leadMember = false; leadState = ""; leadSaid = ""; leadName = "";
 				log("constellation: this Gatekeeper is on its own again");
 				msg = "This Gatekeeper is on its own again. (The other Gatekeeper still lists it until its owner removes it there.)";
