@@ -31,8 +31,8 @@ final class Nav {
 	private Nav() {}
 
 	private static boolean on;
-	/** What the bumpers (and Q and E) do: the window's sections, one back or one on. */
-	static volatile java.util.function.IntConsumer flip;
+	/** What the bumpers (and Q and E) do: the sections of the window in front, one back or one on. */
+	private static void flip(Window w, int by) { if (w instanceof javax.swing.JFrame jf && jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs) gs.flip(by); }
 
 	/** Marks a button as the one B / Select, Y or Start goes to. */
 	static void tag(JComponent c, String what) { c.putClientProperty("nav", what); }
@@ -111,8 +111,8 @@ final class Nav {
 				for (Component c : stops(w)) if (c instanceof AbstractButton ab && "back".equals(ab.getClientProperty("nav")) && Boolean.TRUE.equals(ab.getClientProperty("navNow"))) { ab.doClick(); return; }
 				if (!select(w, "back")) selectByText(w, "Cancel", "No", "Close");
 			}
-			case "lb" -> { if (flip != null && w instanceof javax.swing.JFrame) flip.accept(-1); }
-			case "rb" -> { if (flip != null && w instanceof javax.swing.JFrame) flip.accept(1); }
+			case "lb" -> flip(w, -1);
+			case "rb" -> flip(w, 1);
 			case "x" -> select(w, "extra");
 			case "y" -> select(w, "restart");
 			case "start" -> select(w, "quit");

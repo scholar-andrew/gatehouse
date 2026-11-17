@@ -113,6 +113,11 @@ the bumpers on a controller (Q and E on a keyboard):
 | **Machine** | The host's machine, MCSS and each server, with the buttons the host has allowed your device: start or stop a server, start or close MCSS, wake the machine or put it to sleep. |
 | **Options** | The setup guide, Play or Host, and Uninstall. |
 
+A server's own page is laid out the same way, with its own sections across the top: **Updates** (what changed in
+the pack on this device), **Server news**, **Connection** (the server's controls and a network check), **Server**,
+**Mods** (your optional mods), and **Gatekeeper** when the host has allowed your device Gatekeeper control. **Play**
+is at the bottom right, and **B** (Esc) or the **Gatehouse** button goes back to the menu.
+
 The card you are on glows. A strip along the bottom shows the version and update mode on the left, and what the
 buttons do on the right: **A** (Enter) presses what is selected, **B** (Esc) goes back, **X** selects Open Prism
 Launcher, **Y** Restart and **Start** Quit. It shows a controller's buttons or the keyboard's keys, whichever you

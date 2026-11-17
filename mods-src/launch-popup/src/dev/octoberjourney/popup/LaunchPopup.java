@@ -318,8 +318,11 @@ public final class LaunchPopup {
 			south.add(askPanel, BorderLayout.NORTH);
 			south.add(bottom, BorderLayout.SOUTH);
 			p.add(south, BorderLayout.SOUTH);
+			dev.gatehouse.look.GameShell progressShell = new dev.gatehouse.look.GameShell(TOOL, new String[0], x -> { });
+			progressShell.body(dev.gatehouse.look.GameShell.padded(p));
+			progressShell.left().add(new JLabel(TOOL + " " + Notes.version(Notes.own())));
 			if (into != null) {   // (the window stays as it is, where it is: only what it shows changes)
-				f.setContentPane(p);
+				f.setContentPane(progressShell);
 				f.validate();
 				f.repaint();
 				reuse = f;
@@ -328,7 +331,7 @@ public final class LaunchPopup {
 			f.addWindowListener(new java.awt.event.WindowAdapter() {
 				@Override public void windowClosing(java.awt.event.WindowEvent e) { exitCode = QUIT; f.dispose(); }
 			});
-			f.setContentPane(p);
+			f.setContentPane(progressShell);
 			f.pack();
 			fit(f, false);
 			handed = readBounds(dir.resolve(HANDOFF));
@@ -2029,10 +2032,12 @@ public final class LaunchPopup {
 			if (!embedded) for (java.awt.event.WindowListener l : f.getWindowListeners()) f.removeWindowListener(l);
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 10));
-			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
+			p.setBorder(BorderFactory.createEmptyBorder(14, 24, 8, 24));
+			p.setOpaque(false);
 			JPanel top = new JPanel(new BorderLayout(0, 4));
+			top.setOpaque(false);
 			JLabel h = new JLabel(headline);
-			h.setFont(h.getFont().deriveFont(Font.BOLD, 18f));
+			h.setFont(h.getFont().deriveFont(Font.BOLD, 24f));
 			JLabel s = new JLabel(sub);
 			s.setFont(s.getFont().deriveFont(14f));
 			// An update to this pack published while this window is open: a line under the heading says so (which
@@ -2174,7 +2179,7 @@ public final class LaunchPopup {
 				JComponent modsTab = modsPanel(dir);
 				if (modsTab != null) tabs.addTab("Client mods", modsTab);
 			}
-			p.add(tabs, BorderLayout.CENTER);
+			p.add(dev.gatehouse.look.GameShell.sheet(tabs), BorderLayout.CENTER);
 			PlayButton play = new PlayButton("Play");
 			play.setToolTipText("Starts the game once the server is online. Until then it asks the owner for whatever is missing: the server turned on, a place on the whitelist, or being let back in.");
 			JLabel playWhy = new JLabel(" ");
@@ -2189,7 +2194,14 @@ public final class LaunchPopup {
 				l.setForeground(new Color(0x8F98A0));
 				legend.add(l);
 			}
-			bottom.add(legend, BorderLayout.WEST);
+			legend.setOpaque(false);
+			// The window as a game's menu (GameShell): this page's tabs are the sections across the top, and the
+			// buttons that leave the page are along the bottom with what reaches them.
+			dev.gatehouse.look.GameShell shell = dev.gatehouse.look.GameShell.mirror(TOOL, tabs, title -> switch (title) {
+				case "Client updates" -> "Updates"; case "Server updates" -> "Server news"; case "Server config" -> "Server"; case "Client mods" -> "Mods"; case "Remote Gatekeeper" -> "Gatekeeper"; default -> title; });
+			shell.body(p);
+			shell.corner(NAME);
+			shell.left().add(legend);
 			// Beside Play: run the update again, or don't start the game.
 			JButton again = new PlayButton("Restart", YELLOW, INK, 14f), quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
 			// Menu: back to the Gatehouse launcher's own window (the Gatekeepers and their servers), without starting the
@@ -2216,16 +2228,19 @@ public final class LaunchPopup {
 			quit.setToolTipText("Don't start the game");
 			again.addActionListener(e -> { exitCode = RESTART; f.dispose(); });
 			quit.addActionListener(e -> { exitCode = QUIT; f.dispose(); });
-			JPanel right = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0));
-			for (JButton b : new JButton[] {menu, again, quit}) right.add(b);
+			menu.putClientProperty("navNow", Boolean.TRUE);   // (B goes back to the menu at once)
+			JPanel right = shell.right();
+			right.add(new dev.gatehouse.look.GameShell.Hint("A", "Enter", "Select"));
+			right.add(new dev.gatehouse.look.GameShell.Glyph("B", "Esc").of(menu)); right.add(menu);
+			right.add(new dev.gatehouse.look.GameShell.Glyph("Y", "")); right.add(again);
+			right.add(new dev.gatehouse.look.GameShell.Glyph("Start", "")); right.add(quit);
 			right.add(play);
 			// The line about Play (why it's grey, or what a request did) sits above the buttons, wrapped to their width.
 			JPanel rightCol = new JPanel(new BorderLayout(0, 3));
 			playWhy.setHorizontalAlignment(JLabel.RIGHT);
+			rightCol.setOpaque(false);
 			rightCol.add(playWhy, BorderLayout.NORTH);
-			rightCol.add(right, BorderLayout.SOUTH);
-			bottom.add(rightCol, BorderLayout.EAST);
-			p.add(bottom, BorderLayout.SOUTH);
+			p.add(rightCol, BorderLayout.SOUTH);
 			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
 			// "Play" after. Nothing happens on its own: no countdown, the game starts only when the player presses Play.
 			boolean[] serverShown = {!serverNews};
@@ -2339,7 +2354,7 @@ public final class LaunchPopup {
 			if (embedded && System.getenv("OJ_POPUP_PNG") == null) {
 				// Inside the main window: the same window, where it is, grown only if this page needs more room.
 				java.awt.Rectangle was = f.getBounds();
-				f.setContentPane(p);
+				f.setContentPane(shell);
 				Dimension want = f.getPreferredSize();
 				f.setSize(Math.max(was.width, want.width), Math.max(was.height, Math.min(want.height, 720)));
 				place(f, f.getBounds());
@@ -2350,7 +2365,7 @@ public final class LaunchPopup {
 				SwingUtilities.invokeLater(() -> Nav.home(f));
 				return;
 			}
-			f.setContentPane(p);
+			f.setContentPane(shell);
 			f.pack();
 			fit(f, true);
 			f.validate();
@@ -2373,19 +2388,19 @@ public final class LaunchPopup {
 						else shots.add(title.startsWith("Server config") ? "-config.png" : title.startsWith("Client mods") ? "-mods.png" : "-manage.png");
 						for (int j = 0; j < shots.size(); j++) {
 							if (title.equals("Connection")) connTabs.setSelectedIndex(j);
-							p.validate();
-							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
-							java.awt.Graphics2D g = img.createGraphics(); p.paint(g); g.dispose();
+							shell.validate();
+							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D g = img.createGraphics(); shell.paint(g); g.dispose();
 							javax.imageio.ImageIO.write(img, "png", new java.io.File(stem + shots.get(j)));
 						}
 					}
 					for (int i = 0; i < 2; i++) {
 						tabs.setSelectedIndex(i);
 						if (i == 1) { serverShown[0] = true; label.run(); }
-						p.validate();
-						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(p.getWidth(), p.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+						shell.validate();
+						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics();
-						p.paint(g);
+						shell.paint(g);
 						g.dispose();
 						javax.imageio.ImageIO.write(img, "png", new java.io.File(i == 0 ? png : png.replaceAll("\\.png$", "") + "-server.png"));
 						if (i == 0) Files.writeString(Path.of(png + ".txt"), f.getTitle() + "\n" + headline + "\n" + sub + "\n" + plain(deviceRows) + play.getText() + "\n", StandardCharsets.UTF_8);

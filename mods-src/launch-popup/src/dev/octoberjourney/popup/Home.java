@@ -1287,7 +1287,6 @@ final class Home {
 			shell[0] = new dev.gatehouse.look.GameShell(LaunchPopup.TOOL, new String[] {"SERVERS", "PEOPLE", "CONSTELLATION", "MACHINE", "OPTIONS"}, pickSection);
 			shell[0].body(p);
 			shell[0].corner("This device: " + ServerControl.systemName());
-			Nav.flip = by -> { if (f.getContentPane() == shell[0]) shell[0].flip(by); };
 			// the bottom strip: where this launcher stands, and what the buttons do
 			JLabel verL = new JLabel(LaunchPopup.TOOL + " " + ownVersion);
 			verL.setFont(verL.getFont().deriveFont(Font.BOLD, 13f));

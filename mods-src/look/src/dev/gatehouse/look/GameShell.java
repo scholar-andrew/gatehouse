@@ -44,7 +44,10 @@ public final class GameShell extends JPanel {
 	public static void pad(boolean on) {
 		if (pad == on) return;
 		pad = on;
-		javax.swing.SwingUtilities.invokeLater(() -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) w.repaint(); });
+		javax.swing.SwingUtilities.invokeLater(() -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) { again(w); w.repaint(); } });
+	}
+	private static void again(java.awt.Container c) {
+		for (java.awt.Component x : c.getComponents()) { if (x instanceof Glyph || x instanceof Hint) ((JComponent) x).revalidate(); if (x instanceof java.awt.Container k) again(k); }
 	}
 
 	static Color a(Color c, int alpha) { return new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha); }
@@ -81,9 +84,20 @@ public final class GameShell extends JPanel {
 	/** A button's picture by itself (beside a real button, to say which press reaches it). */
 	public static final class Glyph extends JComponent {
 		private final String padName, key;
+		private java.awt.Component of;
 		public Glyph(String padName, String key) { this.padName = padName; this.key = key; }
-		@Override public Dimension getPreferredSize() { return new Dimension(Math.max(26, getFontMetrics(font(11.5f, true)).stringWidth(padName.length() > key.length() ? padName : key) + 16), 26); }
-		@Override protected void paintComponent(Graphics g0) { if (!pad && key.isEmpty()) return; Graphics2D g = smooth(g0); int w = glyphWidth(g, padName, key); glyph(g, padName, key, (getWidth() - w) / 2, getHeight() / 2); g.dispose(); }
+		/** Beside this button: shown only while the button is. */
+		public Glyph of(java.awt.Component button) {
+			of = button;
+			button.addComponentListener(new java.awt.event.ComponentAdapter() {
+				@Override public void componentShown(java.awt.event.ComponentEvent e) { revalidate(); repaint(); }
+				@Override public void componentHidden(java.awt.event.ComponentEvent e) { revalidate(); repaint(); }
+			});
+			return this;
+		}
+		private boolean nothing() { return (!pad && key.isEmpty()) || (of != null && !of.isVisible()); }
+		@Override public Dimension getPreferredSize() { if (nothing()) return new Dimension(0, 26); return new Dimension(Math.max(26, getFontMetrics(font(11.5f, true)).stringWidth(pad ? padName : key) + 16), 26); }
+		@Override protected void paintComponent(Graphics g0) { if (nothing()) return; Graphics2D g = smooth(g0); int w = glyphWidth(g, padName, key); glyph(g, padName, key, (getWidth() - w) / 2, getHeight() / 2); g.dispose(); }
 	}
 
 	/** A button's picture with what it does here, in words ("A Select"): something to read, not to press. */
@@ -102,21 +116,22 @@ public final class GameShell extends JPanel {
 
 	// ---- a section's name in the top bar
 	private final class Tab extends JButton {
-		final String name; int badge;
-		Tab(String name) {
-			super(name); this.name = name;
+		final String name, label; int badge;
+		Tab(String name, String label) {
+			super(label); this.name = name; this.label = label.toUpperCase(java.util.Locale.ROOT);
 			setContentAreaFilled(false); setBorderPainted(false); setFocusPainted(false); setOpaque(false); setRolloverEnabled(true);
 			setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
 			addActionListener(e -> pick.accept(name));
 		}
-		@Override public Dimension getPreferredSize() { return new Dimension(getFontMetrics(spaced(14.5f, 0.08f)).stringWidth(name) + 40, 64); }
+		@Override public Dimension getPreferredSize() { return new Dimension(getFontMetrics(spaced(14.5f, 0.08f)).stringWidth(label) + 40, 64); }
 		@Override protected void paintComponent(Graphics g0) {
 			Graphics2D g = smooth(g0);
 			boolean sel = name.equals(lit), over = getModel().isRollover();
 			Font f = spaced(14.5f, 0.08f); g.setFont(f);
-			int tw = g.getFontMetrics().stringWidth(name), x = (getWidth() - tw) / 2 - (badge > 0 ? 6 : 0);
+			int tw = g.getFontMetrics().stringWidth(label), x = (getWidth() - tw) / 2 - (badge > 0 ? 6 : 0);
 			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(4, 12, getWidth() - 8, 38, 12, 12)); }
-			g.setColor(sel ? TEXT : over ? a(TEXT, 210) : DIM); g.drawString(name, x, 38);
+			g.setColor(sel ? TEXT : over ? a(TEXT, 210) : DIM); g.drawString(label, x, 38);
+			if (badge < 0) { g.setColor(RED); g.fill(new Ellipse2D.Double(x + tw + 4, 19, 9, 9)); }   // (something new there)
 			if (sel) { g.setColor(a(ACC, 60)); g.fill(new RoundRectangle2D.Double(x - 6, 55, tw + 12, 9, 8, 8)); g.setColor(ACC); g.fill(new RoundRectangle2D.Double(x - 2, 58, tw + 4, 3.5, 3, 3)); }
 			if (badge > 0) {
 				String n = badge > 99 ? "99" : String.valueOf(badge);
@@ -133,6 +148,86 @@ public final class GameShell extends JPanel {
 	private final JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0)), right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
 	private final JPanel middle = new JPanel(new BorderLayout());
 	private final JLabel corner = new JLabel(" ");
+	private final JPanel bar = new JPanel(new Row());
+
+	/** The sections in one row, in the middle. When the window is too narrow for them as they are, the bumpers'
+	 *  pictures go first, then the room round each name is squeezed: no section is ever pushed out of sight. */
+	private static final class Row implements java.awt.LayoutManager {
+		@Override public void addLayoutComponent(String n, java.awt.Component c) {}
+		@Override public void removeLayoutComponent(java.awt.Component c) {}
+		@Override public Dimension preferredLayoutSize(java.awt.Container p) { int w = 0; for (java.awt.Component c : p.getComponents()) w += c.getPreferredSize().width; return new Dimension(w, 64); }
+		@Override public Dimension minimumLayoutSize(java.awt.Container p) { return new Dimension(40, 64); }
+		@Override public void layoutContainer(java.awt.Container p) {
+			java.awt.Component[] cs = p.getComponents();
+			int[] w = new int[cs.length]; int total = 0, tabsN = 0;
+			for (int i = 0; i < cs.length; i++) { w[i] = cs[i].getPreferredSize().width; total += w[i]; if (cs[i] instanceof Tab) tabsN++; }
+			int room = p.getWidth();
+			if (total > room) for (int i = 0; i < cs.length; i++) if (!(cs[i] instanceof Tab)) { total -= w[i]; w[i] = 0; }
+			if (total > room && tabsN > 0) { int cutEach = Math.min(34, (total - room + tabsN - 1) / tabsN); for (int i = 0; i < cs.length; i++) if (cs[i] instanceof Tab) { w[i] -= cutEach; total -= cutEach; } }
+			int x = Math.max(0, (room - total) / 2);
+			for (int i = 0; i < cs.length; i++) { cs[i].setBounds(x, 0, w[i], p.getHeight()); x += w[i]; }
+		}
+	}
+
+	/** The sections in the top bar, replaced: their names (what pick is told), and what each is shown as. */
+	public void sections(String[] names, java.util.function.UnaryOperator<String> shown) {
+		bar.removeAll(); tabs.clear();
+		if (names.length > 0) {
+			JPanel lb = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 19)); lb.setOpaque(false); lb.add(new Glyph("LB", "Q")); bar.add(lb);
+			for (String s : names) { Tab t = new Tab(s, shown.apply(s)); tabs.put(s, t); bar.add(t); }
+			JPanel rb = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 19)); rb.setOpaque(false); rb.add(new Glyph("RB", "E")); bar.add(rb);
+		}
+		bar.revalidate(); bar.repaint();
+	}
+
+	/** A tabbed pane with no row of tabs of its own: the top bar shows them instead. */
+	private static final class NoStrip extends javax.swing.plaf.basic.BasicTabbedPaneUI {
+		@Override protected int calculateTabAreaHeight(int placement, int runs, int maxTabHeight) { return 0; }
+		@Override protected int calculateTabHeight(int placement, int index, int fontHeight) { return 0; }
+		@Override protected void paintTabArea(Graphics g, int placement, int selected) {}
+		@Override protected void paintContentBorder(Graphics g, int placement, int selected) {}
+		@Override protected java.awt.Insets getContentBorderInsets(int placement) { return new java.awt.Insets(0, 0, 0, 0); }
+		@Override protected java.awt.Insets getTabAreaInsets(int placement) { return new java.awt.Insets(0, 0, 0, 0); }
+	}
+	private static String key(String title) { return title.endsWith(" (new)") ? title.substring(0, title.length() - 6) : title; }
+
+	/** A shell whose sections are a tabbed pane's tabs, kept in step with it as tabs come, go, are renamed or chosen
+	 *  (a title ending " (new)" gets a red dot instead). The pane's own row of tabs is taken away. shown: what a tab's
+	 *  title is called in the bar. */
+	public static GameShell mirror(String title, javax.swing.JTabbedPane pane, java.util.function.UnaryOperator<String> shown) {
+		GameShell[] s = {null};
+		s[0] = new GameShell(title, new String[0], name -> { for (int i = 0; i < pane.getTabCount(); i++) if (key(pane.getTitleAt(i)).equals(name)) { pane.setSelectedIndex(i); return; } });
+		pane.setUI(new NoStrip());
+		pane.setFocusable(false);
+		String[] last = {null};
+		Runnable sync = () -> {
+			List<String> keys = new ArrayList<>(); StringBuilder sig = new StringBuilder();
+			for (int i = 0; i < pane.getTabCount(); i++) { keys.add(key(pane.getTitleAt(i))); sig.append(pane.getTitleAt(i)).append('|'); }
+			if (!sig.toString().equals(last[0])) {
+				last[0] = sig.toString();
+				s[0].sections(keys.toArray(new String[0]), shown);
+				for (int i = 0; i < pane.getTabCount(); i++) if (pane.getTitleAt(i).endsWith(" (new)")) s[0].badge(keys.get(i), -1);
+			}
+			int sel = pane.getSelectedIndex();
+			s[0].light(sel < 0 ? "" : key(pane.getTitleAt(sel)));
+		};
+		pane.addChangeListener(e -> sync.run());
+		boolean[] was = {false};
+		javax.swing.Timer tick = new javax.swing.Timer(600, null);
+		tick.addActionListener(e -> { if (s[0].isDisplayable()) was[0] = true; else if (was[0]) { tick.stop(); return; } sync.run(); });
+		tick.start();
+		sync.run();
+		return s[0];
+	}
+
+	/** A page with room round it, on a sheet: for a window that is one plain page. */
+	public static JComponent padded(JComponent page) {
+		JPanel m = new JPanel(new BorderLayout());
+		m.setOpaque(false);
+		m.setBorder(BorderFactory.createEmptyBorder(14, 24, 12, 24));
+		m.add(sheet(page), BorderLayout.CENTER);
+		return m;
+	}
 
 	/** title: the program's name, shown in capitals beside its mark. pick: told a section's name when it is chosen. */
 	public GameShell(String title, String[] sections, Consumer<String> pick) {
@@ -155,14 +250,11 @@ public final class GameShell extends JPanel {
 		};
 		top.setOpaque(false);
 		top.setPreferredSize(new Dimension(100, 65));
-		JPanel bar = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
 		bar.setOpaque(false);
-		JPanel lb = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 19)); lb.setOpaque(false); lb.add(new Glyph("LB", "Q")); bar.add(lb);
-		for (String s : sections) { Tab t = new Tab(s); tabs.put(s, t); bar.add(t); }
-		JPanel rb = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 19)); rb.setOpaque(false); rb.add(new Glyph("RB", "E")); bar.add(rb);
+		sections(sections, s -> s);
 		// (the same room on both sides, so the sections sit in the middle of the window)
-		JPanel west = new JPanel(); west.setOpaque(false); west.setPreferredSize(new Dimension(230, 64));
-		JPanel east = new JPanel(new BorderLayout()); east.setOpaque(false); east.setPreferredSize(new Dimension(230, 64));
+		JPanel west = new JPanel() { @Override public Dimension getPreferredSize() { return new Dimension(side(), 64); } }; west.setOpaque(false);
+		JPanel east = new JPanel(new BorderLayout()) { @Override public Dimension getPreferredSize() { return new Dimension(Math.max(24, Math.min(230, GameShell.this.getWidth() - side() - bar.getPreferredSize().width)), 64); } }; east.setOpaque(false);
 		corner.setForeground(DIM); corner.setFont(font(12.5f, false)); corner.setHorizontalAlignment(JLabel.RIGHT); corner.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 24));
 		east.add(corner, BorderLayout.CENTER);
 		top.add(west, BorderLayout.WEST); top.add(bar, BorderLayout.CENTER); top.add(east, BorderLayout.EAST);
@@ -185,6 +277,10 @@ public final class GameShell extends JPanel {
 		g.dispose();
 	}
 
+	/** How wide the left of the top bar is: as wide as the right when there is room (so the sections sit in the
+	 *  middle), never narrower than the program's mark and name. */
+	private int side() { return Math.max(205, Math.min(230, (getWidth() - bar.getPreferredSize().width) / 2)); }
+
 	/** The page: whatever the window shows between the two bars. */
 	public void body(JComponent page) { middle.removeAll(); middle.add(page, BorderLayout.CENTER); middle.revalidate(); }
 	/** Which section is lit in the top bar ("" for none: a page that belongs to no section). */
@@ -193,6 +289,7 @@ public final class GameShell extends JPanel {
 	/** The next section (by 1) or the one before (by -1), as the bumpers do it. */
 	public void flip(int by) {
 		List<String> names = new ArrayList<>(tabs.keySet());
+		if (names.isEmpty()) return;
 		int i = names.indexOf(lit);
 		pick.accept(names.get(i < 0 ? 0 : Math.floorMod(i + by, names.size())));
 	}

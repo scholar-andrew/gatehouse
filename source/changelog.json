@@ -1,4 +1,7 @@
 [
+ {"version": "1.40.0", "date": "2026-11-17", "notes": [
+  "A server's own page in the launcher has the new look too: its tabs are sections across the top, and Play, Restart and Quit are along the bottom (Gatehouse 3.7.0). Nothing in the pack's mods or settings changed."
+ ]},
  {"version": "1.39.0", "date": "2026-11-17", "notes": [
   "The launcher has a new look, laid out like a game's menu: sections across the top, servers as cards, and a strip along the bottom that says what the buttons do (Gatehouse 3.6.0). Nothing in the pack's mods or settings changed."
  ]},
