@@ -387,6 +387,17 @@ final class Home {
 	 *  allowed everything there, and the account it plays as is whitelisted. Uses the pairing it already has with that
 	 *  Gatekeeper when there is one; otherwise adds it, reached on this machine itself. True when the list changed.
 	 *  (Not under OJ_HOME_DRY, so a test never links to the real Gatekeeper; OJ_KEEPER_DIR names a stand-in one.) */
+	/** The id this install of Gatehouse gave itself the first time it was asked (install-id.txt in its own folder): a
+	 *  random one, the same to every Gatekeeper it reports to, so that a Gatekeeper which hears of this launcher twice
+	 *  (from itself, and through another Gatekeeper that joined its constellation) knows it is one launcher. */
+	static String installId(Path home) {
+		Path f = home.resolve("install-id.txt");
+		String id = LaunchPopup.readFile(f).trim();
+		if (id.matches("[0-9a-fA-F\\-]{16,64}")) return id;
+		id = java.util.UUID.randomUUID().toString();
+		try { Files.createDirectories(home); Files.writeString(f, id + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) {}
+		return id;
+	}
 	/** How this device's owner has it update (gatehouse-options.json in Gatehouse's own folder): normal unless it says
 	 *  auto or constellation. (From before the modes, "auto_update": true meant what is now constellation.) */
 	static String updateMode(Path home) {
@@ -1278,7 +1289,7 @@ final class Home {
 						for (String[] k : new ArrayList<>(keepers)) try {
 							ServerControl sc = asked.computeIfAbsent(k[0], u -> client(home, u, packs));
 							String[] found = offered[0];
-							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
+							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"install\":\"" + installId(home) + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
 							if ("go".equals(str(r.get("state")))) go = true;
 							if ("gathering".equals(str(r.get("state")))) gathering = true;
 						} catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before this */ }

@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.3.0",
+ "version": "3.3.1",
  "changes": [
+  {"version": "3.3.1", "date": "2026-11-16", "notes": [
+   "Gatehouse now gives this install an id of its own (a random one, made once) and tells it to the Gatekeepers in your list along with its version and update mode. A Gatekeeper that hears of this launcher twice, from itself and through another Gatekeeper in its constellation, uses it to list the launcher once."
+  ]},
   {"version": "3.3.0", "date": "2026-11-16", "notes": [
    "Three update modes, chosen in Options under Updating. Normal: you press Update (what it is unless you choose otherwise). Auto: while its window is open, Gatehouse updates itself as soon as it sees a new version, without waiting for anyone. Constellation: Gatehouse updates together with a Gatekeeper in your list and its other launchers; this is what 3.2.2 called \"update automatically, together with my Gatekeepers\", and a launcher that had that ticked is in constellation mode now.",
    "While its window is open, Gatehouse tells the Gatekeepers in your list its version and its update mode, whatever the mode. A Gatekeeper's owner sees that in its new Constellation tab."

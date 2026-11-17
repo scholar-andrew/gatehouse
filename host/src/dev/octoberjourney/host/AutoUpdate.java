@@ -46,6 +46,8 @@ final class AutoUpdate {
 	/** A client's last report. */
 	static final class Rep {
 		long at; String mode = "", sees = "", own = "", name = "", kind = "launcher", system = "";
+		/** The id that install of the program gave itself once: the same whichever Gatekeeper it reports to, or through. */
+		String install = "";
 		boolean busy, waiting;
 		List<Object> clients = new ArrayList<>();
 	}
@@ -86,10 +88,11 @@ final class AutoUpdate {
 		r.kind = keeper ? "gatekeeper" : "launcher";
 		r.system = clean(Json.str(b.get("system")), 20).replace("<", "");
 		r.busy = ServerTools.yes(b.get("busy")); r.waiting = ServerTools.yes(b.get("waiting"));
+		r.install = installOf(b);
 		if (keeper) for (Object o : Json.list(b.get("clients"))) {   // (its own launchers, for the lead's list: kept as plain words)
 			Map<String, Object> c = Json.map(o);
 			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player", clean(Json.str(c.get("player")), 16).replaceAll("\\W", ""), "system", clean(Json.str(c.get("system")), 20).replace("<", ""),
-					"version", Json.str(c.get("version")).replaceAll("[^\\w.\\-]", ""), "mode", modeOf(c), "open", ServerTools.yes(c.get("open"))));
+					"version", Json.str(c.get("version")).replaceAll("[^\\w.\\-]", ""), "mode", modeOf(c), "open", ServerTools.yes(c.get("open")), "install", installOf(c)));
 		}
 		seen.put(id, r);
 		// (its kind, mode and version are kept with what else is known of it, so the Constellation tab still has them
@@ -101,8 +104,9 @@ final class AutoUpdate {
 				Map<String, Object> d = Json.map(devs.get(id));
 				if (!d.isEmpty()) {
 					allowed = !keeper || ServerTools.yes(d.get("constellation"));
-					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && r.own.equals(Json.str(d.get("version"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
+					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && r.own.equals(Json.str(d.get("version"))) && r.install.equals(Json.str(d.get("install"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
 						d.put("update_mode", r.mode); d.put("version", r.own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
+						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);
 						if (keeper && !ServerTools.yes(d.get("constellation")) && !ServerTools.yes(d.get("asked_said"))) { d.put("asked_said", true); saveDevices(devs); log("the Gatekeeper " + name + " asks to join this Gatekeeper's constellation: allow it on the Constellation tab"); }
 					}
@@ -117,6 +121,7 @@ final class AutoUpdate {
 		}
 		return m("state", state, "version", newer() ? newestKeeper : ownVersion(), "mode", mode(), "member", allowed, "lead", myName());
 	}
+	static String installOf(Map<String, Object> b) { String s = Json.str(b.get("install")); return s.matches("[0-9a-fA-F\\-]{16,64}") ? s.toLowerCase(java.util.Locale.ROOT) : ""; }
 	/** Is that client one this Gatekeeper waits for and takes along (a launcher, or a Gatekeeper that was allowed in)? */
 	static boolean counts(String id, Rep r) {
 		if (!r.kind.equals("gatekeeper")) return true;
@@ -162,14 +167,15 @@ final class AutoUpdate {
 			if (Json.str(d.get("kind")).equals("gatekeeper")) continue;
 			Rep r = seen.get(e.getKey());
 			out.add(m("name", Json.str(d.get("name")), "player", Json.str(d.get("player")), "system", Json.str(d.get("os")), "version", r == null ? Json.str(d.get("version")) : r.own,
-					"mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", (r != null && now - r.at < 25_000) || now - contact.getOrDefault(e.getKey(), 0L) < 20_000));
+					"mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", (r != null && now - r.at < 25_000) || now - contact.getOrDefault(e.getKey(), 0L) < 20_000,
+					"install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
 		}
 		return out;
 	}
 	/** Reports to the Gatekeeper whose constellation this one has joined, and hears how things stand there. */
 	static void talkToLead() {
 		if (lead().isEmpty()) { leadState = ""; leadSaid = ""; leadMember = false; return; }
-		String say = Json.write(m("kind", "gatekeeper", "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting", launchersWaiting, "system", systemName(), "clients", ownClients()));
+		String say = Json.write(m("kind", "gatekeeper", "install", setting("constellation_id", ""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting", launchersWaiting, "system", systemName(), "clients", ownClients()));
 		try {
 			Map<String, Object> r;
 			try { r = Json.map(Json.parse(leadCall("/v1/update/state", say))); }
@@ -257,17 +263,56 @@ final class AutoUpdate {
 			String nm = Json.str(d.get("name")).replace(" (Gatekeeper)", "");
 			clients.add(m("id", e.getKey(), "type", keeper ? "Gatekeeper" : "Gatehouse (launcher)", "name", nm, "player", Json.str(d.get("player")), "system", r != null && !r.system.isEmpty() ? r.system : Json.str(d.get("os")),
 					"version", r == null ? Json.str(d.get("version")) : r.own, "mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", open, "last_seen", Json.str(d.get("last_seen")),
-					"here", ServerTools.yes(d.get("local")), "via", "", "membership", !keeper ? "" : in ? "member" : "asked"));
+					"here", ServerTools.yes(d.get("local")), "via", "", "membership", !keeper ? "" : in ? "member" : "asked", "install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
 			if (keeper && in && r != null) for (Object o : r.clients) {
 				Map<String, Object> c = Json.map(o);
 				clients.add(m("id", "", "type", "Gatehouse (launcher)", "name", Json.str(c.get("name")), "player", Json.str(c.get("player")), "system", Json.str(c.get("system")), "version", Json.str(c.get("version")), "mode", Json.str(c.get("mode")),
-						"open", ServerTools.yes(c.get("open")), "last_seen", "", "here", false, "via", nm, "membership", ""));
+						"open", ServerTools.yes(c.get("open")), "last_seen", "", "here", false, "via", nm, "membership", "", "install", Json.str(c.get("install"))));
 			}
 		}
+		int merged = clients.size();
+		clients = withoutDuplicates(clients);
+		merged -= clients.size();
 		String mode = mode();
 		return m("gatekeeper", m("type", "Gatekeeper", "name", myName(), "system", systemName(), "version", ownVersion(), "mode", mode, "newest", newestKeeper,
 						"status", mode.equals("normal") ? (newer() ? newestKeeper + " is out: press Update Gatekeeper." : "Up to date.") : (status.isEmpty() ? "On." : status)),
-				"clients", clients, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName, "member", leadMember, "said", lead().isEmpty() ? "" : leadSaid));
+				"clients", clients, "duplicates", merged, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName, "member", leadMember, "said", lead().isEmpty() ? "" : leadSaid));
+	}
+
+	/** The same client can be in a constellation more than one way: a launcher paired with this Gatekeeper that is
+	 *  also paired with a Gatekeeper that joined is told of twice, once by itself and once through that Gatekeeper.
+	 *  Each is listed once. Two entries are the same client when they carry the same install id (which an install of
+	 *  the program gives itself once and reports everywhere); for a client from before that id, when its name, player
+	 *  and system all match. The entry this Gatekeeper knows directly is the one kept; the ways it is also reached
+	 *  go in "also", and "same_by" says how it was recognised ("id" or "name"). */
+	static List<Object> withoutDuplicates(List<Object> rows) {
+		List<Object> out = new ArrayList<>();
+		Map<String, Map<String, Object>> byId = new java.util.HashMap<>(), byLooks = new java.util.HashMap<>();
+		// (directly known ones first, so they are the ones kept; the order they are shown in is put back after)
+		List<Object> order = new ArrayList<>(rows);
+		order.sort(java.util.Comparator.comparing(o -> Json.str(Json.map(o).get("via")).isEmpty() ? 0 : 1));
+		java.util.Set<Object> dropped = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+		for (Object o : order) {
+			Map<String, Object> c = Json.map(o);
+			if (!Json.str(c.get("membership")).isEmpty()) continue;   // (a Gatekeeper that joined is a row of its own)
+			String id = Json.str(c.get("install")), looks = (Json.str(c.get("name")) + "|" + Json.str(c.get("player")) + "|" + Json.str(c.get("system"))).toLowerCase(java.util.Locale.ROOT);
+			Map<String, Object> first = !id.isEmpty() && byId.containsKey(id) ? byId.get(id) : null;
+			String how = "id";
+			if (first == null && byLooks.containsKey(looks) && (id.isEmpty() || Json.str(byLooks.get(looks).get("install")).isEmpty())) { first = byLooks.get(looks); how = "name"; }
+			if (first == null) { if (!id.isEmpty()) byId.put(id, c); if (!Json.str(c.get("name")).isEmpty()) byLooks.put(looks, c); continue; }
+			List<Object> also = new ArrayList<>(Json.list(first.get("also")));
+			String way = Json.str(c.get("via")).isEmpty() ? "directly" : "through " + Json.str(c.get("via"));
+			if (!also.contains(way)) also.add(way);
+			first.put("also", also);
+			if (!"id".equals(Json.str(first.get("same_by")))) first.put("same_by", how);
+			if (ServerTools.yes(c.get("open"))) first.put("open", true);
+			if (Json.str(first.get("version")).isEmpty()) first.put("version", Json.str(c.get("version")));
+			if (Json.str(first.get("mode")).isEmpty()) first.put("mode", Json.str(c.get("mode")));
+			if (Json.str(first.get("install")).isEmpty() && !id.isEmpty()) { first.put("install", id); byId.put(id, first); }
+			dropped.add(o);
+		}
+		for (Object o : rows) if (!dropped.contains(o)) out.add(o);
+		return out;
 	}
 
 	/** The window's calls: GET /admin/auto (how it stands), POST {mode}; GET /admin/constellation, POST {join: address}

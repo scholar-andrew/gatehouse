@@ -1,7 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.3.0",
+ "version": "3.3.1",
  "changes": [
+  {"version": "3.3.1", "date": "2026-11-16", "notes": [
+   "The Constellation tab recognises the same client reached more than one way. A launcher paired with this Gatekeeper that is also paired with a Gatekeeper that joined was listed twice: once by itself and once under that Gatekeeper. It is now listed and counted once, with the other way beside it (\"also through ...\"), and a line under the list says how many clients are connected more than one way.",
+   "How it knows: each install of the program now gives itself an id once and reports it to every Gatekeeper, directly or through another. A client from before this version is recognised by its name, player and system all matching, and the list says when that is how."
+  ]},
   {"version": "3.3.0", "date": "2026-11-16", "notes": [
    "Three update modes, chosen in Options under Updating. Normal: nothing updates until you press Update Gatekeeper (what it is unless you choose otherwise). Auto: Gatekeeper looks every minute and updates itself as soon as a new version is out, waiting only for a server it runs itself to be off. Constellation: the group goes together; this is what 3.2.2 called \"update automatically, together with the launchers that are open\", and a Gatekeeper that had that ticked is in constellation mode now.",
    "A constellation is this Gatekeeper and every client connected to it. The new Constellation tab lists them all: each client's kind, player, system, version, update mode (normal, auto or constellation) and whether it is open now, with a count of how many are in each mode and how this Gatekeeper's own update stands. Launchers now report in while their window is open whatever their mode; one from before this version shows as \"not said\".",

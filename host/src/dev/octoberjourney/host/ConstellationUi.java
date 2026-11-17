@@ -54,7 +54,9 @@ final class ConstellationUi {
 				model.setRowCount(0); rowIds.clear();
 				model.addRow(new Object[] {Json.str(g.get("name")) + "  (this Gatekeeper)", "Gatekeeper", "", Json.str(g.get("system")), Json.str(g.get("version")), modeWord(Json.str(g.get("mode"))), "Running", "Leads it"});
 				rowIds.add(new String[] {"", ""});
-				int open = 0, total = 0, asked = 0;
+				int open = 0, total = 0, asked = 0, dupes = 0;
+				try { dupes = (int) Double.parseDouble(Json.str(r.get("duplicates"))); } catch (NumberFormatException ignored) {}
+				int dupesNow = dupes;
 				int[] by = new int[4];   // normal, auto, constellation, not said
 				by[Json.str(g.get("mode")).equals("auto") ? 1 : Json.str(g.get("mode")).equals("constellation") ? 2 : 0]++;
 				for (Object o : Json.list(r.get("clients"))) {
@@ -64,11 +66,13 @@ final class ConstellationUi {
 					if (ms.equals("asked")) asked++; else { total++; if (up) open++; by[md.equals("normal") ? 0 : md.equals("auto") ? 1 : md.equals("constellation") ? 2 : 3]++; }
 					model.addRow(new Object[] {(via.isEmpty() ? "" : "    ") + Json.str(c.get("name")) + (Boolean.TRUE.equals(c.get("here")) ? "  (this machine)" : ""), Json.str(c.get("type")), Json.str(c.get("player")), Json.str(c.get("system")),
 							Json.str(c.get("version")).isEmpty() ? "Not said" : Json.str(c.get("version")), modeWord(md), up ? "Open" : "Closed",
-							ms.equals("asked") ? "Asked to join: not allowed in yet" : ms.equals("member") ? "Member (a Gatekeeper that joined)" : via.isEmpty() ? "Yes" : "Yes, through " + via});
+							ms.equals("asked") ? "Asked to join: not allowed in yet" : ms.equals("member") ? "Member (a Gatekeeper that joined)"
+									: (via.isEmpty() ? "Yes" : "Yes, through " + via) + (Json.list(c.get("also")).isEmpty() ? "" : "; also " + Json.list(c.get("also")).toString().replaceAll("[\\[\\]]", "") + (Json.str(c.get("same_by")).equals("name") ? " (same name, player and system)" : ""))});
 					rowIds.add(new String[] {ms.isEmpty() ? "" : Json.str(c.get("id")), ms});
 				}
 				if (keep >= 0 && keep < model.getRowCount()) table.setRowSelectionInterval(keep, keep);
 				said.setText("<html><div style='width:900px'>" + (total + 1) + " in this constellation (" + open + " open now" + (asked > 0 ? "; " + asked + " asking to join" : "") + ").   Normal: " + by[0] + "   ·   Auto: " + by[1] + "   ·   Constellation: " + by[2] + (by[3] > 0 ? "   ·   Not said: " + by[3] : "")
+						+ (dupesNow > 0 ? "<br>" + dupesNow + (dupesNow == 1 ? " client is" : " clients are") + " connected more than one way (to this Gatekeeper and through one that joined): each is listed and counted once, with the other way beside it." : "")
 						+ "<br>This Gatekeeper: " + Json.str(g.get("status")).replace("<", "&lt;") + "</div></html>");
 				boolean joined = !Json.str(lead.get("address")).isEmpty();
 				leadSaid.setText("<html><div style='width:900px'>" + (joined ? Json.str(lead.get("said")).replace("<", "&lt;") : "This Gatekeeper leads its own constellation. To make it part of another Gatekeeper's instead, give that Gatekeeper's address and press Join; its owner then allows it in.") + "</div></html>");
