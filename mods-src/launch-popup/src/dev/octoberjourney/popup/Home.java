@@ -387,6 +387,21 @@ final class Home {
 	 *  allowed everything there, and the account it plays as is whitelisted. Uses the pairing it already has with that
 	 *  Gatekeeper when there is one; otherwise adds it, reached on this machine itself. True when the list changed.
 	 *  (Not under OJ_HOME_DRY, so a test never links to the real Gatekeeper; OJ_KEEPER_DIR names a stand-in one.) */
+	/** Where the launcher that is running was fetched from, as noted beside the copy it was started from when it was
+	 *  fetched (launch-popup.source.txt, with its checksum); "" when it came another way (with a pack's own update, or
+	 *  an installer). */
+	static String updateSource(Path instances) {
+		try {
+			Path me = Path.of(Home.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+			if (!Files.isRegularFile(me)) return "";
+			String mine = LaunchPopup.sha256(Files.readAllBytes(me));
+			List<Path> notes = new ArrayList<>();
+			notes.add(Notes.app(instances).resolve("extras/launch-popup.source.txt"));
+			try (java.util.stream.Stream<Path> s = Files.list(instances)) { s.forEach(i -> notes.add(i.resolve("minecraft/extras/launch-popup.source.txt"))); } catch (IOException none) { /* no instances */ }
+			for (Path n : notes) { String[] t = LaunchPopup.readFile(n).trim().split("\\|", 2); if (t.length == 2 && t[0].equalsIgnoreCase(mine)) return t[1]; }
+		} catch (Exception ignored) {}
+		return "";
+	}
 	/** The id this install of Gatehouse gave itself the first time it was asked (install-id.txt in its own folder): a
 	 *  random one, the same to every Gatekeeper it reports to, so that a Gatekeeper which hears of this launcher twice
 	 *  (from itself, and through another Gatekeeper that joined its constellation) knows it is one launcher. */
@@ -1282,6 +1297,7 @@ final class Home {
 			// that is gathering has it look at once, and one that says "go" has it update, as if Update had been pressed.
 			if (shot == null && (System.getenv("OJ_HOME_DRY") == null || System.getenv("OJ_KEEPER_DIR") != null)) {
 				Map<String, ServerControl> asked = new java.util.concurrent.ConcurrentHashMap<>();
+				String cameFrom = updateSource(instances);
 				Thread auto = new Thread(() -> {
 					long lookedAt = 0;
 					while (f.isDisplayable() || !f.isVisible()) {
@@ -1294,7 +1310,7 @@ final class Home {
 						for (String[] k : new ArrayList<>(keepers)) try {
 							ServerControl sc = asked.computeIfAbsent(k[0], u -> client(home, u, packs));
 							String[] found = offered[0];
-							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"install\":\"" + installId(home) + "\",\"info\":\"" + ServerControl.jsonEsc(System.getProperty("os.name", "") + " " + System.getProperty("os.version", "") + " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", "")) + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
+							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"source\":\"" + ServerControl.jsonEsc(cameFrom) + "\",\"install\":\"" + installId(home) + "\",\"info\":\"" + ServerControl.jsonEsc(System.getProperty("os.name", "") + " " + System.getProperty("os.version", "") + " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", "")) + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
 							if ("go".equals(str(r.get("state")))) go = true;
 							if ("gathering".equals(str(r.get("state")))) gathering = true;
 							if (r.get("gather") != null && gatherSaid[0] == null) gatherSaid[0] = r.get("gather");

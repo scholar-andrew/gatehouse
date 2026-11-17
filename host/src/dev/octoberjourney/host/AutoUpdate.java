@@ -50,6 +50,8 @@ final class AutoUpdate {
 		String install = "";
 		/** What it says of its system (operating system and Java), for the update log. */
 		String info = "";
+		/** Where it says the version it is on was fetched from ("" when it doesn't know). */
+		String source = "";
 		boolean busy, waiting;
 		List<Object> clients = new ArrayList<>();
 	}
@@ -94,6 +96,7 @@ final class AutoUpdate {
 		r.busy = ServerTools.yes(b.get("busy")); r.waiting = ServerTools.yes(b.get("waiting"));
 		r.install = installOf(b);
 		r.info = clean(Json.str(b.get("info")), 120).replace("<", "");
+		r.source = clean(Json.str(b.get("source")), 200).replace("<", "");
 		if (keeper) for (Object o : Json.list(b.get("clients"))) {   // (its own launchers, for the lead's list: kept as plain words)
 			Map<String, Object> c = Json.map(o);
 			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player", clean(Json.str(c.get("player")), 16).replaceAll("\\W", ""), "system", clean(Json.str(c.get("system")), 20).replace("<", ""),
@@ -112,7 +115,7 @@ final class AutoUpdate {
 					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && r.own.equals(Json.str(d.get("version"))) && r.install.equals(Json.str(d.get("install"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
 						// (a version it reports that isn't the one it reported before: it has updated, and that goes in the update log)
 						String before = Json.str(d.get("version"));
-						if (!before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info);
+						if (!before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info, r.source);
 						d.put("update_mode", r.mode); d.put("version", r.own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
 						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);

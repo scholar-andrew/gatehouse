@@ -173,6 +173,8 @@ final class Notes {
 			Path dst = Path.of(found[2]).resolve("extras/launch-popup.jar"), tmp = Path.of(found[2]).resolve("extras/launch-popup.jar.part");
 			Files.write(tmp, jar);
 			try { Files.move(tmp, dst, java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(tmp); }   // (in use, as when run straight from there on Windows: left as it was)
+			// (where this launcher file came from, beside it: a Gatekeeper's update log says it. "<its checksum>|<the place>")
+			try { Files.writeString(dst.resolveSibling("launch-popup.source.txt"), found[1] + "|" + found[0], StandardCharsets.UTF_8); } catch (IOException ignored) {}
 			// (Gatehouse's own home: the scripts beside the launcher are brought up to date with it)
 			if (Path.of(found[2]).getFileName().toString().equals("app") && Path.of(found[2]).getParent() != null && Path.of(found[2]).getParent().getFileName().toString().equals("gatehouse")) refreshApp(found[0], Path.of(found[2]));
 			return true;

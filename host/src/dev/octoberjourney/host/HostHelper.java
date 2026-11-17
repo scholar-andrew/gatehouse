@@ -753,7 +753,7 @@ public final class HostHelper {
 			if (!sound) { Files.deleteIfExists(fresh); return new String[] {"failed", "What was published isn't a Gatekeeper that can run. Nothing was changed."}; }
 			// One program: the Play half on this machine, if there is one, gets the same file now (it is never in use).
 			UpdateLog.aboutToUpdate();   // (what it was, and how this update came about: written down as a line when it is back)
-			int play = dev.gatehouse.Main.updatePlayCopies(fresh);
+			int play = dev.gatehouse.Main.updatePlayCopies(fresh, newestKeeperAt);
 			if (play > 0) log("update: the Gatehouse launcher on this machine was updated with it (" + play + (play == 1 ? " copy)" : " copies)"));
 			String javaExe = ProcessHandle.current().info().command().orElse("javaw"), q = "'", folder = jar.getParent().toString();
 			java.util.function.Function<String, String> s = v -> q + v.replace("'", "''") + q;

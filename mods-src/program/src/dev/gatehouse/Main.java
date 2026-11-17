@@ -179,7 +179,7 @@ public final class Main {
 	/** The Host half has just fetched and checked a newer program file: the same file is put where the Play half on
 	 *  this device keeps its copies (Gatehouse's own, and any a pack carries), so both halves are the new one together.
 	 *  The launcher runs from a copy of its file, so these are never in use. Returns how many were replaced. */
-	public static int updatePlayCopies(Path fresh) {
+	public static int updatePlayCopies(Path fresh, String source) {
 		int done = 0;
 		try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(fresh.toFile())) { if (z.getEntry("dev/gatehouse/Main.class") == null || z.getEntry("gatehouse-notes.json") == null) return 0; }
 		catch (IOException | RuntimeException e) { return 0; }
@@ -194,6 +194,12 @@ public final class Main {
 			Files.copy(fresh, part, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 			Files.move(part, c, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 			done++;
+			// (where it came from, beside it, for the update log: "<its checksum>|<the place>")
+			try {
+				StringBuilder sum = new StringBuilder();
+				for (byte b : java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(fresh))) sum.append(String.format("%02x", b));
+				Files.writeString(c.resolveSibling("launch-popup.source.txt"), sum + "|the Gatekeeper on this machine, which fetched it from " + source, StandardCharsets.UTF_8);
+			} catch (IOException | java.security.NoSuchAlgorithmException ignored) {}
 		} catch (IOException | RuntimeException left) { /* that copy is left as it was; its own update gets it */ }
 		return done;
 	}

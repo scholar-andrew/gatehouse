@@ -48,23 +48,31 @@ final class UpdateLog {
 			write(l);
 		} catch (IOException ignored) {}
 	}
-	static void record(String client, String kind, String player, String system, String from, String to, String mode, String info) {
+	/** A place an update was fetched from, in words: GitHub, or the pack server at an address; other words as they are. */
+	static String where(String source) {
+		if (source == null || source.isBlank()) return "not said";
+		java.util.regex.Matcher u = java.util.regex.Pattern.compile("https?://([^/\\s]+)").matcher(source);
+		if (!u.find()) return word(source, 160);
+		String host = u.group(1), place = host.contains("githubusercontent.com") || host.contains("github.com") ? "GitHub (" + host + ")" : "the pack server at " + host;
+		return word(source.substring(0, u.start()) + place + source.substring(u.end()).replaceAll("^/[\\w./\\-]*", ""), 160);
+	}
+	static void record(String client, String kind, String player, String system, String from, String to, String mode, String info, String source) {
 		add(m("id", java.util.UUID.randomUUID().toString(), "when", LocalDateTime.now().format(TIME), "client", word(client, 60), "kind", kind.equals("gatekeeper") ? "Gatekeeper" : "Gatehouse (launcher)",
-				"player", word(player, 16), "system", word(system, 40), "from", word(from, 20), "to", word(to, 20), "how", word(mode, 40), "info", word(info, 120), "via", ""));
-		log("update log: " + client + " went from " + from + " to " + to + " (" + mode + ")");
+				"player", word(player, 16), "system", word(system, 40), "from", word(from, 20), "to", word(to, 20), "how", word(mode, 40), "info", word(info, 120), "via", "", "source", where(source)));
+		log("update log: " + client + " went from " + from + " to " + to + " (" + mode + "; fetched from " + where(source) + ")");
 	}
 
 	/** Before this Gatekeeper restarts as a newer one: what it was, and how the update came about. */
 	static void aboutToUpdate() {
-		try { Files.writeString(dir.resolve("update-how.txt"), ownVersion() + "|" + how, StandardCharsets.UTF_8); } catch (IOException ignored) {}
+		try { Files.writeString(dir.resolve("update-how.txt"), ownVersion() + "|" + how + "|" + newestKeeperAt, StandardCharsets.UTF_8); } catch (IOException ignored) {}
 	}
 	/** When Gatekeeper starts: if it is a different version from the one that noted it was updating, that is a line. */
 	static void ownStart() {
-		String[] was = read(dir.resolve("update-how.txt")).trim().split("\\|", 2);
+		String[] was = read(dir.resolve("update-how.txt")).trim().split("\\|", 3);
 		try { Files.deleteIfExists(dir.resolve("update-how.txt")); } catch (IOException ignored) {}
 		String seen = read(dir.resolve("version-seen.txt")).trim(), now = ownVersion();
-		String from = was.length == 2 && !was[0].isEmpty() ? was[0] : seen;
-		if (!from.isEmpty() && !now.isEmpty() && !from.equals(now)) record(AutoUpdate.myName(), "gatekeeper", "", systemName(), from, now, was.length == 2 ? was[1] : "not through Gatekeeper's own update (its file was replaced)", info());
+		String from = was.length >= 2 && !was[0].isEmpty() ? was[0] : seen;
+		if (!from.isEmpty() && !now.isEmpty() && !from.equals(now)) record(AutoUpdate.myName(), "gatekeeper", "", systemName(), from, now, was.length >= 2 ? was[1] : "not through Gatekeeper's own update (its file was replaced)", info(), was.length == 3 ? was[2] : "");
 		try { Files.writeString(dir.resolve("version-seen.txt"), now, StandardCharsets.UTF_8); } catch (IOException ignored) {}
 	}
 	static String info() { return System.getProperty("os.name", "") + " " + System.getProperty("os.version", "") + " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", ""); }
@@ -92,7 +100,7 @@ final class UpdateLog {
 			String id = Json.str(e.get("id"));
 			if (!id.matches("[0-9a-fA-F\\-]{16,64}")) continue;
 			add(m("id", id, "when", word(e.get("when"), 19), "client", word(e.get("client"), 60), "kind", Json.str(e.get("kind")).equals("Gatekeeper") ? "Gatekeeper" : "Gatehouse (launcher)", "player", word(e.get("player"), 16).replaceAll("\\W", ""),
-					"system", word(e.get("system"), 40), "from", word(e.get("from"), 20), "to", word(e.get("to"), 20), "how", word(e.get("how"), 40), "info", word(e.get("info"), 120),
+					"system", word(e.get("system"), 40), "from", word(e.get("from"), 20), "to", word(e.get("to"), 20), "how", word(e.get("how"), 40), "info", word(e.get("info"), 120), "source", word(e.get("source"), 160),
 					"via", Json.str(e.get("via")).isEmpty() ? word(through, 60) : word(through, 60) + " (from " + word(e.get("via"), 40) + ")"));
 		}
 	}
