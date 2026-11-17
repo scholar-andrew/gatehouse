@@ -53,6 +53,7 @@ final class WebPanel {
 		for (String c : new String[] {"GET devices", "POST request/answer", "POST requests/clear", "POST perm", "POST forget", "POST revoke", "POST ban", "POST whitelist", "POST player/perm"}) ALLOWED.put(c, "access");
 		for (String c : new String[] {"GET wake", "POST wake", "POST sleep"}) ALLOWED.put(c, "machine");
 		ALLOWED.put("GET updates", "updates");
+		ALLOWED.put("POST chat", "access");   // (reading the rooms and writing as Host; emptying a room is for the machine itself)
 		ALLOWED.put("GET constellation", "updates");   // (the same people, players, systems and versions the log names; looking only)
 		ALLOWED.put("GET auto", "updates");            // (how this Gatekeeper updates, and the pips while its constellation gathers)   // (who updated, when, from which version to which: its own permission)
 		ALLOWED.put("GET constellation", "view");

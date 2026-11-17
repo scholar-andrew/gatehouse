@@ -400,6 +400,23 @@ stores (`host.json` `lead_updates`, `true` unless set `false`; `{"lead_updates":
 `/admin/constellation`). The lead also still tells a member its own pack server (`pack`, kept as `lead_pack`).
 A launcher's side: `Notes.peers` (asked first in `Notes.newer`), `Notes.handOver`, `Main.pairUpdate`.
 
+**Pictures (`Icons`).** `icons/<what>.png` (256 square), `what` = `gatekeeper` or a server id; a server falls back to
+its own `server-icon.png`. `GET`/`POST /admin/icon?for=`, `GET /v1/icon?for=`; the catalog carries `icon` tags.
+
+**Chat and files (`Chat`, `Share`).** `chat/<room>.json` (rooms: `gatekeeper` and each server id; 500 kept).
+`Chat.may` decides who is in a room. `GET /v1/chat/rooms`, `POST /v1/chat {room, after[, text]}`; the owner's
+`POST /admin/chat` (also through the web panel, permission `access`) and `/admin/chat/clear`. Files: `shared/<id>`
+and `shared/index.json`; `POST /v1/share?room=&name=` (the file as the body), `GET /v1/share/list?room=`,
+`GET /v1/share?id=`; `/admin/share...` for the owner. `share` / `share_max_mb` in `host.json`; a day, 500 MB.
+
+**Managing another Gatekeeper (`Manage`).** `/v1/manage/<call>` hands `<call>` to this Gatekeeper's own
+`/admin/<call>` when `WebPanel.ALLOWED` gives it one of `view`, `control`, `console`, `access`, with the
+`MACHINE_ONLY` keys refused. The asker is a member whose entry has `manage: true` (its device identity), or the
+lead with the secret this member made for it (`lead_manage`, `manage_token`, sent in the member's reports and kept
+by the lead as `manage_url` / `manage_token` on the member's entry). `POST /admin/manage/open` starts
+`--panel` with `OJ_PANEL_REMOTE` (the other's address), `OJ_PANEL_REMOTE_AUTH` and `OJ_PANEL_REMOTE_NAME`;
+`HostHelper.call` then sends what the window asks to the other Gatekeeper.
+
 **Signing (not required yet).** `tools/setup_signing_key.ps1`, run by the owner, makes an Ed25519 key, stores it
 as the repository secret `RELEASE_SIGNING_KEY`, and adds `source/release-key.pub.pem` and the workflow
 (`tools/sign-release.workflow.yml`, installed as `.github/workflows/sign-release.yml`). The workflow signs

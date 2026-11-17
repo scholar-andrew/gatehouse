@@ -1,7 +1,15 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.13.0",
+ "version": "3.14.0",
  "changes": [
+  {"version": "3.14.0", "date": "2026-11-17", "notes": [
+   "Cards show real pictures: the one a Gatekeeper's owner chose for it, and one for each server (or the server's own server-icon.png). A picture is fetched once and kept, and fetched again only when it changes; a Gatekeeper's is still shown while its machine is off.",
+   "Beside a Gatekeeper's servers there is now a panel about the server you are on: whether it is on, the game and version, its address, what runs it, whether it is installed on this device, and what you may do with it. It follows the card you move to.",
+   "With that panel there, the servers sit in two columns at the Steam Deck's size.",
+   "Chat. People now has chat beside what this device may do: a room for each Gatekeeper and for each of its servers this device has been let onto. Pick the room, write, press Enter. A red number on People says how many rooms have something new. What was said is kept on the Gatekeeper, so it is there when you open the launcher later.",
+   "Files. In a room, Files shows what has been offered there: save a copy of one, or offer one of your own to the room (the Gatekeeper's owner sets how big one may be). A file only reaches your device when you choose to save it; only open files from people you trust.",
+   "This update holds nothing up: you keep Play while it waits."
+  ]},
   {"version": "3.13.0", "date": "2026-11-17", "notes": [
    "A newer Gatehouse being out no longer takes Play away by itself. Each published version says the oldest version that still works with it; a launcher at or above that keeps Play, and updates when it suits (or by itself, in Auto or Constellation mode). Only a launcher older than that sees Update needed.",
    "Every launcher has to reach 3.13.0 once for this, since older ones don't know the rule."

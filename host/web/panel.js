@@ -89,6 +89,29 @@ const views = {
     if (document.activeElement && document.activeElement.id === 'wl-name') return;
     $('view').replaceChildren(v);
   } },
+  chat: { name: 'Chat', section: 'PEOPLE', needs: 'access', every: 3000, async draw() {
+    const st = views.chat.st || (views.chat.st = { room: '', next: 0, rooms: 0 });
+    const r = await api('POST', 'chat', { room: st.room, after: st.room ? st.next : 0 });
+    if (current !== 'chat' || !r.rooms) { if (r.message) say(r); return; }
+    if (!$('chat-log') || st.rooms !== r.rooms.length) {
+      st.rooms = r.rooms.length;
+      const pick = el('select'); pick.id = 'chat-room';
+      r.rooms.forEach(x => { const o = el('option', '', x.name); o.value = x.id; pick.appendChild(o); });
+      if (!st.room && r.rooms.length) st.room = r.rooms[0].id;
+      pick.value = st.room;
+      pick.addEventListener('change', () => { st.room = pick.value; st.next = 0; $('chat-log').textContent = ''; views.chat.draw(); });
+      const log = el('pre', 'console'); log.id = 'chat-log';
+      const line = el('input', 'grow'); line.id = 'chat-line'; line.placeholder = 'Write as Host and press Enter'; line.maxLength = 500;
+      const send = async () => { const t = line.value.trim(); if (!t) return; line.value = ''; const a = await api('POST', 'chat', { room: st.room, after: st.next, text: t }); if (a.message) say({ result: 'refused', message: a.message }); views.chat.draw(); };
+      line.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+      $('view').replaceChildren(el('div', 'card sheet', null, [el('div', 'row', null, [el('span', 'grey', 'Room'), pick]), log, el('div', 'row', null, [line, button('Send', send, 'primary')]),
+        el('p', 'note', 'A server\'s room is for the launchers let onto that server; this Gatekeeper\'s is for everyone in any of them. Emptying a room is done in Gatekeeper\'s own window.')]));
+      st.next = 0;
+      return views.chat.draw();
+    }
+    if (r.messages && r.messages.length) { const log = $('chat-log'); log.textContent += r.messages.map(e => e.when + '  ' + e.who + ': ' + e.text).join('\n') + '\n'; log.scrollTop = log.scrollHeight; }
+    if (st.room) st.next = r.next || 0;
+  } },
   access: { name: 'Launchers', section: 'PEOPLE', needs: 'access', every: 6000, async draw() {
     const r = await api('GET', 'devices');
     if (current !== 'access' || !r.devices) return;

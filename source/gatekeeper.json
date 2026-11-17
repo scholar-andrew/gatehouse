@@ -1,8 +1,17 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.13.0",
+ "version": "3.14.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.14.0", "date": "2026-11-17", "notes": [
+   "Pictures. Options has a new part, Pictures: choose a picture for this Gatekeeper and one for each server, and launchers show them on their cards in place of the generated art. Any picture file will do (PNG, JPEG, GIF, BMP); it is made square and kept at 256 by 256.",
+   "A server with no picture chosen shows the server-icon.png in its own folder, if it has one: the picture Minecraft itself shows for the server in its list. A Gatekeeper with none keeps the picture of the kind of machine it is on.",
+   "Pictures are chosen at the machine only; the web panel can't set them.",
+   "Chatrooms. There is a room for this Gatekeeper and one for each server, kept here (the newest 500 messages of each). A server's room is for the launcher on this machine, launchers with Gatekeeper control, and launchers you have let onto that server: allowed to start and stop it, or playing as someone on its whitelist. This Gatekeeper's room is for anyone in any of them. A launcher you suspended or blacklisted is in none. You write as Host on the new Chat page (People), or in the web panel with an account that has Launchers, players and their permissions. Emptying a room is done at the machine.",
+   "Files. Anyone in a room can offer a file to it (Files, on the Chat page): it is kept here for a day, the room is told, and anyone in that room can save a copy. Nothing is put on anyone's device unless they save it, and Gatekeeper never opens what it is given. One file may be 25 MB at most unless you set otherwise (host.json \"share_max_mb\"; \"share\": false turns it off), and all of them together 500 MB.",
+   "One Gatekeeper managing another. Off unless you choose it, at the machine to be managed, for one other Gatekeeper of your constellation. On the one that leads: Constellation, click a Gatekeeper that joined, Let it manage this Gatekeeper. On one that joined: Constellation, Let that Gatekeeper manage this one. The other can then open a window on this one (Manage it) and see its servers, start and stop them, use a console, and answer launchers and players. It cannot change settings, update it, make servers, use backups or web accounts, sleep the machine, end or uninstall it, or change who may manage it. Each thing it does is written in this Gatekeeper's log.",
+   "This update holds nothing up: 3.13.0 and later work with it, so update when it suits."
+  ]},
   {"version": "3.13.0", "date": "2026-11-17", "notes": [
    "A newer version being out no longer holds everything up by itself. Each published version now says the oldest version that still works with it. A Gatekeeper at or above that keeps starting servers, and a launcher at or above it is still offered Play, while the update waits for when it suits. Only a version below it is held up, as every out-of-date version used to be.",
    "That oldest version is raised only when it has to be: when the two halves, or a launcher and a Gatekeeper, would no longer understand each other, or for a fix that mustn't wait. This version is such a point itself (every client has to reach 3.13.0 once, since no older one knows the rule); the updates after it are the ones that stop interrupting play.",

@@ -108,7 +108,7 @@ the bumpers on a controller (Q and E on a keyboard):
 | Section | What is there |
 | --- | --- |
 | **Servers** | The Gatekeepers this device knows, as cards, each with a picture of the machine it runs on. **Open** one to see its servers; **Connect** if it isn't answering. Each server's card says whether it's on and has **Install** or **Launch**. Launch opens the server's own page: what changed in the pack and on the server, your mod options, and **Play**. |
-| **People** | What this device may do on each installed server: whether it is on the whitelist, and what the host has allowed it. |
+| **People** | What this device may do on each installed server, and **chat**: a room for each Gatekeeper and each of its servers you have been let onto. **Files** in a room shows what was offered there, saves a copy, or offers one of yours. |
 | **Constellation** | How this launcher updates ([three ways](#three-ways-to-update)), **Check for updates**, and what changed in Gatehouse and in the open Gatekeeper. |
 | **Machine** | The host's machine, MCSS and each server, with the buttons the host has allowed your device: start or stop a server, start or close MCSS, wake the machine or put it to sleep. |
 | **Options** | The setup guide, Play or Host, and Uninstall. |
@@ -117,6 +117,9 @@ A server's own page is laid out the same way, with its own sections across the t
 the pack on this device), **Server news**, **Connection** (the server's controls and a network check), **Server**,
 **Mods** (your optional mods), and **Gatekeeper** when the host has allowed your device Gatekeeper control. **Play**
 is at the bottom right, and **B** (Esc) or the **Gatehouse** button goes back to the menu.
+
+Beside a Gatekeeper's servers, a panel says more about the server you are on: whether it's on, the game and
+version, its address, what runs it, whether it's installed here, and what you may do with it.
 
 The card you are on glows. A strip along the bottom shows the version and update mode on the left, and what the
 buttons do on the right: **A** (Enter) presses what is selected, **B** (Esc) goes back, **X** selects Open Prism
@@ -175,10 +178,10 @@ a controller's bumpers):
 | Section | What is there |
 | --- | --- |
 | **Servers** | MCSS and the list of servers, **New server**, **Server setup**, **Check for updates**. **Open** a server for its Access Manager, Server Status and Updates Pulled; **Manage** for the ones Gatekeeper runs itself. |
-| **People** | The web panel's accounts, and **Launchers and players**: the Access Manager of the first server (for another server, open it under Servers). A red number here is launchers waiting for an answer. |
+| **People** | **Chat** (the rooms, where you write as Host, pass files and can empty a room), the web panel's accounts, and **Launchers and players**: the Access Manager of the first server (for another server, open it under Servers). A red number here is launchers waiting for an answer. |
 | **Constellation** | The clients and their update modes, joining and allowing, the update log; **What's new in Gatekeeper** and **in Gatehouse** beside it. |
 | **Machine** | Host setup: every check at once. A red number here is steps still to do. |
-| **Options** | **This machine** (the picture launchers show for this Gatekeeper: a desktop, a laptop, a Steam Deck...; found by itself, and yours to correct), how Gatekeeper updates, the setup guide, Play or Host, and Uninstall. |
+| **Options** | **Pictures** (a picture for this Gatekeeper and each server, shown on launchers' cards; a server with none uses its own `server-icon.png`), **This machine** (the picture launchers show for this Gatekeeper: a desktop, a laptop, a Steam Deck...; found by itself, and yours to correct), how Gatekeeper updates, the setup guide, Play or Host, and Uninstall. |
 
 Where this guide says a "tab" of Gatekeeper's first screen (Web panel, Constellation, Host setup), it is the page
 of that name in these sections.
@@ -419,6 +422,13 @@ its list before it looks anywhere outside.
   off for that Gatekeeper: it then fetches its own.
 - **A machine with both halves** fetches once: the launcher hands its file to its Gatekeeper, and Gatekeeper puts
   its file where the launcher keeps its own.
+
+**One Gatekeeper managing another.** Off unless the owner of the Gatekeeper to be managed chooses it, at that
+machine. On the leader: click a Gatekeeper that joined, **Let it manage this Gatekeeper**. On a member: **Let that
+Gatekeeper manage this one**. The other then has **Manage it** (or **Manage that Gatekeeper**), which opens a
+window on it: its servers, starting and stopping them, a console, players, and launchers' requests and
+permissions. Not its settings, updates, new servers, backups, web accounts, pictures, the machine's sleep, ending
+or uninstalling it, or who may manage it. What it does is written in the managed Gatekeeper's log.
 
 **The same device twice.** A launcher paired with both the leader and a member would show up two ways. It is listed
 and counted once, with the other way beside it ("also ...").

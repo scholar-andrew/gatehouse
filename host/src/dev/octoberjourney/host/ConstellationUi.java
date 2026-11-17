@@ -43,6 +43,11 @@ final class ConstellationUi {
 		javax.swing.JCheckBox leadUpdates = new javax.swing.JCheckBox("Share program updates with that Gatekeeper");
 		leadUpdates.setToolTipText("<html>On unless you turn it off. This Gatekeeper takes a newer version from the Gatekeeper it joined as soon as that one has it,<br>and hands on one it finds first, so the constellation fetches it from outside only once.<br>That trusts the other Gatekeeper's machine to supply this Gatekeeper's program: turn it off for a machine that isn't yours.</html>");
 		boolean[] leadFilling = {false};
+		JButton manageLet = new JButton("Let it manage this Gatekeeper"), manageStop = new JButton("Stop it managing"), manageOpen = new JButton("Manage it\u2026"), leadOpen = new JButton("Manage that Gatekeeper\u2026");
+		manageLet.setToolTipText("<html>For a Gatekeeper that joined and was allowed in: from its own window it can then see this Gatekeeper's servers, start and stop them,<br>use a console, and answer launchers and players. Not this Gatekeeper's settings, updates, web accounts or the machine. Off unless you choose it.</html>");
+		manageOpen.setToolTipText("Opens a window on the Gatekeeper you clicked, if its owner has let this one manage it");
+		javax.swing.JCheckBox leadManage = new javax.swing.JCheckBox("Let that Gatekeeper manage this one");
+		leadManage.setToolTipText("<html>Off unless you choose it. The Gatekeeper this one joined can then, from its own window, see this Gatekeeper's servers, start and stop them,<br>use a console, and answer launchers and players. Not this Gatekeeper's settings, updates, web accounts or the machine.</html>");
 		JButton allow = new JButton("Allow into this constellation"), remove = new JButton("Remove from this constellation"), join = new JButton("Join"), leave = new JButton("Leave");
 		allow.setToolTipText("For a Gatekeeper that has asked to join: in constellation mode it then updates on this Gatekeeper's go, and its launchers are listed here. It gets no control of anything.");
 		JTextField address = new JTextField(22);
@@ -69,7 +74,7 @@ final class ConstellationUi {
 					if (ms.equals("asked")) asked++; else { total++; if (up) open++; by[md.equals("normal") ? 0 : md.equals("auto") ? 1 : md.equals("constellation") ? 2 : 3]++; }
 					model.addRow(new Object[] {(via.isEmpty() ? "" : "    ") + Json.str(c.get("name")) + (Boolean.TRUE.equals(c.get("here")) ? "  (this machine)" : ""), Json.str(c.get("type")), Json.str(c.get("player")), Json.str(c.get("system")),
 							Json.str(c.get("version")).isEmpty() ? "Not said" : Json.str(c.get("version")), modeWord(md), up ? "Open" : "Closed",
-							ms.equals("asked") ? "Asked to join: not allowed in yet" : ms.equals("member") ? "Member (a Gatekeeper that joined)"
+							ms.equals("asked") ? "Asked to join: not allowed in yet" : ms.equals("member") ? "Member (a Gatekeeper that joined)" + (Boolean.TRUE.equals(c.get("manage")) ? "; may manage this Gatekeeper" : "") + (Boolean.TRUE.equals(c.get("manageable")) ? "; lets this one manage it" : "")
 									: (via.isEmpty() ? "Yes" : "Yes, through " + via) + (Json.list(c.get("also")).isEmpty() ? "" : "; also " + Json.list(c.get("also")).toString().replaceAll("[\\[\\]]", "") + (Json.str(c.get("same_by")).equals("name") ? " (same name, player and system)" : ""))});
 					rowIds.add(new String[] {ms.isEmpty() ? "" : Json.str(c.get("id")), ms});
 				}
@@ -82,6 +87,8 @@ final class ConstellationUi {
 				if (!address.isFocusOwner()) address.setText(Json.str(lead.get("address")));
 				address.setEditable(!joined); join.setEnabled(!joined); leave.setEnabled(joined);
 				leadFilling[0] = true;
+				leadManage.setEnabled(joined); leadManage.setSelected(joined && Boolean.TRUE.equals(lead.get("manage")));
+				leadOpen.setEnabled(joined && Boolean.TRUE.equals(lead.get("manageable")));
 				leadUpdates.setEnabled(joined); leadUpdates.setSelected(joined && Boolean.TRUE.equals(lead.get("updates")));
 				String pk = Json.str(lead.get("pack"));
 				leadUpdates.setText("Share program updates with that Gatekeeper" + (""));
@@ -98,6 +105,17 @@ final class ConstellationUi {
 		allow.addActionListener(e -> pick.accept(true));
 		remove.addActionListener(e -> pick.accept(false));
 		join.addActionListener(e -> post.accept(m("join", address.getText().trim()), ""));
+		leadManage.addActionListener(e -> { if (!leadFilling[0]) post.accept(m("lead_manage", leadManage.isSelected()), ""); });
+		java.util.function.Consumer<Object> open = body -> ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/manage/open", body); SwingUtilities.invokeLater(() -> ServerToolsUi.say(did, r)); });
+		leadOpen.addActionListener(e -> open.accept(m("lead", true)));
+		java.util.function.BiConsumer<String, Boolean> onRow = (what, value) -> {
+			int i = table.getSelectedRow();
+			if (i < 0 || i >= rowIds.size() || rowIds.get(i)[0].isEmpty()) { did.setForeground(new Color(0x8F98A0)); did.setText("Click a Gatekeeper that joined first."); return; }
+			if (what.equals("open")) open.accept(m("id", rowIds.get(i)[0])); else post.accept(m("manage", rowIds.get(i)[0], "value", value), "");
+		};
+		manageLet.addActionListener(e -> onRow.accept("manage", true));
+		manageStop.addActionListener(e -> onRow.accept("manage", false));
+		manageOpen.addActionListener(e -> onRow.accept("open", true));
 		leadUpdates.addActionListener(e -> { if (!leadFilling[0]) post.accept(m("lead_updates", leadUpdates.isSelected()), ""); });
 		leave.addActionListener(e -> post.accept(m("leave", true), ""));
 		// The update log: who went from which version to which, when and how, for the whole constellation.
@@ -116,8 +134,8 @@ final class ConstellationUi {
 				javax.swing.JOptionPane.showMessageDialog(p, lp, "Update log", javax.swing.JOptionPane.PLAIN_MESSAGE);
 			});
 		}));
-		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); buttons.add(allow); buttons.add(remove); buttons.add(logB);
-		JPanel joinRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave); joinRow.add(leadUpdates);
+		JPanel buttons = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2)); buttons.add(allow); buttons.add(remove); buttons.add(manageLet); buttons.add(manageStop); buttons.add(manageOpen); buttons.add(logB);
+		JPanel joinRow = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave); joinRow.add(leadUpdates); joinRow.add(leadManage); joinRow.add(leadOpen);
 		JPanel bottom = new JPanel();
 		bottom.setLayout(new javax.swing.BoxLayout(bottom, javax.swing.BoxLayout.Y_AXIS));
 		dev.gatehouse.look.Pips pips = new dev.gatehouse.look.Pips();

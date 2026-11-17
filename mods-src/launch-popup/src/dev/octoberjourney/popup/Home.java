@@ -311,6 +311,49 @@ final class Home {
 		for (Map.Entry<String, String> e : keeperDevices.entrySet()) sb.append(e.getKey()).append('\t').append(e.getValue()).append('\n');
 		try { Files.createDirectories(home); Files.writeString(home.resolve("gatekeeper-devices.txt"), sb.toString(), StandardCharsets.UTF_8); } catch (IOException ignored) {}
 	}
+	/** The pictures Gatekeepers gave for themselves and their servers, kept in Gatehouse's own folder (icons/) under
+	 *  the tag the Gatekeeper gave each, so one is fetched once and again only when it changes. */
+	private static final Map<String, java.awt.image.BufferedImage> pictures = new java.util.concurrent.ConcurrentHashMap<>();
+	private static final java.util.Set<String> picturesAsked = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	private static String pictureStem(String url, String what) { return Integer.toHexString(url.hashCode()) + "-" + what.replaceAll("[^A-Za-z0-9_\\-]", "_") + "-"; }
+	/** Shows on a card the picture a Gatekeeper has for "gatekeeper" or one of its servers (tag: what it said in its
+	 *  catalog; "" for none). */
+	private static void picture(Path home, ServerControl c, String url, String what, String tag, dev.gatehouse.look.GameCard card) {
+		if (tag.isEmpty()) { SwingUtilities.invokeLater(() -> card.picture(null)); return; }
+		String key = pictureStem(url, what) + tag.replaceAll("[^A-Za-z0-9]", "");
+		java.awt.image.BufferedImage have = pictures.get(key);
+		if (have != null) { SwingUtilities.invokeLater(() -> card.picture(have)); return; }
+		if (!picturesAsked.add(key)) return;
+		Thread t = new Thread(() -> {
+			try {
+				Path f = home.resolve("icons").resolve(key + ".png");
+				byte[] b;
+				if (Files.isRegularFile(f)) b = Files.readAllBytes(f);
+				else {
+					java.net.HttpURLConnection h = (java.net.HttpURLConnection) java.net.URI.create(url.replaceAll("/+$", "") + "/v1/icon?for=" + java.net.URLEncoder.encode(what, StandardCharsets.UTF_8)).toURL().openConnection();
+					h.setConnectTimeout(3000); h.setReadTimeout(15000);
+					h.setRequestProperty("X-Device", str(c.deviceId)); h.setRequestProperty("X-Token", str(c.deviceToken));
+					if (h.getResponseCode() != 200) return;
+					try (java.io.InputStream in = h.getInputStream()) { b = in.readNBytes(4_000_000); }
+					Files.createDirectories(f.getParent());
+					Files.write(f, b);
+				}
+				java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(b));
+				if (img != null) { pictures.put(key, img); if (SwingUtilities.isEventDispatchThread()) card.picture(img); else SwingUtilities.invokeLater(() -> card.picture(img)); }
+			} catch (IOException | RuntimeException ignored) { /* its initials, or its machine, as before */ }
+			finally { picturesAsked.remove(key); }
+		}, "picture");
+		t.setDaemon(true);
+		if (System.getenv("OJ_POPUP_PNG") != null) t.run(); else t.start();   // (testing: a picture of the window waits for its pictures)
+	}
+	/** The picture last fetched for a Gatekeeper itself, for its card while it isn't answering (null for none). */
+	private static java.awt.image.BufferedImage lastPicture(Path home, String url) {
+		try (java.util.stream.Stream<Path> s = Files.list(home.resolve("icons"))) {
+			String stem = pictureStem(url, "gatekeeper");
+			Path newest = s.filter(p -> p.getFileName().toString().startsWith(stem)).max(java.util.Comparator.comparingLong(p -> p.toFile().lastModified())).orElse(null);
+			return newest == null ? null : javax.imageio.ImageIO.read(newest.toFile());
+		} catch (IOException | RuntimeException none) { return null; }
+	}
 	private static void saveKeepers(Path home, List<String[]> keepers) {
 		StringBuilder sb = new StringBuilder("[");
 		for (String[] k : keepers) sb.append(sb.length() > 1 ? ",\n " : "\n ").append("{\"url\": \"").append(ServerControl.jsonEsc(k[0])).append("\", \"name\": \"").append(ServerControl.jsonEsc(k[1])).append(k.length > 2 && !k[2].isEmpty() ? "\", \"tailscale_share\": \"" + ServerControl.jsonEsc(k[2]) : "").append("\"}");
@@ -555,6 +598,9 @@ final class Home {
 			JPanel updating = new JPanel();
 			updating.setLayout(new BoxLayout(updating, BoxLayout.Y_AXIS));
 			for (JPanel l : new JPanel[] {keeperList, serverList, connList}) dev.gatehouse.look.GameCard.grid(l);   // (cards, in as many columns as fit)
+			// (beside the servers: more about the one in focus)
+			dev.gatehouse.look.GameCard.Side side = new dev.gatehouse.look.GameCard.Side();
+			dev.gatehouse.look.GameCard.onHot = card -> { if (SwingUtilities.isDescendingFrom(card, serverList)) side.show(card); };
 			for (Object[] c : new Object[][] {{keeperList, "keepers"}, {serverList, "Servers"}, {connList, "Connections"}}) {
 				JPanel inner = new Fitted();   // (as wide as the window, never wider: a long line is cut short, not the buttons pushed out)
 				inner.add((JPanel) c[0], BorderLayout.NORTH);
@@ -563,7 +609,8 @@ final class Home {
 				sc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 				sc.getVerticalScrollBar().setUnitIncrement(16);
 				dev.gatehouse.look.GameShell.clear(sc);
-				deck.add(sc, c[1].equals("keepers") ? "keepers" : c[1].equals("Servers") ? "servers" : "machine");
+				if (c[1].equals("Servers")) { JPanel both = new JPanel(new BorderLayout(14, 0)); both.setOpaque(false); both.add(sc, BorderLayout.CENTER); both.add(side, BorderLayout.EAST); deck.add(both, "servers"); }
+				else deck.add(sc, c[1].equals("keepers") ? "keepers" : "machine");
 			}
 			// Gatehouse's own notes, newest on top: always there to read, and in front when Gatehouse has just updated.
 			Map<String, Object> own = Notes.own();
@@ -710,6 +757,7 @@ final class Home {
 			showServers = url -> {
 				polls.clear();
 				serverList.removeAll();
+				side.clear();
 				String kname = "";
 				for (String[] k : keepers) if (k[0].equals(url)) kname = k[1];
 				head.setText(url.isEmpty() ? "Other packs" : kname.isEmpty() ? "Gatekeeper at " + shown(url) : kname);
@@ -843,7 +891,7 @@ final class Home {
 					// (opened from this pack's own Steam shortcut: as if Launch had been pressed)
 					if (pack != null && autoLaunch != null && autoLaunch[0].equals(pack[0])) { autoLaunch = null; autoDirect = true; SwingUtilities.invokeLater(go::doClick); }
 					serverList.add((JPanel) r[0]);
-					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install});
+					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install, r[0]});
 				};
 				for (String[] pk : packs) if (pk[4].equals(url)) add.accept(pk[0].startsWith("gatehouse-") ? pk[0].substring("gatehouse-".length()) : pk[0], pk);
 				ServerControl c = url.isEmpty() ? null : client(home, url, packs);
@@ -879,6 +927,20 @@ final class Home {
 								String id = str(s.get("id"));
 								if (!rows.containsKey(id)) { add.accept(id, null); serverList.revalidate(); }
 								Object[] r = rows.get(id);
+								{   // (its picture, and what the panel beside the cards says about it)
+									dev.gatehouse.look.GameCard card = (dev.gatehouse.look.GameCard) r[6];
+									picture(home, c, url, id, str(s.get("icon")), card);
+									boolean up = "true".equals(str(s.get("online")));
+									String ph = str(s.get("phase")), kindIs = str(s.get("kind")), ver = str(s.get("minecraft_version"));
+									List<String[]> facts = new ArrayList<>();
+									facts.add(new String[] {"Now", up ? "Online" : ph.equals("starting") ? "Starting" : ph.equals("stopping") ? "Shutting down" : "Off"});
+									facts.add(new String[] {"Game", (kindIs.isEmpty() ? "" : kindIs.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + kindIs.substring(1)) + (ver.isEmpty() ? "" : (kindIs.isEmpty() ? "" : ", ") + "Minecraft " + ver)});
+									facts.add(new String[] {"Address", str(s.get("address"))});
+									facts.add(new String[] {"Run by", "true".equals(str(s.get("native"))) ? "Gatekeeper itself" : "MC Server Soft, through Gatekeeper"});
+									facts.add(new String[] {"On this device", r[1] != null ? "Installed: Launch updates its pack, then shows its page with Play" : str(s.get("profile")).isEmpty() && !kindIs.equals("vanilla") ? "Not installed, and its pack isn't published for launchers: ask the owner" : "Not installed yet: Install sets it up in Prism Launcher"});
+									facts.add(new String[] {"What you may do", "true".equals(str(s.get("allowed"))) ? "Start and stop this server from here (under Machine)" : "Play, once you are on its whitelist. Starting and stopping it is the host's to allow."});
+									card.facts(facts);
+								}
 								if (r[1] == null) ((JLabel) r[3]).setText(str(s.get("name")).isEmpty() ? id : str(s.get("name")));
 								boolean on = "true".equals(str(s.get("online")));
 								String profile = str(s.get("profile"));
@@ -1124,6 +1186,7 @@ final class Home {
 					});
 					keeperList.add((JPanel) r[0]);
 					((dev.gatehouse.look.GameCard) r[0]).device(deviceOf(home, k[0]));   // (the kind of machine it last said it is on)
+					{ java.awt.image.BufferedImage last = lastPicture(home, k[0]); if (last != null) ((dev.gatehouse.look.GameCard) r[0]).picture(last); }   // (and its own picture, if it has given one)
 					ServerControl c = client(home, k[0], packs);
 					Runnable poll = () -> {
 						Map<String, Object> cat = catalog(c);
@@ -1139,6 +1202,7 @@ final class Home {
 							if (!nm.isEmpty() && !nm.equals(k[1])) { k[1] = nm; saveKeepers(home, keepers); SwingUtilities.invokeLater(() -> ((JLabel) r[1]).setText(nm)); }
 							// (a Gatekeeper from 3.10.0 says what kind of machine it is on: its picture; an older one says nothing, and keeps its initials)
 							if (cat.containsKey("device")) { String kind = str(cat.get("device")); rememberDevice(home, k[0], kind); SwingUtilities.invokeLater(() -> ((dev.gatehouse.look.GameCard) r[0]).device(kind)); }
+							if (cat.containsKey("icon")) picture(home, c, k[0], "gatekeeper", str(cat.get("icon")), (dev.gatehouse.look.GameCard) r[0]);
 						}
 						set.accept((JLabel) r[2], st);
 						boolean silent = cat == null;
@@ -1273,7 +1337,95 @@ final class Home {
 			peopleSc.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 			peopleSc.getVerticalScrollBar().setUnitIncrement(16);
 			dev.gatehouse.look.GameShell.clear(peopleSc);
-			deck.add(peopleSc, "people");
+			// ---- chat, beside what this device may do: a room for each Gatekeeper and each of its servers this device is in
+			javax.swing.JComboBox<String> chatRooms = new javax.swing.JComboBox<>();
+			List<String[]> chatKeys = new ArrayList<>();                         // {Gatekeeper, room}, in the order shown
+			Map<String, Long> chatLast = new java.util.concurrent.ConcurrentHashMap<>(), chatSeen = new java.util.concurrent.ConcurrentHashMap<>();
+			for (String l : LaunchPopup.readFile(home.resolve("chat-seen.txt")).split("\\R")) { String[] kv = l.split("\t"); if (kv.length == 2) try { chatSeen.put(kv[0], Long.parseLong(kv[1].trim())); } catch (NumberFormatException ignored) {} }
+			javax.swing.JTextArea chatLog = new javax.swing.JTextArea();
+			chatLog.setEditable(false); chatLog.setLineWrap(true); chatLog.setWrapStyleWord(true);
+			javax.swing.JTextField chatLine = new javax.swing.JTextField();
+			chatLine.setToolTipText("Write here and press Enter");
+			JButton chatSend = new JButton("Send"), chatFiles = new JButton("Files\u2026");
+			chatFiles.setToolTipText("The files on offer in this room: save a copy of one, or offer one");
+			chatFiles.addActionListener(ev -> {
+				int at = chatRooms.getSelectedIndex();
+				if (at < 0 || at >= chatKeys.size()) return;
+				String[] sel = chatKeys.get(at);
+				ServerControl kc = client(home, sel[0], packs);
+				String base = sel[0].replaceAll("/+$", "") + "/v1/share", room = java.net.URLEncoder.encode(sel[1], StandardCharsets.UTF_8);
+				java.util.function.BiFunction<String, byte[], java.net.HttpURLConnection> ask = (url, body) -> { try { java.net.HttpURLConnection h = (java.net.HttpURLConnection) java.net.URI.create(url).toURL().openConnection(); h.setConnectTimeout(3000); h.setReadTimeout(120000); h.setRequestProperty("X-Device", str(kc.deviceId)); h.setRequestProperty("X-Token", str(kc.deviceToken)); if (body != null) { h.setRequestMethod("POST"); h.setDoOutput(true); h.setFixedLengthStreamingMode(body.length); try (java.io.OutputStream o = h.getOutputStream()) { o.write(body); } } return h; } catch (IOException e) { return null; } };
+				dev.gatehouse.look.FilesBox.show(chatLog, String.valueOf(chatRooms.getSelectedItem()), "",
+					() -> { List<String[]> out = new ArrayList<>(); try { if (kc.helper("GET", "/v1/share/list?room=" + room, null).get("files") instanceof List<?> l) for (Object o : l) { Map<String, Object> x = ServerControl.asMap(o); long n = (long) Double.parseDouble(str(x.get("size")).isEmpty() ? "0" : str(x.get("size"))); out.add(new String[] {str(x.get("id")), str(x.get("name")), n < 1048576 ? (n / 1024 + 1) + " KB" : String.format(java.util.Locale.ROOT, "%.1f MB", n / 1048576.0), str(x.get("who")), str(x.get("when"))}); } } catch (IOException | RuntimeException notNow) { /* nothing listed */ } return out; },
+					id -> { try { java.net.HttpURLConnection h = ask.apply(base + "?id=" + id, null); if (h == null || h.getResponseCode() != 200) return null; try (java.io.InputStream in = h.getInputStream()) { return in.readAllBytes(); } } catch (IOException e) { return null; } },
+					(name, bytes) -> { try { java.net.HttpURLConnection h = ask.apply(base + "?room=" + room + "&name=" + java.net.URLEncoder.encode(name, StandardCharsets.UTF_8), bytes); if (h == null) return "That Gatekeeper didn't answer."; try (java.io.InputStream in = h.getResponseCode() < 400 ? h.getInputStream() : h.getErrorStream()) { return str(ServerControl.asMap(LaunchPopup.parseJson(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("message")); } } catch (IOException | RuntimeException e) { return "That Gatekeeper didn't answer."; } });
+			});
+			JLabel chatSaid = new JLabel("No rooms yet: a Gatekeeper from 3.14.0 on that has let this device onto a server has them.");
+			chatSaid.setForeground(new Color(0x8F98A0));
+			long[] chatShown = {0};
+			String[] chatShowing = {""};
+			java.util.function.Function<String, Long> numOf = sv -> { try { return (long) Double.parseDouble(sv); } catch (RuntimeException e) { return 0L; } };
+			Runnable chatSave = () -> { StringBuilder sb = new StringBuilder(); for (Map.Entry<String, Long> e : chatSeen.entrySet()) sb.append(e.getKey()).append('\t').append(e.getValue()).append('\n'); try { Files.createDirectories(home); Files.writeString(home.resolve("chat-seen.txt"), sb.toString(), StandardCharsets.UTF_8); } catch (IOException ignored) {} };
+			// (asked every few seconds: which rooms there are and how far each has got; and, while People is open, what is new in the one chosen)
+			java.util.function.Consumer<String> chatRound = text -> {
+				List<String[]> found = new ArrayList<>(); List<String> names = new ArrayList<>();
+				for (String[] k : keepers) try {
+					ServerControl kc = client(home, k[0], packs);
+					if (ServerControl.asMap(kc.helper("GET", "/v1/chat/rooms", null)).get("rooms") instanceof List<?> l) for (Object o : l) {
+						Map<String, Object> rm = ServerControl.asMap(o);
+						found.add(new String[] {k[0], str(rm.get("id"))}); names.add((k[1].isEmpty() ? shown(k[0]) : k[1]) + ": " + str(rm.get("name")));
+						chatLast.put(k[0] + "|" + str(rm.get("id")), numOf.apply(str(rm.get("last"))));
+					}
+				} catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before chat */ }
+				boolean open = "PEOPLE".equals(shell[0].lit());
+				int at = chatRooms.getSelectedIndex();
+				String[] sel = at >= 0 && at < chatKeys.size() ? chatKeys.get(at) : null;
+				Map<String, Object> got = null;
+				if (sel != null && (open || text != null)) try {
+					String key = sel[0] + "|" + sel[1];
+					long after = key.equals(chatShowing[0]) ? chatShown[0] : 0;
+					got = client(home, sel[0], packs).helper("POST", "/v1/chat", "{\"room\":\"" + ServerControl.jsonEsc(sel[1]) + "\",\"after\":" + after + (text == null ? "" : ",\"text\":\"" + ServerControl.jsonEsc(text) + "\"") + "}");
+				} catch (IOException | RuntimeException notNow) { got = null; }
+				Map<String, Object> r = got;
+				SwingUtilities.invokeLater(() -> {
+					if (found.size() != chatKeys.size()) {
+						String[] keep = sel;
+						chatKeys.clear(); chatKeys.addAll(found);
+						chatRooms.removeAllItems(); for (String n : names) chatRooms.addItem(n);
+						if (keep != null) for (int i = 0; i < chatKeys.size(); i++) if (chatKeys.get(i)[0].equals(keep[0]) && chatKeys.get(i)[1].equals(keep[1])) chatRooms.setSelectedIndex(i);
+						chatSaid.setText(found.isEmpty() ? "No rooms yet: a Gatekeeper from 3.14.0 on that has let this device onto a server has them." : " ");
+					}
+					if (r != null && sel != null) {
+						String key = sel[0] + "|" + sel[1];
+						if (!key.equals(chatShowing[0])) { chatLog.setText(""); chatShowing[0] = key; }
+						StringBuilder add = new StringBuilder();
+						if (r.get("messages") instanceof List<?> ms) for (Object o : ms) { Map<String, Object> e = ServerControl.asMap(o); add.append(str(e.get("when"))).append("  ").append(str(e.get("who"))).append(": ").append(str(e.get("text"))).append('\n'); }
+						if (add.length() > 0) { chatLog.append(add.toString()); chatLog.setCaretPosition(chatLog.getDocument().getLength()); }
+						chatShown[0] = numOf.apply(str(r.get("next")));
+						if (!str(r.get("message")).isEmpty()) chatSaid.setText(str(r.get("message"))); else if (!found.isEmpty()) chatSaid.setText(" ");
+						if (open) { chatSeen.put(key, chatShown[0]); chatSave.run(); }
+					}
+					int unread = 0;
+					for (Map.Entry<String, Long> e : chatLast.entrySet()) if (e.getValue() > chatSeen.getOrDefault(e.getKey(), 0L)) unread++;
+					shell[0].badge("PEOPLE", unread);
+				});
+			};
+			Runnable chatSay = () -> { String tx = chatLine.getText().trim(); if (tx.isEmpty()) return; chatLine.setText(""); new Thread(() -> chatRound.accept(tx), "chat-say").start(); };
+			chatSend.addActionListener(ev -> chatSay.run());
+			chatLine.addActionListener(ev -> chatSay.run());
+			chatRooms.addActionListener(ev -> { if (chatRooms.getSelectedIndex() >= 0) { chatShown[0] = 0; chatShowing[0] = ""; new Thread(() -> chatRound.accept(null), "chat").start(); } });
+			if (shot == null) { Thread chat = new Thread(() -> { while (f.isDisplayable() || !f.isVisible()) { try { Thread.sleep(4000); } catch (InterruptedException e) { return; } if (!f.isDisplayable()) return; if (f.getContentPane() == shell[0]) chatRound.accept(null); } }, "chat"); chat.setDaemon(true); chat.start(); }
+			JPanel chatTop = new JPanel(new BorderLayout(8, 0)); JLabel chatHead = new JLabel("Chat"); chatHead.setFont(chatHead.getFont().deriveFont(Font.BOLD, 15f));
+			chatTop.add(chatHead, BorderLayout.WEST); chatTop.add(chatRooms, BorderLayout.CENTER);
+			JPanel chatBottom = new JPanel(new BorderLayout(6, 2)); JPanel chatButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0)); chatButtons.add(chatSend); chatButtons.add(chatFiles);
+			chatBottom.add(chatLine, BorderLayout.CENTER); chatBottom.add(chatButtons, BorderLayout.EAST); chatBottom.add(chatSaid, BorderLayout.SOUTH);
+			JPanel chatBox = new JPanel(new BorderLayout(0, 8)); chatBox.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
+			chatBox.add(chatTop, BorderLayout.NORTH); chatBox.add(new JScrollPane(chatLog), BorderLayout.CENTER); chatBox.add(chatBottom, BorderLayout.SOUTH);
+			javax.swing.JComponent chatSheet = dev.gatehouse.look.GameShell.sheet(chatBox);
+			chatSheet.setPreferredSize(new Dimension(460, 300));
+			JPanel peopleBoth = new JPanel(new BorderLayout(14, 0)); peopleBoth.setOpaque(false);
+			peopleBoth.add(peopleSc, BorderLayout.CENTER); peopleBoth.add(chatSheet, BorderLayout.EAST);
+			deck.add(peopleBoth, "people");
 			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8));
 			checkRow.add(checkB);
 			JPanel updTop = new JPanel(new BorderLayout());
@@ -1319,7 +1471,7 @@ final class Home {
 						head.setText("People");
 						sub.setText("What this device may do on each server. The host decides, in their Gatekeeper's Access Manager.");
 						backB.setVisible(false);
-						if (shot != null) people.run(); else new Thread(people, "people").start();
+						if (shot != null) people.run(); else { new Thread(people, "people").start(); new Thread(() -> chatRound.accept(null), "chat").start(); }
 						cards.show(deck, "people"); shell[0].light("PEOPLE");
 					}
 					case "CONSTELLATION" -> {
@@ -1510,7 +1662,7 @@ final class Home {
 					showKeepers[0].run(); snap.accept("");
 					if (!keepers.isEmpty()) {
 						showServers.accept(keepers.get(0)[0]);
-						if (serverList.getComponentCount() > 0 && serverList.getComponent(0) instanceof dev.gatehouse.look.GameCard gc) gc.glow(true);
+						if (serverList.getComponentCount() > 0 && serverList.getComponent(0) instanceof dev.gatehouse.look.GameCard gc) { gc.glow(true); side.show(gc); }
 						snap.accept("servers");
 						pickSection.accept("MACHINE"); snap.accept("connections");
 					}

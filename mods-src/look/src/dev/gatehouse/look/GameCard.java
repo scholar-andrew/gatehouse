@@ -31,12 +31,54 @@ import javax.swing.SwingUtilities;
  */
 public final class GameCard extends JPanel {
 	static final Color CARD = new Color(0x22344A), CARD_HI = new Color(0x2B4563);
-	public static final int MIN_WIDTH = 440, HEIGHT = 178, GAP = 18;
+	public static final int MIN_WIDTH = 410, HEIGHT = 178, GAP = 18;
 	public final JLabel name = new JLabel(), state;
 	private final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
 	private Color c1, c2;
 	private boolean hot, over, dim;
-	private final PropertyChangeListener focus = e -> { boolean h = e.getNewValue() instanceof Component c && SwingUtilities.isDescendingFrom(c, this); if (h != hot) { hot = h; repaint(); } };
+	private final PropertyChangeListener focus = e -> { boolean h = e.getNewValue() instanceof Component c && SwingUtilities.isDescendingFrom(c, this); if (h != hot) { hot = h; repaint(); java.util.function.Consumer<GameCard> to = onHot; if (h && to != null) to.accept(this); } };
+
+	/** Beside a grid of cards: more about the one in focus. Its name, then each heading with what goes under it. */
+	public static final class Side extends JPanel {
+		private final JPanel rows = new JPanel();
+		private GameCard showing;
+		public Side() {
+			super(new java.awt.BorderLayout());
+			setOpaque(false);
+			setBorder(javax.swing.BorderFactory.createEmptyBorder(20, 22, 18, 22));
+			rows.setOpaque(false);
+			rows.setLayout(new javax.swing.BoxLayout(rows, javax.swing.BoxLayout.Y_AXIS));
+			add(rows, java.awt.BorderLayout.NORTH);
+			setPreferredSize(new Dimension(340, 200));
+			clear();
+		}
+		private JLabel line(String text, float size, boolean bold, Color c, int above) {
+			JLabel l = new JLabel("<html><div style='width:" + 262 + "px'>" + text.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>");
+			l.setFont(GameShell.font(size, bold)); l.setForeground(c);
+			l.setBorder(javax.swing.BorderFactory.createEmptyBorder(above, 0, 0, 0));
+			l.setAlignmentX(Component.LEFT_ALIGNMENT);
+			return l;
+		}
+		public void clear() { showing = null; rows.removeAll(); rows.add(line("Move to a server to see more about it here.", 13f, false, GameShell.DIM, 0)); rows.revalidate(); repaint(); }
+		public void show(GameCard card) {
+			showing = card;
+			rows.removeAll();
+			rows.add(line(card.name.getText() == null ? "" : card.name.getText(), 20f, true, GameShell.TEXT, 0));
+			for (String[] f : card.facts()) {
+				if (f.length < 2 || f[1] == null || f[1].isEmpty()) continue;
+				rows.add(line(f[0].toUpperCase(java.util.Locale.ROOT), 11f, true, GameShell.ACC, 16));
+				rows.add(line(f[1], 13.5f, false, GameShell.TEXT, 4));
+			}
+			rows.revalidate(); repaint();
+		}
+		public GameCard showing() { return showing; }
+		@Override protected void paintComponent(Graphics g0) {
+			Graphics2D g = GameShell.smooth(g0);
+			g.setColor(new Color(0x1A, 0x26, 0x34, 235)); g.fill(new RoundRectangle2D.Double(0, 4, getWidth() - 1, getHeight() - 9, 16, 16));
+			g.setColor(GameShell.a(GameShell.TEXT, 22)); g.draw(new RoundRectangle2D.Double(0.5, 4.5, getWidth() - 2, getHeight() - 10, 16, 16));
+			g.dispose();
+		}
+	}
 
 	/** A label whose words wrap inside whatever width the card gives it. */
 	private static final class Wrapped extends JLabel {
@@ -56,13 +98,22 @@ public final class GameCard extends JPanel {
 		for (Component c : right) buttons.add(c);
 		add(name); add(state); add(buttons);
 		addMouseListener(new java.awt.event.MouseAdapter() {
-			@Override public void mouseEntered(java.awt.event.MouseEvent e) { over = true; repaint(); }
+			@Override public void mouseEntered(java.awt.event.MouseEvent e) { over = true; repaint(); java.util.function.Consumer<GameCard> to = onHot; if (to != null) to.accept(GameCard.this); }
 			@Override public void mouseExited(java.awt.event.MouseEvent e) { over = getMousePosition(true) != null; repaint(); }
 		});
 	}
 
 	/** The art's two colours, instead of the ones the name gives. */
 	public void art(Color from, Color to) { c1 = from; c2 = to; repaint(); }
+	private java.awt.Image picture;
+	private java.util.List<String[]> facts = java.util.List.of();
+	/** Told each card that becomes the one in focus (or under the pointer): for a panel that shows more about it. */
+	public static volatile java.util.function.Consumer<GameCard> onHot;
+	/** A picture to show in the art, over anything else (null for none). */
+	public void picture(java.awt.Image img) { if (picture != img) { picture = img; repaint(); } }
+	/** More about the thing this card is for, as headings and what goes under them. */
+	public void facts(java.util.List<String[]> rows) { facts = rows == null ? java.util.List.of() : rows; java.util.function.Consumer<GameCard> h = onHot; if (h != null && (hot || over)) h.accept(this); }
+	public java.util.List<String[]> facts() { return facts; }
 	private String device = "";
 	/** A kind of machine (see DeviceIcon) to draw in the art in place of the initials; "" or an unknown kind: the initials. */
 	public void device(String kind) { String k = kind == null ? "" : kind; if (!k.equals(device)) { device = k; repaint(); } }
@@ -109,6 +160,16 @@ public final class GameCard extends JPanel {
 		for (int cy = 0; cy < 5; cy++) for (int cx = 0; cx < 5; cx++) { int v = r.nextInt(100); if (v < 38) { g.setColor(v < 19 ? new Color(255, 255, 255, 10 + v) : new Color(0, 0, 0, v)); g.fill(new Rectangle2D.Double(ax + cx * cell, ay + cy * cell, cell, cell)); } }
 		g.setPaint(new GradientPaint(0, (float) (ay + as * 0.45), new Color(0, 0, 0, 0), 0, (float) (ay + as), new Color(0, 0, 0, 110))); g.fill(new Rectangle2D.Double(ax, ay, as, as));
 		g.setClip(old);
+		if (picture != null) {
+			Shape before = g.getClip();
+			g.clip(new RoundRectangle2D.Double(ax, ay, as, as, 12, 12));
+			g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+			java.awt.Composite was = g.getComposite();
+			if (dim) g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.5f));
+			g.drawImage(picture, (int) ax, (int) ay, (int) as, (int) as, null);
+			g.setComposite(was); g.setClip(before); g.dispose();
+			return;
+		}
 		if (DeviceIcon.known(device)) { java.awt.Composite was = g.getComposite(); if (dim) g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.6f)); DeviceIcon.paint(g, device, ax + 9, ay + 9, as - 18); g.setComposite(was); g.dispose(); return; }
 		String in = initials(n);
 		Font f = GameShell.font(32f, true); g.setFont(f); g.setColor(new Color(255, 255, 255, dim ? 150 : 228));

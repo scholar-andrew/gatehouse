@@ -69,6 +69,8 @@ public final class HostHelper {
 	/** This is only Gatekeeper's window, opened by the launcher on this machine (see main): what needs Gatekeeper's
 	 *  own folder isn't offered. */
 	static boolean viewOnly;
+	/** This window is on another Gatekeeper (its address), with what proves this one may manage it. */
+	static String farUrl, remoteAuth = "", remoteName = "";
 	public static void main(String[] args) throws Exception {
 		// Its folder: where this program's own file is (tools/install_host.ps1 puts it in its folder), or OJ_HOST_DIR.
 		String own;
@@ -84,6 +86,16 @@ public final class HostHelper {
 		if (viewOnly) dir = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-keeper-window");
 		Files.createDirectories(dir);
 		cfg = viewOnly ? new LinkedHashMap<>(m("port", door)) : Json.map(Json.parse(read(dir.resolve("host.json"))));
+		// A window on ANOTHER Gatekeeper, which has let this one manage it (OJ_PANEL_REMOTE: its address; see Manage): what
+		// this window asks goes there, as /v1/manage/..., and that Gatekeeper decides what of it is allowed.
+		String far = System.getenv("OJ_PANEL_REMOTE");
+		if (far != null && far.matches("http://[A-Za-z0-9.\\-]+:\\d{2,5}")) {
+			farUrl = far; remoteAuth = System.getenv().getOrDefault("OJ_PANEL_REMOTE_AUTH", ""); remoteName = System.getenv().getOrDefault("OJ_PANEL_REMOTE_NAME", "another Gatekeeper");
+			viewOnly = true;
+			dir = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-keeper-window-far");
+			Files.createDirectories(dir);
+			cfg = new LinkedHashMap<>();
+		}
 		if (viewOnly && !Files.exists(dir.resolve("setup-guide-shown.txt"))) Files.writeString(dir.resolve("setup-guide-shown.txt"), "shown by the launcher\n", StandardCharsets.UTF_8);
 		host = builtin() ? DIRECT : new McssHost();
 		String mode = args.length > 0 ? args[0] : "--panel";
@@ -1162,6 +1174,8 @@ public final class HostHelper {
 			Map<String, Object> devs = devices();
 			// (the program file this Gatekeeper holds or runs: the published program, given to whoever asks)
 			if (path.startsWith("/v1/program/") && x.getRequestMethod().equals("GET")) { Peer.serve(x, path); return; }
+			// (the Gatekeeper this one joined, managing this one with the secret it was given for that: see Manage)
+			if (path.startsWith("/v1/manage/") && x.getRequestHeaders().getFirst("X-Manage") != null) { Manage.serve(x, path, null); return; }
 			if (path.equals("/v1/hello") && x.getRequestMethod().equals("POST")) {
 				Map<String, Object> b = body(x);
 				String id = Json.str(b.get("id")), token = Json.str(b.get("token"));
@@ -1202,6 +1216,10 @@ public final class HostHelper {
 			// (automatic updating: a launcher that has it on says it is open, and is told when everyone goes)
 			if (path.equals("/v1/update/state") && x.getRequestMethod().equals("POST")) { reply(x, 200, AutoUpdate.report(id, who(d), body(x))); return; }
 			if ((path.equals("/v1/program") || path.equals("/v1/program/hand")) && x.getRequestMethod().equals("POST")) { Peer.take(x, path, who(d), d); return; }
+			if (path.equals("/v1/icon") && x.getRequestMethod().equals("GET")) { Icons.serve(x); return; }
+			if (path.equals("/v1/chat/rooms") || (path.equals("/v1/chat") && x.getRequestMethod().equals("POST"))) { Chat.launcher(x, path, id, d); return; }
+			if (path.equals("/v1/share") || path.equals("/v1/share/list")) { Share.launcher(x, path, id, d); return; }
+			if (path.startsWith("/v1/manage/")) { Manage.serve(x, path, d); return; }
 			// Three separate permissions, each allowed per launcher in the panel: MCSS control ("granted"), PC sleep, and
 			// server control (start and stop the Minecraft server through this helper's own MCSS key, so the launcher
 			// needs no panel sign-in or key of its own).
@@ -1245,13 +1263,13 @@ public final class HostHelper {
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address", (x.getLocalAddress().getAddress().isLoopbackAddress() || setting("bind", "").isEmpty() ? "127.0.0.1" : setting("bind", "")) + ":" + (port.isEmpty() ? "25565" : port),
 								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile", Json.str(s.get("profile")), "allowed", Boolean.TRUE.equals(d.get(serverKey())) || granted,
-								"kind", facts[0], "minecraft_version", facts[1], "native", isNative()));
+								"kind", facts[0], "minecraft_version", facts[1], "native", isNative(), "icon", Icons.tag(Json.str(s.get("id")))));
 					}
 				} finally { SERVER.set(keep); }
 				String name = setting("name", "");
 				if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
 				reply(x, 200, m("name", name, "servers", list, "suspended", ban[0].equals("suspend"), "perm_machine", canSleep, "perm_mcss", granted, "mcss_phase", mcssPhase(), "close", host.closeMode(),
-						"host", hostKind(), "system", systemName(), "version", ownVersion(), "device", Device.kind()));   // (what runs the servers here, so a launcher doesn't show an MCSS that isn't there)
+						"host", hostKind(), "system", systemName(), "version", ownVersion(), "device", Device.kind(), "icon", Icons.tag("gatekeeper")));   // (what runs the servers here, so a launcher doesn't show an MCSS that isn't there)
 				return;
 			}
 			if (path.equals("/v1/pulled") && x.getRequestMethod().equals("POST")) {
@@ -2149,7 +2167,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
@@ -2263,6 +2281,14 @@ public final class HostHelper {
 	}
 	static String call(String method, String path, String body) throws IOException {
 		if (!panelServer.isEmpty() && !path.contains("server=")) path += (path.contains("?") ? "&" : "?") + "server=" + panelServer;
+		if (farUrl != null) {
+			if (!path.startsWith("/admin/")) throw new IOException("not something another Gatekeeper is asked");
+			HttpURLConnection far = (HttpURLConnection) new URL(farUrl + "/v1/manage/" + path.substring("/admin/".length())).openConnection();
+			far.setConnectTimeout(4000); far.setReadTimeout(20000); far.setRequestMethod(method);
+			for (String line : remoteAuth.split("\n")) { int eq = line.indexOf('='); if (eq > 0) far.setRequestProperty(line.substring(0, eq), line.substring(eq + 1)); }
+			if (body != null) { far.setDoOutput(true); far.setRequestProperty("Content-Type", "application/json"); try (OutputStream o = far.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
+			try (InputStream in = far.getResponseCode() < 400 ? far.getInputStream() : far.getErrorStream()) { return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+		}
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
 		// (things that fetch from the internet on the way take as long as the connection makes them: looking for an
 		// update and updating. The window used to give up on those after five seconds, with the update still going.)
@@ -2272,7 +2298,7 @@ public final class HostHelper {
 	}
 
 	static void panel() throws Exception {
-		if (System.getenv("OJ_PANEL_PNG") == null) {
+		if (System.getenv("OJ_PANEL_PNG") == null && farUrl == null) {
 			// One window: when one is already open, that one is brought to the front and this one isn't opened.
 			boolean running = true;
 			try { if (Boolean.TRUE.equals(Json.map(Json.parse(call("GET", "/admin/window?peek", null))).get("open"))) { call("POST", "/admin/local/open", "{}"); return; } }
@@ -2848,6 +2874,7 @@ public final class HostHelper {
 			firstTabs.addTab("Host setup", hostSetup);
 			firstTabs.addTab("Web panel", PanelUi.tab(f));
 			firstTabs.addTab("Constellation", ConstellationUi.tab(f));
+			firstTabs.addTab("Chat", ChatUi.tab(f));   // (index 6: a page of the People section)
 			firstTabs.addChangeListener(ev -> { if (firstTabs.getSelectedIndex() == 3) loadSteps.run(); });
 			new javax.swing.Timer(5000, ev -> { if (!f.isDisplayable()) ((javax.swing.Timer) ev.getSource()).stop(); else if (firstTabs.getSelectedIndex() == 3 && hostSetup.isShowing()) loadSteps.run(); }).start();
 			if (System.getenv("OJ_PANEL_PNG") == null) loadSteps.run();   // (so the tab's title says what's left to do)
@@ -2885,6 +2912,7 @@ public final class HostHelper {
 			}, "about").start(); });
 			String ownV = Json.str(notesInside("gatekeeper").get("version"));
 			if (!ownV.isEmpty()) f.setTitle("Gatekeeper " + ownV);
+			if (farUrl != null) f.setTitle("Gatekeeper: managing " + remoteName);
 			stack.add(firstTabs, "overview"); stack.add(tabs, "server");
 			dev.gatehouse.look.GameShell.hideTabs(firstTabs);   // (the sections in the top bar, and the buttons under the heading, choose its page)
 			p.add(dev.gatehouse.look.GameShell.sheet(stack), BorderLayout.CENTER);
@@ -2916,6 +2944,61 @@ public final class HostHelper {
 			guideRow.add(guideB); guideRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			options.add(guideRow);
 			// How this Gatekeeper updates: normal unless changed here.
+			// The pictures launchers show: one for this Gatekeeper, one for each server.
+			optLine.accept("Pictures", true);
+			javax.swing.JComboBox<String> picFor = new javax.swing.JComboBox<>();
+			List<String> picIds = new ArrayList<>();
+			JButton picChoose = new JButton("Choose a picture\u2026"), picRemove = new JButton("Remove it");
+			JLabel picSaid = new JLabel(" ");
+			picSaid.setForeground(new Color(0x8F98A0));
+			JPanel picRow = new JPanel(new dev.gatehouse.look.WrapLayout(java.awt.FlowLayout.LEFT, 6, 4));
+			picRow.add(picFor); picRow.add(picChoose); picRow.add(picRemove); picRow.add(picSaid);
+			picRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(picRow);
+			if (viewOnly) { picChoose.setEnabled(false); picRemove.setEnabled(false); picSaid.setText("Pictures are chosen in Gatekeeper's window on its own machine, opened from its own entry in the menu."); }
+			optLine.accept("Launchers show these on this Gatekeeper's card and on each server's. Any picture file will do; it is made square and kept at 256 by 256. A server with none chosen shows the server-icon.png in its own folder if it has one, and this Gatekeeper with none shows the kind of machine it is on (below).", false);
+			Runnable picLoad = () -> new Thread(() -> {
+				try {
+					Map<String, Object> o = Json.map(Json.parse(call("GET", "/admin/overview", null)));
+					SwingUtilities.invokeLater(() -> {
+						Object was = picFor.getSelectedItem();
+						picFor.removeAllItems(); picIds.clear();
+						picFor.addItem("This Gatekeeper"); picIds.add("gatekeeper");
+						for (Object s : Json.list(o.get("servers"))) { picFor.addItem("Server: " + Json.str(Json.map(s).get("name"))); picIds.add(Json.str(Json.map(s).get("id"))); }
+						if (was != null) picFor.setSelectedItem(was);
+					});
+				} catch (Exception ignored) {}
+			}, "pictures").start();
+			picLoad.run();
+			picFor.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+				@Override public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) { if (picIds.size() <= 1) picLoad.run(); }
+				@Override public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {}
+				@Override public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) {}
+			});
+			java.util.function.Consumer<byte[]> picSend = bytes -> new Thread(() -> {
+				int i = picFor.getSelectedIndex();
+				String what = i >= 0 && i < picIds.size() ? picIds.get(i) : "gatekeeper", said;
+				try {
+					HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + "/admin/icon?for=" + java.net.URLEncoder.encode(what, StandardCharsets.UTF_8)).openConnection();
+					c.setConnectTimeout(2000); c.setReadTimeout(20000); c.setRequestMethod("POST"); c.setDoOutput(true);
+					c.setFixedLengthStreamingMode(bytes.length);
+					try (OutputStream o = c.getOutputStream()) { o.write(bytes); }
+					try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { said = Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("message")); }
+				} catch (IOException | RuntimeException e) { said = "Gatekeeper didn't answer."; }
+				String show = said;
+				SwingUtilities.invokeLater(() -> picSaid.setText(show));
+			}, "picture").start();
+			picChoose.addActionListener(ev -> {
+				javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
+				fc.setDialogTitle("Choose a picture");
+				fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Pictures (PNG, JPEG, GIF, BMP)", "png", "jpg", "jpeg", "gif", "bmp"));
+				if (fc.showOpenDialog(f) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+				try {
+					if (Files.size(fc.getSelectedFile().toPath()) > Icons.MAX) { picSaid.setText("That file is too big for a picture."); return; }
+					picSend.accept(Files.readAllBytes(fc.getSelectedFile().toPath()));
+				} catch (IOException e) { picSaid.setText("That file couldn't be read."); }
+			});
+			picRemove.addActionListener(ev -> picSend.accept(new byte[0]));
 			// What kind of machine this is: the picture launchers show for this Gatekeeper in their list.
 			optLine.accept("This machine", true);
 			javax.swing.JComboBox<String> deviceBox = new javax.swing.JComboBox<>();
@@ -3573,7 +3656,7 @@ public final class HostHelper {
 				boolean aside = optionsScroll.isVisible() || guide[0].isVisible();
 				int at = firstTabs.getSelectedIndex();
 				if (!inServer[0]) peopleJump[0] = false;
-				String lit = aside ? "OPTIONS" : inServer[0] ? (peopleJump[0] && tabs.getSelectedIndex() == 0 ? "PEOPLE" : "SERVERS") : at == 0 ? "SERVERS" : at == 3 ? "MACHINE" : at == 4 ? "PEOPLE" : "CONSTELLATION";
+				String lit = aside ? "OPTIONS" : inServer[0] ? (peopleJump[0] && tabs.getSelectedIndex() == 0 ? "PEOPLE" : "SERVERS") : at == 0 ? "SERVERS" : at == 3 ? "MACHINE" : at == 4 || at == 6 ? "PEOPLE" : "CONSTELLATION";
 				shell.light(lit);
 				// (what is waiting: launchers' requests on People, setup steps still to do on Machine)
 				shell.badge("PEOPLE", reqRow.isVisible() ? reqRow.getComponentCount() : 0);
@@ -3583,7 +3666,7 @@ public final class HostHelper {
 				if (want.equals(subShown[0])) return;
 				subShown[0] = want;
 				subRow.removeAll();
-				String[][] pages = want.isEmpty() ? new String[0][] : lit.equals("PEOPLE") ? new String[][] {{"Web panel accounts", "4"}, {"Launchers and players\u2026", "enter"}}
+				String[][] pages = want.isEmpty() ? new String[0][] : lit.equals("PEOPLE") ? new String[][] {{"Chat", "6"}, {"Web panel accounts", "4"}, {"Launchers and players\u2026", "enter"}}
 						: lit.equals("CONSTELLATION") ? new String[][] {{"Clients", "5"}, {"What's new in Gatekeeper", "1"}, {"What's new in Gatehouse", "2"}} : new String[0][];
 				for (String[] pg : pages) {
 					boolean here = pg[1].equals(String.valueOf(at));
@@ -3601,7 +3684,7 @@ public final class HostHelper {
 			tabs.addChangeListener(ev -> sync.run());
 			new Timer(350, ev -> sync.run()).start();
 			sync.run();
-			JLabel verL = new JLabel("Gatekeeper " + ownV);
+			JLabel verL = new JLabel(farUrl != null ? "Managing " + remoteName + " from here: what it doesn't allow says so" : "Gatekeeper " + ownV);
 			verL.setFont(verL.getFont().deriveFont(Font.BOLD, 13f));
 			shell.left().add(verL);
 			dev.gatehouse.look.GameShell.Hint backHint = new dev.gatehouse.look.GameShell.Hint("B", "Esc", "Back");
@@ -3617,7 +3700,7 @@ public final class HostHelper {
 			if (System.getenv("OJ_PANEL_PNG") == null) dev.octoberjourney.popup.Nav.start();
 			f.setContentPane(shell);
 			f.pack();
-			if (System.getenv("OJ_PANEL_PNG") == null) {
+			if (System.getenv("OJ_PANEL_PNG") == null && farUrl == null) {
 				Thread front = new Thread(() -> {
 					int was = -1;
 					while (true) {

@@ -156,7 +156,11 @@ final class AutoUpdate {
 			else if (!newer() && !r.own.isEmpty() && cmpVersion(ownVersion(), r.own) > 0) state = "go";   // (this Gatekeeper is ahead already: catch up)
 		}
 		Map<String, Object> out = m("state", state, "version", newer() ? newestKeeper : ownVersion(), "mode", mode(), "member", allowed, "lead", myName());
-		if (keeper && allowed) out.put("pack", ownPack());
+		if (keeper && allowed) {
+			out.put("pack", ownPack());
+			Manage.noted(id, b);   // (what it says about this Gatekeeper managing it: its address and secret, or nothing)
+			try { out.put("may_manage", ServerTools.yes(Json.map(devices().get(id)).get("manage"))); } catch (Exception ignored) {}
+		}
 		// (while the constellation is gathering or going, each client is shown who is being waited for)
 		if (!state.equals("idle") && newer()) out.put("gather", gatherFor(id));
 		return out;
@@ -251,7 +255,7 @@ final class AutoUpdate {
 	static void talkToLead() {
 		if (lead().isEmpty()) { leadState = ""; leadSaid = ""; leadMember = false; return; }
 		List<Object> handing = UpdateLog.unsent();
-		String say = Json.write(m("kind", "gatekeeper", "events", handing, "info", UpdateLog.info(), "install", setting("constellation_id", ""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting", launchersWaiting, "system", systemName(), "clients", ownClients()));
+		String say = Json.write(m("kind", "gatekeeper", "events", handing, "info", UpdateLog.info(), "install", setting("constellation_id", ""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting", launchersWaiting, "system", systemName(), "clients", ownClients(), "manage", Manage.offer()));
 		try {
 			Map<String, Object> r;
 			try { r = Json.map(Json.parse(leadCall("/v1/update/state", say))); }
@@ -264,6 +268,7 @@ final class AutoUpdate {
 			leadHeard = System.currentTimeMillis();
 			leadState = Json.str(r.get("state")); leadName = Json.str(r.get("lead")); leadMember = ServerTools.yes(r.get("member"));
 			leadGather = Json.map(r.get("gather"));
+			Manage.leadLets = leadMember && ServerTools.yes(r.get("may_manage"));
 			// (and word travels down: the Gatekeeper this one joined is gathering or going for a version this one hasn't seen yet)
 			if ((leadState.equals("gathering") || leadState.equals("go")) && !newer()) hint(leadName);
 			if (leadMember) UpdateLog.handedOn(handing.size());   // (taken there: not handed on again)
@@ -348,7 +353,7 @@ final class AutoUpdate {
 			String nm = Json.str(d.get("name")).replace(" (Gatekeeper)", "");
 			clients.add(m("id", e.getKey(), "type", keeper ? "Gatekeeper" : "Gatehouse (launcher)", "name", nm, "player", Json.str(d.get("player")), "system", r != null && !r.system.isEmpty() ? r.system : Json.str(d.get("os")),
 					"version", r == null ? Json.str(d.get("version")) : r.own, "mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", open, "last_seen", Json.str(d.get("last_seen")),
-					"here", ServerTools.yes(d.get("local")), "via", "", "membership", !keeper ? "" : in ? "member" : "asked", "install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
+					"here", ServerTools.yes(d.get("local")), "via", "", "manage", ServerTools.yes(d.get("manage")), "manageable", !Json.str(d.get("manage_url")).isEmpty(), "membership", !keeper ? "" : in ? "member" : "asked", "install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
 			if (keeper && in && r != null) for (Object o : r.clients) {
 				Map<String, Object> c = Json.map(o);
 				clients.add(m("id", "", "type", "Gatehouse (launcher)", "name", Json.str(c.get("name")), "player", Json.str(c.get("player")), "system", Json.str(c.get("system")), "version", Json.str(c.get("version")), "mode", Json.str(c.get("mode")),
@@ -362,7 +367,7 @@ final class AutoUpdate {
 		return m("gatekeeper", m("type", "Gatekeeper", "name", myName(), "system", systemName(), "version", ownVersion(), "mode", mode, "newest", newestKeeper,
 						"status", mode.equals("normal") ? (newer() ? newestKeeper + " is out: press Update Gatekeeper." : "Up to date.") : (status.isEmpty() ? "On." : status)),
 				"clients", clients, "duplicates", merged, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName, "member", leadMember, "said", lead().isEmpty() ? "" : leadSaid,
-						"updates", setting("lead_updates", "true").equals("true"), "pack", setting("lead_pack", "").replaceFirst("^https?://", "").replaceFirst("/gatekeeper$", "")));
+						"updates", setting("lead_updates", "true").equals("true"), "manage", Manage.leadMay(), "manageable", Manage.leadLets, "pack", setting("lead_pack", "").replaceFirst("^https?://", "").replaceFirst("/gatekeeper$", "")));
 	}
 
 	/** The same client can be in a constellation more than one way: a launcher paired with this Gatekeeper that is
@@ -421,6 +426,26 @@ final class AutoUpdate {
 				talkToLead();
 				log("constellation: joining the Gatekeeper at " + at.group(1) + ":" + at.group(2) + ". " + leadSaid);
 				msg = leadSaid;
+			} else if (b.containsKey("lead_manage")) {
+				// (the owner's own choice, at this machine: the Gatekeeper this one joined may manage it. See Manage.)
+				boolean on = ServerTools.yes(b.get("lead_manage"));
+				if (lead().isEmpty()) { reply(x, 200, m("result", "refused", "message", "This Gatekeeper hasn't joined another's constellation.")); return true; }
+				if (on) cfg.put("lead_manage", "true"); else { cfg.remove("lead_manage"); cfg.remove("manage_token"); }
+				ServerTools.saveCfg();
+				log("constellation: the Gatekeeper this one joined " + (on ? "may now manage this one (its servers, players and launchers; not its settings or the machine)" : "may no longer manage this one"));
+				msg = on ? "The Gatekeeper this one joined may now manage it from its own window: servers, players and launchers. Not its settings, updates or the machine." : "It may no longer manage this one.";
+			} else if (b.containsKey("manage")) {
+				String id = Json.str(b.get("manage"));
+				boolean on = ServerTools.yes(b.get("value"));
+				synchronized (HostHelper.class) {
+					Map<String, Object> devs = devices();
+					Map<String, Object> d = Json.map(devs.get(id));
+					if (d.isEmpty() || !Json.str(d.get("kind")).equals("gatekeeper") || !ServerTools.yes(d.get("constellation"))) { reply(x, 200, m("result", "refused", "message", "Click a Gatekeeper that has joined and been allowed in first.")); return true; }
+					if (on) d.put("manage", true); else d.remove("manage");
+					saveDevices(devs);
+					log("constellation: " + who(d) + (on ? " may now manage this Gatekeeper (its servers, players and launchers; not its settings or the machine)" : " may no longer manage this Gatekeeper"));
+					msg = who(d) + (on ? " may now manage this Gatekeeper from its own window: servers, players and launchers. Not its settings, updates or the machine." : " may no longer manage this Gatekeeper.");
+				}
 			} else if (b.containsKey("lead_updates")) {
 				// (the owner's own choice, made at this machine: the Gatekeeper it joined may supply this one's program)
 				boolean on = ServerTools.yes(b.get("lead_updates"));
@@ -431,7 +456,8 @@ final class AutoUpdate {
 				msg = on ? "This Gatekeeper takes updates from the Gatekeeper it joined, and hands on any it finds first." : "This Gatekeeper fetches its own updates again, from its own machine's pack server or GitHub.";
 				new Thread(() -> { try { lookForNewer(); } catch (RuntimeException ignored) {} }, "look").start();
 			} else if (b.containsKey("leave")) {
-				cfg.remove("constellation_lead"); cfg.remove("lead_updates"); cfg.remove("lead_pack"); ServerTools.saveCfg();
+				cfg.remove("constellation_lead"); cfg.remove("lead_updates"); cfg.remove("lead_pack"); cfg.remove("lead_manage"); cfg.remove("manage_token"); ServerTools.saveCfg();
+				Manage.leadLets = false;
 				leadMember = false; leadState = ""; leadSaid = ""; leadName = "";
 				log("constellation: this Gatekeeper is on its own again");
 				msg = "This Gatekeeper is on its own again. (The other Gatekeeper still lists it until its owner removes it there.)";
