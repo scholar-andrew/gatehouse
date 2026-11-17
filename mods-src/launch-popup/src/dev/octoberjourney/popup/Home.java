@@ -1294,7 +1294,7 @@ final class Home {
 						for (String[] k : new ArrayList<>(keepers)) try {
 							ServerControl sc = asked.computeIfAbsent(k[0], u -> client(home, u, packs));
 							String[] found = offered[0];
-							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"install\":\"" + installId(home) + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
+							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"install\":\"" + installId(home) + "\",\"info\":\"" + ServerControl.jsonEsc(System.getProperty("os.name", "") + " " + System.getProperty("os.version", "") + " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", "")) + "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\"" + ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? "" : ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
 							if ("go".equals(str(r.get("state")))) go = true;
 							if ("gathering".equals(str(r.get("state")))) gathering = true;
 							if (r.get("gather") != null && gatherSaid[0] == null) gatherSaid[0] = r.get("gather");

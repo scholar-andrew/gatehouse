@@ -42,7 +42,7 @@ import com.sun.net.httpserver.HttpExchange;
 final class WebPanel {
 	/** An account's permissions, and what each is called. An admin account has all of them, and the admin-only calls. */
 	static final String[][] PERMS = {{"view", "See servers, players and the log"}, {"control", "Start, stop and restart servers"}, {"console", "Read and type in a server's console, kick"},
-			{"manage", "Server settings, backups and tasks"}, {"access", "Launchers, players and their permissions"}, {"machine", "Sleep this machine, wake other devices"}};
+			{"manage", "Server settings, backups and tasks"}, {"access", "Launchers, players and their permissions"}, {"machine", "Sleep this machine, wake other devices"}, {"updates", "See the update log"}};
 	/** The window's calls the panel hands through: "METHOD path" -> the permission it needs ("admin": admin accounts only). */
 	static final Map<String, String> ALLOWED = new LinkedHashMap<>();
 	static {
@@ -52,6 +52,8 @@ final class WebPanel {
 		for (String c : new String[] {"POST tools/server", "POST tools/properties", "POST tools/backup", "POST tools/task", "POST whitelist/on"}) ALLOWED.put(c, "manage");
 		for (String c : new String[] {"GET devices", "POST request/answer", "POST requests/clear", "POST perm", "POST forget", "POST revoke", "POST ban", "POST whitelist", "POST player/perm"}) ALLOWED.put(c, "access");
 		for (String c : new String[] {"GET wake", "POST wake", "POST sleep"}) ALLOWED.put(c, "machine");
+		ALLOWED.put("GET updates", "updates");   // (who updated, when, from which version to which: its own permission)
+		ALLOWED.put("GET constellation", "view");
 		for (String c : new String[] {"GET update", "POST update", "GET tools/new", "POST tools/new", "POST tools/versions"}) ALLOWED.put(c, "admin");
 	}
 	/** Things in a call's body that only the machine's own window may set (they name a program or a place on its disk). */

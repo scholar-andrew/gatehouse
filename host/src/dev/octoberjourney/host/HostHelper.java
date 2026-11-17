@@ -752,6 +752,7 @@ public final class HostHelper {
 			catch (IOException | RuntimeException notAJar) { sound = false; }
 			if (!sound) { Files.deleteIfExists(fresh); return new String[] {"failed", "What was published isn't a Gatekeeper that can run. Nothing was changed."}; }
 			// One program: the Play half on this machine, if there is one, gets the same file now (it is never in use).
+			UpdateLog.aboutToUpdate();   // (what it was, and how this update came about: written down as a line when it is back)
 			int play = dev.gatehouse.Main.updatePlayCopies(fresh);
 			if (play > 0) log("update: the Gatehouse launcher on this machine was updated with it (" + play + (play == 1 ? " copy)" : " copies)"));
 			String javaExe = ProcessHandle.current().info().command().orElse("javaw"), q = "'", folder = jar.getParent().toString();
@@ -873,12 +874,13 @@ public final class HostHelper {
 		ServerTools.schedule();
 		ServerTools.autostart();
 		menuEntry();
+		UpdateLog.ownStart();
 		AutoUpdate.start();
 		// (an update that had to wait for a server to be off: done when it is)
 		Thread waiting = new Thread(() -> {
 			while (true) {
 				try { Thread.sleep(30_000); } catch (InterruptedException e) { return; }
-				try { if (updateWaiting && !DirectHost.anyTracked()) { String[] r = applyUpdate(0); log("update that was waiting for the servers to be off: " + r[1]); } } catch (RuntimeException ignored) {}
+				try { if (updateWaiting && !DirectHost.anyTracked()) { UpdateLog.how = "normal (Update pressed; it waited for a server to be off)"; String[] r = applyUpdate(0); log("update that was waiting for the servers to be off: " + r[1]); } } catch (RuntimeException ignored) {}
 			}
 		}, "update-waiting");
 		waiting.setDaemon(true); waiting.start();
@@ -2026,7 +2028,9 @@ public final class HostHelper {
 				reply(x, 200, m("steps", wizardSteps()));
 			} else if (path.equals("/admin/update")) {
 				if (x.getRequestMethod().equals("POST")) {
-					long pid = 0; try { pid = (long) Double.parseDouble(Json.str(body(x).get("panel_pid"))); } catch (NumberFormatException ignored) {}
+					Map<String, Object> ub = body(x);
+					long pid = 0; try { pid = (long) Double.parseDouble(Json.str(ub.get("panel_pid"))); } catch (NumberFormatException ignored) {}
+					UpdateLog.how = ServerTools.yes(ub.get("with_play")) ? "normal (Update pressed in the launcher on this machine)" : "normal (Update pressed)";
 					String[] r = applyUpdate(pid);
 					reply(x, 200, m("result", r[0], "message", r[1]));
 				} else {
@@ -2102,7 +2106,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}

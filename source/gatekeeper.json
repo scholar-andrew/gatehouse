@@ -1,7 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.4.1",
+ "version": "3.5.0",
  "changes": [
+  {"version": "3.5.0", "date": "2026-11-16", "notes": [
+   "An update log for the whole constellation: every time a client goes from one version of the program to another, Gatekeeper keeps a line saying when, which client and what kind, who plays on it, its system (operating system and Java), from which version to which, and how (normal, auto or constellation). It covers this Gatekeeper's launchers, this Gatekeeper itself, and the Gatekeepers that joined with their launchers: a member keeps its own log and hands new lines on to the Gatekeeper it joined, marked as having come through it.",
+   "Reading it: Update log on the Constellation tab, at the machine. Through the web panel it has a permission of its own, \"See the update log\", so only an account you gave that to (with the password you set for it) can read it; the web panel has a new Updates page for those accounts.",
+   "What it can't know: updates from before this version, and a launcher's update is noticed when that launcher next reports, so its time is when it reopened. The log is the file updates.json in Gatekeeper's folder, readable by whoever can read this machine's files; the newest 5000 lines are kept."
+  ]},
   {"version": "3.4.1", "date": "2026-11-16", "notes": [
    "A test update: nothing changed. It is here so that a constellation updating together can be watched on real devices, with the pips that 3.4.0 added."
   ]},

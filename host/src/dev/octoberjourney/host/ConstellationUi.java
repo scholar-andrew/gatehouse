@@ -91,7 +91,23 @@ final class ConstellationUi {
 		remove.addActionListener(e -> pick.accept(false));
 		join.addActionListener(e -> post.accept(m("join", address.getText().trim()), ""));
 		leave.addActionListener(e -> post.accept(m("leave", true), ""));
-		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); buttons.add(allow); buttons.add(remove);
+		// The update log: who went from which version to which, when and how, for the whole constellation.
+		JButton logB = new JButton("Update log\u2026");
+		logB.setToolTipText("Every update of every client in this constellation: when, from which version to which, how, and its system");
+		logB.addActionListener(e -> ServerToolsUi.later(() -> {
+			Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/updates", null);
+			SwingUtilities.invokeLater(() -> {
+				DefaultTableModel lm = new DefaultTableModel(new Object[] {"When", "Client", "Kind", "Player", "System", "From", "To", "How", "Through"}, 0) { @Override public boolean isCellEditable(int rr, int cc) { return false; } };
+				for (Object o : Json.list(r.get("entries"))) { Map<String, Object> en = Json.map(o); lm.addRow(new Object[] {Json.str(en.get("when")), Json.str(en.get("client")), Json.str(en.get("kind")), Json.str(en.get("player")), Json.str(en.get("system")) + (Json.str(en.get("info")).isEmpty() ? "" : "  (" + Json.str(en.get("info")) + ")"), Json.str(en.get("from")), Json.str(en.get("to")), Json.str(en.get("how")), Json.str(en.get("via"))}); }
+				JTable lt = new JTable(lm); lt.setRowHeight(24);
+				JScrollPane ls = new JScrollPane(lt); ls.setPreferredSize(new java.awt.Dimension(1100, 420));
+				JPanel lp = new JPanel(new BorderLayout(0, 6));
+				lp.add(ServerToolsUi.note(ServerToolsUi.wrap(lm.getRowCount() == 0 ? "No updates recorded yet. A line is added each time a client of this constellation, or this Gatekeeper, goes from one version to another." : "Newest first: " + lm.getRowCount() + " of " + ServerToolsUi.num(r.get("total")) + " recorded. Kept in updates.json in Gatekeeper's folder; through the web panel only an account given \"See the update log\" can read it.", 1000)), BorderLayout.NORTH);
+				lp.add(ls, BorderLayout.CENTER);
+				javax.swing.JOptionPane.showMessageDialog(p, lp, "Update log", javax.swing.JOptionPane.PLAIN_MESSAGE);
+			});
+		}));
+		JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); buttons.add(allow); buttons.add(remove); buttons.add(logB);
 		JPanel joinRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); joinRow.add(new JLabel("Join another Gatekeeper's constellation:")); joinRow.add(address); joinRow.add(join); joinRow.add(leave);
 		JPanel bottom = new JPanel();
 		bottom.setLayout(new javax.swing.BoxLayout(bottom, javax.swing.BoxLayout.Y_AXIS));

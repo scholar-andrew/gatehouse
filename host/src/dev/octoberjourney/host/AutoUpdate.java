@@ -48,6 +48,8 @@ final class AutoUpdate {
 		long at; String mode = "", sees = "", own = "", name = "", kind = "launcher", system = "";
 		/** The id that install of the program gave itself once: the same whichever Gatekeeper it reports to, or through. */
 		String install = "";
+		/** What it says of its system (operating system and Java), for the update log. */
+		String info = "";
 		boolean busy, waiting;
 		List<Object> clients = new ArrayList<>();
 	}
@@ -91,6 +93,7 @@ final class AutoUpdate {
 		r.system = clean(Json.str(b.get("system")), 20).replace("<", "");
 		r.busy = ServerTools.yes(b.get("busy")); r.waiting = ServerTools.yes(b.get("waiting"));
 		r.install = installOf(b);
+		r.info = clean(Json.str(b.get("info")), 120).replace("<", "");
 		if (keeper) for (Object o : Json.list(b.get("clients"))) {   // (its own launchers, for the lead's list: kept as plain words)
 			Map<String, Object> c = Json.map(o);
 			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player", clean(Json.str(c.get("player")), 16).replaceAll("\\W", ""), "system", clean(Json.str(c.get("system")), 20).replace("<", ""),
@@ -107,6 +110,9 @@ final class AutoUpdate {
 				if (!d.isEmpty()) {
 					allowed = !keeper || ServerTools.yes(d.get("constellation"));
 					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && r.own.equals(Json.str(d.get("version"))) && r.install.equals(Json.str(d.get("install"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
+						// (a version it reports that isn't the one it reported before: it has updated, and that goes in the update log)
+						String before = Json.str(d.get("version"));
+						if (!before.isEmpty() && !r.own.isEmpty() && !before.equals(r.own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, r.own, r.mode, r.info);
 						d.put("update_mode", r.mode); d.put("version", r.own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
 						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);
@@ -115,6 +121,8 @@ final class AutoUpdate {
 				}
 			}
 		} catch (IOException ignored) {}
+		// (a Gatekeeper that joined hands on the lines of its own update log: they are filed here as having come through it)
+		if (keeper && allowed) UpdateLog.taken(name.replace(" (Gatekeeper)", ""), Json.list(b.get("events")));
 		String state = "idle";
 		if (r.mode.equals("constellation") && allowed) {
 			if (mode().equals("constellation") && System.currentTimeMillis() < goUntil) state = "go";
@@ -215,7 +223,8 @@ final class AutoUpdate {
 	/** Reports to the Gatekeeper whose constellation this one has joined, and hears how things stand there. */
 	static void talkToLead() {
 		if (lead().isEmpty()) { leadState = ""; leadSaid = ""; leadMember = false; return; }
-		String say = Json.write(m("kind", "gatekeeper", "install", setting("constellation_id", ""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting", launchersWaiting, "system", systemName(), "clients", ownClients()));
+		List<Object> handing = UpdateLog.unsent();
+		String say = Json.write(m("kind", "gatekeeper", "events", handing, "info", UpdateLog.info(), "install", setting("constellation_id", ""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting", launchersWaiting, "system", systemName(), "clients", ownClients()));
 		try {
 			Map<String, Object> r;
 			try { r = Json.map(Json.parse(leadCall("/v1/update/state", say))); }
@@ -228,6 +237,7 @@ final class AutoUpdate {
 			leadHeard = System.currentTimeMillis();
 			leadState = Json.str(r.get("state")); leadName = Json.str(r.get("lead")); leadMember = ServerTools.yes(r.get("member"));
 			leadGather = Json.map(r.get("gather"));
+			if (leadMember) UpdateLog.handedOn(handing.size());   // (taken there: not handed on again)
 			leadSaid = leadMember ? "Part of " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation." : "Asked to join " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation: waiting for its owner to allow it (on its Constellation tab).";
 		} catch (IOException | RuntimeException e) {
 			leadState = ""; leadGather = new java.util.LinkedHashMap<>();
@@ -275,6 +285,7 @@ final class AutoUpdate {
 						log(tag + status + (waitingFor.isEmpty() ? "" : " Not waited for any longer: " + String.join(", ", waitingFor) + "."));
 						Thread.sleep(8000);   // (so every open client has asked once and been told to go)
 					} else { status = "Updating to " + newestKeeper + " now."; log(tag + status); }
+					UpdateLog.how = mode + (mode.equals("constellation") && following() ? " (on " + leadName + "'s go)" : "");
 					String[] r = applyUpdate(0);
 					log(tag + r[1]);
 					if (r[0].equals("ok")) try { java.nio.file.Files.writeString(dir.resolve("auto-update-tried.txt"), target, StandardCharsets.UTF_8); } catch (IOException ignored) {}
