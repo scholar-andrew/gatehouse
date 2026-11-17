@@ -1,5 +1,5 @@
 {
- "version": "1.30.0",
+ "version": "1.30.1",
  "gatehouse": "2.9.1",
  "files": {
   "config/fabric_loader_dependencies.json": {
@@ -12,8 +12,8 @@
    "preserve": true
   },
   "extras/changelog.txt": {
-   "hash": "0b61a55316c08e1191869bfbf196ab57bf5498cea9a207ea6b27d676d522e2b9",
-   "size": 32509
+   "hash": "8e3903563a634def4b0ea226dae20e9ae4f6c7853ef0e62ebacd76ed6144a259",
+   "size": 32666
   },
   "extras/gatehouse-launcher.ps1": {
    "hash": "e0bdd55d13c27ae9963ad8aa3c84f0d6b9865463268307a8c71a0b65786b4abe",
