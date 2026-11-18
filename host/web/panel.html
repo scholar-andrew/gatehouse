@@ -9,6 +9,7 @@
 </head>
 <body>
 <header id="top">
+  <button id="more" class="hidden" type="button" aria-label="Menu" aria-controls="drawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
   <div class="brand">
     <svg class="mark" viewBox="22 16 40 34" aria-hidden="true"><path d="M24 48V18h5v4h4v-4h5v9h8v-9h5v4h4v-4h5v30H48v-8C48 32 36 32 36 40v8z"/></svg>
     <span>GATEKEEPER</span>
@@ -17,6 +18,7 @@
   <nav id="nav" aria-label="Sections"></nav>
   <div class="who"><span id="whoami"></span><button id="signout" class="quiet hidden">Sign out</button></div>
 </header>
+<aside id="drawer" class="hidden" aria-label="Menu"></aside>
 <main id="signin" class="hidden">
   <form id="signin-form" class="card sheet narrow">
     <h2>Sign in</h2>

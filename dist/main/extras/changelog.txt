@@ -1,3 +1,5 @@
+== 1.63.0 | 2026-11-18
+- Gatehouse 3.30.0: the web panel with the same sections as Gatekeeper's window, and Systems, History of servers and New server as pages. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.62.0 | 2026-11-18
 - Gatehouse 3.29.0: a server's page shaped like the main window (same top bar, flat tabs, Host tools), and Start or Stop on each server's card. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.61.0 | 2026-11-18

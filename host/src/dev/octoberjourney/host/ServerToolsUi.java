@@ -179,7 +179,10 @@ final class ServerToolsUi {
 		kindChanged.run();
 		return form;
 	}
+	/** Set by Gatekeeper's window: New server as a page of it (R39), given what to do once the server is made. */
+	static java.util.function.Consumer<Runnable> newServerPage;
 	static void newServer(JFrame f, Runnable after) {
+		if (newServerPage != null) { newServerPage.accept(after); return; }
 		JDialog d = new JDialog(f, "New server", false);
 		d.setContentPane(newForm(d, after));
 		d.pack(); d.setLocationRelativeTo(f); d.setVisible(true);

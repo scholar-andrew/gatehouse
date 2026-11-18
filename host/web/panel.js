@@ -32,7 +32,7 @@ async function act(call, body, server, confirmText) {
   say(await api('POST', call, body, server));
   if (views[current]) views[current].draw();
 }
-function showSignin() { me = null; clearInterval(timer); clearInterval(watch); $('strip').classList.add('hidden'); $('menu').classList.add('hidden'); menu(false); $('nav').replaceChildren(); $('app').classList.add('hidden'); $('signout').classList.add('hidden'); $('whoami').textContent = ''; $('signin').classList.remove('hidden'); $('user').focus(); }
+function showSignin() { me = null; clearInterval(timer); clearInterval(watch); $('strip').classList.add('hidden'); $('menu').classList.add('hidden'); menu(false); $('more').classList.add('hidden'); drawer(false); $('nav').replaceChildren(); $('app').classList.add('hidden'); $('signout').classList.add('hidden'); $('whoami').textContent = ''; $('signin').classList.remove('hidden'); $('user').focus(); }
 // A card: a square of art with the name's initials, the name, how it is (with a dot), a line under it, and its buttons.
 function card(name, stateClass, state, sub, buttons) {
   let h = 0; for (const ch of name) h = (h * 31 + ch.codePointAt(0)) >>> 0;
@@ -69,7 +69,7 @@ const views = {
     if (v.contains(document.activeElement)) return;   // (a button there is selected: leave it be until the next look)
     $('view').replaceChildren(v, under);
   } },
-  players: { name: 'Players', section: 'PEOPLE', needs: 'view', every: 8000, async draw() {
+  players: { name: 'Players', section: 'PLAYERS', needs: 'view', every: 8000, async draw() {
     const r = await api('GET', 'players');
     if (current !== 'players' || !r.players) return;
     const t = el('table'), names = Object.keys(r.players);
@@ -89,7 +89,7 @@ const views = {
     if (document.activeElement && document.activeElement.id === 'wl-name') return;
     $('view').replaceChildren(v);
   } },
-  chat: { name: 'Chat', section: 'PEOPLE', needs: 'access', every: 3000, async draw() {
+  chat: { name: 'Chat', section: 'CHAT', needs: 'access', every: 3000, async draw() {
     const st = views.chat.st || (views.chat.st = { room: '', next: 0, rooms: 0 });
     const r = await api('POST', 'chat', { room: st.room, after: st.room ? st.next : 0 });
     if (current !== 'chat' || !r.rooms) { if (r.message) say(r); return; }
@@ -112,7 +112,7 @@ const views = {
     if (r.messages && r.messages.length) { const log = $('chat-log'); log.textContent += r.messages.map(e => e.when + '  ' + e.who + ': ' + e.text).join('\n') + '\n'; log.scrollTop = log.scrollHeight; }
     if (st.room) st.next = r.next || 0;
   } },
-  access: { name: 'Launchers', section: 'PEOPLE', needs: 'access', every: 6000, async draw() {
+  access: { name: 'Launchers', section: 'PLAYERS', needs: 'access', every: 6000, async draw() {
     const r = await api('GET', 'devices');
     if (current !== 'access' || !r.devices) return;
     const v = el('div');
@@ -133,7 +133,7 @@ const views = {
     v.appendChild(el('p', 'note', 'Click a permission to allow it or take it away. Blacklisting, suspending and per-player permissions are in Gatekeeper\'s own window.'));
     $('view').replaceChildren(v);
   } },
-  machine: { name: 'Sleep and wake', section: 'MACHINE', needs: 'machine', async draw() {
+  machine: { name: 'The machine', section: 'MENU', needs: 'machine', async draw() {
     const r = await api('GET', 'wake');
     if (current !== 'machine') return;
     const v = el('div');
@@ -145,7 +145,7 @@ const views = {
     v.appendChild(el('p', 'note', 'Devices are added in Gatekeeper\'s window (Web panel tab). The wake signal is sent by the server machine on its own network, so it reaches devices in the same home, by cable or (on some adapters) Wi-Fi, that are set to wake on it.'));
     $('view').replaceChildren(v);
   } },
-  constellation: { name: 'Clients', section: 'CONSTELLATION', needs: 'updates', every: 5000, async draw() {
+  constellation: { name: 'Constellation', section: 'MENU', needs: 'updates', every: 5000, async draw() {
     const r = await api('GET', 'constellation');
     if (current !== 'constellation' || !r.gatekeeper) { if (r.message) say(r); return; }
     const word = m => m === 'auto' ? 'Auto' : m === 'constellation' ? 'Constellation' : m === 'normal' ? 'Normal' : 'Not said yet';
@@ -163,7 +163,7 @@ const views = {
       el('p', '', 'This Gatekeeper: ' + (g.status || '')), el('p', 'note', 'Allowing a Gatekeeper in, removing one, and joining another constellation are done in Gatekeeper\'s own window.')]);
     $('view').replaceChildren(v);
   } },
-  updates: { name: 'Update log', section: 'CONSTELLATION', needs: 'updates', every: 15000, async draw() {
+  updates: { name: 'Update log', section: 'UPDATES', needs: 'updates', every: 15000, async draw() {
     const r = await api('GET', 'updates');
     if (current !== 'updates' || !r.entries) { if (r.message) say(r); return; }
     const t = el('table');
@@ -174,13 +174,13 @@ const views = {
     v.appendChild(el('p', 'note', r.total + ' recorded in all; the newest ' + r.entries.length + ' are shown.'));
     $('view').replaceChildren(v);
   } },
-  log: { name: 'Log', section: 'MACHINE', needs: 'view', every: 8000, async draw() {
+  log: { name: 'Activity log', section: 'MENU', needs: 'view', every: 8000, async draw() {
     const r = await api('GET', 'log');
     if (current !== 'log' || !r.log) return;
     const pre = el('pre', 'console', r.log.join('\n'));
     $('view').replaceChildren(pre); pre.scrollTop = pre.scrollHeight;
   } },
-  gatekeeper: { name: 'Gatekeeper', section: 'OPTIONS', needs: 'admin', async draw() {
+  gatekeeper: { name: 'Options', section: 'MENU', needs: 'admin', async draw() {
     const u = await api('GET', 'update');
     if (current !== 'gatekeeper') return;
     const v = el('div');
@@ -241,11 +241,16 @@ function openServer(id, name) {
   tick(); timer = setInterval(tick, 2500);
 }
 
-const SECTIONS = ['SERVERS', 'PEOPLE', 'CONSTELLATION', 'MACHINE', 'OPTIONS'];
+// (R38: the same sections as Gatekeeper's own window; the pages about the machine and Gatekeeper itself are in the
+// menu, the button with three lines at the top left, as there)
+const SECTIONS = ['SERVERS', 'PLAYERS', 'CHAT', 'UPDATES'];
+function drawer(open) { $('drawer').classList.toggle('hidden', !open); $('more').setAttribute('aria-expanded', open ? 'true' : 'false'); }
+$('more').addEventListener('click', e => { e.stopPropagation(); drawer($('drawer').classList.contains('hidden')); });
+document.addEventListener('click', e => { if (!$('drawer').contains(e.target) && e.target !== $('more')) drawer(false); });
 // On a narrow screen the sections fold away behind a menu button; this opens or closes them.
 function menu(open) { $('top').classList.toggle('open', open); $('menu').setAttribute('aria-expanded', open ? 'true' : 'false'); }
 $('menu').addEventListener('click', () => menu(!$('top').classList.contains('open')));
-document.addEventListener('keydown', e => { if (e.key === 'Escape') menu(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { menu(false); drawer(false); } });
 document.addEventListener('click', e => { if (!$('top').contains(e.target)) menu(false); });
 const titled = s => s[0] + s.slice(1).toLowerCase();
 let mine = [], last = {}, watch = null;
@@ -255,9 +260,11 @@ function show(key) {
   const sec = views[key].section, pages = inSection(sec);
   last[sec] = key;
   document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.section === sec));
-  $('title').textContent = titled(sec);
-  $('menu-now').textContent = sec; menu(false);
-  $('subnav').replaceChildren(...(pages.length > 1 ? pages.map(k => button(views[k].name, () => show(k), k === key ? 'on' : 'quiet')) : []));
+  document.querySelectorAll('#drawer button').forEach(b => b.classList.toggle('on', b.dataset.page === key));
+  const inMenu = sec === 'MENU';
+  $('title').textContent = inMenu ? views[key].name : titled(sec);
+  $('menu-now').textContent = inMenu ? views[key].name.toUpperCase() : sec; menu(false); drawer(false);
+  $('subnav').replaceChildren(...(!inMenu && pages.length > 1 ? pages.map(k => button(views[k].name, () => show(k), k === key ? 'on' : 'quiet')) : []));
   $('view').replaceChildren(el('p', 'note', 'Loading…'));
   views[key].draw();
   if (views[key].every) timer = setInterval(() => views[key].draw(), views[key].every);
@@ -267,7 +274,7 @@ function showSection(sec) { const pages = inSection(sec); if (pages.length) show
 async function standing() {
   if (!me) return;
   if (can('access')) {
-    const r = await api('GET', 'devices'), n = (r.requests || []).length, b = document.querySelector('#nav button[data-section=PEOPLE]');
+    const r = await api('GET', 'devices'), n = (r.requests || []).length, b = document.querySelector('#nav button[data-section=PLAYERS]');
     if (b) { const old = b.querySelector('.badge'); if (old) old.remove(); if (n) b.appendChild(el('span', 'badge', String(n))); }
   }
   if (can('updates')) {
@@ -291,6 +298,10 @@ function start(who) {
     if (!has) b.title = "Your account isn't allowed this section. Its permissions are set in Gatekeeper's window.";
     nav.appendChild(b);
   });
+  // the menu: its pages this account may see
+  const dr = $('drawer'); dr.replaceChildren(el('div', 'drawer-head', 'MENU'));
+  inSection('MENU').forEach(k => { const b = button(views[k].name, () => show(k)); b.dataset.page = k; dr.appendChild(b); });
+  $('more').classList.toggle('hidden', !inSection('MENU').length);
   if (mine.length) show(mine[0]); else { $('title').textContent = 'Gatekeeper'; $('view').replaceChildren(el('p', 'note', 'Your account is allowed nothing yet. Its permissions are set in Gatekeeper\'s window.')); }
   clearInterval(watch); standing(); watch = setInterval(standing, 6000);
 }

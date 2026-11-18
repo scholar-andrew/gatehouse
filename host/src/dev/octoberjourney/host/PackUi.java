@@ -321,8 +321,26 @@ final class PackUi {
 	private static final Map<DefaultTableModel, java.util.List<String>> rowHand = new java.util.WeakHashMap<>();
 	static String shotTo;   // (testing: a picture of the list instead of the dialog)
 
+	/** Systems as a page of Gatekeeper's window (R39: in place of a window over it): looks again whenever it is shown. */
+	static JPanel systemsPage() {
+		Object[] parts = systemsParts();
+		JPanel lp = (JPanel) parts[0]; Runnable load = (Runnable) parts[2];
+		lp.setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 6, 6, 6));
+		lp.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && lp.isShowing()) load.run(); });
+		return lp;
+	}
 	/** Systems: every machine this one knows of, how it stands with each, and Remember / Forget. */
 	static void systems(java.awt.Component over) {
+		Object[] parts = systemsParts();
+		JPanel lp = (JPanel) parts[0];
+		@SuppressWarnings("unchecked") java.util.function.Consumer<Map<String, Object>> show = (java.util.function.Consumer<Map<String, Object>>) parts[1];
+		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/systems",
+				null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) { Quiet.seen(ignored); } t.dispose(); return; }
+		((Runnable) parts[2]).run();
+		javax.swing.JOptionPane.showMessageDialog(over, lp, "Systems", javax.swing.JOptionPane.PLAIN_MESSAGE);
+	}
+	/** The Systems panel: {the panel, what fills it from an answer, what asks again}. */
+	private static Object[] systemsParts() {
 		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands",
 				"Its Gatekeeper's address", "Seen through", "Last heard from"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(tm);
@@ -364,18 +382,53 @@ final class PackUi {
 		forget.addActionListener(e -> act.accept(true));
 		JScrollPane sp = new JScrollPane(table); sp.setPreferredSize(new java.awt.Dimension(980, 340));
 		JPanel lp = new JPanel(new BorderLayout(0, 6));
-		lp.add(ServerToolsUi.note(ServerToolsUi.wrap("A system is what one machine has of the program: its Gatehouse, its Gatekeeper, or both. A neighbor is in a constellation with this system now. A remembered one is kept by you, also after the constellation is left: choose a neighbor and press Remember. Each side decides for itself, and it gives the other nothing. Unknown: a launcher that introduced itself here and has been let in nowhere.", 940)), BorderLayout.NORTH);
+		lp.add(ServerToolsUi.note(ServerToolsUi.wrap("A system is what one machine has of the program: its Gatehouse, its Gatekeeper, or both. A neighbor is in a constellation with this system now. A remembered one is kept by you, also after the constellation is left: choose a neighbor and press Remember. Each side decides for itself, and it gives the other nothing. Unknown: a launcher that introduced itself here and has been let in nowhere.", 840)), BorderLayout.NORTH);
 		lp.add(sp, BorderLayout.CENTER);
 		JPanel foot = new JPanel(new BorderLayout()); foot.add(line(keep, forget), BorderLayout.WEST); foot.add(said, BorderLayout.CENTER);
 		lp.add(foot, BorderLayout.SOUTH);
-		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/systems",
-				null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) { Quiet.seen(ignored); } t.dispose(); return; }
-		load.run();
-		javax.swing.JOptionPane.showMessageDialog(over, lp, "Systems", javax.swing.JOptionPane.PLAIN_MESSAGE);
+		return new Object[] {lp, show, load};
 	}
 
 	static String whatSays(String what) {
 		return switch (what) { case "made" -> "Made"; case "found" -> "Looked after from here on"; case "pack" -> "Pack built"; case "removed" -> "No longer looked after"; default -> what; };
+	}
+	/** The history of servers as a page of Gatekeeper's window (R39): asked again whenever it is shown. */
+	static JPanel historyPage() {
+		DefaultTableModel lm = new DefaultTableModel(new Object[] {"When", "What", "Server", "Kind", "Minecraft", "Pack",
+				"Gatekeeper", "Its address", "System"}, 0) { @Override public boolean isCellEditable(int rr, int cc) { return false; } };
+		JTable lt = new JTable(lm); lt.setRowHeight(28);
+		dev.gatehouse.look.SteamLook.fitColumns(lt);
+		JLabel head = ServerToolsUi.note(" ");
+		JPanel lp = new JPanel(new BorderLayout(0, 6));
+		lp.setBorder(javax.swing.BorderFactory.createEmptyBorder(8, 6, 6, 6));
+		lp.add(head, BorderLayout.NORTH); lp.add(new JScrollPane(lt), BorderLayout.CENTER);
+		lp.addHierarchyListener(ev -> { if ((ev.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) == 0 || !lp.isShowing()) return;
+			ServerToolsUi.later(() -> {
+				Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/history", null);
+				SwingUtilities.invokeLater(() -> {
+					lm.setRowCount(0);
+					for (Object o : Json.list(r.get("entries"))) {
+						Map<String, Object> e = Json.map(o);
+						lm.addRow(new Object[] {Json.str(e.get("when")), whatSays(Json.str(e.get("what"))), Json.str(e.get("name")),
+								Json.str(e.get("kind")), Json.str(e.get("version")), Json.str(e.get("pack")), Json.str(e.get("gatekeeper")),
+								Json.str(e.get("address")), Json.str(e.get("system"))});
+					}
+					head.setText(ServerToolsUi.wrap(historyHead(r, lm.getRowCount()), 840));
+				});
+			}); });
+		return lp;
+	}
+	/** What the history says above its list. */
+	static String historyHead(Map<String, Object> r, int rows) {
+		StringBuilder who = new StringBuilder();
+		for (Object o : Json.list(r.get("gatekeepers"))) { Map<String, Object> k = Json.map(o); who.append(who.length() == 0 ? ""
+				: "; ").append(Json.str(k.get("name"))).append(ServerTools.yes(k.get("this")) ? " (this one)"
+				: Json.str(k.get("address")).isEmpty() ? "" : " at "
+				+ Json.str(k.get("address"))).append(", ").append(ServerToolsUi.num(k.get("servers"))).append(" server(s), last ").append(Json.str(k.get("last"))); }
+		return rows == 0 ? "Nothing yet. A line is added when a Gatekeeper makes a server, starts or stops looking after one, or builds a pack's new version."
+				: "Newest first. Every server a Gatekeeper of this constellation has made or looked after, kept even after the server is gone. Gatekeepers in it: " + who + ". "
+						+ (ServerTools.yes(r.get("shared")) ? "Shared with the Gatekeeper this one joined, both ways."
+								: "A Gatekeeper that joins this one is handed all of it, and adds its own.");
 	}
 	/** The history of servers, as a window over the Constellation tab. */
 	static void history(java.awt.Component over) {

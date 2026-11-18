@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.29.0",
+ "version": "3.30.0",
  "changes": [
+  {"version": "3.30.0", "date": "2026-11-18", "notes": [
+   "Gatekeeper's web panel has the same sections as Gatekeeper's window now (R38, phase E, the last of the menu and look audit): SERVERS, PLAYERS (Players and Launchers), CHAT and UPDATES (the update log). The machine, Constellation, Activity log and Options are in a menu behind the button with three lines at the top left. Its grey text is lighter, and buttons that remove or end something have a red outline, as in the windows.",
+   "Gatekeeper: Systems, History of servers and New server open as pages inside the window, not as windows over it (R39). New server has ‹ Servers to go back without making one."
+  ]},
   {"version": "3.29.0", "date": "2026-11-18", "notes": [
    "Gatehouse: a server's page (after Launch) has the same top bar as the main window, SERVERS, CHAT and UPDATES, with SERVERS lit; CHAT and UPDATES go back to the main window on that section (R38, phase D of the menu and look audit). \u2039 Servers (or B) goes back to the list.",
    "The page's own tabs are flat and in a new order: Overview (whether the server is up, waking the machine and starting or stopping things, what this device may do), News (what changed on this device and on the server, together), Connection, Server, Mods. It opens on News when something changed, otherwise on Overview. The bumpers (Q and E) move along these tabs.",
