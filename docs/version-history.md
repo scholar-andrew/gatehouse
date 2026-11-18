@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.35.4 - 2026-11-18
+
+- Phone notifications can tell you when a Gate System updates: a launcher, your Gatekeeper, or one that joined it, with the version it went from and to. Those that update within a minute of each other (a constellation updating together) come as one message. On unless you turn it off: Gatekeeper's Options, or the web panel's.
+
 ## 3.35.3 - 2026-11-18
 
 - Phone notifications in the web panel: Subscribe on this phone opens the ntfy app only on Android, the one ntfy app that takes such links. On an iPhone (and on a computer) the button is now Copy and add in ntfy: it copies the topic and shows the four steps to add it in the app.

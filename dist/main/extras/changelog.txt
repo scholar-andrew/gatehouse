@@ -1,3 +1,5 @@
+== 1.68.4 | 2026-11-18
+- Gatehouse 3.35.4: your phone can be told when a Gate System updates. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.68.3 | 2026-11-18
 - Gatehouse 3.35.3: subscribing to notifications from an iPhone works through the web panel. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.68.2 | 2026-11-18

@@ -65,7 +65,11 @@ final class UpdateLog {
 			List<Object> l = new ArrayList<>(all());
 			String id = Json.str(line.get("id"));
 			for (Object o : l) if (id.equals(Json.str(Json.map(o).get("id")))) return;
+			int before = l.size();
 			place(l, new java.util.LinkedHashMap<>(line));
+			// (a new line, not one heard before another way: told to the owner's phone, when they asked for that)
+			if (l.size() > before) Notify.updated(Json.str(line.get("client")), Json.str(line.get("kind")), Json.str(line.get("from")),
+					Json.str(line.get("to")), Json.str(line.get("install")));
 			while (l.size() > KEEP) l.remove(0);
 			write(l);
 		} catch (IOException ignored) { Quiet.seen(ignored); }

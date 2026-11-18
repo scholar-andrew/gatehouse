@@ -39,7 +39,6 @@ final class Notify {
 			+ server + ".", "video_game", 3); }
 	/** A server went down without being asked to. */
 	static void down(String server, String what) { if (wants("down")) send(server + " went down", what, "warning", 4); }
-	/** Something about updating needs the owner. */
 	/** R42: someone wrote in a chat room (not the host). At most one a minute for each room, so a busy room doesn't
 	 *  fill the phone (or ntfy's limits). */
 	static void chat(String room, String who, String text) {
@@ -51,7 +50,37 @@ final class Notify {
 		send(who + " in " + room, text.length() > 140 ? text.substring(0, 140) + "\u2026" : text, "speech_balloon", 3);
 	}
 	private static final Map<String, Long> chatSaid = new java.util.concurrent.ConcurrentHashMap<>();
+	/** Something about updating needs the owner. */
 	static void update(String title, String what) { if (wants("update")) send(title, what, "arrow_up", 3); }
+
+	/** A Gate System updated (a launcher, this Gatekeeper, or one that joined): a line of the update log. Those that come
+	 *  within a minute of each other (a constellation updating together) go as one message; the same client's same
+	 *  update heard twice is told once. */
+	static synchronized void updated(String client, String kind, String from, String to, String install) {
+		if (!wants("updated") || to.isEmpty()) return;
+		String key = (install.isEmpty() ? client : install) + "|" + to;
+		if (!toldUpdates.add(key)) return;
+		if (toldUpdates.size() > 500) toldUpdates.clear();
+		pendingUpdates.add(new String[] {client, kind, from, to});
+		if (pendingUpdates.size() == 1) LATER.schedule(Notify::sendUpdates, 60, java.util.concurrent.TimeUnit.SECONDS);
+	}
+	private static synchronized void sendUpdates() {
+		if (pendingUpdates.isEmpty()) return;
+		java.util.List<String[]> l = new java.util.ArrayList<>(pendingUpdates);
+		pendingUpdates.clear();
+		java.util.Set<String> tos = new java.util.LinkedHashSet<>();
+		for (String[] u : l) tos.add(u[3]);
+		String title = l.size() == 1 ? l.get(0)[0] + " updated to " + l.get(0)[3]
+				: l.size() + " Gate Systems updated" + (tos.size() == 1 ? " to " + tos.iterator().next() : "");
+		StringBuilder body = new StringBuilder();
+		for (String[] u : l) body.append(body.length() == 0 ? "" : "\n").append(u[0]).append(" (").append(u[1].equals("gatekeeper") || u[1].equals("Gatekeeper")
+				? "Gatekeeper" : "Gatehouse").append("): ").append(u[2].isEmpty() ? "" : u[2] + " \u2192 ").append(u[3]);
+		send(title, body.toString(), "white_check_mark", 2);
+	}
+	private static final java.util.Set<String> toldUpdates = new java.util.HashSet<>();
+	private static final java.util.List<String[]> pendingUpdates = new java.util.ArrayList<>();
+	private static final java.util.concurrent.ScheduledExecutorService LATER = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+		Thread t = new Thread(r, "notify-updates"); t.setDaemon(true); return t; });
 
 	/** Queued and sent in the background, in order (never more than 30 waiting, and two seconds apart). */
 	static void send(String title, String body, String tags, int priority) {
@@ -103,7 +132,7 @@ final class Notify {
 		}
 		else if (path.equals("/admin/notify") && x.getRequestMethod().equals("POST")) {
 			Map<String, Object> b = body(x);
-			for (String k : new String[] {"on", "join", "down", "update", "chat"}) if (b.containsKey(k)) set("ntfy_" + k, ServerTools.yes(b.get(k)) ? "true" : "false");
+			for (String k : new String[] {"on", "join", "down", "update", "chat", "updated"}) if (b.containsKey(k)) set("ntfy_" + k, ServerTools.yes(b.get(k)) ? "true" : "false");
 			if (b.containsKey("url")) { String u = Json.str(b.get("url")).trim(); set("ntfy_url",
 					u.matches("https?://[A-Za-z0-9.\\-:]+(/[\\w.\\-/]*)?") ? u.replaceAll("/+$", "") : "https://ntfy.sh"); }
 			if (setting("ntfy_on", "false").equals("true") && setting("ntfy_topic", "").isEmpty()) set("ntfy_topic", newTopic());
@@ -121,7 +150,8 @@ final class Notify {
 				Json.str(s.get("name")), "keep", Json.str(s.get("keep_online")).equals("crash"))); }
 		reply(x, 200, m("on", setting("ntfy_on", "false").equals("true"), "url", setting("ntfy_url", "https://ntfy.sh"), "topic", setting("ntfy_topic", ""),
 				"join", !setting("ntfy_join", "true").equals("false"), "down", !setting("ntfy_down", "true").equals("false"), "update",
-						!setting("ntfy_update", "true").equals("false"), "chat", !setting("ntfy_chat", "true").equals("false"), "last", lastResult,
+						!setting("ntfy_update", "true").equals("false"), "chat", !setting("ntfy_chat", "true").equals("false"),
+				"updated", !setting("ntfy_updated", "true").equals("false"), "last", lastResult,
 				"servers", keep));
 		return true;
 	}

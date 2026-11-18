@@ -286,7 +286,8 @@ async function notifyCard() {
   const main = sw('Send notifications to my phone', 'on', n.on);
   c.appendChild(main);
   const kinds = el('div', 'kinds', null, [sw('When a friend joins a server', 'join', n.join), sw('When a server goes down', 'down', n.down),
-    sw('When an update needs me (or Gatekeeper restarted itself)', 'update', n.update), sw('When someone writes in chat (at most one a minute for each room)', 'chat', n.chat)]);
+    sw('When an update needs me (or Gatekeeper restarted itself)', 'update', n.update), sw('When someone writes in chat (at most one a minute for each room)', 'chat', n.chat),
+    sw('When a Gate System updates (those within a minute of each other in one message)', 'updated', n.updated)]);
   c.appendChild(kinds);
   // the topic, and subscribing to it from this very phone
   const host = (n.url || 'https://ntfy.sh').replace(/^https?:\/\//, '').replace(/\/+$/, '');

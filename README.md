@@ -13,7 +13,7 @@ halves:
 Devices talk over the host's private [Tailscale](https://tailscale.com/) network, so nothing is opened to the
 internet. Every update is checked against its published checksum and release signature.
 
-Current version: **Gatehouse 3.35.3**, both halves.
+Current version: **Gatehouse 3.35.4**, both halves.
 
 ## Start here
 
