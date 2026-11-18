@@ -14,7 +14,8 @@ import java.util.function.Consumer;
  *    Windows: XInput, through Java's own foreign-function support (PadWin; Java 22 or newer, else no controller here).
  *    Linux:   the kernel's joystick devices (/dev/input/js*), which Prism's Flatpak can read.
  *  It reports presses as words: a, b, x, y, start, back, up, down, left, right (d-pad or left stick, repeating while
- *  held), and rt-down / rt-up (the right trigger, used as a mouse click). Nothing is read while no launcher window is
+ *  held), rt-down / rt-up (the right trigger, used as a mouse click), and scroll:<pixels> while the right stick is
+ *  pushed up or down (R23: it scrolls, faster the further it is pushed). Nothing is read while no launcher window is
  *  showing, and nothing is ever sent to the controller. */
 final class Pad {
 	private Pad() {}
@@ -23,6 +24,8 @@ final class Pad {
 	static final int A = 0, B = 1, X = 2, Y = 3, START = 4, BACK = 5, UP = 6, DOWN = 7, LEFT = 8, RIGHT = 9, RT = 10, LB = 11, RB = 12, COUNT = 13;
 	static final String[] WORDS = {"a", "b", "x", "y", "start", "back", "up", "down", "left", "right", "rt", "lb", "rb"};
 	private static final boolean[] held = new boolean[COUNT];
+	/** The right stick, up and down (R23: it scrolls): -32768 (up) to 32767 (down). */
+	private static volatile int rightY;
 	private static volatile boolean started;
 	static volatile String source = "none";
 
@@ -58,7 +61,8 @@ final class Pad {
 								held[UP] = (b & 0x1) != 0 || s[3] > 20000; held[DOWN] = (b & 0x2) != 0 || s[3] < -20000;
 								held[LEFT] = (b & 0x4) != 0 || s[2] < -20000; held[RIGHT] = (b & 0x8) != 0 || s[2] > 20000;
 								held[RT] = s[1] > 120;
-							}
+								if (s.length > 5) rightY = -s[5];   // (XInput counts up as more)
+							} else rightY = 0;
 						}
 					}
 					boolean[] now;
@@ -69,6 +73,12 @@ final class Pad {
 						else if (now[i] && !was[i]) { listener.accept(WORDS[i]); since[i] = t0; last[i] = t0; }
 						else if (now[i] && i >= UP && i <= RIGHT && t0 - since[i] > 420 && t0 - last[i] > 140) { listener.accept(WORDS[i]); last[i] = t0; }   // (held: repeats)
 						was[i] = now[i];
+					}
+					// (the right stick: past a small dead zone, a scroll each tick, faster the further it is pushed)
+					int ry = rightY;
+					if (Math.abs(ry) > 8000) {
+						double f = (Math.abs(ry) - 8000) / 24767.0;
+						listener.accept("scroll:" + (int) Math.round(Math.signum(ry) * (3 + 30 * f * f)));
 					}
 					Thread.sleep(30);
 				} catch (InterruptedException e) { return; }
@@ -111,6 +121,7 @@ final class Pad {
 											else if (n == 6) { hatX[0] = value < -16000; hatX[1] = value > 16000; }
 											else if (n == 7) { hatY[0] = value < -16000; hatY[1] = value > 16000; }
 											else if (n == 5) held[RT] = value > 0;
+											else if (n == 4) rightY = value;   // (the right stick, up and down: down is more, as it is here)
 											held[LEFT] = stickX[0] || hatX[0]; held[RIGHT] = stickX[1] || hatX[1];
 											held[UP] = stickY[0] || hatY[0]; held[DOWN] = stickY[1] || hatY[1];
 										}
@@ -118,6 +129,7 @@ final class Pad {
 								}
 							} catch (IOException | RuntimeException ignored) {}
 							synchronized (held) { java.util.Arrays.fill(held, false); }
+							rightY = 0;
 							synchronized (open) { open.remove(d.toString()); }
 						}, "pad-" + d.getFileName());
 						r.setDaemon(true);

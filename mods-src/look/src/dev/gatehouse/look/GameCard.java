@@ -62,7 +62,7 @@ public final class GameCard extends JPanel {
 			clear();
 		}
 		private JComponent line(String text, float size, boolean bold, Color c, int above) {
-			javax.swing.JTextArea l = new javax.swing.JTextArea(text) {
+			javax.swing.JTextArea l = new javax.swing.JTextArea() {
 				@Override public Dimension getPreferredSize() {
 					java.awt.Container p = getParent();
 					int w = p == null ? 0 : p.getWidth() - p.getInsets().left - p.getInsets().right;
@@ -70,6 +70,9 @@ public final class GameCard extends JPanel {
 					return super.getPreferredSize();
 				}
 			};
+			// (its cursor stays put and the words go in after: a cursor that followed them scrolled the panel part way down)
+			((javax.swing.text.DefaultCaret) l.getCaret()).setUpdatePolicy(javax.swing.text.DefaultCaret.NEVER_UPDATE);
+			l.setText(text);
 			l.setEditable(false); l.setFocusable(false); l.setOpaque(false); l.setLineWrap(true); l.setWrapStyleWord(true);
 			l.setFont(GameShell.font(size, bold)); l.setForeground(c);
 			l.setBorder(javax.swing.BorderFactory.createEmptyBorder(above, 0, 0, 4));

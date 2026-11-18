@@ -2762,16 +2762,13 @@ public final class HostHelper {
 			checkNow.setToolTipText("Looks now for a newer Gatekeeper, instead of waiting for the next look (every five minutes)");
 			JLabel checkSaid = new JLabel(" ");
 			checkSaid.setForeground(new Color(0x8F98A0));
-			// (Gatehouse is one program with two halves; this is the Host half. The first screen has a button for each.)
-			JButton halves = new JButton("Play or Host\u2026");
-			halves.setToolTipText("Gatehouse's first screen: open the Play half (the launcher) on this device, or set it up");
-			halves.addActionListener(ev -> dev.gatehouse.Main.choose(f));
-			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 6)); checkRow.add(checkNow); checkRow.add(halves); checkRow.add(checkSaid);
+			// (R22: these sit on the Updates page, beside its pages; Play or Host is in the menu)
+			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 6)); checkRow.add(checkNow); checkRow.add(checkSaid);
 			// (in constellation mode, while an update is being gathered: a pip for every client it is taking along)
 			dev.gatehouse.look.Pips gatherPips = new dev.gatehouse.look.Pips();
 			checkRow.add(gatherPips);
 			if (System.getenv("OJ_PANEL_PNG") == null) new Timer(4000, ev -> { if (f.isDisplayable()) new Thread(() -> { try { Object gg = Json.map(Json.parse(call("GET", "/admin/auto", null))).get("gather"); SwingUtilities.invokeLater(() -> gatherPips.set(gg)); } catch (Exception ignored) {} }, "pips").start(); }).start();
-			serversTab.add(checkRow, BorderLayout.SOUTH);
+			checkRow.setOpaque(false);
 			checkNow.addActionListener(ev -> {
 				checkNow.setEnabled(false);
 				checkSaid.setText("Looking\u2026");
@@ -2976,7 +2973,7 @@ public final class HostHelper {
 				try { Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/about", null))); if (!Json.map(r.get("gatehouse")).isEmpty()) SwingUtilities.invokeLater(() -> fillNotes.accept(launcherNotes, new Object[] {r.get("gatehouse"), "Gatehouse"})); } catch (Exception ignored) {}
 			}, "about").start(); });
 			String ownV = Json.str(notesInside("gatekeeper").get("version"));
-			if (!ownV.isEmpty()) f.setTitle("Gatekeeper " + ownV);
+			f.setTitle("Gatekeeper");   // (R21: the version is at the bottom left, not in the title bar)
 			if (farUrl != null) f.setTitle("Gatekeeper: managing " + remoteName);
 			stack.add(firstTabs, "overview"); stack.add(tabs, "server");
 			dev.gatehouse.look.GameShell.hideTabs(firstTabs);   // (the sections in the top bar, and the buttons under the heading, choose its page)
@@ -3458,7 +3455,12 @@ public final class HostHelper {
 				java.util.function.Consumer<dev.gatehouse.look.GameCard> before = dev.gatehouse.look.GameCard.onHot;   // (the launcher's, when this window is shown inside it)
 				dev.gatehouse.look.GameCard.onHot = card -> { if (SwingUtilities.isDescendingFrom(card, cardGrid)) cardSide.show(card); else if (before != null) before.accept(card); };
 			}
-			JPanel cardsBoth = new JPanel(new BorderLayout(14, 0)); cardsBoth.setOpaque(false);
+			// (R25: the panel beside the cards is given room to say everything, however few servers there are)
+			JPanel cardsBoth = new JPanel(new BorderLayout(14, 0)) {
+				@Override public java.awt.Dimension getPreferredSize() { java.awt.Dimension d = super.getPreferredSize(); return new java.awt.Dimension(d.width, Math.max(d.height, 400)); }
+				@Override public java.awt.Dimension getMaximumSize() { return new java.awt.Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
+			};
+			cardsBoth.setOpaque(false);
 			cardsBoth.add(cardGrid, BorderLayout.CENTER); cardsBoth.add(cardSide, BorderLayout.EAST);
 			cardsBoth.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			Map<String, java.awt.Image> cardPics = new java.util.concurrent.ConcurrentHashMap<>();
@@ -3820,6 +3822,7 @@ public final class HostHelper {
 					} else b.addActionListener(ev -> firstTabs.setSelectedIndex(Integer.parseInt(pg[1])));
 					subRow.add(b);
 				}
+				if (lit.equals("UPDATES") && pages.length > 0) { subRow.add(javax.swing.Box.createHorizontalStrut(14)); subRow.add(checkNow); subRow.add(checkSaid); subRow.add(gatherPips); }
 				subRow.revalidate(); subRow.repaint();
 			};
 			firstTabs.addChangeListener(ev -> sync.run());

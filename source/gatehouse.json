@@ -1,7 +1,13 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.21.0",
+ "version": "3.22.0",
  "changes": [
+  {"version": "3.22.0", "date": "2026-11-17", "notes": [
+   "Controller: the right stick scrolls, faster the further it is pushed: the list or panel the selection is in, or else the biggest one on the page. Lists and panels with nothing to press in them (notes, the panel beside the servers, chat) are places the left stick can stop on now, outlined in blue, so the right stick can be pointed at them.",
+   "Gatekeeper: Check for updates is on the Updates page now, beside its pages; Play or Host left the Servers page, as it is in the menu.",
+   "Gatekeeper: the panel beside the server cards is tall enough to say everything, and opens at its top rather than part way down. The notes lists open at their top too.",
+   "Gatekeeper's title bar says just Gatekeeper; the version is at the bottom left."
+  ]},
   {"version": "3.21.0", "date": "2026-11-17", "notes": [
    "Updates: a red dot on UPDATES, and on the tab inside it, when there are notes you haven't read yet. Versions you haven't seen sit in a blue box with a red dot by their number; they stay boxed while you read and are plain the next time.",
    "Downloads show how far along they are: a bar with how much of how big and the time left, while Gatehouse or Gatekeeper downloads a newer version, and a count of files while a server's pack updates before Play.",

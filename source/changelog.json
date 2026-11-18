@@ -1,4 +1,7 @@
 [
+ {"version": "1.55.0", "date": "2026-11-17", "notes": [
+  "Gatehouse 3.22.0: the right stick scrolls, Gatekeeper's buttons and side panel tidied, and a plain title bar. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.54.0", "date": "2026-11-17", "notes": [
   "Gatehouse 3.21.0: red dots and highlighted notes for updates you haven't read, progress bars for downloads, shortcuts with the castles, and window names on Linux and SteamOS. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

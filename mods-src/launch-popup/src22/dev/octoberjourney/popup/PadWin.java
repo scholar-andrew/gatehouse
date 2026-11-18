@@ -26,13 +26,13 @@ public final class PadWin implements java.util.function.Supplier<int[]> {
 		state = Arena.global().allocate(16, 4);
 	}
 
-	/** {buttons, right trigger 0-255, left stick x, left stick y}; null when no controller is connected. */
+	/** {buttons, right trigger 0-255, left stick x, left stick y, right stick x, right stick y}; null when no controller is connected. */
 	@Override public int[] get() {
 		try {
 			for (int i = 0; i < 4; i++) {
 				int r = (int) getState.invokeExact(i, state);
 				if (r != 0) continue;
-				return new int[] {state.get(ValueLayout.JAVA_SHORT, 4) & 0xFFFF, state.get(ValueLayout.JAVA_BYTE, 7) & 0xFF, state.get(ValueLayout.JAVA_SHORT, 8), state.get(ValueLayout.JAVA_SHORT, 10)};
+				return new int[] {state.get(ValueLayout.JAVA_SHORT, 4) & 0xFFFF, state.get(ValueLayout.JAVA_BYTE, 7) & 0xFF, state.get(ValueLayout.JAVA_SHORT, 8), state.get(ValueLayout.JAVA_SHORT, 10), state.get(ValueLayout.JAVA_SHORT, 12), state.get(ValueLayout.JAVA_SHORT, 14)};
 			}
 		} catch (Throwable t) { /* no controller this time */ }
 		return null;

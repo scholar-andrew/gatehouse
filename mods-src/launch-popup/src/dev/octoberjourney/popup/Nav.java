@@ -24,6 +24,7 @@ import javax.swing.text.JTextComponent;
  *    Y                   selects Restart
  *    Start               selects Quit
  *    right trigger       a left mouse click where the pointer is (the right trackpad moves it, in the Steam layout)
+ *    right stick         scrolls: the list or panel the selection is in or on, else the biggest one that scrolls
  *  On tabs, left and right change the tab; in a list, up and down move the row. Whatever window of the launcher is in
  *  front is the one being driven, questions included. Buttons say what they are with tag(): "back", "restart", "quit".
  *  The arrow keys do the same moving when a button or a tab row is selected. */
@@ -132,8 +133,53 @@ public final class Nav {
 					if (word.equals("rt-down")) robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK); else robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
 				} catch (java.awt.AWTException | RuntimeException ignored) {}
 			}
-			default -> { }
+			default -> { if (word.startsWith("scroll:")) try { scroll(w, fo, Integer.parseInt(word.substring(7))); } catch (NumberFormatException ignored) {} }
 		}
+	}
+
+	/** R23: the right stick scrolls one thing: the scrolling list or panel the selection is in (or is), else the
+	 *  biggest one showing that has more than fits. */
+	private static void scroll(Window w, Component fo, int px) {
+		javax.swing.JScrollPane sp = null;
+		for (Component c = fo; c != null && c != w; c = c.getParent()) if (c instanceof javax.swing.JScrollPane s && scrolls(s)) { sp = s; break; }
+		if (sp == null) {
+			long biggest = 0;
+			for (javax.swing.JScrollPane s : panes(w)) { long a = (long) s.getWidth() * s.getHeight(); if (scrolls(s) && a > biggest) { biggest = a; sp = s; } }
+		}
+		if (sp == null) return;
+		javax.swing.JScrollBar bar = sp.getVerticalScrollBar();
+		bar.setValue(Math.max(bar.getMinimum(), Math.min(bar.getMaximum() - bar.getVisibleAmount(), bar.getValue() + px)));
+	}
+	private static boolean scrolls(javax.swing.JScrollPane s) {
+		Component v = s.getViewport().getView();
+		return s.isShowing() && v != null && v.getHeight() > s.getViewport().getExtentSize().height + 2;
+	}
+	private static List<javax.swing.JScrollPane> panes(Container c) {
+		List<javax.swing.JScrollPane> out = new ArrayList<>();
+		for (Component x : c.getComponents()) {
+			if (!x.isVisible()) continue;
+			if (x instanceof javax.swing.JScrollPane s) out.add(s);
+			if (x instanceof Container k) out.addAll(panes(k));
+		}
+		return out;
+	}
+	/** A scrolling list or panel with nothing to press in it (notes, the panel beside the servers, what was said in
+	 *  chat) can be landed on, so the right stick can be pointed at it: it shows a blue outline while it is chosen. */
+	private static boolean readable(javax.swing.JScrollPane s) {
+		if (!scrolls(s) || s.getParent() instanceof JComboBox || s.getViewport().getView() instanceof JTable || (s.getViewport().getView() instanceof JTextComponent t && t.isEditable())) return false;
+		List<Component> inside = new ArrayList<>();
+		collect(s, inside);
+		return inside.isEmpty();
+	}
+	private static void makeStop(javax.swing.JScrollPane s) {
+		if (Boolean.TRUE.equals(s.getClientProperty("navRead"))) return;
+		s.putClientProperty("navRead", Boolean.TRUE);
+		s.setFocusable(true);
+		javax.swing.border.Border was = s.getBorder();
+		s.addFocusListener(new java.awt.event.FocusAdapter() {
+			@Override public void focusGained(java.awt.event.FocusEvent e) { s.setBorder(javax.swing.BorderFactory.createLineBorder(dev.gatehouse.look.GameShell.ACC, 2)); }
+			@Override public void focusLost(java.awt.event.FocusEvent e) { s.setBorder(was); }
+		});
 	}
 
 	/** Everything in the window the selection can land on. */
@@ -149,6 +195,8 @@ public final class Nav {
 					&& !(x instanceof JTextComponent t && !t.isEditable());
 			// (the arrows of a scroll bar or a drop-down aren't stops)
 			if (stop && !(x.getParent() instanceof javax.swing.JScrollBar) && !(x.getParent() instanceof JComboBox)) out.add(x);
+			// (R23: a list or panel to read, with nothing to press inside it, is a stop too)
+			if (x instanceof javax.swing.JScrollPane s && x.isShowing() && readable(s)) { makeStop(s); out.add(s); continue; }
 			if (x instanceof Container k && !(x instanceof JComboBox) && !(x instanceof JTable)) collect(k, out);
 		}
 	}
