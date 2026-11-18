@@ -82,14 +82,18 @@ final class Peer {
 	}
 
 	/** Takes a program file in. Returns {result, message}: ok, have (nothing newer in it) or refused. */
-	static synchronized String[] store(byte[] b, String saysSha, String from) {
+	static String[] store(byte[] b, String saysSha, String from) {
 		if (b.length == 0 || b.length > MAX) return new String[] {"refused", "That isn't a program file."};
 		String sha = sha256(b);
 		if (!saysSha.isEmpty() && !saysSha.equalsIgnoreCase(sha)) return new String[] {"refused", "What arrived doesn't match its checksum."};
-		// (R24: a program file whose release signature doesn't fit is never kept or handed on)
+		// (R24: a program file whose release signature doesn't fit is never kept or handed on. Looked for before the
+		// lock is taken: it can ask GitHub, and nothing else should wait on that)
 		String signed = signature(b, sha);
 		if (signed.equals("bad")) { log("program: refused a file from " + from + ": " + dev.gatehouse.Signed.words(signed)); return new String[] {"refused", "Its release signature doesn't fit: it isn't a published Gatekeeper."}; }
 		if (signed.equals("unsigned") && setting("require_signed", "false").equals("true")) return new String[] {"refused", "It has no release signature, and this Gatekeeper takes only signed ones."};
+		return storeChecked(b, sha, from);
+	}
+	private static synchronized String[] storeChecked(byte[] b, String sha, String from) {
 		Path part = dir.resolve("program-held.jar.part");
 		try {
 			Files.write(part, b);
@@ -102,7 +106,7 @@ final class Peer {
 			if (v.isEmpty() || cmpVersion(v, ownVersion()) <= 0 || (!heldVersion().isEmpty() && cmpVersion(v, heldVersion()) <= 0)) { Files.deleteIfExists(part); return new String[] {"have", "This Gatekeeper already has that version or a newer one."}; }
 			Files.move(part, file(), StandardCopyOption.REPLACE_EXISTING);
 			meta = new LinkedHashMap<>(m("version", v, "sha256", sha, "size", b.length, "from", from, "needs", needs));
-			Files.writeString(dir.resolve("program-held.json"), Json.write(meta), StandardCharsets.UTF_8);
+			SafeFile.write(dir.resolve("program-held.json"), Json.write(meta));
 			log("program: Gatekeeper " + v + " is held here now (" + from + "), for this Gatekeeper and whoever asks it");
 			prefer();
 			passOn();

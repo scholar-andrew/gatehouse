@@ -45,7 +45,7 @@ final class ServerTools {
 	static final String HERE_MCSS = "MC Server Soft does this for its servers here: use MCSS's own window";
 	static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
 
-	static synchronized void saveCfg() throws IOException { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
+	static synchronized void saveCfg() throws IOException { SafeFile.write(dir.resolve("host.json"), Json.write(cfg)); }
 	static boolean yes(Object o) { return Boolean.TRUE.equals(o) || "true".equals(Json.str(o)); }
 	private static String id() { return Json.str(server().get("id")); }
 

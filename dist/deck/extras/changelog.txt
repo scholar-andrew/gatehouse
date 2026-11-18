@@ -1,3 +1,5 @@
+== 1.57.0 | 2026-11-18
+- Gatehouse 3.24.0: Gatekeeper restarts itself if it freezes, safer settings, older copies close after updates, and a what's-new summary. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.56.0 | 2026-11-17
 - Gatehouse 3.23.0: updates are checked against the release signature. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.55.0 | 2026-11-17

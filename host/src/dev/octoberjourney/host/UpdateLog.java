@@ -34,7 +34,7 @@ final class UpdateLog {
 	static volatile String how = "normal";
 
 	static synchronized List<Object> all() { return Json.list(Json.parse(read(dir.resolve("updates.json")))); }
-	private static void write(List<Object> l) throws IOException { Files.writeString(dir.resolve("updates.json"), Json.write(l), StandardCharsets.UTF_8); }
+	private static void write(List<Object> l) throws IOException { SafeFile.write(dir.resolve("updates.json"), Json.write(l)); }
 	private static String word(Object o, int max) { return clean(Json.str(o), max).replace("<", ""); }
 
 	/** Files a line (unless one with its id is here already). */

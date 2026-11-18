@@ -76,7 +76,7 @@ final class WebPanel {
 	// ------------------------------------------------------------------ accounts
 
 	static synchronized Map<String, Object> users() { return Json.map(Json.map(Json.parse(read(dir.resolve("users.json")))).get("users")); }
-	static synchronized void saveUsers(Map<String, Object> u) throws IOException { Files.writeString(dir.resolve("users.json"), Json.write(m("users", u)), StandardCharsets.UTF_8); }
+	static synchronized void saveUsers(Map<String, Object> u) throws IOException { SafeFile.write(dir.resolve("users.json"), Json.write(m("users", u))); }
 	static String hex(byte[] b) { StringBuilder sb = new StringBuilder(); for (byte x : b) sb.append(String.format("%02x", x)); return sb.toString(); }
 	static byte[] unhex(String s) { byte[] b = new byte[s.length() / 2]; for (int i = 0; i < b.length; i++) b[i] = (byte) Integer.parseInt(s.substring(2 * i, 2 * i + 2), 16); return b; }
 	static String hash(char[] password, byte[] salt, int rounds) {

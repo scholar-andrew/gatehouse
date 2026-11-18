@@ -213,9 +213,7 @@ public final class HostHelper {
 	static synchronized Map<String, Object> devices() { return Json.map(Json.parse(read(dir.resolve("devices.json")))); }
 
 	static synchronized void saveDevices(Map<String, Object> d) throws IOException {
-		Path tmp = dir.resolve("devices.json.tmp");
-		Files.writeString(tmp, Json.write(d), StandardCharsets.UTF_8);
-		Files.move(tmp, dir.resolve("devices.json"), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+		SafeFile.write(dir.resolve("devices.json"), Json.write(d));   // (R29: swapped in whole, with earlier copies kept)
 	}
 
 	/** host.log has a lock of its own: anything may write a line while holding another lock (Peer's, the devices'),
@@ -238,7 +236,9 @@ public final class HostHelper {
 	private static long gatehouseNotesAt;
 	/** Gatehouse's notes, for the tab here: the newest from the repository (host.json "gatehouse_notes_url"; looked up
 	 *  again after ten minutes), else the copy that came with this Gatekeeper. */
-	static synchronized Map<String, Object> gatehouseNotes() {
+	private static final Object NOTES_LOCK = new Object();   // (R29: its own lock: it asks GitHub, which can be slow)
+	static Map<String, Object> gatehouseNotes() { synchronized (NOTES_LOCK) { return gatehouseNotesLocked(); } }
+	private static Map<String, Object> gatehouseNotesLocked() {
 		if (gatehouseNotes != null && System.currentTimeMillis() - gatehouseNotesAt < 600_000) return gatehouseNotes;
 		Map<String, Object> got = new LinkedHashMap<>();
 		try {
@@ -924,6 +924,8 @@ public final class HostHelper {
 	static void serve() throws Exception {
 		log("helper starting (port " + port() + ")");
 		if (!WIN) dev.gatehouse.Shortcuts.ensure(true, null);   // (Linux: the menu entries' icons and window names, at sign-in)
+		Watchdog.start();   // (R29: a Gatekeeper that has frozen restarts itself)
+		try { Files.writeString(dir.resolve("serve.pid"), String.valueOf(ProcessHandle.current().pid()), StandardCharsets.UTF_8); } catch (IOException ignored) {}   // (for the window's Restart Gatekeeper)
 		Device.start();   // (what kind of machine this is, for the picture launchers show)
 		Thread newer = new Thread(() -> { while (true) { try { lookForNewer(); } catch (RuntimeException ignored) {} try { Thread.sleep(300_000); } catch (InterruptedException e) { return; } } }, "newer");
 		newer.setDaemon(true); newer.start();
@@ -1115,7 +1117,7 @@ public final class HostHelper {
 		if (!exe.isEmpty()) cfg.put(builtin() ? "servers_dir" : "mcss_exe", exe);
 		if (!bind.isEmpty()) cfg.put("bind", bind);
 		cfg.put("servers", keep);
-		try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
+		try { SafeFile.write(dir.resolve("host.json"), Json.write(cfg)); }
 		catch (IOException e) { return new String[] {"refused", "Couldn't save host.json: " + e.getMessage()}; }
 		log("server setup: " + keep.size() + " server" + (keep.size() == 1 ? "" : "s") + (added > 0 ? " (" + added + " new)" : "") + (moved ? ", address " + bind : ""));
 		if (moved) bindRemote();
@@ -1196,6 +1198,8 @@ public final class HostHelper {
 	static void launcher(HttpExchange x) throws IOException {
 		try {
 			String path = x.getRequestURI().getPath(), ip = x.getRemoteAddress().getAddress().getHostAddress();
+			// (is this Gatekeeper answering? Asked by its watchdog and its window; answered before anything takes a lock)
+			if (path.equals("/v1/alive")) { byte[] ok = "ok".getBytes(StandardCharsets.UTF_8); x.sendResponseHeaders(200, ok.length); try (java.io.OutputStream o = x.getResponseBody()) { o.write(ok); } return; }
 			Map<String, Object> devs = devices();
 			// (the program file this Gatekeeper holds or runs: the published program, given to whoever asks)
 			if (path.startsWith("/v1/program/") && x.getRequestMethod().equals("GET")) { Peer.serve(x, path); return; }
@@ -1316,7 +1320,7 @@ public final class HostHelper {
 					List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
 					all.add(rec);
 					while (all.size() > 1000) all.remove(0);
-					Files.writeString(dir.resolve("pulls.json"), Json.write(all), StandardCharsets.UTF_8);
+					SafeFile.write(dir.resolve("pulls.json"), Json.write(all));
 				}
 				log(who(d) + " pulled an update from this machine: " + Json.str(rec.get("pack")) + " " + (Json.str(rec.get("from")).isEmpty() ? "" : Json.str(rec.get("from")) + " to ") + Json.str(rec.get("to")) + ", " + (num.apply("bytes") / 100_000 / 10.0) + " MB");
 				reply(x, 200, m("ok", true));
@@ -1508,7 +1512,9 @@ public final class HostHelper {
 	 *  a player and the address they joined from, and a launcher that talks to this helper from the same (Tailscale)
 	 *  address is that player's device. That's who really joined, not what a device says. A player's device then gets
 	 *  what the owner allowed that player (players.json). Only looks again when the log has changed. */
-	static synchronized void scanPlayers() {
+	private static final Object SCAN_LOCK = new Object();   // (R29: its own lock: it reads every server's log)
+	static void scanPlayers() { synchronized (SCAN_LOCK) { scanPlayersLocked(); } }
+	private static void scanPlayersLocked() {
 		String keep = SERVER.get();
 		try {
 			if (servers().isEmpty()) scanPlayersHere();
@@ -1699,7 +1705,7 @@ public final class HostHelper {
 		return (ban[0].equals("blacklist") ? "Blacklisted" : "Suspended") + (ban[1].equals("user") ? " (player " + player + ")" : " (this device)");
 	}
 	static String clean(String s, int max) { s = s == null ? "" : s.replaceAll("[\\p{Cntrl}]", " ").trim(); return s.length() > max ? s.substring(0, max) : s; }
-	static void savePlayers(Map<String, Object> all) throws IOException { Files.writeString(dir.resolve("players.json"), Json.write(all), StandardCharsets.UTF_8); }
+	static void savePlayers(Map<String, Object> all) throws IOException { SafeFile.write(dir.resolve("players.json"), Json.write(all)); }
 
 	/** Kicks a player from the running server (its own "kick" command). */
 	static String[] kick(String name, String reason) {
@@ -2144,7 +2150,7 @@ public final class HostHelper {
 						String nm = Json.str(asked.get("name")).replaceAll("[\\p{Cntrl}]", " ").trim();
 						if (nm.length() > 40) { reply(x, 200, m("result", "refused", "message", "Keep the name to 40 characters or fewer.")); return; }
 						if (nm.isEmpty()) cfg.remove("name"); else cfg.put("name", nm);
-						try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
+						try { SafeFile.write(dir.resolve("host.json"), Json.write(cfg)); }
 						catch (IOException e) { reply(x, 200, m("result", "refused", "message", "Couldn't save host.json: " + e.getMessage())); return; }
 						log(nm.isEmpty() ? "name in launchers: this machine's own name again" : "name in launchers: " + nm);
 						reply(x, 200, m("result", "ok", "message", nm.isEmpty() ? "Launchers list this Gatekeeper under this machine's name again." : "Launchers now list this Gatekeeper as \"" + nm + "\" (they pick it up within a few seconds when open)."));
@@ -2154,7 +2160,7 @@ public final class HostHelper {
 					String link = Json.str(asked.get("share_link")).trim();
 					if (!link.isEmpty() && !link.matches("https://login\\.tailscale\\.com/[A-Za-z0-9/_?=&.%-]+")) { reply(x, 200, m("result", "refused", "message", "That isn't a Tailscale invite link (it starts with https://login.tailscale.com/).")); return; }
 					if (link.isEmpty()) cfg.remove("tailscale_share_link"); else cfg.put("tailscale_share_link", link);
-					try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); }
+					try { SafeFile.write(dir.resolve("host.json"), Json.write(cfg)); }
 					catch (IOException e) { reply(x, 200, m("result", "refused", "message", "Couldn't save host.json: " + e.getMessage())); return; }
 					log(link.isEmpty() ? "Tailscale invite link removed from the pairing" : "Tailscale invite link saved for the pairing");
 					reply(x, 200, m("result", "ok", "message", link.isEmpty() ? "Removed: pairings no longer carry an invite link." : "Saved: the pairing link and file now carry it."));
@@ -2357,6 +2363,34 @@ public final class HostHelper {
 		c.setConnectTimeout(2000); c.setReadTimeout(path.startsWith("/admin/update") || path.startsWith("/admin/tools/new") || path.startsWith("/admin/pack/") ? 180_000 : 5000); c.setRequestMethod(method);
 		if (body != null) { c.setDoOutput(true); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
 		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+	}
+
+	/** R29: ends the Gatekeeper behind this window (the one its folder's serve.pid names, when that is a Java program)
+	 *  and starts it again the way sign-in does. "" when done, else why not. */
+	static String restartKeeper() {
+		try {
+			if (!WIN && System.getenv("OJ_HOST_DIR") == null) {
+				Process p = new ProcessBuilder("systemctl", "--user", "restart", "gatehouse-keeper").redirectErrorStream(true).start();
+				p.getOutputStream().close(); String said = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+				if (p.waitFor(30, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0) return "";
+				if (!said.isEmpty()) log("Restart Gatekeeper: systemctl said " + said);
+			}
+			long pid = Long.parseLong(read(dir.resolve("serve.pid")).trim());
+			java.util.Optional<ProcessHandle> h = ProcessHandle.of(pid);
+			if (h.isPresent() && h.get().info().command().orElse("").toLowerCase(java.util.Locale.ROOT).contains("java")) {
+				h.get().destroyForcibly();
+				try { h.get().onExit().get(10, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {}
+			}
+			log("Restart Gatekeeper: pressed in its window");
+			if (System.getenv("OJ_HOST_DIR") != null) {   // (a stand-in under test: started directly, never through the real task)
+				Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+				ProcessBuilder pb = new ProcessBuilder(ProcessHandle.current().info().command().orElse("java"), "-jar", jar.toString(), "--serve").directory(dir.toFile());
+				pb.environment().put("OJ_HOST_DIR", dir.toString());
+				pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+				return "";
+			}
+			return dev.gatehouse.Main.startKeeper();
+		} catch (Exception e) { return e.getMessage() == null ? e.toString() : e.getMessage(); }
 	}
 
 	static void panel() throws Exception {
@@ -3786,7 +3820,32 @@ public final class HostHelper {
 			shell.menu("Gatekeeper", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
 			shell.afterMenu(() -> dev.octoberjourney.popup.Nav.home(f));
 			ChatUi.unread = n -> SwingUtilities.invokeLater(() -> shell.badge("CHAT", n));   // (rooms with messages not read here)
-			shell.body(p);
+			// (R29: when the Gatekeeper behind this window stops answering, a bar says so, with Restart Gatekeeper)
+			JPanel stuckBar = new JPanel(new BorderLayout(12, 0));
+			stuckBar.setBackground(new Color(0x4A1F22));
+			stuckBar.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0xE5484D)), BorderFactory.createEmptyBorder(8, 14, 8, 14)));
+			JLabel stuckText = new JLabel("<html><b>Gatekeeper isn't answering.</b> If it has frozen it restarts itself within a few minutes; or restart it now. Minecraft servers keep running.</html>");
+			stuckText.setForeground(new Color(0xFFD7D9));
+			JButton stuckGo = new JButton("Restart Gatekeeper");
+			stuckBar.add(stuckText, BorderLayout.CENTER); stuckBar.add(stuckGo, BorderLayout.EAST);
+			stuckBar.setVisible(false);
+			stuckGo.addActionListener(ev -> {
+				stuckGo.setEnabled(false); stuckText.setText("<html><b>Restarting Gatekeeper\u2026</b></html>");
+				new Thread(() -> {
+					String said = restartKeeper();
+					SwingUtilities.invokeLater(() -> { stuckGo.setEnabled(true); stuckText.setText("<html>" + (said.isEmpty() ? "<b>Gatekeeper was restarted.</b> This bar goes once it answers." : "<b>Couldn't restart it:</b> " + said.replace("<", "&lt;")) + "</html>"); });
+				}, "restart-keeper").start();
+			});
+			if (System.getenv("OJ_PANEL_PNG") == null && farUrl == null) {
+				int[] misses = {0};
+				new Timer(10_000, ev -> { if (f.isDisplayable()) new Thread(() -> {
+					boolean ok = Watchdog.alive();
+					SwingUtilities.invokeLater(() -> { misses[0] = ok ? 0 : misses[0] + 1; boolean show = misses[0] >= 3; if (stuckBar.isVisible() != show) { stuckBar.setVisible(show); if (show) stuckGo.setEnabled(true); } });
+				}, "alive").start(); }).start();
+			}
+			JPanel withBar = new JPanel(new BorderLayout()); withBar.setOpaque(false);
+			withBar.add(stuckBar, BorderLayout.NORTH); withBar.add(p, BorderLayout.CENTER);
+			shell.body(withBar);
 			String[] subShown = {null}, wasLit = {""};
 			Runnable sync = () -> {
 				boolean aside = optionsScroll.isVisible() || guide[0].isVisible();

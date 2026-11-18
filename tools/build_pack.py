@@ -336,6 +336,10 @@ def publish_gatekeeper() -> None:
     if inside != want:
         sys.exit(f"host/oj-host.jar is Gatekeeper {inside}, but source/gatekeeper.json says {want}: run tools/build_program.ps1 first")
     data = open(jar, "rb").read()
+    # (R29: only a program file that tools/run_tests.ps1 has passed is published)
+    passed = os.path.join(ROOT, "tools", "tests", "passed.txt")
+    if not os.path.exists(passed) or open(passed, encoding="ascii").read().strip() != sha256(data):
+        sys.exit("host/oj-host.jar hasn't passed the tests: run tools/run_tests.ps1 first (it records the file it passed)")
     out = os.path.join(DIST, "gatekeeper")
     os.makedirs(out, exist_ok=True)
     with open(os.path.join(out, "oj-host.jar"), "wb") as f:

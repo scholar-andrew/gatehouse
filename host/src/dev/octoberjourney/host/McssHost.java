@@ -157,7 +157,7 @@ final class McssHost implements ServerHost {
 	@Override public void setKey(String key) {
 		cfg.remove("mcss_user"); cfg.remove("mcss_key_id"); cfg.put("mcss_key_lasting", true);
 		cfg.put("mcss_api_key", key);
-		try { Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8); } catch (IOException e) { log("couldn't save host.json: " + e); }
+		try { SafeFile.write(dir.resolve("host.json"), Json.write(cfg)); } catch (IOException e) { log("couldn't save host.json: " + e); }
 		log(!hasAccess() ? "Gatekeeper's MCSS key was cleared" : "Gatekeeper's MCSS key was set");
 	}
 
@@ -212,7 +212,7 @@ final class McssHost implements ServerHost {
 				}
 			} catch (IOException | RuntimeException e) { lasting = ""; }
 			cfg.put("mcss_api_key", lasting.isEmpty() ? key : lasting); cfg.put("mcss_user", user); cfg.put("mcss_key_lasting", !lasting.isEmpty());
-			Files.writeString(dir.resolve("host.json"), Json.write(cfg), StandardCharsets.UTF_8);
+			SafeFile.write(dir.resolve("host.json"), Json.write(cfg));
 			boolean works = serverStatus() >= 0;
 			log("Gatekeeper signed in to MCSS as " + user + (lasting.isEmpty() ? " (MCSS wouldn't let that account make a key: this sign-in ends when MCSS restarts)" : " and made itself the key \"" + made + "\"") + (works ? "" : " (but it can't see the server)"));
 			if (!works) return new String[] {"failed", "Signed in as " + user + ", but that account can't see the server (give it access to it in MCSS's panel)"};

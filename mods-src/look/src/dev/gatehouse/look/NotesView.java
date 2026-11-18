@@ -91,6 +91,28 @@ public final class NotesView {
 		list.setLayout(new Column());
 		list.setBorder(BorderFactory.createEmptyBorder(6, 12, 12, 12));
 		if (!head.isEmpty()) { JLabel h = new JLabel(head); h.setForeground(GameShell.DIM); h.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0)); h.setAlignmentX(Component.LEFT_ALIGNMENT); list.add(h); }
+		// (R29: two or more versions not seen yet: first, what's new since the one last seen, a line for each)
+		List<String[]> unseenOnes = new java.util.ArrayList<>();
+		if (!seen.isEmpty() && notes.get("changes") instanceof List<?> l0) for (Object o : l0) {
+			if (!(o instanceof Map<?, ?> c) || c.get("version") == null || !newer(String.valueOf(c.get("version")), seen)) continue;
+			String first = c.get("notes") instanceof List<?> ns && !ns.isEmpty() ? String.valueOf(ns.get(0)) : "";
+			if (first.length() > 150) first = first.substring(0, 147).replaceAll("\\s+\\S*$", "").replaceAll("[.,;:]+$", "") + "…";
+			unseenOnes.add(new String[] {String.valueOf(c.get("version")), first});
+		}
+		if (unseenOnes.size() >= 2) {
+			JPanel sum = new Box(); sum.setOpaque(false); sum.setLayout(new Column());
+			sum.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
+			JLabel sh = new JLabel("What's new since " + seen + ": " + unseenOnes.size() + " updates");
+			sh.setFont(sh.getFont().deriveFont(java.awt.Font.BOLD, 14f)); sh.setForeground(GameShell.TEXT);
+			JPanel shRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)) { @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); } };
+			shRow.setOpaque(false); shRow.add(sh);
+			sum.add(shRow);
+			for (String[] u : unseenOnes) sum.add(line("• " + u[0] + (u[1].isEmpty() ? "" : ": " + u[1])));
+			sum.add(line("Each is in full below."));
+			list.add(javax.swing.Box.createVerticalStrut(6));
+			list.add(sum);
+			list.add(javax.swing.Box.createVerticalStrut(10));
+		}
 		boolean any = false;
 		if (notes.get("changes") instanceof List<?> l) for (Object o : l) {
 			if (!(o instanceof Map<?, ?> c)) continue;

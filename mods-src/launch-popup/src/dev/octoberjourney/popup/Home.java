@@ -223,6 +223,42 @@ final class Home {
 		} catch (IOException | RuntimeException e) { return null; }
 	}
 	private static volatile String prismFor = "prismlauncher";
+
+	/** R29: after an update, an older Gatehouse can still be open beside the new one (it was on the Steam Deck, and two
+	 *  copies reporting different versions made the update log flip). Each copy notes the newest version open on this
+	 *  device in gatehouse-newest-open.txt, and looks there every ten seconds: one that finds a newer version open
+	 *  closes, unless it is in the middle of something (updating a pack or itself, or showing a question). */
+	static void newestOpen(Path home) {
+		if (System.getenv("OJ_HOME_DRY") != null) return;
+		String mine = Notes.version(Notes.own());
+		if (mine.isEmpty()) return;
+		Path f = home.resolve("gatehouse-newest-open.txt");
+		Thread t = new Thread(() -> {
+			while (true) {
+				try {
+					// ("<version>|<pid>|<when, ms>": the newest copy writes it again every ten seconds. Only a copy that is still
+					// running counts: its process is there, or its line is fresh. Copies in separate sandboxes (Prism's Flatpak)
+					// can't see each other's processes, so the line's age decides there.)
+					String[] said = LaunchPopup.readFile(f).trim().split("\\|");
+					String there = said[0];
+					long pid = -1, at = 0;
+					try { pid = Long.parseLong(said[1]); at = Long.parseLong(said[2]); } catch (RuntimeException ignored) {}
+					boolean mineIt = pid == ProcessHandle.current().pid();
+					boolean running = !mineIt && (System.currentTimeMillis() - at < 25_000 || (pid > 0 && ProcessHandle.of(pid).map(ProcessHandle::isAlive).orElse(false)));
+					if (!running) there = "";
+					if (there.isEmpty() || !dev.gatehouse.look.NotesView.newer(there, mine)) { Files.createDirectories(home); Files.writeString(f, mine + "|" + ProcessHandle.current().pid() + "|" + System.currentTimeMillis() + "\n", StandardCharsets.UTF_8); }
+					else if (dev.gatehouse.look.NotesView.newer(there, mine) && !LaunchPopup.embedded && !LaunchPopup.asking) {
+						System.out.println("a newer Gatehouse (" + there + ") is open on this device: this one (" + mine + ") closes");
+						System.exit(0);
+					}
+					Thread.sleep(10_000);
+				} catch (InterruptedException e) { return; }
+				catch (Exception e) { try { Thread.sleep(10_000); } catch (InterruptedException ie) { return; } }
+			}
+		}, "newest-open");
+		t.setDaemon(true);
+		t.start();
+	}
 	/** Where a server's window was when its Gatehouse button was pressed: this window opens there. */
 	private static volatile java.awt.Rectangle cameBack;
 
@@ -259,6 +295,7 @@ final class Home {
 		String prismCmd = prism;
 		prismFor = prism;
 		if (System.getenv("OJ_HOME_DRY") == null) dev.gatehouse.Shortcuts.ensure(false, prism);   // (R16: Gatehouse's shortcut, with its castle)
+		newestOpen(home);   // (R29: an older copy still open after an update closes, once this one is up)
 		String openAt = null;   // (a Gatekeeper to open on: the one whose server's Menu button brought us back)
 		while (true) {
 			PackInstall.refreshPlain(instances);

@@ -1,8 +1,16 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.23.0",
+ "version": "3.24.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.24.0", "date": "2026-11-18", "notes": [
+   "Gatekeeper restarts itself if it freezes. A watchdog beside it looks twice a minute: parts of it waiting on each other for good (what happened on 17 November) restarts it within a minute; not answering at all for ten minutes does too. It restarts the way sign-in starts it, and says so in its activity log. Not while a server Gatekeeper runs itself is on.",
+   "Gatekeeper's window shows a red bar with Restart Gatekeeper when the Gatekeeper behind it stops answering, instead of showing nothing.",
+   "Fewer ways to freeze: fetching Gatehouse's notes from GitHub, reading the servers' logs, and checking an update's signature no longer hold up the rest of Gatekeeper while they wait.",
+   "Settings are never left half-written: Gatekeeper writes each settings file whole and then swaps it in. It keeps up to ten earlier copies of its settings, the paired devices, players and web panel accounts in a backups folder.",
+   "Gatehouse: an older copy still open after an update closes once the new one is up (unless it's in the middle of something).",
+   "Updates: when two or more versions are new to you, a short \"what's new since\" list sits at the top, with one line for each."
+  ]},
   {"version": "3.23.0", "date": "2026-11-17", "notes": [
    "Updates are checked against the release signature: each published version is signed on GitHub with the owner's release key, and Gatehouse and Gatekeeper check that signature before taking an update, whether it came from GitHub, the pack server or another Gatekeeper. One whose signature doesn't fit is refused and nothing changes. One with no signature yet (GitHub signs a minute or two after each publish) is still taken, as before, and the log says so.",
    "Gatekeepers keep the signatures they've checked and hand them on with the program file, so peer-to-peer updates are checked too, even with no way to reach GitHub.",
