@@ -45,8 +45,18 @@ on Linux and SteamOS Gatekeeper runs the Minecraft servers itself; on Windows `"
 chooses the same. `HostHelper.builtin()` decides, and `host` is then a `DirectHost` instead of a `McssHost` (both
 are `ServerHost`). What it does:
 
-- **Servers** are folders inside one folder (`servers_dir`; `~/minecraft-servers`, or `C:\Minecraft\servers`).
-  Server setup lists the ones that look like a server (a server jar, `run.sh` or `server.properties`).
+- **Servers** are folders inside one folder (`servers_dir`; `~/game-servers`, or `C:\Gatehouse\servers`; a machine
+  set up before 3.37.0 has `~/minecraft-servers` or `C:\Minecraft\servers` written down instead). Server setup lists
+  the ones that look like a server of a game Gatekeeper knows (for Minecraft: a server jar, `run.sh` or
+  `server.properties`).
+- **Games** (3.37.0, R34; [Other games](other-games.md)): each server in `host.json` names its `game`. Everything that
+  depends on the game (recognising its folder, starting it, its ready and stop lines, who joined or left in its log,
+  its settings file, who may join, what a backup holds still) is in `Game.java`, with `Minecraft.java` the only game.
+  Nothing is Minecraft by default: a server without a known game can't be started, and says why. When Gatekeeper
+  starts, settings from before games are written down once: each server's game (Minecraft), `host: mcss` on a
+  Windows machine that has an MCSS path (MCSS is no longer the Windows default), and the old servers folder if it
+  exists. Gatehouse has the same idea in `Games.java`: a catalog entry's `game` (none from an older Gatekeeper means
+  Minecraft, the only game it had).
 - **Starting** one runs, in its folder, the first of: the server's `"start"` in `host.json` (a whole command line);
   `sh run.sh nogui` on Linux; `<java> -Xmx<memory> -jar <jar> nogui`, with the server's `"java"` / `"memory"`, else
   `server_java` / `server_memory`, else Gatekeeper's own Java and 4G. The jar is `fabric-server*.jar`,

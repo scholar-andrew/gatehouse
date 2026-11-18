@@ -161,6 +161,10 @@ final class ServerTools {
 		String memory = memoryOk(Json.str(b.get("memory")).trim().isEmpty() ? "4G" : Json.str(b.get("memory")).trim()),
 				port = Json.str(b.get("port")).trim().replaceAll("\\.0$", ""), java = Json.str(b.get("java")).trim();
 		if (name.isEmpty()) return new String[] {"refused", "Give the server a name."};
+		// (R34: no game is assumed; Minecraft is the only one Gatekeeper can make a server for so far)
+		Game game = Game.named(Json.str(b.get("game")));
+		if (game == null) return new String[] {"refused", "Choose the game the server is for."};
+		if (!game.id().equals("minecraft")) return new String[] {"refused", "Gatekeeper can't make " + game.name() + " servers yet."};
 		if (!List.of("vanilla", "fabric", "paper", "forge", "file").contains(kind)) return new String[] {"refused", "Choose what kind of server to make."};
 		if (!yes(b.get("eula"))) return new String[] {"refused",
 				"A Minecraft server can't be run without agreeing to Minecraft's EULA (aka.ms/MinecraftEULA). Read it and tick the box; Gatekeeper doesn't agree to it for you."};
@@ -244,7 +248,7 @@ final class ServerTools {
 		} else if (kind.equals("file")) {
 			step("Copying the server's jar");
 			Files.copy(file, d.resolve(file.getFileName().toString()));
-			if (DirectHost.serverJar(d) == null) throw new IOException("that file isn't a .jar");
+			if (Minecraft.serverJar(d) == null) throw new IOException("that file isn't a .jar");
 		} else {
 			// Forge / NeoForge: their installer does the work (it fetches Minecraft and the loader's libraries itself).
 			step("Running the installer (this takes a few minutes)");
@@ -274,7 +278,7 @@ final class ServerTools {
 			String base = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", ""), id = base.isEmpty() ? "server" : base;
 			for (int n = 2; used.contains(id); n++) id = (base.isEmpty() ? "server" : base) + "-" + n;
 			List<Object> all = new ArrayList<>(servers());
-			all.add(m("id", id, "name", name, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", "", "native", true,
+			all.add(m("id", id, "name", name, "game", "minecraft", "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", "", "native", true,
 					"memory", memory, "java", java, "kind", kind, "version", version));
 			cfg.put("servers", all);
 			if (setting("servers_dir", "").isEmpty()) cfg.put("servers_dir", serversDir());
@@ -296,24 +300,13 @@ final class ServerTools {
 
 	// ------------------------------------------------------------------ one server: what it is set to, and how it is doing
 
-	static Map<String, String> properties(Path d) {
-		Map<String, String> out = new LinkedHashMap<>();
-		for (String l : read(d.resolve("server.properties")).split("\\R")) { int eq = l.indexOf('='); if (eq > 0
-				&& !l.startsWith("#")) out.put(l.substring(0, eq).trim(), l.substring(eq + 1)); }
-		return out;
-	}
-	/** Sets lines of server.properties (ones it doesn't have yet are added); everything else in it is left as it is. */
+	/** The settings of the server in that folder, as its game keeps them (Minecraft: server.properties). */
+	static Map<String, String> properties(Path d) { Game g = gameAt(d); return g == null ? new LinkedHashMap<>() : g.settings(d); }
+	/** Sets some of them; everything else is left as it is. */
 	static void setProperties(Path d, Map<String, String> set) throws IOException {
-		Path f = d.resolve("server.properties");
-		String t = read(f), nl = t.contains("\r\n") ? "\r\n" : "\n";
-		List<String> lines = new ArrayList<>(t.isEmpty() ? List.of() : List.of(t.split("\\R")));
-		for (Map.Entry<String, String> e : set.entrySet()) {
-			boolean had = false;
-			for (int i = 0; i < lines.size(); i++) if (lines.get(i).replaceAll("\\s*=.*", "").trim().equals(e.getKey())
-					&& !lines.get(i).startsWith("#")) { lines.set(i, e.getKey() + "=" + e.getValue()); had = true; }
-			if (!had) lines.add(e.getKey() + "=" + e.getValue());
-		}
-		Files.writeString(f, String.join(nl, lines) + nl, StandardCharsets.UTF_8);
+		Game g = gameAt(d);
+		if (g == null) throw new IOException("its game isn't known, so its settings can't be changed here");
+		g.setSettings(d, set);
 	}
 
 	/** Memory a process and what it started use, in MB (0 when it can't be told). */
@@ -500,7 +493,7 @@ final class ServerTools {
 	}
 	static Path backupDir(Map<String, Object> s, Path d) {
 		String set = Json.str(s.get("backup_dir"));
-		return !set.isEmpty() ? Path.of(set) : d.getParent().resolveSibling("minecraft-server-backups").resolve(d.getFileName().toString());
+		return !set.isEmpty() ? Path.of(set) : backupsBeside(d);
 	}
 
 	// ------------------------------------------------------------------ backups
@@ -511,7 +504,13 @@ final class ServerTools {
 		String set = Json.str(server().get("backup_dir"));
 		if (!set.isEmpty()) return Path.of(set);
 		Path d = serverDir();
-		return d.toAbsolutePath().getParent().resolveSibling("minecraft-server-backups").resolve(d.getFileName().toString());
+		return backupsBeside(d);
+	}
+	/** A server's backups when none is chosen: beside its servers folder, in server-backups (or minecraft-server-backups,
+	 *  where that is from before Gatekeeper knew more than one game). */
+	static Path backupsBeside(Path d) {
+		Path up = d.toAbsolutePath().getParent(), old = up.resolveSibling("minecraft-server-backups");
+		return (Files.isDirectory(old) ? old : up.resolveSibling("server-backups")).resolve(d.getFileName().toString());
 	}
 	static List<Object> backups() {
 		List<Object> out = new ArrayList<>();
@@ -538,7 +537,9 @@ final class ServerTools {
 		int keep = 10;
 		try { keep = Integer.parseInt(Json.str(s.get("backup_keep")).replaceAll("\\.0$", "")); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 		int keepN = Math.max(1, keep);
-		String level = properties(d).getOrDefault("level-name", "world").trim();
+		Game game = Game.of(s);
+		if (game == null) return new String[] {"refused", name + " isn't set to a game Gatekeeper knows, so it doesn't know what to back up"};
+		String level = game.worldFolder(d);
 		backing.put(id, "Backing up…");
 		Thread t = new Thread(() -> {
 			Path zip = bd.resolve("backup_" + LocalDateTime.now().format(STAMP) + (all ? "_all" : "_world") + ".zip"), part = bd.resolve(zip.getFileName() + ".part");
@@ -546,10 +547,10 @@ final class ServerTools {
 				Files.createDirectories(bd);
 				if (r != null && r.ready) {
 					long before = r.printed;
-					DirectHost.type(r, "save-off"); DirectHost.type(r, "save-all flush");
-					for (int i = 0; i < 120 && r.process.isAlive(); i++) {   // (up to a minute for "Saved the game")
+					for (String c : game.beforeBackup()) DirectHost.type(r, c);
+					for (int i = 0; i < 120 && r.process.isAlive(); i++) {   // (up to a minute for it to say it has saved)
 						boolean saved = false;
-						synchronized (r.lines) { long n = r.printed; for (java.util.Iterator<String> it = r.lines.descendingIterator(); it.hasNext() && n > before; n--) if (it.next().contains("Saved the game")) saved = true; }
+						synchronized (r.lines) { long n = r.printed; for (java.util.Iterator<String> it = r.lines.descendingIterator(); it.hasNext() && n > before; n--) if (game.savedLine(it.next())) saved = true; }
 						if (saved) break;
 						Thread.sleep(500);
 					}
@@ -582,7 +583,7 @@ final class ServerTools {
 				backing.put(id, "The last backup failed: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
 				log("backup of " + name + " (asked by " + by + ") failed: " + e);
 			} finally {
-				if (r != null && r.process.isAlive()) DirectHost.type(r, "save-on");
+				if (r != null && r.process.isAlive()) for (String c : game.afterBackup()) DirectHost.type(r, c);
 			}
 		}, "backup-" + id);
 		t.setDaemon(true);
@@ -697,8 +698,10 @@ final class ServerTools {
 			if (post) r = create(b);
 			else {
 				List<String> free = freePorts(1);
+				List<Object> games = new ArrayList<>();
+				for (Game g : Game.ALL.values()) games.add(m("id", g.id(), "name", g.name()));
 				reply(x, 200, m("host", "builtin", "folder", serversDir(), "port", free.isEmpty() ? "25565" : free.get(0), "javas",
-						javas(), "making", new LinkedHashMap<>(making),
+						javas(), "making", new LinkedHashMap<>(making), "games", games,
 						"kinds", List.of(m("id", "vanilla", "name", "Vanilla (the plain game, from Mojang)"), m("id", "paper", "name",
 								"Paper (plugins, from PaperMC)"), m("id", "fabric", "name", "Fabric (mods, from Fabric)"),
 								m("id", "forge", "name", "Forge or NeoForge (mods): an installer I downloaded"), m("id", "file", "name", "A server jar I already have"))));

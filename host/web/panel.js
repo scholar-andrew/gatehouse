@@ -255,18 +255,24 @@ const views = {
     v.appendChild(await notifyCard());
     if (me.host === 'builtin') {
       const n = await api('GET', 'tools/new');
-      const name = el('input'), kind = el('select'), ver = el('select'), mem = el('input'), eula = el('input'), said = el('p', 'said');
+      const name = el('input'), game = el('select'), kind = el('select'), ver = el('select'), mem = el('input'), eula = el('input'), said = el('p', 'said');
+      // (R34: the game is chosen first, and the rest shows once it is: nothing is Minecraft by default)
+      const none = el('option', '', 'Choose a game'); none.value = ''; game.appendChild(none);
+      (n.games || []).forEach(g => { const o = el('option', '', g.name); o.value = g.id; game.appendChild(o); });
       name.placeholder = 'Name'; mem.value = '4G'; eula.type = 'checkbox';
       (n.kinds || []).filter(k => k.id !== 'forge' && k.id !== 'file').forEach(k => { const o = el('option', '', k.name); o.value = k.id; kind.appendChild(o); });
       const fill = async () => { ver.replaceChildren(); const r = await api('POST', 'tools/versions', { kind: kind.value }); (r.versions || []).forEach(x => ver.appendChild(el('option', '', x))); if (r.message) say(r, said); };
       kind.addEventListener('change', fill); fill();
       const make = button('Make the server', async () => {
-        say(await api('POST', 'tools/new', { name: name.value, kind: kind.value, version: ver.value, memory: mem.value, eula: eula.checked }), said);
+        say(await api('POST', 'tools/new', { name: name.value, game: game.value, kind: kind.value, version: ver.value, memory: mem.value, eula: eula.checked }), said);
         const poll = setInterval(async () => { const m = (await api('GET', 'tools/new')).making || {}; if (m.state === 'working') say({ message: m.step }, said); else { clearInterval(poll); say({ result: m.state === 'done' ? 'ok' : 'failed', message: m.message }, said); } }, 1000);
       }, 'primary');
       const link = el('a', '', "Minecraft's EULA"); link.href = 'https://aka.ms/MinecraftEULA'; link.target = '_blank'; link.rel = 'noopener noreferrer';
-      v.appendChild(el('div', 'card', null, [el('h3', '', 'New server'), el('div', 'row', null, [name, kind, ver, mem]),
-        el('label', 'row', null, [eula, el('span', '', 'I have read '), link, el('span', '', ' and I agree to it')]), el('div', 'row', null, [make]), said,
+      const mcRow = el('div', 'row', null, [kind, ver, mem]), mcEula = el('label', 'row', null, [eula, el('span', '', 'I have read '), link, el('span', '', ' and I agree to it')]);
+      const gameShown = () => { const mc = game.value === 'minecraft'; mcRow.hidden = mcEula.hidden = !mc; make.disabled = !mc; };
+      game.addEventListener('change', gameShown); gameShown();
+      v.appendChild(el('div', 'card', null, [el('h3', '', 'New server'), el('div', 'row', null, [name, game]), mcRow,
+        mcEula, el('div', 'row', null, [make]), said,
         el('p', 'note small', 'Gatekeeper fetches the server\'s program from its makers and sets it up on the server machine. A server from a Forge installer or your own jar is made in Gatekeeper\'s own window.')]));
     }
     $('view').replaceChildren(v);

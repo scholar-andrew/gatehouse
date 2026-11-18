@@ -7,6 +7,12 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.37.0 - 2026-11-18
+
+- Ready for other games, step 1 (R34): a server now records which game it is for, and everything in Gatekeeper that depends on the game (starting it, knowing when it is up, who joined or left, its settings, who may join, backups) goes through one place, with Minecraft as the only game so far. Nothing you use changes: a scenario run on 3.36.0 and on this version gave the same answers.
+- Neutral to start with (R34): neither half assumes Minecraft any more. New server asks for the game first. On a new Windows machine Gatekeeper runs servers itself unless you set it up with MCSS, its setup guide shows MCSS, Minecraft's EULA and the whitelist only where they apply, and new servers and backups go in neutral folders. Gatehouse's window is called Gatehouse, and Prism Launcher, the Minecraft account and Open Prism Launcher appear once you have a Minecraft server. Machines set up before keep what they had (MCSS, their folders): Gatekeeper writes that down once when it starts.
+- A server of a game this Gatehouse can't play yet is shown with its game named, and nothing to install.
+
 ## 3.36.0 - 2026-11-18
 
 - A user guide (R43): an easy, step-by-step guide with pictures of every screen, for playing, hosting, inviting a friend, your phone, updates, the Steam Deck and when something goes wrong. It is on GitHub (docs/user-guide.md).

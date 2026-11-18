@@ -99,16 +99,10 @@ final class LocalLink {
 				+ player + " is now on the whitelist of " + String.join(", ", listed)) + "."};
 	}
 
-	/** Puts a player on the current server's whitelist. With the server off and the player never seen there, the
-	 *  account id the launcher gave (from Prism's own account list) is what the whitelist file needs. */
+	/** Puts a player on the current server's list of who may join, with the account id the launcher gave (from Prism's
+	 *  own account list) for when the server itself can't look it up. */
 	static String[] whitelist(String player, String uuid) {
-		String[] r = setWhitelisted(player, true);
-		if (r[0].equals("ok") || minecraftRunning() || !uuid.matches("[0-9a-f]{32}")) return r;
-		try {
-			List<Object> wl = new ArrayList<>(HostHelper.whitelist());
-			wl.add(m("uuid", uuid.replaceFirst("(.{8})(.{4})(.{4})(.{4})(.{12})", "$1-$2-$3-$4-$5"), "name", player));
-			Files.writeString(serverDir().resolve("whitelist.json"), Json.write(wl), StandardCharsets.UTF_8);
-			return new String[] {"ok", "added"};
-		} catch (IOException | RuntimeException e) { return new String[] {"failed", "its whitelist file couldn't be written: " + e.getMessage()}; }
+		Game g = Game.here();
+		return g == null ? new String[] {"refused", serverName() + " isn't set to a game Gatekeeper knows"} : g.allowWithId(player, uuid);
 	}
 }

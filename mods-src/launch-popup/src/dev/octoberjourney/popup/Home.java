@@ -181,6 +181,7 @@ final class Home {
 			if ("401".equals(str(r.get("_code")))) { c.hello(); r = c.helper("GET", "/v1/catalog", null); }
 			if ("404".equals(str(r.get("_code")))) { r = new LinkedHashMap<>(); r.put("_old", "yes"); return r; }   // (a Gatekeeper from before catalogs)
 			if (!"200".equals(str(r.get("_code")))) r.put("_refused", str(r.get("error")).isEmpty() ? "it said no (" + str(r.get("_code")) + ")" : str(r.get("error")));
+			else if (r.get("servers") instanceof List<?> l) Games.seen(l);
 			return r;
 		} catch (IOException | RuntimeException e) { return null; }
 	}
@@ -655,7 +656,7 @@ final class Home {
 			f.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(14, 24, 10, 24));
-			JLabel head = new JLabel(LaunchPopup.TOOL + " Minecraft Launcher");
+			JLabel head = new JLabel(LaunchPopup.TOOL);
 			head.setFont(head.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(24f)));
 			JLabel sub = new JLabel(" ");
 			sub.setFont(sub.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(14f)));
@@ -1222,6 +1223,13 @@ final class Home {
 								}
 								if (r[1] == null) ((JLabel) r[3]).setText(str(s.get("name")).isEmpty() ? id : str(s.get("name")));
 								boolean on = "true".equals(str(s.get("online")));
+								String game = Games.of(s);
+								if (!Games.playable(game)) {
+									set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + ". A " + Games.name(game)
+											+ " server: this " + LaunchPopup.TOOL + " can't install or play " + Games.name(game) + " yet."});
+									((JButton) r[5]).setVisible(false);
+									continue;
+								}
 								String profile = str(s.get("profile"));
 								String kind = str(s.get("kind")), version = str(s.get("minecraft_version"));
 								boolean plain = profile.isEmpty() && kind.equals("vanilla");
@@ -1432,7 +1440,7 @@ final class Home {
 				polls.clear();
 				keeperList.removeAll();
 				keeperChips.setVisible(false);
-				head.setText(LaunchPopup.TOOL + " Minecraft Launcher");
+				head.setText(LaunchPopup.TOOL);
 				sub.setText(keepers.isEmpty() && !hasLoose
 						? "No Gatekeeper yet. Add one with the address, link or file its owner gave you." : "Pick a Gatekeeper to see its servers.");
 				backB.setVisible(false);
@@ -1647,14 +1655,16 @@ final class Home {
 				boolean reach = false;
 				for (String[] k : known) if (Connect.reaches(k[0])) { reach = true; break; }
 				int have = installed(instances).size();
+				boolean mc = Games.minecraftHere(have > 0);
 				steps.add(new dev.gatehouse.look.Wizard.Step("welcome", "Welcome", "info",
-						"This guide takes a device from nothing set up to playing on a friend's Minecraft server.\n\nA server's owner runs a program called Gatekeeper on their machine. " + LaunchPopup.TOOL + ", this launcher, connects to it: it shows that owner's servers, installs what each needs, keeps it up to date, and starts the game through Prism Launcher.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from the menu (\u2261, at the top left): Setup guide.", ""));
-				steps.add(new dev.gatehouse.look.Wizard.Step("prism", "Prism Launcher", prismOk ? "ok" : "todo",
+						"This guide takes a device from nothing set up to playing on a friend's game server.\n\nA server's owner runs a program called Gatekeeper on their machine. " + LaunchPopup.TOOL + ", this launcher, connects to it: it shows that owner's servers, installs what each needs, keeps it up to date, and starts the game.\n\nEach step says what to do and checks by itself whether it's done; steps a game needs of its own appear once you have a server of that game. You can leave the guide and come back to it from the menu (\u2261, at the top left): Setup guide.", ""));
+				List<dev.gatehouse.look.Wizard.Step> mcSteps = new ArrayList<>();
+				mcSteps.add(new dev.gatehouse.look.Wizard.Step("prism", "Prism Launcher", prismOk ? "ok" : "todo",
 						"Prism Launcher is the program that actually runs Minecraft; " + LaunchPopup.TOOL
 						+ " tells it what to start. Install it from its own site, then choose Restart in the menu (\u2261, at the top left) so " + LaunchPopup.TOOL
 						+ " finds it.\n\nThis step is done when Prism Launcher is found on this device.", prismOk ? "" : "Not found where it's usually installed")
 						.action("Open Prism Launcher's download page", "open:https://prismlauncher.org/download/"));
-				steps.add(new dev.gatehouse.look.Wizard.Step("account", "Your Minecraft account", !prismOk ? "wait" : account ? "ok"
+				mcSteps.add(new dev.gatehouse.look.Wizard.Step("account", "Your Minecraft account", !prismOk ? "wait" : account ? "ok"
 						: "todo", "You need your own copy of Minecraft: Java Edition, and to sign in to it once in Prism Launcher. Open Prism, click the account picker at the top right, choose Manage Accounts, then Add Microsoft, and sign in with the Microsoft account that owns the game.\n\nThis step is done when Prism Launcher has an account.", account ? "" : "Prism has no account yet")
 						.action("Open Prism Launcher", "prism"));
 				steps.add(new dev.gatehouse.look.Wizard.Step("gatekeeper", "Add the owner's Gatekeeper", known.isEmpty() ? "todo" : "ok",
@@ -1663,8 +1673,9 @@ final class Home {
 				steps.add(new dev.gatehouse.look.Wizard.Step("connect", "Connect to it", known.isEmpty() ? "wait" : reach ? "ok" : "todo",
 						"A Gatekeeper is reached over Tailscale, a private network between the owner's machine and the devices they let in. Connect walks through it: installing Tailscale and signing in with your own account, accepting the owner's invite, and reaching their machine. If all of that is done and it still can't be reached, the owner's machine may be asleep or off.\n\nThis step is done when the Gatekeeper answers.", reach ? "" : known.isEmpty() ? "" : "It isn't answering yet")
 						.action("Connect\u2026", "connect"));
+				if (mc) steps.addAll(mcSteps);   // (Minecraft's own: Prism Launcher runs the game, with your account)
 				steps.add(new dev.gatehouse.look.Wizard.Step("install", "Install a server", !reach && have == 0 ? "wait" : have > 0 ? "ok"
-						: "todo", "Close this guide and open the Gatekeeper on your list: it shows the owner's servers. Press Install beside one. " + LaunchPopup.TOOL + " sets it up in Prism Launcher; the game and any mods download the first time you start it.\n\nThe owner decides what your device may do. Until they allow it you can still install and look, and they see your device waiting in their Gatekeeper.\n\nThis step is done when a server is installed here.", have > 0 ? have + (have == 1 ? " server" : " servers") + " installed" : "")
+						: "todo", "Close this guide and open the Gatekeeper on your list: it shows the owner's servers. Press Install beside one. " + LaunchPopup.TOOL + " sets it up on this device" + (mc ? " (a Minecraft server goes into Prism Launcher)" : "") + "; the game's files and any mods download the first time you start it.\n\nThe owner decides what your device may do. Until they allow it you can still install and look, and they see your device waiting in their Gatekeeper.\n\nThis step is done when a server is installed here.", have > 0 ? have + (have == 1 ? " server" : " servers") + " installed" : "")
 						.action("Show my Gatekeepers", "keepers"));
 				steps.add(new dev.gatehouse.look.Wizard.Step("play", "Play", "info",
 						"Press Launch beside a server. Its update runs, then its page shows Play.\n\nThe button changes with what's in the way, and says what to do: Request whitelist asks the owner to add you to the server's whitelist; Request server asks them to turn the server on; Update needed means " + LaunchPopup.TOOL + " or the owner's Gatekeeper has to be updated first.\n\nThat's everything. This guide stays in the menu.", ""));
@@ -1920,7 +1931,12 @@ final class Home {
 			JPanel right = shell[0].right();
 			right.add(new dev.gatehouse.look.GameShell.Hint("A", "Enter", "Select")); right.add(backHint);
 			right.add(Box.createHorizontalStrut(6));
-			right.add(new dev.gatehouse.look.GameShell.Glyph("X", "")); right.add(prismB);
+			dev.gatehouse.look.GameShell.Glyph prismX = new dev.gatehouse.look.GameShell.Glyph("X", "");
+			right.add(prismX); right.add(prismB);
+			// (R34: Open Prism Launcher only once Minecraft is part of this device's use; Gatehouse starts neutral)
+			Runnable prismShown = () -> { boolean mc = Games.minecraftHere(!installed(instances).isEmpty()); if (prismB.isVisible() != mc) { prismB.setVisible(mc); prismX.setVisible(mc); right.revalidate(); } };
+			prismShown.run();
+			new Timer(3000, ev -> { if (f.isDisplayable()) prismShown.run(); else ((Timer) ev.getSource()).stop(); }).start();
 			Nav.tag(restartB, "restart-bar"); Nav.tag(quit, "quit-bar");   // (not shown any more: the menu's items carry the tags)
 			List<Path> folders = new ArrayList<>();
 			for (String[] e : packs) folders.add(Path.of(e[3]));

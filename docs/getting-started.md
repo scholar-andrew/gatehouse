@@ -126,11 +126,14 @@ once. On Windows with MCSS:
 7. **Make an invite** in Tailscale's admin page (Machines, this machine, **Share**, a reusable link), paste it into
    Host setup and Save. It shares only this machine, not the rest of your network.
 
-On **Linux and SteamOS**, and on Windows without MCSS, steps 3 to 5 are replaced by **New server** on Gatekeeper's
-Servers section: give it a name, pick its kind (Vanilla, Paper, Fabric, Forge or NeoForge, or a server program you
-already have) and version, tick that you agree to [Minecraft's EULA](https://aka.ms/MinecraftEULA), and press
-**Make the server**. Gatekeeper finds a free port and a Java that fits; it doesn't install Java. A server you already
-have goes in its own folder inside `minecraft-servers` in your home folder (or point Server setup at your servers).
+Gatekeeper runs the servers itself unless you set it up with MCSS: that is always so on **Linux and SteamOS**, and on
+a new Windows machine too. There, steps 3 to 5 are replaced by **New server** on Gatekeeper's Servers section: give it
+a name and choose its **game** (Minecraft is the only one so far). For Minecraft, pick its kind (Vanilla, Paper,
+Fabric, Forge or NeoForge, or a server program you already have) and version, tick that you agree to
+[Minecraft's EULA](https://aka.ms/MinecraftEULA), and press **Make the server**. Gatekeeper finds a free port and a
+Java that fits; it doesn't install Java. A server you already have goes in its own folder inside `game-servers` in your
+home folder, or `C:\Gatehouse\servers` on Windows (or point Server setup at your servers). A machine set up before
+3.37.0 keeps the folder it had (`minecraft-servers`, or `C:\Minecraft\servers`) and its MCSS.
 
 Everything else, from the Access Manager to backups, is in [Using Gatekeeper](gatekeeper.md).
 

@@ -64,67 +64,19 @@ final class DirectHost implements ServerHost {
 		return false;
 	}
 
-	// ------------------------------------------------------------------ what is in a server's folder
+	// ------------------------------------------------------------------ what is in a server's folder (its game says: Game)
 
-	/** The server jar in a folder, or null. */
-	static Path serverJar(Path d) {
-		List<Path> jars = new ArrayList<>();
-		try (java.util.stream.Stream<Path> s = Files.list(d)) { s.filter(p -> Files.isRegularFile(p)
-				&& p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".jar")).sorted().forEach(jars::add); }
-		catch (IOException | RuntimeException e) { return null; }
-		for (String start : new String[] {"fabric-server", "quilt-server"}) for (Path p
-				: jars) if (p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).startsWith(start)) return p;
-		for (Path p : jars) if (p.getFileName().toString().equalsIgnoreCase("server.jar")) return p;
-		for (String part : new String[] {"paper", "purpur", "spigot", "forge", "server"}) for (Path p
-				: jars) if (p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).contains(part)) return p;
-		return jars.size() == 1 ? jars.get(0) : null;
-	}
-	/** Does that folder look like a Minecraft server's? */
-	static boolean looksLikeServer(Path d) {
-		return serverJar(d) != null || Files.isRegularFile(d.resolve("run.sh")) || Files.isRegularFile(d.resolve("server.properties"));
-	}
-	static boolean eulaAccepted(Path d) {
-		for (String l : read(d.resolve("eula.txt")).split("\\R")) if (l.replace(" ", "").equalsIgnoreCase("eula=true")) return true;
-		return false;
-	}
-	/** The command that starts one of host.json's servers, or null when its folder has nothing to start. */
-	static List<String> launch(Map<String, Object> s) {
-		Path d = Path.of(Json.str(s.get("dir")));
-		String custom = Json.str(s.get("start"));
-		if (!custom.isEmpty()) return WIN ? List.of("cmd", "/c", custom) : List.of("sh", "-c", custom);
-		String java = Json.str(s.get("java")), memory = Json.str(s.get("memory"));
-		if (java.isEmpty()) java = setting("server_java", ProcessHandle.current().info().command().orElse("java"));
-		if (memory.isEmpty()) memory = setting("server_memory", "4G");
-		// (what Forge's and NeoForge's installers make: a list of arguments for Java, which run.sh / run.bat hand it)
-		Path args = modArgs(d);
-		if (args != null) {
-			List<String> cmd = new ArrayList<>(List.of(java, "-Xmx" + memory));
-			if (Files.isRegularFile(d.resolve("user_jvm_args.txt"))) cmd.add("@user_jvm_args.txt");
-			cmd.add("@" + d.relativize(args).toString().replace('\\', '/'));
-			cmd.add("nogui");
-			return cmd;
-		}
-		if (!WIN && Files.isRegularFile(d.resolve("run.sh"))) return List.of("sh", "run.sh", "nogui");
-		Path jar = serverJar(d);
-		if (jar == null) return null;
-		return List.of(java, "-Xmx" + memory, "-jar", jar.getFileName().toString(), "nogui");
-	}
-	/** Forge's or NeoForge's argument file for this system (libraries/.../win_args.txt or unix_args.txt), or null. */
-	static Path modArgs(Path d) {
-		Path lib = d.resolve("libraries");
-		if (!Files.isDirectory(lib)) return null;
-		String want = WIN ? "win_args.txt" : "unix_args.txt";
-		try (java.util.stream.Stream<Path> s = Files.walk(lib,
-				6)) { return s.filter(p -> p.getFileName().toString().equals(want)).sorted(java.util.Comparator.reverseOrder()).findFirst().orElse(null); }
-		catch (IOException | RuntimeException e) { return null; }
-	}
+	/** Does that folder look like a server of a game Gatekeeper knows? */
+	static boolean looksLikeServer(Path d) { return gameAt(d) != null; }
+	/** Has the owner accepted what the current server's game needs accepted before it runs (Minecraft: its EULA)? */
+	static boolean eulaAccepted(Path d) { Game g = Game.here(); return g != null && g.termsAccepted(d); }
+	/** The command that starts one of host.json's servers, or null when its folder has nothing to start (or it has no game). */
+	static List<String> launch(Map<String, Object> s) { Game g = Game.of(s); return g == null ? null : g.launch(s); }
 	/** Why one of host.json's servers can't be started as it stands, or "" when it can. */
 	static String blocker(Map<String, Object> s) {
-		Path d = Path.of(Json.str(s.get("dir")));
-		if (!Files.isDirectory(d)) return "its folder is gone (" + d + ")";
-		if (launch(s) == null) return "there is no server program in " + d + " (New server in Gatekeeper makes one; or put the server's jar there yourself)";
-		if (!eulaAccepted(d)) return "Minecraft's EULA isn't accepted for it yet: read it (aka.ms/MinecraftEULA), then put the line eula=true in " + d.resolve("eula.txt") + " (or tick the box in Manage, Settings)";
-		return "";
+		Game g = Game.of(s);
+		if (g == null) return "it isn't set to a game Gatekeeper knows (its \"game\" in host.json)";
+		return g.blocker(s);
 	}
 
 	// ------------------------------------------------------------------ a server that outlived the Gatekeeper that started it
@@ -176,7 +128,8 @@ final class DirectHost implements ServerHost {
 						StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }
 				log("start " + name + ": " + String.join(" ", cmd) + "  (in " + d + ")");
 				String awaitedAs = serverKey() + "|server";
-				Thread t = new Thread(() -> watch(id, name, d, r, awaitedAs), "server-" + id);
+				Game game = Game.here();
+				Thread t = new Thread(() -> watch(id, name, d, r, awaitedAs, game), "server-" + id);
 				t.setDaemon(true);
 				t.start();
 				return new String[] {"ok", "Start requested: the server takes a minute or so to come up"};
@@ -184,7 +137,7 @@ final class DirectHost implements ServerHost {
 		}
 		if (have != null && have.process.isAlive()) {
 			have.stopping = true;
-			String[] r = type(have, "stop");
+			String[] r = type(have, stopCommand());
 			return r[0].equals("ok") ? new String[] {"ok", "Stop requested: the server saves the world and shuts down"} : r;
 		}
 		ProcessHandle h = adopted(d);
@@ -198,10 +151,10 @@ final class DirectHost implements ServerHost {
 	}
 
 	/** Reads what a server prints until it ends: when it has finished starting, and, at the end, how it went. */
-	private static void watch(String id, String name, Path d, Run r, String awaitedAs) {
+	private static void watch(String id, String name, Path d, Run r, String awaitedAs, Game game) {
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(r.process.getInputStream(), StandardCharsets.UTF_8))) {
 			for (String line; (line = in.readLine()) != null; ) {
-				if (line.contains("Done (") && line.contains("For help")) r.ready = true;
+				if (game != null && game.readyLine(line)) r.ready = true;
 				synchronized (r.last) { r.last.addLast(line); if (r.last.size() > 6) r.last.removeFirst(); }
 				synchronized (r.lines) { r.lines.addLast(line); r.printed++; if (r.lines.size() > 2000) r.lines.removeFirst(); }
 			}
@@ -250,7 +203,7 @@ final class DirectHost implements ServerHost {
 		if (r == null) return adopted(serverDir()) != null ? new String[] {"refused", serverName()
 				+ " was started before Gatekeeper last restarted, so Gatekeeper can't restart it: stop it from inside the game first"} : startServerFully("the owner");
 		r.restart = true; r.stopping = true;
-		String[] t = type(r, "stop");
+		String[] t = type(r, stopCommand());
 		return t[0].equals("ok") ? new String[] {"ok", "Restart requested: the server saves the world, shuts down and starts again"} : t;
 	}
 	/** Ends it at once, without saving: for a server that no longer answers. */
@@ -263,6 +216,9 @@ final class DirectHost implements ServerHost {
 		h.destroyForcibly();
 		return new String[] {"ok", "Ended at once. Anything it hadn't saved yet is lost."};
 	}
+
+	/** What stops the current server, typed into its console. */
+	static String stopCommand() { Game g = Game.here(); return g == null ? "stop" : g.stopCommand(); }
 
 	static String[] type(Run r, String line) {
 		try { r.console.write((line + "\n").getBytes(StandardCharsets.UTF_8)); r.console.flush(); return new String[] {"ok", "sent"}; }

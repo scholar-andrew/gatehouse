@@ -111,7 +111,7 @@ public final class HostHelper {
 					java.util.Arrays.asList(args).contains("--purge"))));
 			return;
 		}
-		if (mode.equals("--serve")) serve();
+		if (mode.equals("--serve")) { recordGames(); serve(); }
 		else panel();
 	}
 
@@ -136,7 +136,12 @@ public final class HostHelper {
 	static String say(String windows, String linux) { return WIN ? windows : linux; }
 	/** Does Gatekeeper run the Minecraft servers itself (DirectHost), with no MC Server Soft? Always on Linux and
 	 *  SteamOS, where there is no MCSS; on Windows when host.json "host" is "builtin". */
-	static boolean builtin() { return !WIN || setting("host", "mcss").equals("builtin"); }
+	static boolean builtin() {
+		if (!WIN) return true;
+		String h = setting("host", "");
+		// (R34: nothing is MCSS by default any more; a machine set up with MCSS before, which has its path, still uses it)
+		return h.isEmpty() ? setting("mcss_exe", "").isEmpty() : h.equals("builtin");
+	}
 	/** On Windows with MCSS: may Gatekeeper also run servers of its own beside MCSS's (host.json "native_servers")? */
 	static boolean nativeToo() { return !builtin() && setting("native_servers", "false").equals("true"); }
 	/** May Gatekeeper make and run servers itself on this machine at all? */
@@ -177,7 +182,9 @@ public final class HostHelper {
 	/** Whatever runs the current server: Gatekeeper itself, or the host program. */
 	static ServerHost sh() { return isNative() ? DIRECT : host; }
 	/** The folder Gatekeeper's own servers are in, one folder each (host.json "servers_dir"). */
-	static String serversDir() { return setting("servers_dir", WIN ? "C:\\Minecraft\\servers" : System.getProperty("user.home", "") + "/minecraft-servers"); }
+	static String serversDir() { return setting("servers_dir", WIN ? "C:\\Gatehouse\\servers" : System.getProperty("user.home", "") + "/game-servers"); }
+	/** Where servers went before Gatekeeper knew more than one game; a machine that has that folder keeps using it (recordGames). */
+	static String oldServersDir() { return WIN ? "C:\\Minecraft\\servers" : System.getProperty("user.home", "") + "/minecraft-servers"; }
 	/** What is said where MCSS would be, on a Gatekeeper that runs the servers itself. */
 	static String noMcss() { return WIN ? "Not used here: this Gatekeeper runs the servers itself, without MC Server Soft" : notSupported()
 			+ ": MC Server Soft is Windows only, so this Gatekeeper runs the servers itself"; }
@@ -320,13 +327,28 @@ public final class HostHelper {
 		} catch (Exception e) { return ""; }
 	}
 
-	/** The port in a server folder's server.properties as it is right now ("" when it can't be read). */
+	/** The port a server folder's own settings give it right now ("" when they can't be read, or its game isn't known). */
 	static String portNow(String serverDir) {
-		String port = "";
-		try { for (String l : read(Path.of(serverDir).resolve("server.properties")).split("\\R")) if (l.startsWith("server-port=")
-				&& l.substring(12).trim().matches("\\d+")) port = l.substring(12).trim(); }
-		catch (RuntimeException ignored) { Quiet.seen(ignored); }
-		return port;
+		Game g = gameAt(Path.of(serverDir));
+		return g == null ? "" : g.port(Path.of(serverDir));
+	}
+	/** The game of the server in that folder: the one host.json names for it, else the first game whose server the
+	 *  folder looks like (a folder found by Server setup, not looked after yet), else null. */
+	static Game gameAt(Path d) {
+		for (Object o : servers()) if (samePath(Json.str(Json.map(o).get("dir")), d)) return Game.of(Json.map(o));
+		for (Game g : Game.ALL.values()) if (g.looksLikeServer(d)) return g;
+		return null;
+	}
+	/** Servers set up before Gatekeeper knew more than one game were all Minecraft servers: each without a "game" is
+	 *  written down as one, once, so that from then on nothing is Minecraft by default (R34). */
+	static void recordGames() {
+		boolean changed = false;
+		if (WIN && setting("host", "").isEmpty() && !setting("mcss_exe", "").isEmpty()) { cfg.put("host", "mcss"); changed = true; }
+		if (setting("servers_dir", "").isEmpty() && Files.isDirectory(Path.of(oldServersDir()))) { cfg.put("servers_dir", oldServersDir()); changed = true; }
+		for (Object o : servers()) { Map<String, Object> s = Json.map(o); if (Json.str(s.get("game")).isEmpty()) { s.put("game", "minecraft"); changed = true; } }
+		if (!changed) return;
+		try { SafeFile.write(dir.resolve("host.json"), Json.write(cfg)); log("settings from before games written down: each server's game (Minecraft), and what runs the servers and where they are, as they were"); }
+		catch (IOException e) { log("couldn't write down the servers' games: " + e.getMessage()); }
 	}
 
 	/** Ports a Minecraft server could be given on this machine: the next ones up from Minecraft's usual 25565 that no
@@ -459,14 +481,16 @@ public final class HostHelper {
 				if (now.isEmpty()) now = recorded;
 				if (!now.equals(recorded)) moved.add(name + " (now " + now + ", Gatekeeper still has " + recorded + ")");
 				byPort.computeIfAbsent(now, k -> new ArrayList<>()).add(name);
-				String props = read(Path.of(Json.str(s.get("dir"))).resolve("server.properties"));
-				if (!props.isEmpty()) {
-					if (!props.replace(" ", "").contains("white-list=true")) {
+				Game g = Game.of(s);
+				Path sd = Path.of(Json.str(s.get("dir")));
+				Boolean inForce = g == null ? null : g.allowListInForce(sd);
+				if (inForce != null) {
+					if (!inForce) {
 						open.add(name);
-						int listed = Json.list(Json.parse(read(Path.of(Json.str(s.get("dir"))).resolve("whitelist.json")))).size();
+						int listed = g.allowList(sd).size();
 						openLists.add(name + " has " + (listed == 0 ? "nobody" : listed + (listed == 1 ? " player" : " players")) + " on its whitelist");
 					}
-					if (props.replace(" ", "").contains("online-mode=false")) offline.add(name);
+					if ("false".equals(g.settings(sd).getOrDefault("online-mode", "").trim())) offline.add(name);
 				}
 			}
 			add.accept(new String[] {"Servers are chosen", "ok", String.join(", ", names)});
@@ -583,16 +607,7 @@ public final class HostHelper {
 		return p;
 	}
 	/** Is the server's world open right now? A running server holds a lock on session.lock in its world folder. */
-	static boolean worldInUse() {
-		String level = "world";
-		for (String l : read(serverDir().resolve("server.properties")).split("\\R")) if (l.startsWith("level-name=")
-				&& !l.substring(11).isBlank()) level = l.substring(11).trim();
-		Path lock = serverDir().resolve(level).resolve("session.lock");
-		if (!Files.isRegularFile(lock)) return false;
-		try (java.nio.channels.FileChannel ch = java.nio.channels.FileChannel.open(lock,
-				java.nio.file.StandardOpenOption.WRITE); java.nio.channels.FileLock fl = ch.tryLock()) { return fl == null; }
-		catch (IOException | java.nio.channels.OverlappingFileLockException ex) { return true; }
-	}
+	static boolean worldInUse() { Game g = Game.here(); return g != null && g.worldInUse(serverDir()); }
 	/** What MCSS itself is doing: "running", "starting" (opened, not answering Gatekeeper yet), "closing" or "off". */
 	static String mcssPhase() {
 		boolean up = host.running();
@@ -964,9 +979,8 @@ public final class HostHelper {
 		} catch (Exception e) { return new String[] {"failed", "Couldn't update: " + e.getMessage() + ". Nothing was changed."}; }
 	}
 
-	/** Turns the whitelist on for every chosen server that has it off. A server that's running is told in its console
-	 *  ("whitelist on": it takes effect at once and the server saves the setting itself); one that's off has
-	 *  white-list=true written into its server.properties. */
+	/** Turns the whitelist on for every chosen server that has it off, as each server's game does it (Minecraft: a
+	 *  running server is told in its console, one that's off gets it in its server.properties). */
 	static String[] whitelistOn() {
 		List<String> done = new ArrayList<>(), not = new ArrayList<>();
 		String keep = SERVER.get();
@@ -974,25 +988,10 @@ public final class HostHelper {
 			for (Object o : servers()) {
 				Map<String, Object> sv = Json.map(o);
 				SERVER.set(Json.str(sv.get("id")));
-				Path props = serverDir().resolve("server.properties");
-				String t = read(props), name = serverName();
-				if (t.isEmpty() || t.replace(" ", "").contains("white-list=true")) continue;
-				if (minecraftRunning()) {
-					String[] r = sh().command("whitelist on");
-					if (r[0].equals("ok")) {
-						for (int i = 0; i < 12 && !read(props).replace(" ",
-								"").contains("white-list=true"); i++) try { Thread.sleep(300); } catch (InterruptedException ignored) { Quiet.seen(ignored); }
-						done.add(name + " (told in its console; in effect now)");
-						continue;
-					}
-					not.add(name + " is running and couldn't be told: " + r[1]);
-					continue;
-				}
-				String nl = t.contains("\r\n") ? "\r\n" : "\n";
-				String out = t.matches("(?s).*(^|\\R)\\s*white-list\\s*=.*") ? t.replaceAll("(?m)^\\s*white-list\\s*=.*$",
-						"white-list=true") : t + (t.endsWith("\n") ? "" : nl) + "white-list=true" + nl;
-				try { Files.writeString(props, out, StandardCharsets.UTF_8); done.add(name + " (in its settings file; in effect when it next starts)"); }
-				catch (IOException e) { not.add(name + ": couldn't write its server.properties (" + e.getMessage() + ")"); }
+				Game g = Game.of(sv);
+				String[] r = g == null ? null : g.allowListOn();
+				if (r == null) continue;
+				(r[0].equals("done") ? done : not).add(r[1]);
 			}
 		} finally { SERVER.set(keep); }
 		if (done.isEmpty() && not.isEmpty()) return new String[] {"ok", "The whitelist is already on for every server."};
@@ -1222,7 +1221,9 @@ public final class HostHelper {
 					id = base.isEmpty() ? "server" : base;
 			for (int n = 2; used.contains(id); n++) id = base + "-" + n;
 			used.add(id);
-			keep.add(m("id", id, "name", Json.str(s.get("name")), "dir", Json.str(s.get("dir")), "minecraft", Json.str(s.get("minecraft")),
+			// (its game: an MCSS server is a Minecraft server; one Gatekeeper runs itself is whatever its folder holds)
+			Game found = builtin() || ServerTools.yes(s.get("native")) ? gameAt(Path.of(Json.str(s.get("dir")))) : Game.named("minecraft");
+			keep.add(m("id", id, "name", Json.str(s.get("name")), "game", found == null ? "" : found.id(), "dir", Json.str(s.get("dir")), "minecraft", Json.str(s.get("minecraft")),
 					"mcss_server", Json.str(s.get("mcss_server")), "native", builtin() || ServerTools.yes(s.get("native"))));
 			added++;
 		}
@@ -1277,24 +1278,10 @@ public final class HostHelper {
 		return new String[] {"ok", "MCSS wasn't running: it's starting now, and the server starts as soon as MCSS is ready (a minute or two in all)"};
 	}
 
-	/** What a server's folder says about it: {"vanilla" or "modded", its Minecraft version or ""}. Modded: it has mods
-	 *  (a mods folder with jars in it) or a mod loader's files (Fabric, Forge, NeoForge, Quilt). The version is the one
-	 *  the server last said it started as (its own log), else the one its versions folder is named for. */
+	/** What a server's folder says about it: {"vanilla" or "modded", its version or ""}, as its game reads it. */
 	static String[] serverFacts(Path dir) {
-		boolean modded = false;
-		String version = "";
-		try {
-			Path mods = dir.resolve("mods");
-			if (Files.isDirectory(mods)) try (java.util.stream.Stream<Path> s = Files.list(mods)) { modded = s.anyMatch(p -> p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".jar")); }
-			if (!modded && Files.isDirectory(dir)) try (java.util.stream.Stream<Path> s = Files.list(dir)) { modded = s.anyMatch(p -> p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).matches("(fabric|forge|neoforge|quilt).*\\.(jar|properties)")); }
-			if (!modded) modded = Files.isDirectory(dir.resolve("libraries/net/fabricmc"))
-					|| Files.isDirectory(dir.resolve("libraries/net/minecraftforge")) || Files.isDirectory(dir.resolve("libraries/net/neoforged"));
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("Starting minecraft server version ([\\w.\\-]+)").matcher(read(dir.resolve("logs").resolve("latest.log")));
-			while (m.find()) version = m.group(1);
-			if (version.isEmpty()
-					&& Files.isDirectory(dir.resolve("versions"))) try (java.util.stream.Stream<Path> s = Files.list(dir.resolve("versions"))) { version = s.filter(Files::isDirectory).map(p -> p.getFileName().toString()).sorted().reduce((a, b) -> b).orElse(""); }
-		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
-		return new String[] {modded ? "modded" : "vanilla", version};
+		Game g = gameAt(dir);
+		return g == null ? new String[] {"vanilla", ""} : g.facts(dir);
 	}
 
 	static void reply(HttpExchange x, int code, Map<String, Object> body) throws IOException {
@@ -1455,7 +1442,8 @@ public final class HostHelper {
 						if (!Invites.mayHave(d, s)) return;   // (private or shareable, and not for this launcher)
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
-						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "address",
+						Game sg = Game.of(s);
+						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "game", sg == null ? "" : sg.id(), "address",
 								(x.getLocalAddress().getAddress().isLoopbackAddress() || setting("bind", "").isEmpty() ? "127.0.0.1"
 								: setting("bind", "")) + ":" + (port.isEmpty() ? "25565" : port),
 								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile",
@@ -1744,7 +1732,9 @@ public final class HostHelper {
 	}
 	private static void scanPlayersHere() {
 		try {
-			Path lg = serverDir().resolve("logs").resolve("latest.log");
+			Game g = Game.here();
+			if (g == null) return;
+			Path lg = g.log(serverDir());
 			if (!Files.isRegularFile(lg)) return;
 			long stamp = Files.getLastModifiedTime(lg).toMillis() * 31 + Files.size(lg);
 			if (Long.valueOf(stamp).equals(logSeenBy.get(serverKey()))) return;
@@ -1752,9 +1742,11 @@ public final class HostHelper {
 			String day = java.time.LocalDate.ofInstant(Files.getLastModifiedTime(lg).toInstant(), java.time.ZoneId.systemDefault()).toString();
 			Map<String, Object> devs = devices(), defaults = players();
 			boolean changed = false;
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("(?m)^\\[([0-9:]+)\\].*?: (\\w{1,16})\\[/([0-9a-fA-F.:]+):\\d+\\] logged in").matcher(read(lg));
-			while (m.find()) {
-				String when = day + " " + m.group(1), name = m.group(2), ip = m.group(3);
+			String text = read(lg);
+			for (String line : text.split("\\R")) {
+				String[] j = g.joined(line);
+				if (j == null || j[2].isEmpty()) continue;
+				String when = day + " " + j[2], name = j[0], ip = j[1];
 				for (Object v : devs.values()) {
 					Map<String, Object> d = Json.map(v);
 					if (!ip.equals(Json.str(d.get("ip")))) continue;
@@ -1772,13 +1764,12 @@ public final class HostHelper {
 			}
 			if (changed) saveDevices(devs);
 			Map<String, String> on = new LinkedHashMap<>();
-			java.util.regex.Pattern in = java.util.regex.Pattern.compile(": (\\w{1,16})\\[/([0-9a-fA-F.:]+):\\d+\\] logged in"),
-					gone = java.util.regex.Pattern.compile(": (\\w{1,16}) (left the game|lost connection)");
-			for (String line : read(lg).split("\\R")) {
-				java.util.regex.Matcher a = in.matcher(line), b = gone.matcher(line);
-				if (a.find()) on.put(a.group(1), a.group(2));
-				else if (b.find()) on.remove(b.group(1));
-				else if (line.contains("Stopping server") || line.contains("Stopping the server")) on.clear();
+			for (String line : text.split("\\R")) {
+				String[] j = g.joined(line);
+				String gone = j == null ? g.left(line) : null;
+				if (j != null) on.put(j[0], j[1]);
+				else if (gone != null) on.remove(gone);
+				else if (g.stoppingLine(line)) on.clear();
 			}
 			onlineBy.put(serverKey(), on);
 		} catch (Exception e) {
@@ -2104,42 +2095,18 @@ public final class HostHelper {
 
 	// ------------------------------------------------------------------ the server's whitelist
 
-	/** The current server's whitelist, as its own file has it (whitelist.json in its folder: uuid and name each). */
-	static List<Object> whitelist() { return Json.list(Json.parse(read(serverDir().resolve("whitelist.json")))); }
+	/** The current server's list of players who may join (Minecraft: its whitelist.json), each {name, ...}; empty when
+	 *  its game isn't known. */
+	static List<Object> whitelist() { Game g = Game.here(); return g == null ? new ArrayList<>() : g.allowList(serverDir()); }
 	static boolean whitelisted(String name) {
 		for (Object o : whitelist()) if (name.equalsIgnoreCase(Json.str(Json.map(o).get("name")))) return true;
 		return false;
 	}
-
-	/** Puts a player on the current server's whitelist, or takes them off. While the server runs, the server does it
-	 *  itself (the console commands "whitelist add" / "whitelist remove": it finds the account and saves its file).
-	 *  While it's off, the file is changed here; adding then needs the player's id, which the server's own record of
-	 *  accounts it has seen (usercache.json) has for anyone who has joined or tried to. */
+	/** Puts a player on the current server's list, or takes them off, as its game does it. */
 	static String[] setWhitelisted(String name, boolean on) {
-		if (!name.matches("\\w{1,16}")) return new String[] {"refused", "That isn't a Minecraft name"};
-		if (whitelisted(name) == on) return new String[] {"ok", name + (on ? " is already on the whitelist" : " isn't on the whitelist")};
-		try {
-			if (minecraftRunning()) {
-				String[] r = sh().command("whitelist " + (on ? "add " : "remove ") + name);
-				if (!r[0].equals("ok")) return r;
-				for (int i = 0; i < 12 && whitelisted(name) != on; i++) Thread.sleep(300);
-				return whitelisted(name) == on ? new String[] {"ok", (on ? "Added " + name + " to" : "Removed " + name + " from") + " the whitelist of " + serverName()}
-						: new String[] {"failed", "The server was asked, but its whitelist hasn't changed" + (on ? " (it may not know an account called " + name + ")" : "")};
-			}
-			List<Object> wl = whitelist();
-			if (on) {
-				String uuid = "", proper = name;
-				for (Object o : Json.list(Json.parse(read(serverDir().resolve("usercache.json"))))) {
-					if (name.equalsIgnoreCase(Json.str(Json.map(o).get("name")))) { uuid = Json.str(Json.map(o).get("uuid")); proper = Json.str(Json.map(o).get("name")); }
-				}
-				if (uuid.isEmpty()) return new String[] {"refused", "The server is off, and it hasn't seen " + name
-						+ " before, so their account id isn't known here: start the server and tick them again"};
-				wl.add(m("uuid", uuid, "name", proper));
-			} else wl.removeIf(o -> name.equalsIgnoreCase(Json.str(Json.map(o).get("name"))));
-			Files.writeString(serverDir().resolve("whitelist.json"), Json.write(wl), StandardCharsets.UTF_8);
-			return new String[] {"ok", (on ? "Added " + name + " to" : "Removed " + name + " from") + " the whitelist of " + serverName()
-					+ " (the server is off: it reads it when it starts)"};
-		} catch (Exception e) { return new String[] {"failed", "Couldn't change the whitelist: " + e.getMessage()}; }
+		Game g = Game.here();
+		if (g == null) return new String[] {"refused", serverName() + " isn't set to a game Gatekeeper knows, so it has no list of players to change"};
+		return g.setAllowed(name, on);
 	}
 
 	static String header(HttpExchange x, String name) {
@@ -2200,7 +2167,8 @@ public final class HostHelper {
 
 	/** The end of the server's own log file (logs/latest.log), oldest first: how a shutdown went is read from it. */
 	static List<Object> serverLog(int lines) {
-		String[] all = read(serverDir().resolve("logs").resolve("latest.log")).split("\\R");
+		Game g = Game.here();
+		String[] all = g == null ? new String[0] : read(g.log(serverDir())).split("\\R");
 		List<Object> out = new ArrayList<>();
 		for (int i = Math.max(0, all.length - lines); i < all.length; i++) if (!all[i].isBlank()) out.add(all[i]);
 		return out;
@@ -2472,9 +2440,13 @@ public final class HostHelper {
 			c.getResponseCode(); api = true;   // (any answer at all: it is on)
 		} catch (IOException | RuntimeException off) { api = false; }
 		boolean ts = st.apply("Tailscale is installed", "todo").equals("ok"), tsOn = st.apply("Tailscale is connected", "wait").equals("ok");
+		// (R34: Minecraft's own steps only once there is a Minecraft server; MCSS's only where MCSS runs them)
+		boolean anyMc = false;
+		for (Object o : servers()) { Game g = Game.of(Json.map(o)); if (g != null && g.id().equals("minecraft")) anyMc = true; }
+		if (!builtin()) anyMc = true;   // (MCSS runs Minecraft servers)
 
 		add.apply(new Object[] {"welcome", "Welcome", "info",
-				"This guide takes a machine from nothing to a Minecraft server your friends can join with the Gatehouse launcher.\n\nThree things are involved. Tailscale is a private network between this machine and the devices you let in, so nothing is opened to the internet." + (builtin() ? " Gatekeeper, this program, runs the Minecraft servers itself on this machine, and stands between them and the launchers: " : " MC Server Soft (MCSS) runs the Minecraft servers. Gatekeeper, this program, sits between them: ") + "it lets the launchers you allow see, start and stop your servers.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""});
+				"This guide takes a machine from nothing to a game server your friends can join with the Gatehouse launcher.\n\nTailscale is a private network between this machine and the devices you let in, so nothing is opened to the internet." + (builtin() ? " Gatekeeper, this program, runs the servers itself on this machine, and stands between them and the launchers: " : " MC Server Soft (MCSS) runs the Minecraft servers. Gatekeeper, this program, sits between them: ") + "it lets the launchers you allow see, start and stop your servers.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""});
 		add.apply(new Object[] {"tailscale", "Install Tailscale", ts ? "ok" : "todo",
 				"Tailscale makes the private network. Download it from its own site, install it, and sign in with an account (Google, Microsoft, GitHub and others work; it's free for personal use)." + (STEAMOS ? "\n\nTailscale doesn't officially support SteamOS: it can be installed (Desktop Mode, Konsole), but a SteamOS update can remove it, and then this step shows as not done again." : "") + "\n\nThis step is done when Tailscale is installed on this machine.", dt.apply("Tailscale is installed"),
 				"Open Tailscale's download page", say("open:https://tailscale.com/download", "open:https://tailscale.com/download/linux")});
@@ -2486,30 +2458,22 @@ public final class HostHelper {
 				: st.apply("This machine stays signed in to Tailscale", "todo"),
 				"By default Tailscale signs a machine out after some months, and players would lose the server until you signed in again. For a server, turn that off: in Tailscale's admin page, under Machines, open this machine's \u2026 menu and choose Disable key expiry.\n\n" + say("In Tailscale's own menu by the clock, also turn on Run unattended (under Preferences), so players can reach the machine before anyone has signed in to Windows.", "Tailscale's service should also start with the machine, so players can reach it after a restart. Host setup shows whether it does; in a terminal: sudo systemctl enable --now tailscaled"), dt.apply("This machine stays signed in to Tailscale"),
 				"Open Tailscale's admin page", "open:https://login.tailscale.com/admin/machines"});
-		if (builtin()) add.apply(new Object[] {"mcss", "Install MC Server Soft", "na",
-				"MC Server Soft is a Windows program, and Gatekeeper is set to do without it: on this machine Gatekeeper runs the Minecraft servers itself. There is nothing to install for this step.", noMcssShort().substring(0, 1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
-		else add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo",
+		if (!builtin()) add.apply(new Object[] {"mcss", "Install MC Server Soft", mcss ? "ok" : "todo",
 				"MC Server Soft (MCSS) is the program that runs the Minecraft servers. Download it from its site and unpack it somewhere permanent, for example " + say("C:\\Minecraft\\MCSS", "an MCSS folder in your home folder (this machine needs MCSS's Linux build)") + ". It has no installer: the folder is the program.\n\nIf Gatekeeper doesn't find it by itself, use Server setup and Browse to " + mcssFile() + ".\n\nThis step is done when Gatekeeper knows where " + mcssFile() + " is.", mcss ? exe : "",
 				"Open MCSS's site", "open:https://www.mcserversoft.com/", "Server setup\u2026", "setup"});
 		if (builtin()) add.apply(new Object[] {"mcss_server", "Make a server", inMcss > 0 ? "ok" : "todo",
-				"Press New server: give it a name, pick its kind (Vanilla is the plain game; Paper takes plugins; Fabric and Forge take mods) and the Minecraft version, and Gatekeeper fetches the server's program from its makers, checks it and sets it up in a folder of its own in " + serversDir() + ". It asks you to agree to Minecraft's EULA, which is yours to do.\n\nA server you already have: put its folder in there instead (or point Server setup at where it is).\n\nThis step is done when there is at least one server folder.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server folder" : " server folders") + " in " + serversDir() : mcss ? "No server folders in " + serversDir() + " yet" : "There's no folder at " + serversDir() + " yet",
+				"Press New server: give it a name and choose its game. For Minecraft, pick its kind (Vanilla is the plain game; Paper takes plugins; Fabric and Forge take mods) and version, and Gatekeeper fetches the server's program from its makers, checks it and sets it up in a folder of its own in " + serversDir() + ". It asks you to agree to the game's terms (Minecraft's EULA), which is yours to do.\n\nA server you already have: put its folder in there instead (or point Server setup at where it is).\n\nThis step is done when there is at least one server folder.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server folder" : " server folders") + " in " + serversDir() : mcss ? "No server folders in " + serversDir() + " yet" : "There's no folder at " + serversDir() + " yet",
 				"New server\u2026", "newserver", "Server setup\u2026", "setup"});
 		else add.apply(new Object[] {"mcss_server", "Make a server in MCSS", !mcss ? "wait" : inMcss > 0 ? "ok" : "todo",
 				"In MCSS: Add Server, give it a name, pick the server type and Minecraft version (Vanilla is the plain game; Fabric or Forge are for mods), and create it. Start it once in MCSS and accept Minecraft's EULA when asked, so its files are made, then stop it again.\n\nThis step is done when MCSS has at least one server.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server" : " servers") + " in MCSS" : ""});
-		if (builtin()) add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", "na",
-				"Gatekeeper runs the servers itself on this machine, so there is no MCSS web API to turn on.", noMcssShort().substring(0,
-				1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
-		else add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo",
+		if (!builtin()) add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo",
 				"Gatekeeper talks to MCSS through MCSS's own web API, on this machine only. In MCSS: Options, then Web API (or Web Panel), switch it on, and leave the port at 25560. MCSS has to be running for this.\n\nThis step is done when MCSS answers on that port.", api ? "MCSS answers" : mcss ? "No answer on " + setting("mcss_panel", "http://127.0.0.1:25560").replaceFirst("^https?://", "") + " (is MCSS running?)" : ""});
 		String addr = st.apply("Gatekeeper listens on the Tailscale address", "todo"), chosen = st.apply("Servers are chosen", "todo");
 		add.apply(new Object[] {"setup", "Choose the servers", inMcss == 0 || !tsOn ? "wait" : addr.equals("ok") && chosen.equals("ok")
-				? "ok" : "todo", "Server setup tells Gatekeeper where MCSS is, which address to listen on (this machine's Tailscale address, filled in for you), and which of MCSS's servers players should see: tick them and Save.\n\nThis step is done when Gatekeeper listens on the Tailscale address and at least one server is chosen.", dt.apply("Servers are chosen").isEmpty() ? dt.apply("Gatekeeper listens on the Tailscale address") : dt.apply("Servers are chosen"),
+				? "ok" : "todo", "Server setup tells Gatekeeper " + (builtin() ? "where the servers' folders are" : "where MCSS is") + ", which address to listen on (this machine's Tailscale address, filled in for you), and which " + (builtin() ? "servers" : "of MCSS's servers") + " players should see: tick them and Save.\n\nThis step is done when Gatekeeper listens on the Tailscale address and at least one server is chosen.", dt.apply("Servers are chosen").isEmpty() ? dt.apply("Gatekeeper listens on the Tailscale address") : dt.apply("Servers are chosen"),
 				"Server setup\u2026", "setup"});
 		if (builtin()) {
-			add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", "na",
-					"Gatekeeper runs the servers itself on this machine, so there is nothing to sign in to.", noMcssShort().substring(0,
-					1).toUpperCase(java.util.Locale.ROOT) + noMcssShort().substring(1)});
-			add.apply(new Object[] {"eula", "Accept Minecraft's EULA", !chosen.equals("ok") ? "wait"
+			if (anyMc) add.apply(new Object[] {"eula", "Accept Minecraft's EULA", !chosen.equals("ok") ? "wait"
 					: st.apply("Each server can be started", "todo"),
 					"Minecraft's server won't run until you have accepted Minecraft's End User Licence Agreement, and that is yours to do: Gatekeeper never accepts it for you.\n\nA server made with New server has it already, because you ticked the box there. For one you brought yourself: read the EULA, then tick the box under Manage, Settings (or put the line eula=true in eula.txt in the server's folder).\n\nThis step is done when every chosen server has its program and its EULA accepted.", dt.apply("Each server can be started"),
 					"Open Minecraft's EULA", "open:https://aka.ms/MinecraftEULA"});
@@ -2526,7 +2490,7 @@ public final class HostHelper {
 					+ "Two servers on one machine can't both use the same port at once. This step is done when every chosen server has a port of its own and Gatekeeper knows it.",
 					!ports.equals("ok") ? dt.apply("Each server has its own port") : dt.apply("Gatekeeper has each server's current port"), "Server setup\u2026", "setup"});
 		}
-		add.apply(new Object[] {"whitelist", "Turn the whitelist on", !chosen.equals("ok") ? "wait"
+		if (anyMc) add.apply(new Object[] {"whitelist", "Turn the whitelist on", !chosen.equals("ok") ? "wait"
 				: st.apply("Only whitelisted players can join", "todo"),
 				"With the whitelist on, only players you have allowed can join a server, even if someone else gets onto your Tailscale network. Gatekeeper adds a player to it when you allow them in Access Manager.\n\nHost setup has a button that turns it on for you. This step is done when every chosen server has its whitelist on.", dt.apply("Only whitelisted players can join"),
 				"Go to Host setup", "hostsetup"});

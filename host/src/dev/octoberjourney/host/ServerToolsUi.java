@@ -96,7 +96,12 @@ final class ServerToolsUi {
 		if (!Json.str(start.get("host")).equals("builtin")) { row(form, 0, null, new JLabel(wrap(Json.str(start.get("message")).isEmpty()
 				? "Couldn't ask Gatekeeper: is it running?" : Json.str(start.get("message"))
 				+ ". (Gatekeeper makes servers itself only where it runs them itself: on Linux and SteamOS, or on Windows without MCSS.)", 420))); return form; }
-		List<Object> kinds = Json.list(start.get("kinds"));
+		List<Object> kinds = Json.list(start.get("kinds")), games = Json.list(start.get("games"));
+		// (R34: the game is chosen first; nothing below it is shown until it is, so nothing is Minecraft by default)
+		JComboBox<String> gameF = new JComboBox<>();
+		gameF.addItem("Choose a game");
+		for (Object g : games) gameF.addItem(Json.str(Json.map(g).get("name")));
+		java.util.function.Supplier<String> game = () -> gameF.getSelectedIndex() <= 0 ? "" : Json.str(Json.map(games.get(gameF.getSelectedIndex() - 1)).get("id"));
 		JTextField nameF = new JTextField(24), fileF = new JTextField(24), memF = new JTextField("4G", 6), portF = new JTextField(Json.str(start.get("port")), 6);
 		JComboBox<String> kindF = new JComboBox<>(), verF = new JComboBox<>();
 		for (Object k : kinds) kindF.addItem(Json.str(Json.map(k).get("name")));
@@ -134,7 +139,7 @@ final class ServerToolsUi {
 		eulaB.addActionListener(e -> dev.gatehouse.look.Links.openOrShow(owner, "https://aka.ms/MinecraftEULA"));
 		Timer[] poll = {null};
 		make.addActionListener(e -> {
-			Map<String, Object> r = ask("POST", "/admin/tools/new", m("name", nameF.getText(), "kind", kind.get(), "version",
+			Map<String, Object> r = ask("POST", "/admin/tools/new", m("name", nameF.getText(), "game", game.get(), "kind", kind.get(), "version",
 					verF.isEnabled() ? Json.str(verF.getSelectedItem()) : "", "file", fileF.isEnabled() ? fileF.getText() : "", "memory",
 					memF.getText(), "port", portF.getText(), "java", javaOf(javaF), "eula", eula.isSelected()));
 			if (!Json.str(r.get("result")).equals("ok")) { say(said, r); return; }
@@ -154,9 +159,11 @@ final class ServerToolsUi {
 			poll[0].start();
 		});
 		int y = 0;
-		row(form, y++, null, new JLabel(wrap("Makes a Minecraft server in a folder of its own in " + Json.str(start.get("folder"))
-				+ ". Gatekeeper fetches the server's program from where its makers publish it, checks it, and sets it up. Nothing is fetched until you press Make the server.", 520)));
+		row(form, y++, null, new JLabel(wrap("Makes a server in a folder of its own in " + Json.str(start.get("folder"))
+				+ ". Choose its game first. Gatekeeper fetches the server's program from where its makers publish it, checks it, and sets it up. Nothing is fetched until you press Make the server.", 520)));
 		row(form, y++, "Name", nameF);
+		row(form, y++, "Game", gameF);
+		int gameRowsFrom = form.getComponentCount();
 		row(form, y++, "Kind", kindF);
 		row(form, y++, "Minecraft version", verF);
 		row(form, y++, null, verNote);
@@ -174,6 +181,15 @@ final class ServerToolsUi {
 		row(form, y++, null, line(eula, eulaB));
 		row(form, y++, null,
 				note(wrap("A Minecraft server can't be run without agreeing to Mojang's EULA. That is yours to do: Gatekeeper records it in the server's eula.txt only when this box is ticked.", 520)));
+		int gameRowsTo = form.getComponentCount();
+		Runnable gameChanged = () -> {
+			boolean mc = game.get().equals("minecraft");
+			for (int i = gameRowsFrom; i < gameRowsTo; i++) form.getComponent(i).setVisible(mc);
+			make.setEnabled(mc);
+			form.revalidate(); form.repaint();
+		};
+		gameF.addActionListener(e -> gameChanged.run());
+		gameChanged.run();
 		row(form, y++, null, line(make));
 		row(form, y++, null, said);
 		kindChanged.run();

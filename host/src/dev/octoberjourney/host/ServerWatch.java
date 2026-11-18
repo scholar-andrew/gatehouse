@@ -129,7 +129,9 @@ final class ServerWatch {
 
 	/** "Can't keep up!" lines the server has written to its log since the last look. */
 	private static int lagSince(String id, Map<String, Object> s) {
-		Path lg = Path.of(Json.str(s.get("dir"))).resolve("logs").resolve("latest.log");
+		Game g = Game.of(s);
+		if (g == null) return 0;
+		Path lg = g.log(Path.of(Json.str(s.get("dir"))));
 		try {
 			long size = Files.size(lg), from = logRead.getOrDefault(id, -1L);
 			logRead.put(id, size);
@@ -140,9 +142,7 @@ final class ServerWatch {
 				byte[] b = new byte[(int) Math.min(size - from, 8_000_000)];
 				f.readFully(b);
 				String t = new String(b, java.nio.charset.StandardCharsets.UTF_8);
-				int n = 0, i = 0;
-				while ((i = t.indexOf("Can't keep up!", i)) >= 0) { n++; i++; }
-				return n;
+				return g.lagIn(t);
 			}
 		} catch (Exception e) { return 0; }
 	}
