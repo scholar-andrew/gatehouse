@@ -1,3 +1,4 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Gatehouse Workshop</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <style>
@@ -186,11 +187,91 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
 .redit > div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .redit label { font-size: 13px; color: var(--acc); font-weight: 600; }
 @media (max-width: 620px) { .redit { grid-template-columns: minmax(0, 1fr); } .rtop > .side { margin-left: 0; } }
+/* ---- (2026-11-18) Today, fewer version tabs, folded threads, search, and a phone layout */
+.older { background: var(--deep); color: var(--dim); border: 1px solid var(--line); border-radius: 15px; font: 600 13px var(--ui); padding: 5px 10px; width: auto; margin-left: 4px; }
+.older.on { color: #fff; border-color: var(--acc); background: var(--raised); }
+.search { flex: 1 1 200px; max-width: 320px; }
+.search input { padding: 7px 12px; border-radius: 15px; font-size: 14px; }
+/* R45: what a search looks in, beside each search box */
+.search { display: flex; gap: 6px; flex-wrap: nowrap; max-width: 460px; flex-basis: 300px; }
+.search select.scope { width: auto; flex: none; max-width: 48%; padding: 6px 10px; border-radius: 15px; font: 600 13.5px var(--ui); color: var(--text); }
+.search input { flex: 1; min-width: 0; }
+.todaysearch { margin: 0 0 4px; }
+.sres { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; padding: 4px 0 140px; }
+.sres .tline { flex-wrap: wrap; row-gap: 2px; }
+.sres .tline .grow { white-space: normal; flex-basis: 160px; }
+.sres .tline .st { flex: none; font-size: 12px; color: var(--dim); margin-left: auto; }
+.sres .more { color: var(--dim); font-size: 13px; margin: 0; }
+.more-posts { align-self: flex-start; background: none; border: 1px dashed var(--line); color: var(--acc); border-radius: 8px; padding: 6px 12px; font: 600 13px var(--ui); cursor: pointer; }
+.post .txt.clamp { display: -webkit-box; -webkit-line-clamp: 8; -webkit-box-orient: vertical; overflow: hidden; }
+.post .readmore { background: none; border: 0; color: var(--acc); font: 600 12.5px var(--ui); padding: 4px 0 0; cursor: pointer; }
+.today { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; padding: 14px 0 140px; }
+.tcard { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tcard.wide { grid-column: 1 / -1; }
+.tcard h3 { margin: 0; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); display: flex; align-items: center; gap: 8px; }
+.tcard h3 .n { font-size: 12px; letter-spacing: 0; border-radius: 9px; padding: 0 7px; background: var(--off); color: var(--text); }
+.tcard.ask { border-color: #F5BE1E; background: linear-gradient(180deg, rgba(245, 190, 30, .10), transparent), var(--card); }
+.tcard.ask h3 { color: #FFD27A; }
+.tcard .q { font-size: 17px; font-weight: 700; margin: 0; overflow-wrap: anywhere; }
+.tcard .d { color: #C9D6E2; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+.tline { display: flex; align-items: center; gap: 10px; width: 100%; background: var(--deep); border: 1px solid var(--line); color: var(--text); border-radius: 10px; padding: 10px 12px; font: 600 14px var(--ui); text-align: left; cursor: pointer; min-height: 44px; }
+.tline:hover { border-color: var(--acc); }
+.tline .ref { cursor: pointer; }
+.tline .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tline .cnt { font-variant-numeric: tabular-nums; font-weight: 800; border-radius: 9px; padding: 1px 9px; background: var(--warn); color: var(--bg0); }
+.tline .cnt.zero { background: var(--off); color: var(--text); }
+.tline .cnt.bad { background: var(--bad); }
+.tcard .none { color: var(--dim); font-size: 14px; margin: 0; }
+.tpub { grid-column: 1 / -1; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 2px 2px 0; font-size: 14px; }
+.tpub .dim { color: var(--dim); }
+.tpub b { font-size: 15px; }
+.ntrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.nttopic { flex: 1 1 200px; min-width: 0; font: 600 13px ui-monospace, Consolas, monospace; background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; word-break: break-all; }
+.ntrow a.btn { text-decoration: none; display: inline-flex; align-items: center; }
+.ntsteps { margin: 0; padding-left: 20px; color: #C9D6E2; font-size: 14px; display: flex; flex-direction: column; gap: 3px; }
+.bottomnav { display: none; }
+@media (max-width: 620px) {
+  .bar { gap: 8px 12px; padding-block: 8px; }
+  .bar .modes { display: none; }
+  .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: 100%; order: 3; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; padding: 8px 10px 9px; }
+  .waiting { max-width: 62vw; }
+  .chip { padding: 7px 13px; font-size: 13.5px; }
+  .seg { min-height: 46px; }
+  .btn { min-height: 42px; }
+  .filters { gap: 8px 12px; }
+  .search { max-width: none; flex-basis: 100%; }
+  .post.owner, .compose { margin-left: 12px; }
+  footer { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); padding-bottom: 0; }
+  .strip { padding-block: 6px; font-size: 12.5px; flex-wrap: nowrap; overflow-x: auto; white-space: nowrap; scrollbar-width: none; gap: 14px; }
+  .strip::-webkit-scrollbar { display: none; }
+  .strip .say { margin-left: auto; width: auto; }
+  .filters { flex-direction: column; align-items: stretch; gap: 8px; padding-top: 10px; }
+  .filters > .group { min-width: 0; max-width: 100%; }
+  .filters .group:not(.search):not(.goto) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .strip, .tabs, .bar > * { min-width: 0; }
+  main.wrap, header .wrap, footer .wrap { max-width: 100vw; overflow-x: clip; }
+  .filters .group::-webkit-scrollbar { display: none; }
+  .filters .group > span { flex: none; }
+  .filters .chip { flex: none; }
+  .goto > span:first-child { display: none; }
+  .headrow { margin: 10px 0 8px; }
+  #today-sub, #reqMain .headrow .sub { display: none; }
+  h2 { font-size: 20px; }
+  .list, .today { padding-bottom: 190px; }
+  .bottomnav { display: flex; position: fixed; inset: auto 0 0; z-index: 6; background: rgba(13, 20, 29, .97); border-top: 1px solid var(--line); padding: 4px 6px env(safe-area-inset-bottom, 0px); }
+  .bottomnav button { flex: 1; background: none; border: 0; color: var(--dim); font: 800 11px var(--ui); letter-spacing: .08em; text-transform: uppercase; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 7px 2px; min-height: 56px; position: relative; cursor: pointer; }
+  .bottomnav button svg { width: 24px; height: 24px; fill: currentColor; }
+  .bottomnav button[aria-selected="true"] { color: var(--acc); }
+  .bottomnav .badge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 17px; height: 17px; border-radius: 9px; background: #E5484D; color: #fff; font-size: 10.5px; line-height: 17px; padding: 0 4px; letter-spacing: 0; }
+}
 </style>
 
 <header><div class="wrap bar">
   <div class="brand">GATEHOUSE<small>WORKSHOP</small></div>
   <div class="modes" role="tablist" aria-label="Parts of the workshop">
+    <button class="mode" type="button" role="tab" id="m-today">Today</button>
     <button class="mode" type="button" role="tab" id="m-tests">Tests</button>
     <button class="mode" type="button" role="tab" id="m-req">Requests<span class="n" id="m-req-n" hidden></span><span class="unread" id="m-req-new" hidden title="A reply from Claude you haven't read"></span></button>
     <button class="chime" type="button" id="chime" aria-pressed="true" title="Chime when Claude replies">&#128276;</button>
@@ -200,10 +281,23 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   <div class="waitbox" id="waitbox" hidden><b>Claude is waiting for you</b><p id="waitbox-q"></p><p class="meta" id="waitbox-at"></p><p class="meta">Answer in your Claude Code chat. This clears when Claude picks the work up again.</p></div>
 </div></header>
 
+<main class="wrap" id="todayMain" hidden>
+  <div class="headrow"><div><h2>Today</h2><p class="sub" id="today-sub">What needs you now: Claude's question, replies you haven't read, checks still to try, and problems found.</p></div></div>
+  <div class="filters todaysearch"><div class="group search"><input type="text" id="d-search" placeholder="Search everything" aria-label="Search" autocomplete="off"></div></div>
+  <div class="today" id="today"></div>
+</main>
+
+<main class="wrap" id="searchMain" hidden>
+  <div class="filters"><div class="group search"><input type="text" id="s-search" placeholder="Search everything" aria-label="Search" autocomplete="off"></div></div>
+  <div class="headrow"><div><h2 id="s-head">Search</h2><p class="sub" id="s-sub"></p></div><button class="btn quiet" type="button" id="s-clear">Clear the search</button></div>
+  <div class="sres" id="sres"></div>
+</main>
+
 <main class="wrap" id="testsMain">
   <div class="filters">
     <div class="group" id="devices" aria-label="Device"><span>Device</span></div>
     <div class="group" id="shows" aria-label="Show"><span>Show</span></div>
+    <div class="group search"><input type="text" id="t-search" placeholder="Search the checks" aria-label="Search the checks" autocomplete="off"></div>
     <form class="group goto" id="goto-f"><span>Go to</span><input type="text" id="goto" maxlength="8" placeholder="4b" aria-label="An item's number, like 4b or R3" autocomplete="off"><button class="chip" type="submit">Go</button><span class="gsay" id="goto-say"></span></form>
   </div>
   <div class="headrow">
@@ -225,6 +319,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   <div class="filters">
     <div class="group" id="rcats" aria-label="Category"><span>Category</span></div>
     <div class="group" id="rshow" aria-label="Show"><span>Show</span></div>
+    <div class="group search"><input type="text" id="r-search" placeholder="Search the requests and their threads" aria-label="Search the requests" autocomplete="off"></div>
   </div>
   <div class="headrow">
     <div><h2>Requests</h2><p class="sub">Priority items, new features, things to troubleshoot and bugs: what you want next. Each gets a number (R1, R2...) to refer to it by. Claude reads them when you ask, sets where each stands, and answers on the card.</p></div>
@@ -245,6 +340,11 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
 </main>
 
 <footer><div class="wrap strip" id="strip"></div></footer>
+<nav class="bottomnav" aria-label="Parts of the workshop">
+  <button type="button" id="b-today"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h2v2h6V2h2v2h3a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3zm-2 7v10h14V9zm2 3h4v4H7z"/></svg>Today<span class="badge" id="b-today-n" hidden></span></button>
+  <button type="button" id="b-tests"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6l1 2h3a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h3zm1.6 13.4 6-6-1.4-1.4-4.6 4.6-2.2-2.2-1.4 1.4z"/></svg>Tests<span class="badge" id="b-tests-n" hidden></span></button>
+  <button type="button" id="b-req"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>Requests<span class="badge" id="b-req-n" hidden></span></button>
+</nav>
 
 <script>
 (function () {
@@ -492,14 +592,16 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
 
   function wanted(item) {
     var st = stateOf(item), ds = devicesOf(item);
-    if (view.ver === "smoke" ? !item.every : view.ver !== "all" && (item.every || (item.version || "earlier") !== view.ver)) return false;
+    if (!tq && (view.ver === "smoke" ? !item.every : view.ver !== "all" && (item.every || (item.version || "earlier") !== view.ver))) return false;
     if (view.device !== "all" && ds.indexOf(view.device) < 0) return false;
     if (view.device !== "all" && ds.length > 1) st = one(res(item, view.device));
     if (view.show === "todo" && st !== "untested") return false;
     if (view.show === "problems" && st !== "broken" && st !== "unintended") return false;
     if (view.show === "asks" && !item.ask) return false;
+    if (tq && (item.ref + " " + item.title + " " + (item.steps || "") + " " + (item.ask || "") + " " + (item.device || "")).toLowerCase().indexOf(tq) < 0) return false;
     return true;
   }
+  var tq = "";
   function chips(holder, list, k) {
     Array.prototype.slice.call(holder.querySelectorAll("button")).forEach(function (b) { b.remove(); });
     list.forEach(function (o) {
@@ -530,10 +632,26 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     vers.sort(function (a, b) { return a === "earlier" ? 1 : b === "earlier" ? -1 : verNum(b) > verNum(a) ? 1 : -1; });
     if (view.ver !== "all" && view.ver !== "smoke" && vers.indexOf(view.ver) < 0) view.ver = "all";
     function left(f) { return all.filter(function (i) { return f(i) && stateOf(i) === "untested"; }).length; }
-    chips($("tabs"), [["smoke", "Every update", left(function (i) { return i.every; }), groupNum(function (i) { return i.every; })], ["all", "All", left(function () { return true; })]].concat(vers.map(function (v) { var f = function (i) { return !i.every && (i.version || "earlier") === v; }; return [v, v === "earlier" ? "Earlier" : v, left(f), groupNum(f)]; })), "ver");
+    // (2026-11-18: one tab for each update made a row that only grew. Now: Every update, the newest version, All, and
+    // the older versions in one list, each with how many of its checks are still untested)
+    var vf = function (v) { return function (i) { return !i.every && (i.version || "earlier") === v; }; };
+    var newest = vers.filter(function (v) { return v !== "earlier"; })[0], older = vers.filter(function (v) { return v !== newest; });
+    var list = [["smoke", "Every update", left(function (i) { return i.every; }), groupNum(function (i) { return i.every; })]];
+    if (newest) list.push([newest, "New in " + newest, left(vf(newest)), groupNum(vf(newest))]);
+    list.push(["all", "All", left(function () { return true; })]);
+    chips($("tabs"), list, "ver");
+    var sel = $("older");
+    if (!sel) { sel = el("select", "older"); sel.id = "older"; sel.setAttribute("aria-label", "Older updates"); sel.addEventListener("change", function () { if (sel.value) { view.ver = sel.value; keep(); render(); } }); }
+    sel.textContent = "";
+    var o0 = el("option", null, older.length ? "Older updates…" : "No older updates"); o0.value = ""; sel.appendChild(o0);
+    older.forEach(function (v) { var n = left(vf(v)), g = groupNum(vf(v)), o = el("option", null, (g ? g + " · " : "") + (v === "earlier" ? "Earlier" : v) + (n ? "  (" + n + " to test)" : "")); o.value = v; sel.appendChild(o); });
+    sel.value = older.indexOf(view.ver) >= 0 ? view.ver : "";
+    sel.classList.toggle("on", older.indexOf(view.ver) >= 0);
+    sel.disabled = !older.length;
+    $("tabs").appendChild(sel);
   }
   function counts() {
-    if (typeof mode === "function" && mode() === "requests") return;
+    if (typeof mode === "function" && mode() === "requests") return;   // (Today and Tests both count the checks)
     var c = { untested: 0, works: 0, broken: 0, unintended: 0, tested: 0, cant: 0 };
     live().forEach(function (i) { c[stateOf(i)]++; });
     var s = $("strip"), was = $("say") ? $("say").textContent : "Saved as you go", wasColor = $("say") ? $("say").style.color : "";
@@ -591,6 +709,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     if (!shown) { list.appendChild(e); e.textContent = !loaded ? "Loading the checks…" : !all.length ? "No checks yet. Claude adds them here with each update." : "Nothing matches these filters."; }
     counts();
     report(shown);
+    trender();
   }
   // What this device's browser actually drew, kept where Claude can read it (meta/diag): for finding out why a
   // screen is empty on one device and not another. Written once the checks are in, and again if something breaks.
@@ -729,6 +848,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     main.appendChild(h3);
     if (unreadIn(r)) { c.classList.add("fresh"); var nr = el("span", "newreply"); nr.appendChild(el("span", "unread")); nr.appendChild(document.createTextNode("New reply from Claude")); main.appendChild(nr); watchRead(c, r); }
     var tags = el("div", "tags"); var ct = el("span", "cat", word(CATS, r.category)); ct.dataset.cat = r.category || "other"; tags.appendChild(ct);
+    // (R46: a request you asked for in the Claude chat, which Claude wrote down here)
+    if (r.source === "chat") { var fc = el("span", "cat", "From chat"); fc.title = "Asked in the Claude chat; Claude added it here and logs the work on it"; tags.appendChild(fc); }
     var st = el("span", "status", r.status === "added" && r.added_in ? "Added in " + r.added_in : word(STATUSES, r.status || "new")); st.dataset.s = r.status || "new"; tags.appendChild(st);
     main.appendChild(tags);
     top.appendChild(main);
@@ -779,12 +900,20 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     return out;
   }
   function when(s) { return s ? new Date(s).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : ""; }
+  var opened = {};   // (requests whose earlier posts are shown)
   function threadView(r) {
-    var box = el("div", "thread"), posts = threadOf(r);
+    var box = el("div", "thread"), posts = threadOf(r), keepN = 2;
+    // (2026-11-18: a long thread shows its last two posts; the earlier ones fold behind one button)
+    var hide = !opened[r.id] && !rq && posts.length > keepN + 1 ? posts.length - keepN : 0;
+    if (hide) { var mb = el("button", "more-posts", "Show " + hide + " earlier post" + (hide === 1 ? "" : "s")); mb.type = "button"; mb.addEventListener("click", function () { opened[r.id] = true; rrender(); }); box.appendChild(mb); }
+    else if (opened[r.id] && posts.length > keepN + 1) { var lb = el("button", "more-posts", "Fold the earlier posts"); lb.type = "button"; lb.addEventListener("click", function () { opened[r.id] = false; rrender(); }); box.appendChild(lb); }
     posts.forEach(function (pst, i) {
+      if (i < hide) return;
       var pv = el("div", "post " + (pst.who === "claude" ? "claude" : "owner"));
       var hd = el("div"); hd.appendChild(el("span", "who", pst.who === "claude" ? "Claude" : "You")); hd.appendChild(el("span", "when", when(pst.at) + (pst.edited ? " · edited " + when(pst.edited) : ""))); pv.appendChild(hd);
       var tx = el("div", "txt", pst.text || ""); pv.appendChild(tx);
+      // (a long post shows its first lines, with Read more)
+      if ((pst.text || "").length > 700 || (pst.text || "").split("\n").length > 10) { tx.classList.add("clamp"); var rm = el("button", "readmore", "Read more"); rm.type = "button"; rm.addEventListener("click", function () { var c = tx.classList.toggle("clamp"); rm.textContent = c ? "Read more" : "Show less"; }); pv.appendChild(rm); }
       if (pst.who !== "claude") {
         var tools = el("div", "tools"), eb = el("button", "btn quiet", "Edit"); eb.type = "button";
         eb.addEventListener("click", function () {
@@ -821,6 +950,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     return box;
   }
 
+  var rq = "", rqCat = "";
   function rchips(holder, list, k) {
     Array.prototype.slice.call(holder.querySelectorAll("button")).forEach(function (b) { b.remove(); });
     list.forEach(function (o) { var b = el("button", "chip", o[1]); b.type = "button"; b.setAttribute("aria-pressed", rview[k] === o[0] ? "true" : "false"); b.addEventListener("click", function () { rview[k] = o[0]; rkeep(); rrender(); }); holder.appendChild(b); });
@@ -850,7 +980,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   function markRead(id) {
     var r = reqs[id]; if (!r || seenReplies === null) return;
     var n = claudeCount(r); if ((seenReplies[id] || 0) >= n) return;
-    seenReplies[id] = n; saveSeen();
+    seenReplies[id] = n; saveSeen(); try { trender(); } catch (e) {}
     var c = $("req-" + id); if (c) { c.classList.remove("fresh"); var nr = c.querySelector(".newreply"); if (nr) nr.remove(); }
     showUnread();
   }
@@ -894,6 +1024,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   document.addEventListener("pointerdown", function () { if (owedAsk) { owedAsk = false; askSound(); } }, true);
   function showWaiting(w) {
     var on = !!(w && w.waiting && w.ask);
+    waitNow = on ? w : null; try { trender(); } catch (e) {}
     $("waiting").hidden = !on;
     if (!on) { $("waitbox").hidden = true; waitAsked = ""; showUnread(); return; }
     $("waiting-t").textContent = "Claude is waiting: " + w.ask;
@@ -965,11 +1096,12 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     var all = Object.keys(reqs).map(function (k) { return reqs[k]; });
     var open = all.filter(function (r) { return !closed(r); });
     var mn = $("m-req-n"); mn.hidden = !open.length; mn.textContent = String(open.length);
-    if (mode() !== "requests") return;
+    if (mode() !== "requests") { trender(); return; }
     rchips($("rcats"), [["all", "All"]].concat(CATS.map(function (c) { return [c[0], c[1] + " (" + open.filter(function (r) { return r.category === c[0]; }).length + ")"]; })), "cat");
     rchips($("rshow"), [["open", "Open"], ["waiting", "Waiting on you"], ["added", "Requests added (" + all.filter(function (r) { return r.status === "added"; }).length + ")"], ["closed", "Done or won't do"], ["all", "Everything"]], "show");
     var catOrder = CATS.map(function (c) { return c[0]; });
     var shown = all.filter(function (r) {
+      if (rq) return (!rqCat || r.category === rqCat) && (r.ref + " " + r.title + " " + (r.description || "") + " " + threadOf(r).map(function (p) { return p.text || ""; }).join(" ")).toLowerCase().indexOf(rq) >= 0;
       if (rview.cat !== "all" && r.category !== rview.cat) return false;
       if (rview.show === "open" && closed(r)) return false;
       if (rview.show === "waiting" && r.status !== "waiting") return false;
@@ -984,6 +1116,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     var e = $("rempty"); e.hidden = shown.length > 0;
     if (!shown.length) e.textContent = !rloaded ? "Loading the requests…" : !all.length ? "No requests yet. Press New request to add the first." : "Nothing matches these filters.";
     rcounts();
+    trender();
   }
   function rcounts() {
     if (mode() !== "requests") return;
@@ -1019,25 +1152,171 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       var c = $("req-" + r.id); if (c) { c.scrollIntoView({ block: "center" }); flash(c); }
     });
   });
-  // Tests and Requests
-  var modeNow = "tests";
-  try { if (localStorage.getItem("gh-test-mode") === "requests") modeNow = "requests"; } catch (e) {}
+  // ---- Today (2026-11-18): what needs the owner now, in one place
+  var waitNow = null;
+  function tline(ref, text, cnt, cntCls, go) {
+    var b = el("button", "tline"); b.type = "button";
+    if (ref) b.appendChild(el("span", "ref", ref));
+    b.appendChild(el("span", "grow", text));
+    if (cnt != null) b.appendChild(el("span", "cnt" + (cntCls ? " " + cntCls : ""), String(cnt)));
+    b.addEventListener("click", go);
+    return b;
+  }
+  function tcard(title, n, cls) { var c = el("section", "tcard" + (cls ? " " + cls : "")), h = el("h3", null, title); if (n != null) h.appendChild(el("span", "n", String(n))); c.appendChild(h); return c; }
+  function openRequest(r) { clearSearch(); rview.cat = "all"; rview.show = closed(r) ? "all" : "open"; rkeep(); mode("requests"); var c = $("req-" + r.id); if (c) { c.scrollIntoView({ block: "center" }); flash(c); } }
+  function openItem(i) { clearSearch(); view.ver = "all"; view.show = "all"; view.device = "all"; keep(); folded[groupOf(i)] = false; mode("tests"); var c = $("card-" + i.id); if (c) { c.scrollIntoView({ block: "center" }); flash(c); } }
+  function trender() {
+    var unread = seenReplies === null ? [] : unreadList(), all = live(), probs = all.filter(function (i) { var s = stateOf(i); return s === "broken" || s === "unintended"; });
+    var asks = all.filter(function (i) { return i.ask && stateOf(i) === "untested"; });
+    var tn = all.filter(function (i) { return stateOf(i) === "untested"; }).length;
+    setBadge("b-today-n", (waitNow ? 1 : 0) + unread.length);
+    setBadge("b-tests-n", tn);
+    setBadge("b-req-n", unread.length);
+    if (mode() === "search") { srender(); return; }
+    if (mode() !== "today") return;
+    var box = $("today"); box.textContent = "";
+    // Claude's question
+    if (waitNow) { var w = tcard("Claude is waiting for you", null, "ask wide"); w.appendChild(el("p", "q", waitNow.ask)); if (waitNow.detail) w.appendChild(el("p", "d", waitNow.detail)); w.appendChild(el("p", "meta", "Answer in your Claude chat." + (waitNow.at ? " Since " + when(waitNow.at) + "." : ""))); box.appendChild(w); }
+    // the published version
+    var v = el("div", "tpub wide"); v.appendChild(el("span", "dim", "Published")); v.appendChild(el("b", null, current ? "Gatehouse " + current : "not said yet")); v.appendChild(el("span", "dim", "· devices update by themselves")); box.appendChild(v);
+    // replies not read yet
+    var u = tcard("New replies from Claude", unread.length);
+    if (!unread.length) u.appendChild(el("p", "none", "None: you've read every reply."));
+    unread.slice(0, 6).forEach(function (r) { u.appendChild(tline(r.ref, r.title, null, null, function () { openRequest(r); })); });
+    box.appendChild(u);
+    // still to test, for each device
+    var t = tcard("Still to test", tn);
+    DEVICES.forEach(function (d) {
+      var n = all.filter(function (i) { return devicesOf(i).indexOf(d) >= 0 && one(res(i, d)) === "untested"; }).length;
+      t.appendChild(tline(null, d, n, n ? "" : "zero", function () { clearSearch(); view.device = d; view.show = "todo"; view.ver = "all"; keep(); mode("tests"); }));
+    });
+    box.appendChild(t);
+    // problems found
+    var p = tcard("Problems found", probs.length);
+    if (!probs.length) p.appendChild(el("p", "none", "None open."));
+    probs.slice(0, 6).forEach(function (i) { p.appendChild(tline(i.ref, i.title, null, null, function () { openItem(i); })); });
+    box.appendChild(p);
+    // checks that ask you something
+    if (asks.length) { var a = tcard("Checks with a question for you", asks.length); asks.slice(0, 6).forEach(function (i) { a.appendChild(tline(i.ref, i.title, null, null, function () { openItem(i); })); }); box.appendChild(a); }
+    // requests being worked on
+    var rs = Object.keys(reqs).map(function (k) { return reqs[k]; }).filter(function (r) { return r.status === "progress" || r.status === "planned" || r.status === "waiting" || r.status === "new"; }).sort(function (x, y) { return (y.n || 0) - (x.n || 0); });
+    var q = tcard("Open requests", rs.length);
+    if (!rs.length) q.appendChild(el("p", "none", "Nothing open."));
+    rs.slice(0, 6).forEach(function (r) { q.appendChild(tline(r.ref, r.title + " · " + word(STATUSES, r.status || "new"), null, null, function () { openRequest(r); })); });
+    box.appendChild(q);
+    // phone alerts when Claude is waiting: the workshop's own ntfy topic (meta/ntfy), which Claude posts to
+    if (ntfyInfo && ntfyInfo.topic) {
+      var na = tcard("Phone alerts when Claude is waiting");
+      na.appendChild(el("p", "none", "Subscribe to this topic in the ntfy app and your phone is told whenever Claude stops to ask you something. Only the question is sent. Keep the topic to yourself."));
+      var trow = el("div", "ntrow"), code = el("code", "nttopic", ntfyInfo.topic), cp = el("button", "btn quiet", "Copy"); cp.type = "button";
+      cp.addEventListener("click", function () { try { navigator.clipboard.writeText(ntfyInfo.topic).then(function () { say("Topic copied: now add it in the ntfy app"); }, function () { say("Copy the topic by hand", true); }); } catch (e) { say("Copy the topic by hand", true); } });
+      trow.appendChild(code); trow.appendChild(cp);
+      if (/Android/i.test(navigator.userAgent)) { var lk = el("a", "btn", "Open in ntfy"); lk.href = "ntfy://" + String(ntfyInfo.server || "https://ntfy.sh").replace(/^https?:\/\//, "").replace(/\/+$/, "") + "/" + encodeURIComponent(ntfyInfo.topic); trow.appendChild(lk); }
+      na.appendChild(trow);
+      var ol = el("ol", "ntsteps");
+      ["Install ntfy (App Store or Google Play).", "Open it and tap +.", "Paste the topic; leave the server as ntfy.sh.", "Tap Subscribe. Claude sends a test when you ask for one."].forEach(function (s) { ol.appendChild(el("li", null, s)); });
+      na.appendChild(ol);
+      box.appendChild(na);
+    }
+  }
+  var ntfyInfo = null;
+  function setBadge(id, n) { var b = $(id); if (!b) return; b.hidden = !n; b.textContent = n > 99 ? "99+" : String(n); }
+
+  // ---- search (R45). Every search box has a dropdown of what it looks in: everything, the requests (or one kind of
+  // request), or the checks. The boxes share one search, so moving between parts keeps it; "All" shows what matches
+  // in both, on a page of its own.
+  var SCOPES = [["all", "All"], ["requests", "Requests"], ["tests", "Tests"]].concat(CATS.map(function (c) { return ["cat:" + c[0], "Requests: " + c[1]]; }));
+  var SBOXES = [["d-search", "all"], ["s-search", "all"], ["t-search", "tests"], ["r-search", "requests"]];
+  var sq = "", sScope = "all", searchFrom = "today";
+  SBOXES.forEach(function (b) {
+    var inp = $(b[0]), s = el("select", "scope"); s.id = b[0] + "-in"; s.setAttribute("aria-label", "Search in");
+    SCOPES.forEach(function (o) { var op = el("option", null, o[1]); op.value = o[0]; s.appendChild(op); });
+    s.value = b[1];
+    inp.parentNode.insertBefore(s, inp);
+    inp.addEventListener("input", function () { sq = inp.value; sScope = s.value; runSearch(b[0]); });
+    s.addEventListener("change", function () { sq = inp.value; sScope = s.value; runSearch(b[0]); });
+    inp.addEventListener("keydown", function (ev) { if (ev.key === "Escape" && inp.value) { ev.preventDefault(); clearSearch(); runSearch(b[0]); } });
+  });
+  function syncBoxes(except) {
+    SBOXES.forEach(function (b) {
+      var inp = $(b[0]), s = $(b[0] + "-in");
+      if (b[0] !== except && inp.value !== sq) inp.value = sq;
+      // (a box shows the search's own scope while there is a search, and its own part's default when there isn't)
+      s.value = sq.trim() ? sScope : b[1];
+    });
+  }
+  function clearSearch() { sq = ""; tq = ""; rq = ""; rqCat = ""; syncBoxes(null); }
+  function placeholderFor(id) {
+    var s = $(id + "-in").value, inp = $(id);
+    inp.placeholder = s === "all" ? "Search everything" : s === "tests" ? "Search the checks" : s === "requests" ? "Search the requests and their threads" : "Search " + word(SCOPES, s).replace("Requests: ", "").toLowerCase() + " requests";
+  }
+  function runSearch(from) {
+    var q = sq.trim().toLowerCase(), was = mode(), cat = sScope.indexOf("cat:") === 0 ? sScope.slice(4) : "";
+    tq = ""; rq = ""; rqCat = "";
+    if (sScope === "tests") { tq = q; if (was !== "tests") mode("tests"); else render(); }
+    else if (sScope === "requests" || cat) {
+      rq = q; rqCat = cat;
+      if (cat) { rview.cat = cat; rkeep(); }
+      if (was !== "requests") mode("requests"); else rrender();
+    } else if (q) { if (was !== "search") { searchFrom = was; mode("search"); } else srender(); }
+    else if (was === "search") mode(searchFrom || "today");
+    syncBoxes(from);
+    SBOXES.forEach(function (b) { placeholderFor(b[0]); });
+    // (the typing goes on in the box of the part now shown)
+    var now = mode(), id = now === "today" ? "d-search" : now === "search" ? "s-search" : now === "tests" ? "t-search" : "r-search";
+    if (id !== from && from) { var t = $(id); t.focus(); try { t.setSelectionRange(t.value.length, t.value.length); } catch (e) {} }
+  }
+  function textOfReq(r) { return (r.ref + " " + r.title + " " + (r.description || "") + " " + word(CATS, r.category) + " " + (r.source === "chat" ? "from chat " : "") + threadOf(r).map(function (p) { return p.text || ""; }).join(" ")).toLowerCase(); }
+  function textOfItem(i) { return (i.ref + " " + i.title + " " + (i.steps || "") + " " + (i.ask || "") + " " + (i.device || "") + " " + (i.reply || "")).toLowerCase(); }
+  function srender() {
+    if (mode() !== "search") return;
+    var q = sq.trim().toLowerCase(), box = $("sres"); box.textContent = "";
+    var rs = Object.keys(reqs).map(function (k) { return reqs[k]; }).filter(function (r) { return textOfReq(r).indexOf(q) >= 0; }).sort(function (a, b) { return (b.n || 0) - (a.n || 0); });
+    var is = live().filter(function (i) { return textOfItem(i).indexOf(q) >= 0; }).sort(function (a, b) { return verNum(b.version || "0") > verNum(a.version || "0") ? 1 : verNum(b.version || "0") < verNum(a.version || "0") ? -1 : (a.order || 0) - (b.order || 0); });
+    $("s-head").textContent = rs.length + is.length ? (rs.length + is.length) + " found for “" + sq.trim() + "”" : "Nothing found for “" + sq.trim() + "”";
+    $("s-sub").textContent = "Requests (with their threads) and checks. To look in one kind only, change All beside the search box.";
+    function line(ref, title, st, go) { var b = tline(ref, title, null, null, go); b.appendChild(el("span", "st", st)); return b; }
+    var LIM = 25;
+    var a = tcard("Requests", rs.length);
+    if (!rs.length) a.appendChild(el("p", "none", "No request matches."));
+    // ("from chat" finds the requests Claude wrote down from the Claude chat)
+    rs.slice(0, LIM).forEach(function (r) { a.appendChild(line(r.ref, r.title, word(CATS, r.category) + " · " + word(STATUSES, r.status || "new"), function () { openRequest(r); })); });
+    if (rs.length > LIM) a.appendChild(el("p", "more", "And " + (rs.length - LIM) + " more: choose Requests beside the search box to see them all."));
+    box.appendChild(a);
+    var t = tcard("Tests", is.length);
+    if (!is.length) t.appendChild(el("p", "none", "No check matches."));
+    is.slice(0, LIM).forEach(function (i) { t.appendChild(line(i.ref, i.title, SAYS[stateOf(i)], function () { openItem(i); })); });
+    if (is.length > LIM) t.appendChild(el("p", "more", "And " + (is.length - LIM) + " more: choose Tests beside the search box to see them all."));
+    box.appendChild(t);
+  }
+  $("s-clear").addEventListener("click", function () { clearSearch(); runSearch(null); });
+
+  // Today, Tests and Requests
+  var modeNow = "today";
+  try { var mk = localStorage.getItem("gh-test-mode"); if (mk === "requests" || mk === "tests" || mk === "today") modeNow = mk; } catch (e) {}
   function mode(m) {
     if (m === undefined) return modeNow;
-    modeNow = m; try { localStorage.setItem("gh-test-mode", m); } catch (e) {}
-    $("testsMain").hidden = m !== "tests"; $("reqMain").hidden = m !== "requests"; $("tabs").hidden = m !== "tests";
-    $("m-tests").setAttribute("aria-selected", m === "tests" ? "true" : "false"); $("m-req").setAttribute("aria-selected", m === "requests" ? "true" : "false");
-    if (m === "tests") render(); else rrender();
+    modeNow = m; if (m !== "search") try { localStorage.setItem("gh-test-mode", m); } catch (e) {}
+    $("searchMain").hidden = m !== "search";
+    $("todayMain").hidden = m !== "today"; $("testsMain").hidden = m !== "tests"; $("reqMain").hidden = m !== "requests"; $("tabs").hidden = m !== "tests";
+    [["m-today", "b-today", "today"], ["m-tests", "b-tests", "tests"], ["m-req", "b-req", "requests"]].forEach(function (x) { $(x[0]).setAttribute("aria-selected", m === x[2] ? "true" : "false"); $(x[1]).setAttribute("aria-selected", m === x[2] ? "true" : "false"); });
+    if (m === "tests") render(); else if (m === "requests") rrender(); else if (m === "search") { srender(); counts(); trender(); } else { trender(); counts(); }
+    window.scrollTo(0, 0);
     return m;
   }
+  $("m-today").addEventListener("click", function () { mode("today"); });
   $("m-tests").addEventListener("click", function () { mode("tests"); });
   $("m-req").addEventListener("click", function () { mode("requests"); });
+  $("b-today").addEventListener("click", function () { mode("today"); });
+  $("b-tests").addEventListener("click", function () { mode("tests"); });
+  $("b-req").addEventListener("click", function () { mode("requests"); });
 
   function start(d) {
     db = d;
     if (!db) { loaded = true; $("empty").textContent = "The workshop keeps its checks and your answers in your claude.ai account. Open it signed in to see them."; counts(); return; }
     var timer = setTimeout(function () { if (!loaded) $("empty").textContent = "The checks are taking a while to load. Check your connection; they will appear here when they arrive."; }, 10000);
     db.doc("meta/claude").onSnapshot(function (snap) { showWaiting(snap.exists ? snap.data() : null); }, function () {});
+    db.doc("meta/ntfy").onSnapshot(function (snap) { ntfyInfo = snap.exists ? snap.data() : null; try { trender(); } catch (e) {} }, function () {});
     db.doc("meta/current").onSnapshot(function (snap) { var v = (snap.exists && snap.data() || {}).version || ""; if (v !== current) { current = String(v); render(); liveNow(); rrender(); } }, function () {});
     db.collection("items").onSnapshot(function (snap) {
       clearTimeout(timer); loaded = true;
@@ -1083,3 +1362,5 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   } else { start(null); startSeen(null); }
 })();
 </script>
+
+</body></html>
