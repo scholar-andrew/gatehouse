@@ -11,7 +11,7 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "0dec6dc6967bb62ad2d9763f976c4f2f9fa0a093deb4b46d004eee88bbef8ce2"
+hash = "07607d3690796a11fd57021c8bd33608d9b37ffde826da223bc449f1d44ce6e7"
 
 [[files]]
 file = "extras/gatehouse-launcher.ps1"
@@ -23,7 +23,7 @@ hash = "535a87515f3c27784c8a1042167fc8c8f334a14894b822c0d191be47d2686885"
 
 [[files]]
 file = "extras/launch-popup.jar"
-hash = "abfed37ef64c5a11b03ca9918a7caf1f5fd4b87f07ab72b997ec3ae1b0204f82"
+hash = "d4a3cac596dbf540e81de102fd34f7d4cf0678e7fd4d41808b10894685740196"
 
 [[files]]
 file = "extras/launch-wrapper.exe"

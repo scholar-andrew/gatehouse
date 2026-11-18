@@ -1,4 +1,7 @@
 [
+ {"version": "1.68.3", "date": "2026-11-18", "notes": [
+  "Gatehouse 3.35.3: subscribing to notifications from an iPhone works through the web panel. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.68.2", "date": "2026-11-18", "notes": [
   "Gatehouse 3.35.2: phone notifications can be set from the web panel. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

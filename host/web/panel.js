@@ -292,8 +292,23 @@ async function notifyCard() {
   const host = (n.url || 'https://ntfy.sh').replace(/^https?:\/\//, '').replace(/\/+$/, '');
   if (n.topic) {
     const t = el('code', 'topic', n.topic), copy = button('Copy', async () => { try { await navigator.clipboard.writeText(n.topic); say({ result: 'ok', message: 'Topic copied.' }, said); } catch (e) { say({ result: 'refused', message: 'Copying isn’t allowed here: select the topic and copy it.' }, said); } }, 'quiet small');
-    const sub = el('a', 'btn-link', 'Subscribe on this phone'); sub.href = 'ntfy://' + host + '/' + encodeURIComponent(n.topic); sub.title = 'Opens the ntfy app on this phone with the topic filled in (the app has to be installed)';
+    // (only ntfy's Android app opens ntfy:// links; on an iPhone, and on a computer, the topic is copied and the steps shown)
+    const android = /Android/i.test(navigator.userAgent);
+    let sub;
+    if (android) { sub = el('a', 'btn-link', 'Subscribe on this phone'); sub.href = 'ntfy://' + host + '/' + encodeURIComponent(n.topic); sub.title = 'Opens the ntfy app on this phone with the topic filled in (the app has to be installed)'; }
+    else {
+      sub = button('Copy and add in ntfy', async () => {
+        let copied = false; try { await navigator.clipboard.writeText(n.topic); copied = true; } catch (e) { /* (shown below to copy by hand) */ }
+        steps.hidden = false; hint.hidden = false; say({ result: copied ? 'ok' : 'refused', message: copied ? 'Topic copied. Now add it in the ntfy app:' : 'Copy the topic above by hand, then add it in the ntfy app:' }, hint);
+        steps.scrollIntoView({ block: 'nearest' });
+      }, 'primary');
+    }
+    const steps = el('ol', 'steps', null, [el('li', '', 'Install ntfy from the ' + (/iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ? 'App Store' : 'App Store or Google Play') + ', if you haven’t yet.'),
+      el('li', '', 'Open ntfy and tap +.'), el('li', '', 'Paste the topic' + (host === 'ntfy.sh' ? ' and leave the server as ntfy.sh.' : '. Turn on Use another server and enter ' + host + '.')), el('li', '', 'Tap Subscribe, then press Send a test here.')]);
+    steps.hidden = true;
+    const hint = el('p', 'said'); hint.hidden = true;
     c.appendChild(el('div', 'topicrow', null, [el('span', 'grey small', 'Topic'), t, copy, sub]));
+    c.appendChild(hint); c.appendChild(steps);
   } else c.appendChild(el('p', 'note small', 'No topic yet: turning notifications on makes one.'));
   // the server, a new topic, a test
   const url = el('input', 'grow'); url.value = n.url || 'https://ntfy.sh'; url.autocapitalize = 'none'; url.spellcheck = false; url.setAttribute('aria-label', 'ntfy server');

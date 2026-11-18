@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.35.3 - 2026-11-18
+
+- Phone notifications in the web panel: Subscribe on this phone opens the ntfy app only on Android, the one ntfy app that takes such links. On an iPhone (and on a computer) the button is now Copy and add in ntfy: it copies the topic and shows the four steps to add it in the app.
+
 ## 3.35.2 - 2026-11-18
 
 - Phone notifications can be set from the web panel (menu, Options), for admin accounts: turn them on, choose which kinds, see and copy the topic, open it straight in the ntfy app on your phone with Subscribe on this phone, make a new topic, send a test, and choose which servers start again after a crash.

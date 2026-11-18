@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.35.2",
+ "version": "3.35.3",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.35.3", "date": "2026-11-18", "notes": [
+   "Phone notifications in the web panel: Subscribe on this phone opens the ntfy app only on Android, the one ntfy app that takes such links. On an iPhone (and on a computer) the button is now Copy and add in ntfy: it copies the topic and shows the four steps to add it in the app."
+  ]},
   {"version": "3.35.2", "date": "2026-11-18", "notes": [
    "Phone notifications can be set from the web panel (menu, Options), for admin accounts: turn them on, choose which kinds, see and copy the topic, open it straight in the ntfy app on your phone with Subscribe on this phone, make a new topic, send a test, and choose which servers start again after a crash."
   ]},
