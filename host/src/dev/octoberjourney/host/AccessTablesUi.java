@@ -45,7 +45,7 @@ import javax.swing.table.DefaultTableModel;
 import dev.gatehouse.look.Quiet;
 
 /**
- * The Access Manager's tables in Gatekeeper's window: a permission is white (not allowed), green (allowed) or red (denied), with a menu on each; shutting out a launcher (this device) or a player (every device), and letting them back; and the buttons under the tables.
+ * The Access Manager's tables in Gatekeeper's window: a permission is grey (not allowed), green (allowed) or red (denied), with a menu on each; shutting out a launcher (this device) or a player (every device), and letting them back; and the buttons under the tables.
  * Moved out of HostHelper.panel() unchanged (R36), so Gatekeeper's window is in pieces that can be read on their own.
  */
 final class AccessTablesUi {
@@ -64,23 +64,24 @@ final class AccessTablesUi {
 			Runnable refresh, java.util.function.Supplier<String> chosen, Map<String, boolean[]> perms,
 			java.util.function.BiConsumer<String, String> act) {
 		// ---- the Access Manager's tables: colours, a menu on each permission, and shutting someone out
-		// A permission is white (not allowed), green (allowed) or red (denied); a click on it offers the three.
+		// A permission is grey (not allowed), green (allowed) or red (denied); a click on it offers the three.
 		javax.swing.table.DefaultTableCellRenderer paint = new javax.swing.table.DefaultTableCellRenderer() {
 			@Override public java.awt.Component getTableCellRendererComponent(JTable tb, Object v, boolean sel, boolean focus, int row, int col) {
 				java.awt.Component c = super.getTableCellRendererComponent(tb, v, sel, focus, row, col);
 				String s = String.valueOf(v);
-				boolean perm = s.startsWith("Allowed") || s.startsWith("Denied") || s.startsWith("Not allowed");
-				c.setBackground(s.startsWith("Allowed") ? new Color(0xC8EFD0) : s.startsWith("Denied") ? new Color(0xF6C4C4) : perm ? Color.WHITE
-						: s.startsWith("Blacklisted") || s.startsWith("Suspended") ? new Color(0xF6C4C4) : sel ? tb.getSelectionBackground() : tb.getBackground());
-				c.setForeground(perm || s.startsWith("Blacklisted") || s.startsWith("Suspended") ? Color.BLACK : sel ? tb.getSelectionForeground() : tb.getForeground());
+				if (!dev.gatehouse.look.SteamLook.permCell(c, s, sel)) {   // (R39: dark cells, green or red text)
+					c.setBackground(sel ? tb.getSelectionBackground() : tb.getBackground());
+					c.setForeground(sel ? tb.getSelectionForeground() : tb.getForeground());
+				}
 				// (Where they are right now: green in a game, blue with the launcher open, grey otherwise.)
 				if (s.equals("In game")) c.setForeground(new Color(0x8BD46E));
 				else if (s.equals("In the launcher")) c.setForeground(new Color(0x66C0F4));
-				else if (s.equals("Offline")) c.setForeground(new Color(0x8F98A0));
+				else if (s.equals("Offline")) c.setForeground(new Color(0xA9B5C1));
 				return c;
 			}
 		};
 		table.setDefaultRenderer(Object.class, paint);
+		dev.gatehouse.look.SteamLook.fitColumns(table); dev.gatehouse.look.SteamLook.fitColumns(ptable);
 		ptable.setDefaultRenderer(Object.class, paint);
 		java.util.function.BiConsumer<String, String> post = (path, body) -> new Thread(() -> {
 			String res = "ok", msg = "";
@@ -135,7 +136,7 @@ final class AccessTablesUi {
 			if (kind.equals("kick")) post.accept("/admin/kick", Json.write(m("player", who, "reason", reason)));
 			else post.accept("/admin/ban", Json.write(players ? m("player", who, "kind", kind, "reason", reason) : m("id", who, "kind", kind, "reason", reason)));
 		};
-		JButton dSuspend = new JButton("Suspend\u2026"), dBlack = new JButton("Blacklist\u2026"), dLift = new JButton("Lift");
+		JButton dSuspend = dev.gatehouse.look.SteamLook.danger(new JButton("Suspend\u2026")), dBlack = dev.gatehouse.look.SteamLook.danger(new JButton("Blacklist\u2026")), dLift = new JButton("Lift");
 		dSuspend.setToolTipText("Suspends the selected launcher: it still updates the game and sees the server's status, but can't start the game or use any control. It can ask to be let back.");
 		dBlack.setToolTipText("Blacklists the selected launcher: as suspended, and it is shown nothing about the machine, MCSS or the server. It can ask to be let back.");
 		dSuspend.addActionListener(e -> shutOut.accept(false, "suspend"));
@@ -143,7 +144,7 @@ final class AccessTablesUi {
 		dLift.addActionListener(e -> shutOut.accept(false, ""));
 		dLift.setToolTipText("Lifts a suspension or blacklisting of the selected launcher");
 		for (JButton b : new JButton[] {dSuspend, dBlack, dLift}) buttons.add(b);
-		JButton pKick = new JButton("Kick\u2026"), pSuspend = new JButton("Suspend\u2026"), pBlack = new JButton("Blacklist\u2026"), pLift = new JButton("Lift");
+		JButton pKick = dev.gatehouse.look.SteamLook.danger(new JButton("Kick\u2026")), pSuspend = dev.gatehouse.look.SteamLook.danger(new JButton("Suspend\u2026")), pBlack = dev.gatehouse.look.SteamLook.danger(new JButton("Blacklist\u2026")), pLift = new JButton("Lift");
 		pKick.setToolTipText("Kicks the selected player off the Minecraft server now. They can join again.");
 		pSuspend.setToolTipText("Suspends the selected player on every device: kicked, taken off the whitelist until lifted, and their launchers can't start the game or use any control.");
 		pBlack.setToolTipText("Blacklists the selected player on every device: as suspended, and their launchers are shown nothing about the machine, MCSS or the server.");
@@ -165,13 +166,7 @@ final class AccessTablesUi {
 		// the list itself.
 		revokeB.setText("Remove server accesses");
 		java.util.function.BiFunction<String, JButton[], JPanel> set = (title, bs) -> {
-			JPanel g = new JPanel();
-			dev.gatehouse.look.WrapLayout.on(g, 6, 2);   // (a set wider than the window puts its own buttons in rows too)
-			javax.swing.border.TitledBorder tb = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), title);
-			tb.setTitleColor(new Color(0x8F98A0));
-			g.setBorder(tb);
-			for (JButton b : bs) g.add(b);
-			return g;
+			return dev.gatehouse.look.SteamLook.group(title, bs);   // (R39: a small heading, not an etched box)
 		};
 		buttons.removeAll();
 		dev.gatehouse.look.WrapLayout.on(buttons, 6, 1);

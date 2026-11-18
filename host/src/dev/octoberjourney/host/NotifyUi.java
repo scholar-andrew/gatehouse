@@ -37,7 +37,7 @@ final class NotifyUi {
 		JLabel ntTopic = new JLabel(" "); ntTopic.setFont(ntTopic.getFont().deriveFont(Font.BOLD));
 		javax.swing.JTextField ntUrl = new javax.swing.JTextField("https://ntfy.sh", 22);
 		JButton ntNew = new JButton("New topic"), ntTest = new JButton("Send a test");
-		JLabel ntSaid = new JLabel(" "); ntSaid.setForeground(new Color(0x8F98A0));
+		JLabel ntSaid = new JLabel(" "); ntSaid.setForeground(new Color(0xA9B5C1));
 		JPanel ntTopicRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4));
 		ntTopicRow.add(new JLabel("Topic:"));
 		ntTopicRow.add(ntTopic);
@@ -52,7 +52,7 @@ final class NotifyUi {
 		optLine.accept("Status page for friends", true);
 		optLine.accept("A read-only page showing which servers are up and who is playing, with no sign-in. Only people on your Tailscale network can open it, as with the rest of Gatekeeper. It shows no addresses, folders or buttons.", false);
 		javax.swing.JCheckBox stOn = new javax.swing.JCheckBox("Share the status page");
-		JLabel stUrl = new JLabel(" "); stUrl.setForeground(new Color(0x8F98A0));
+		JLabel stUrl = new JLabel(" "); stUrl.setForeground(new Color(0xA9B5C1));
 		for (javax.swing.JComponent c : new javax.swing.JComponent[] {stOn, stUrl}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
 		optLine.accept("Crash watch", true);
 		optLine.accept("Gatekeeper notices when a server goes down without being asked to, and tells you (above). Tick a server to have it started again too: up to three times in ten minutes. For an MCSS server this needs Gatekeeper's MCSS key; MCSS also has a restart-on-crash setting of its own.", false);

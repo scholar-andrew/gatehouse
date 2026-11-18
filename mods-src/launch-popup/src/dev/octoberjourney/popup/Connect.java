@@ -39,7 +39,7 @@ final class Connect {
 	private Connect() {}
 
 	static final String DOWNLOAD = "https://tailscale.com/download";
-	private static final Color GREY = new Color(0x8F98A0);
+	private static final Color GREY = new Color(0xA9B5C1);
 
 	/** An invite is only ever opened if it is one of Tailscale's own links. */
 	static String invite(String link) {
@@ -99,10 +99,10 @@ final class Connect {
 	}
 	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;"); }
 	private static String line(boolean done, boolean waiting, String title, String detail) {
-		String colour = done ? "#3FB950" : waiting ? "#8F98A0" : "#E3B341", word = done ? "Done" : waiting ? "Waiting for the step above" : "To do";
+		String colour = done ? "#3FB950" : waiting ? "#A9B5C1" : "#E3B341", word = done ? "Done" : waiting ? "Waiting for the step above" : "To do";
 		return "<html><div style='width:520px'><span style='color:" + colour + "'>\u25CF</span>&nbsp; <b>" + esc(title)
 				+ "</b> &nbsp;<span style='color:" + colour + "'>" + word + "</span>"
-				+ (detail.isEmpty() ? "" : "<br><span style='color:#8F98A0'>" + esc(detail) + "</span>") + "</div></html>";
+				+ (detail.isEmpty() ? "" : "<br><span style='color:#A9B5C1'>" + esc(detail) + "</span>") + "</div></html>";
 	}
 
 	/** The steps as a panel; "fill" (returned in fillOut[0]) shows a look's result in it. */

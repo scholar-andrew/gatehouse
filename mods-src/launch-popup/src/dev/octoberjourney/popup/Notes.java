@@ -113,14 +113,14 @@ final class Notes {
 		List<Component> rows = new ArrayList<>();
 		String v = version(notes);
 		if (!v.isEmpty()) { JLabel now = new JLabel(title + " " + v
-				+ " is what's running."); now.setForeground(new Color(0x8F98A0)); now.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0)); rows.add(now); }
+				+ " is what's running."); now.setForeground(new Color(0xA9B5C1)); now.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0)); rows.add(now); }
 		if (notes.get("changes") instanceof List<?> l) for (Object o : l) {
 			Map<String, Object> c = ServerControl.asMap(o);
 			rows.add(LaunchPopup.heading(str(c.get("version")) + (str(c.get("date")).isEmpty() ? "" : " (" + str(c.get("date")) + ")")));
 			if (c.get("notes") instanceof List<?> ns) for (Object n : ns) rows.add(LaunchPopup.text("• " + n));
 		}
 		if (rows.size() <= (v.isEmpty() ? 0
-				: 1)) { JLabel e = new JLabel(none); e.setForeground(new Color(0x8F98A0)); e.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0)); rows.add(e); }
+				: 1)) { JLabel e = new JLabel(none); e.setForeground(new Color(0xA9B5C1)); e.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0)); rows.add(e); }
 		for (Component r : rows) { ((JComponent) r).setAlignmentX(Component.LEFT_ALIGNMENT); list.add(r); }
 		JPanel top = new JPanel(new BorderLayout());
 		top.add(list, BorderLayout.NORTH);

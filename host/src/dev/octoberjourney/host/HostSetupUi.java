@@ -51,7 +51,7 @@ import dev.gatehouse.look.Quiet;
 final class HostSetupUi {
 	private HostSetupUi() {}
 
-	static void build(JFrame f, javax.swing.JTabbedPane firstTabs) {
+	static void build(JFrame f, javax.swing.JTabbedPane firstTabs, javax.swing.JComponent machineRows) {
 		// Host setup: the steps this machine needs to serve players, each with how it stands, and the invite link.
 		JPanel hostSetup = new JPanel(new BorderLayout(0, 8));
 		hostSetup.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
@@ -62,9 +62,9 @@ final class HostSetupUi {
 		javax.swing.JTextField shareF = new javax.swing.JTextField(40);
 		JButton shareSave = new JButton("Save"), recheck = new JButton("Check again");
 		JLabel shareSaid = new JLabel(" ");
-		shareSaid.setForeground(new Color(0x8F98A0));
+		shareSaid.setForeground(new Color(0xA9B5C1));
 		JLabel checkedLab = new JLabel(" ");
-		checkedLab.setForeground(new Color(0x8F98A0));
+		checkedLab.setForeground(new Color(0xA9B5C1));
 		shareF.setToolTipText("The reusable invite link you made in Tailscale's admin page for sharing this machine. Kept on this PC; it goes out only in pairings you hand over.");
 		JPanel shareRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 		JLabel shareLab = new JLabel("Tailscale invite link for players:"); shareLab.setFont(shareLab.getFont().deriveFont(Font.BOLD));
@@ -74,7 +74,7 @@ final class HostSetupUi {
 		JButton nameSave = new JButton("Save name");
 		nameF.setToolTipText("What connected launchers call this Gatekeeper in their list. Empty: this machine's own name. Launchers that are open pick a change up within a few seconds.");
 		JLabel nameLab = new JLabel("Name shown in launchers:"); nameLab.setFont(nameLab.getFont().deriveFont(Font.BOLD));
-		JLabel nameHint = new JLabel(" "); nameHint.setForeground(new Color(0x8F98A0));
+		JLabel nameHint = new JLabel(" "); nameHint.setForeground(new Color(0xA9B5C1));
 		JPanel nameRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 		nameRow.add(nameLab); nameRow.add(nameF); nameRow.add(nameSave); nameRow.add(nameHint);
 		JPanel fieldRows = new JPanel();
@@ -86,6 +86,22 @@ final class HostSetupUi {
 		shareBox.add(fieldRows, BorderLayout.CENTER);
 		shareBox.add(shareSaid, BorderLayout.SOUTH);
 		hostSetup.add(stepScroll, BorderLayout.CENTER); hostSetup.add(shareBox, BorderLayout.SOUTH);
+		// Server setup and Share pairing live here, beside the steps that ask for them (R38: they used to be only on a
+		// server's Server Status tab, which the steps called "the Servers tab").
+		Runnable serverSetup = ServerSetupUi.dialog(f);
+		JButton setupB = new JButton("Server setup…"), pairB = new JButton("Share pairing…");
+		JLabel pairNote = new JLabel(" "); pairNote.setForeground(new Color(0xA9B5C1));
+		setupB.addActionListener(e -> serverSetup.run());   // (the steps look again by themselves within 5 seconds)
+		PairingUi.wire(pairB, pairNote, f);
+		JPanel toolRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+		toolRow.add(setupB); toolRow.add(pairB); toolRow.add(pairNote);
+		// (with Gatekeeper's and MCSS's own lines above the steps: Start MCSS, signing in to it, its key; R38)
+		JPanel hostTop = new JPanel();
+		hostTop.setLayout(new javax.swing.BoxLayout(hostTop, javax.swing.BoxLayout.Y_AXIS));
+		toolRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); machineRows.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		machineRows.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 0));
+		hostTop.add(toolRow); hostTop.add(machineRows);
+		hostSetup.add(hostTop, BorderLayout.NORTH);
 		// The list looks again by itself every few seconds while this tab is open, so a change made elsewhere (in
 		// MCSS, in Tailscale, in a file) shows here without pressing anything. The line at the bottom says when it
 		// last looked; a step that has just turned to Done says so for a minute, and the list is only redrawn when
@@ -117,18 +133,25 @@ final class HostSetupUi {
 				if (same) continue;
 				boolean na = st.equals("na");
 				boolean justDone = stepDoneAt.containsKey(Json.str(s.get("title"))) && nowMs - stepDoneAt.get(Json.str(s.get("title"))) < 60_000;
-				String colour = st.equals("ok") ? "#3FB950" : st.equals("warn") ? "#E3B341" : na ? "#8F98A0" : "#F85149",
+				String colour = st.equals("ok") ? "#3FB950" : st.equals("warn") ? "#E3B341" : na ? "#A9B5C1" : "#F85149",
 						word = st.equals("ok") ? (justDone ? "<b>Done just now</b>" : "Done") : st.equals("warn") ? "Worth changing" : na ? notSupported() : "To do";
 				java.util.function.Function<String, String> esc = t -> t.replace("&", "&amp;").replace("<", "&lt;");
 				JLabel row = new JLabel("<html><div style='width:860px'><span style='color:" + colour + "'>\u25CF</span>&nbsp; <b>"
 						+ esc.apply(Json.str(s.get("title"))) + "</b> &nbsp;<span style='color:" + colour + "'>" + word + "</span>"
 						+ (Json.str(s.get("detail")).isEmpty() ? "" : "<br>&nbsp;&nbsp;&nbsp;&nbsp;" + esc.apply(Json.str(s.get("detail"))))
-						+ (Json.str(s.get("how")).isEmpty() ? "" : "<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#8F98A0'>"
+						+ (Json.str(s.get("how")).isEmpty() ? "" : "<br>&nbsp;&nbsp;&nbsp;&nbsp;<span style='color:#A9B5C1'>"
 								+ esc.apply(Json.str(s.get("how"))) + "</span>") + "</div></html>");
 				row.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0)); row.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 				stepList.add(row);
 				// A step Gatekeeper can do itself has a button for it (it asks first, and says what it did).
 				String action = Json.str(s.get("action")), actionAsk = Json.str(s.get("action_ask"));
+				if (action.equals("server_setup") || action.equals("share_pairing")) {
+					JButton does = new JButton(Json.str(s.get("action_label")));
+					does.addActionListener(ev -> (action.equals("server_setup") ? setupB : pairB).doClick(0));
+					JPanel br = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 22, 0));
+					br.add(does); br.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+					stepList.add(br);
+				}
 				if (action.equals("whitelist_on")) {
 					JButton does = new JButton(Json.str(s.get("action_label")));
 					does.addActionListener(ev -> {

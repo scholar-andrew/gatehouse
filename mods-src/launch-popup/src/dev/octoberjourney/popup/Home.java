@@ -649,9 +649,9 @@ final class Home {
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(14, 24, 10, 24));
 			JLabel head = new JLabel(LaunchPopup.TOOL + " Minecraft Launcher");
-			head.setFont(head.getFont().deriveFont(Font.BOLD, 24f));
+			head.setFont(head.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(24f)));
 			JLabel sub = new JLabel(" ");
-			sub.setFont(sub.getFont().deriveFont(14f));
+			sub.setFont(sub.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(14f)));
 			JButton backB = new JButton("‹ Gatekeepers");
 			backB.setToolTipText("Back to the list of Gatekeepers");
 			backB.setVisible(false);
@@ -692,7 +692,11 @@ final class Home {
 			dev.gatehouse.look.GameShell[] shell = {null};
 			String[] openUrl = {null};
 			boolean[] atServers = {false};
-			CardLayout cards = new CardLayout();
+			// (which page is showing is told to onPage, so buttons that belong to one page can follow it: R38)
+			java.util.function.Consumer<String>[] onPage = new java.util.function.Consumer[] {pg -> { }};
+			CardLayout cards = new CardLayout() {
+				@Override public void show(java.awt.Container parent, String name) { super.show(parent, name); onPage[0].accept(name); }
+			};
 			JPanel deck = new JPanel(cards);
 			deck.setOpaque(false);
 			JPanel keeperList = new JPanel(), serverList = new JPanel(), connList = new JPanel();
@@ -759,14 +763,14 @@ final class Home {
 			boolean byItself = Files.isRegularFile(Notes.app(instances).resolve("extras/launch-popup.jar"));
 			java.util.function.BiConsumer<String, Boolean> optLine = (text, bold) -> {
 				JLabel l = new JLabel("<html><div style='width:470px'>" + LaunchPopup.esc(text).replace("\n", "<br>") + "</div></html>");
-				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, 15f)); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); }
+				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(15f))); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); }
 				else l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 				l.setAlignmentX(Component.LEFT_ALIGNMENT);
 				options.add(l);
 			};
 			java.util.function.BiConsumer<String, Boolean> updLine = (text, bold) -> {
 				JLabel l = new JLabel("<html><div style='width:640px'>" + LaunchPopup.esc(text).replace("\n", "<br>") + "</div></html>");
-				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, 15f)); l.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0)); }
+				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(15f))); l.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0)); }
 				else l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 				l.setAlignmentX(Component.LEFT_ALIGNMENT);
 				updating.add(l);
@@ -800,7 +804,7 @@ final class Home {
 			javax.swing.JCheckBox forget = new javax.swing.JCheckBox("Also remove what Gatehouse remembers: its Gatekeepers, and this device's identity with them");
 			forget.setAlignmentX(Component.LEFT_ALIGNMENT);
 			forget.setVisible(planNow[0].equals("script"));
-			JButton uninstall = new LaunchPopup.PlayButton("Uninstall " + LaunchPopup.TOOL + "\u2026", LaunchPopup.QUIT_RED, Color.WHITE, 14f);
+			JButton uninstall = dev.gatehouse.look.SteamLook.danger(new JButton("Uninstall " + LaunchPopup.TOOL + "\u2026"));
 			uninstall.setToolTipText("Asks you to type confirm first");
 			uninstall.setVisible(!planNow[0].equals("tell"));
 			JPanel uninstallRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8));
@@ -917,7 +921,7 @@ final class Home {
 					LaunchPopup.PlayButton go = new LaunchPopup.PlayButton("Launch");   // (not "Play": it opens the server's launcher, which has Play)
 					go.setToolTipText("Updates this pack, then shows its window before the game starts");
 					JLabel missing = new JLabel("Not installed on this device");
-					missing.setForeground(new Color(0x8F98A0));
+					missing.setForeground(new Color(0xA9B5C1));
 					JButton install = new JButton("Install");
 					install.setToolTipText("Sets this server's pack up in Prism Launcher on this device. The mods download on the first launch.");
 					install.setVisible(false);
@@ -925,7 +929,7 @@ final class Home {
 					inviteB.setToolTipText("Makes an invite to send someone: their Gatehouse can then install this server's pack and join. It doesn't put them on the whitelist or give them any control.");
 					inviteB.setVisible(false);
 					// Remove: takes an installed server off this device (its Prism Launcher instance), after asking
-					JButton removeB = new JButton("Remove…");
+					JButton removeB = dev.gatehouse.look.SteamLook.danger(new JButton("Remove…"));
 					removeB.setToolTipText("Takes this server off this device: its instance in Prism Launcher. The server itself isn't touched; Install brings it back.");
 					removeB.setVisible(pack != null);
 					if (pack != null) removeB.addActionListener(ev -> {
@@ -950,7 +954,7 @@ final class Home {
 						}
 						again[0] = url; f.dispose();   // (the window comes straight back, without it)
 					});
-					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {missing, inviteB, removeB, install, go});
+					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {removeB, missing, inviteB, install, go});
 					go.setVisible(pack != null); missing.setVisible(pack == null);
 					if (pack != null) go.addActionListener(ev -> {
 						if (launchBusy) return;
@@ -1104,7 +1108,7 @@ final class Home {
 								if ("UPDATES".equals(shell[0] == null ? "" : shell[0].lit())) seenNow.run();
 							}
 							else { JLabel no = new JLabel(got == null ? "This Gatekeeper isn't answering, so its notes can't be shown."
-									: "This Gatekeeper is from before it kept notes of its own (before Gatekeeper 2.0.0)."); no.setForeground(new Color(0x8F98A0)); no.setBorder(BorderFactory.createEmptyBorder(10, 12, 0, 0)); keeperNotes.add(no, BorderLayout.NORTH); }
+									: "This Gatekeeper is from before it kept notes of its own (before Gatekeeper 2.0.0)."); no.setForeground(new Color(0xA9B5C1)); no.setBorder(BorderFactory.createEmptyBorder(10, 12, 0, 0)); keeperNotes.add(no, BorderLayout.NORTH); }
 							keeperNotes.revalidate(); keeperNotes.repaint();
 						};
 						if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
@@ -1435,7 +1439,7 @@ final class Home {
 				for (String[] k : keepers) {
 					LaunchPopup.PlayButton open = new LaunchPopup.PlayButton("Open");
 					open.setToolTipText("Shows the servers this Gatekeeper looks after");
-					JButton remove = new JButton("Remove");
+					JButton remove = dev.gatehouse.look.SteamLook.danger(new JButton("Remove"));
 					remove.setToolTipText("Forgets this Gatekeeper on this device (packs already installed stay)");
 					JButton connect = new JButton("Connect\u2026");
 					connect.setToolTipText("Walks through getting this device connected to this Gatekeeper: Tailscale, the owner's invite, and pairing");
@@ -1526,13 +1530,13 @@ final class Home {
 			JButton addB = new JButton("Add Gatekeeper…");
 			addB.setToolTipText("Connects this launcher to another Gatekeeper, with the address, pairing link or pairing file its owner gave you");
 			JButton prismB = new LaunchPopup.PlayButton("Open Prism Launcher", LaunchPopup.SLATE, Color.WHITE, 14f),
-					quit = new LaunchPopup.PlayButton("Quit", LaunchPopup.QUIT_RED, Color.WHITE, 14f);
+					quit = new LaunchPopup.PlayButton("Quit", LaunchPopup.SLATE, Color.WHITE, 14f);
 			prismB.setToolTipText("Prism Launcher itself: accounts, other instances, settings");
 			quit.setToolTipText("Closes the launcher");
 			prismB.addActionListener(ev -> { openPrism[0] = true; f.dispose(); });
 			// Restart: the main window again from the top (what's installed is read again, the Gatekeepers are asked again,
 			// and a newer Gatehouse is looked for again).
-			JButton restartB = new LaunchPopup.PlayButton("Restart", LaunchPopup.YELLOW, LaunchPopup.INK, 14f);
+			JButton restartB = new LaunchPopup.PlayButton("Restart", LaunchPopup.SLATE, Color.WHITE, 14f);
 			restartB.setToolTipText("Opens the launcher again from the start, looking for a newer Gatehouse");
 			restartB.addActionListener(ev -> { again[0] = "\u0000restart"; f.dispose(); });
 			Nav.tag(restartB, "restart");
@@ -1604,10 +1608,10 @@ final class Home {
 				for (String[] k : known) if (Connect.reaches(k[0])) { reach = true; break; }
 				int have = installed(instances).size();
 				steps.add(new dev.gatehouse.look.Wizard.Step("welcome", "Welcome", "info",
-						"This guide takes a device from nothing set up to playing on a friend's Minecraft server.\n\nA server's owner runs a program called Gatekeeper on their machine. " + LaunchPopup.TOOL + ", this launcher, connects to it: it shows that owner's servers, installs what each needs, keeps it up to date, and starts the game through Prism Launcher.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""));
+						"This guide takes a device from nothing set up to playing on a friend's Minecraft server.\n\nA server's owner runs a program called Gatekeeper on their machine. " + LaunchPopup.TOOL + ", this launcher, connects to it: it shows that owner's servers, installs what each needs, keeps it up to date, and starts the game through Prism Launcher.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from the menu (\u2261, at the top left): Setup guide.", ""));
 				steps.add(new dev.gatehouse.look.Wizard.Step("prism", "Prism Launcher", prismOk ? "ok" : "todo",
 						"Prism Launcher is the program that actually runs Minecraft; " + LaunchPopup.TOOL
-						+ " tells it what to start. Install it from its own site, then press Restart below so " + LaunchPopup.TOOL
+						+ " tells it what to start. Install it from its own site, then choose Restart in the menu (\u2261, at the top left) so " + LaunchPopup.TOOL
 						+ " finds it.\n\nThis step is done when Prism Launcher is found on this device.", prismOk ? "" : "Not found where it's usually installed")
 						.action("Open Prism Launcher's download page", "open:https://prismlauncher.org/download/"));
 				steps.add(new dev.gatehouse.look.Wizard.Step("account", "Your Minecraft account", !prismOk ? "wait" : account ? "ok"
@@ -1623,7 +1627,7 @@ final class Home {
 						: "todo", "Close this guide and open the Gatekeeper on your list: it shows the owner's servers. Press Install beside one. " + LaunchPopup.TOOL + " sets it up in Prism Launcher; the game and any mods download the first time you start it.\n\nThe owner decides what your device may do. Until they allow it you can still install and look, and they see your device waiting in their Gatekeeper.\n\nThis step is done when a server is installed here.", have > 0 ? have + (have == 1 ? " server" : " servers") + " installed" : "")
 						.action("Show my Gatekeepers", "keepers"));
 				steps.add(new dev.gatehouse.look.Wizard.Step("play", "Play", "info",
-						"Press Launch beside a server. Its update runs, then its page shows Play.\n\nThe button changes with what's in the way, and says what to do: Request whitelist asks the owner to add you to the server's whitelist; Request server asks them to turn the server on; Update needed means " + LaunchPopup.TOOL + " or the owner's Gatekeeper has to be updated first.\n\nThat's everything. This guide stays in Options.", ""));
+						"Press Launch beside a server. Its update runs, then its page shows Play.\n\nThe button changes with what's in the way, and says what to do: Request whitelist asks the owner to add you to the server's whitelist; Request server asks them to turn the server on; Update needed means " + LaunchPopup.TOOL + " or the owner's Gatekeeper has to be updated first.\n\nThat's everything. This guide stays in the menu.", ""));
 				return steps;
 			}, id -> {
 				if (id.startsWith("open:")) Connection.open(id.substring(5));
@@ -1640,6 +1644,8 @@ final class Home {
 			deck.add(dev.gatehouse.look.GameShell.sheet(guide[0]), "wizard");
 			openGuide[0] = () -> { head.setText("Setup guide"); sub.setText("From nothing set up to playing, a step at a time."); backB.setVisible(true); cards.show(deck, "wizard"); shell[0].menuLight("guide"); guide[0].open(); };
 			headButtons.add(addB, 0);
+			// Add Gatekeeper only where Gatekeepers and their servers are listed, not on Chat, Updates or Options (R38).
+			onPage[0] = pg -> addB.setVisible(pg.equals("servers") || pg.equals("keepers"));
 			// ---- the other sections' pages
 			JPanel peopleList = new JPanel();
 			dev.gatehouse.look.GameCard.grid(peopleList);
@@ -1841,16 +1847,21 @@ final class Home {
 			shell[0].menu("This device", "options", "Options", () -> gear.doClick(0));
 			shell[0].menu("Help", "guide", "Setup guide", () -> { if (openGuide[0] != null) openGuide[0].run(); });
 			shell[0].menu("Help", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
+			// Restart and Quit at the bottom of the menu, as in a game's menu, rather than on every screen (R38). Y and
+			// Start on a controller still find them: they open the menu on them.
+			shell[0].menu(LaunchPopup.TOOL, "restart", "Restart", () -> restartB.doClick(0));
+			shell[0].menu(LaunchPopup.TOOL, "quit", "Quit", () -> quit.doClick(0));
+			shell[0].menuTag("restart", "restart"); shell[0].menuTag("quit", "quit");
 			shell[0].afterMenu(() -> Nav.home(f));
 			shell[0].body(p);
 			shell[0].corner("This device: " + ServerControl.systemName());
 			// the bottom strip: where this launcher stands, and what the buttons do
 			JLabel verL = new JLabel(LaunchPopup.TOOL + " " + ownVersion);
-			verL.setFont(verL.getFont().deriveFont(Font.BOLD, 13f));
+			verL.setFont(verL.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(13f)));
 			String modeIs = updateMode(home);
 			JLabel modeL = new JLabel(modeIs.equals("auto") ? "Auto updates" : modeIs.equals("constellation") ? "Constellation updates"
 					: "Updates when you press Update");
-			modeL.setForeground(new Color(0x8F98A0));
+			modeL.setForeground(new Color(0xA9B5C1));
 			for (javax.swing.JRadioButton rb : new javax.swing.JRadioButton[] {modeNormal, modeAuto,
 					modeGroup}) rb.addActionListener(ev -> modeL.setText(modeAuto.isSelected() ? "Auto updates" : modeGroup.isSelected()
 					? "Constellation updates" : "Updates when you press Update"));
@@ -1867,14 +1878,13 @@ final class Home {
 			right.add(new dev.gatehouse.look.GameShell.Hint("A", "Enter", "Select")); right.add(backHint);
 			right.add(Box.createHorizontalStrut(6));
 			right.add(new dev.gatehouse.look.GameShell.Glyph("X", "")); right.add(prismB);
-			right.add(new dev.gatehouse.look.GameShell.Glyph("Y", "")); right.add(restartB);
-			right.add(new dev.gatehouse.look.GameShell.Glyph("Start", "")); right.add(quit);
+			Nav.tag(restartB, "restart-bar"); Nav.tag(quit, "quit-bar");   // (not shown any more: the menu's items carry the tags)
 			List<Path> folders = new ArrayList<>();
 			for (String[] e : packs) folders.add(Path.of(e[3]));
 			Path launcherAt = SteamUpdate.launcherHome(folders);
 			JPanel south = new JPanel(new BorderLayout(0, 10));
 			if (launcherAt != null) south.add(LaunchPopup.steamRow(launcherAt, "launcher", "Update " + LaunchPopup.TOOL
-					+ "'s Steam config", f, () -> ((LaunchPopup.PlayButton) quit).halo()), BorderLayout.NORTH);
+					+ "'s Steam config", f, () -> { if (!shell[0].menuOpen()) shell[0].toggleMenu(); shell[0].menuLight("quit"); }), BorderLayout.NORTH);
 			south.setOpaque(false);
 			p.add(south, BorderLayout.SOUTH);
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent ev) { closed.countDown(); } });
@@ -2048,7 +2058,7 @@ final class Home {
 					news.setSelectedIndex(news.getTabCount() - 1); snap.accept("updateoptions"); news.setSelectedIndex(0);
 					pickSection.accept("OPTIONS"); if (!shell[0].menuOpen()) shell[0].toggleMenu(); shell[0].validate(); snap.accept("options");
 					shell[0].toggleMenu();
-					cards.show(deck, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); snap.accept("wizard");
+					head.setText("Setup guide"); sub.setText("From nothing set up to playing, a step at a time."); cards.show(deck, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); snap.accept("wizard");
 				} catch (java.io.UncheckedIOException ex) { ex.printStackTrace(); }
 				f.dispose();
 				return;

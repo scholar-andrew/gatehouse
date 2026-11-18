@@ -41,7 +41,7 @@ final class PullsUi {
 				"Mods", "Size", "From this machine"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable pullTable = new JTable(pullModel);
 		roomy(pullTable);
-		pullTable.setRowHeight(26);
+		pullTable.setRowHeight(30);
 		pullTable.getColumnModel().getColumn(0).setPreferredWidth(150); pullTable.getColumnModel().getColumn(4).setPreferredWidth(220);
 		javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
 		right.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
@@ -53,13 +53,13 @@ final class PullsUi {
 			JPanel tile = new JPanel(new BorderLayout(0, 2));
 			tile.setBackground(new Color(0x141D29));
 			tile.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(10, 14, 10, 14)));
-			JLabel cap = new JLabel(pullTitles[ti]); cap.setForeground(new Color(0x8F98A0));
-			pullTiles[ti].setFont(pullTiles[ti].getFont().deriveFont(Font.BOLD, ti == 3 ? 15f : 22f));
+			JLabel cap = new JLabel(pullTitles[ti]); cap.setForeground(new Color(0xA9B5C1));
+			pullTiles[ti].setFont(pullTiles[ti].getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(ti == 3 ? 15f : 22f)));
 			tile.add(cap, BorderLayout.NORTH); tile.add(pullTiles[ti], BorderLayout.CENTER);
 			tiles.add(tile);
 		}
 		JLabel pullNote = new JLabel("<html><div style='width:900px'>Each time a launcher fetches an update from this machine (not from GitHub), it says so here. Size is the whole download for that update; the part that came from this machine is in the last column (mods the pack only lists come from Modrinth).</div></html>");
-		pullNote.setForeground(new Color(0x8F98A0));
+		pullNote.setForeground(new Color(0xA9B5C1));
 		JPanel pullsTab = new JPanel(new BorderLayout(0, 10));
 		pullsTab.setBorder(BorderFactory.createEmptyBorder(10, 6, 6, 6));
 		pullsTab.add(tiles, BorderLayout.NORTH); pullsTab.add(new JScrollPane(pullTable), BorderLayout.CENTER); pullsTab.add(pullNote, BorderLayout.SOUTH);

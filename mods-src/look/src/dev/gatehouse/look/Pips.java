@@ -25,12 +25,12 @@ import javax.swing.JComponent;
  * "n": name or "", "me": true|false}, ...]}; nothing (or no pips) hides it.
  */
 public final class Pips extends JComponent {
-	static final Color READY = new Color(0x3FB950), WAITING = new Color(0xE9B949), BUSY = new Color(0xE5484D), GREY = new Color(0x8F98A0),
+	static final Color READY = new Color(0x3FB950), WAITING = new Color(0xE9B949), BUSY = new Color(0xE5484D), GREY = new Color(0xA9B5C1),
 			TEXT = new Color(0xC7D5E0);
 	private final List<String[]> pips = new ArrayList<>();   // {state, kind, name, me}
 	private String line = "";
 
-	public Pips() { setVisible(false); setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13)); }
+	public Pips() { setVisible(false); setFont(new Font(Font.SANS_SERIF, Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13))); }
 
 	/** Shows what a Gatekeeper said about the gathering (a Map as either program's own JSON reader gives it), or hides itself. */
 	public void set(Object gather) {

@@ -46,7 +46,7 @@ final class ConstellationUi {
 						Json.str(en.get("to")), Json.str(en.get("how")), Json.str(en.get("source")).isEmpty() ? "not said"
 						: Json.str(en.get("source")), (Json.str(en.get("via")).isEmpty() && !Json.str(en.get("also")).isEmpty()
 						? "(also heard through " + Json.str(en.get("also")) + ")" : Json.str(en.get("via")))}); }
-				JTable lt = new JTable(lm); lt.setRowHeight(24);
+				JTable lt = new JTable(lm); lt.setRowHeight(28);
 				JScrollPane ls = new JScrollPane(lt); ls.setPreferredSize(new java.awt.Dimension(1100, 420));
 				JPanel lp = new JPanel(new BorderLayout(0, 6));
 				lp.add(ServerToolsUi.note(ServerToolsUi.wrap(lm.getRowCount() == 0
@@ -60,26 +60,27 @@ final class ConstellationUi {
 	static JPanel tab(JFrame f) {
 		JPanel p = new JPanel(new BorderLayout(0, 8));
 		p.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
-		JLabel head = ServerToolsUi.note(ServerToolsUi.wrap("A constellation is a Gatekeeper and every client connected to it: its launchers, other Gatekeepers that have joined it, and their launchers. Normal: updates when Update is pressed there. Auto: updates itself as soon as it sees a new version. Constellation: waits for the group and updates with it. Each client's mode is chosen in its own Options.", 900));
+		JLabel head = ServerToolsUi.note(ServerToolsUi.wrap("A constellation is a Gatekeeper and every client connected to it: its launchers, other Gatekeepers that have joined it, and their launchers. Normal: updates when Update is pressed there. Auto: updates itself as soon as it sees a new version. Constellation: waits for the group and updates with it. Each client's mode is chosen in its own Options.", 820));
 		DefaultTableModel model = new DefaultTableModel(new Object[] {"Client", "Kind", "Player", "System", "Version", "Update mode",
 				"Now", "In this constellation"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(model);
 		HostHelper.roomy(table);
-		table.setRowHeight(24);
+		table.setRowHeight(28);
+		dev.gatehouse.look.SteamLook.fitColumns(table);
 		List<String[]> rowIds = new ArrayList<>();   // {its id here (a Gatekeeper that joined or asked), how it stands} per row
 		JLabel said = new JLabel(" "), did = new JLabel(" "), leadSaid = new JLabel(" ");
-		said.setForeground(new Color(0x8F98A0)); leadSaid.setForeground(new Color(0x8F98A0));
+		said.setForeground(new Color(0xA9B5C1)); leadSaid.setForeground(new Color(0xA9B5C1));
 		javax.swing.JCheckBox leadUpdates = new javax.swing.JCheckBox("Share program updates with that Gatekeeper");
 		leadUpdates.setToolTipText("<html>On unless you turn it off. This Gatekeeper takes a newer version from the Gatekeeper it joined as soon as that one has it,<br>and hands on one it finds first, so the constellation fetches it from outside only once.<br>That trusts the other Gatekeeper's machine to supply this Gatekeeper's program: turn it off for a machine that isn't yours.</html>");
 		boolean[] leadFilling = {false};
-		JButton manageLet = new JButton("Let it manage this Gatekeeper"), manageStop = new JButton("Stop it managing"),
+		JButton manageLet = new JButton("Let it manage"), manageStop = new JButton("Stop managing"),
 				manageOpen = new JButton("Manage it\u2026"), leadOpen = new JButton("Manage that Gatekeeper\u2026");
 		manageLet.setToolTipText("<html>For a Gatekeeper that joined and was allowed in: from its own window it can then see this Gatekeeper's servers, start and stop them,<br>use a console, and answer launchers and players. Not this Gatekeeper's settings, updates, web accounts or the machine. Off unless you choose it.</html>");
 		manageOpen.setToolTipText("Opens a window on the Gatekeeper you clicked, if its owner has let this one manage it");
 		javax.swing.JCheckBox leadManage = new javax.swing.JCheckBox("Let that Gatekeeper manage this one");
 		leadManage.setToolTipText("<html>Off unless you choose it. The Gatekeeper this one joined can then, from its own window, see this Gatekeeper's servers, start and stop them,<br>use a console, and answer launchers and players. Not this Gatekeeper's settings, updates, web accounts or the machine.</html>");
-		JButton allow = new JButton("Allow into this constellation"), remove = new JButton("Remove from this constellation"),
-				join = new JButton("Join"), leave = new JButton("Leave");
+		JButton allow = new JButton("Allow in"), remove = dev.gatehouse.look.SteamLook.danger(new JButton("Remove")),
+				join = new JButton("Join"), leave = dev.gatehouse.look.SteamLook.danger(new JButton("Leave"));
 		allow.setToolTipText("For a Gatekeeper that has asked to join: in constellation mode it then updates on this Gatekeeper's go, and its launchers are listed here. It gets no control of anything.");
 		JTextField address = new JTextField(22);
 		address.setToolTipText("The other Gatekeeper's address (100.x.y.z:25570), or its pairing link");
@@ -143,7 +144,7 @@ final class ConstellationUi {
 		java.util.function.Consumer<Boolean> pick = in -> {
 			int i = table.getSelectedRow();
 			if (i < 0 || i >= rowIds.size()
-					|| rowIds.get(i)[0].isEmpty()) { did.setForeground(new Color(0x8F98A0)); did.setText("Click a Gatekeeper that joined or asked to join first."); return; }
+					|| rowIds.get(i)[0].isEmpty()) { did.setForeground(new Color(0xA9B5C1)); did.setText("Click a Gatekeeper that joined or asked to join first."); return; }
 			post.accept(m("allow", rowIds.get(i)[0], "value", in), "");
 		};
 		allow.addActionListener(e -> pick.accept(true));
@@ -156,7 +157,7 @@ final class ConstellationUi {
 		java.util.function.BiConsumer<String, Boolean> onRow = (what, value) -> {
 			int i = table.getSelectedRow();
 			if (i < 0 || i >= rowIds.size()
-					|| rowIds.get(i)[0].isEmpty()) { did.setForeground(new Color(0x8F98A0)); did.setText("Click a Gatekeeper that joined first."); return; }
+					|| rowIds.get(i)[0].isEmpty()) { did.setForeground(new Color(0xA9B5C1)); did.setText("Click a Gatekeeper that joined first."); return; }
 			if (what.equals("open")) open.accept(m("id", rowIds.get(i)[0])); else post.accept(m("manage", rowIds.get(i)[0], "value", value), "");
 		};
 		manageLet.addActionListener(e -> onRow.accept("manage", true));
@@ -175,14 +176,8 @@ final class ConstellationUi {
 		buttons.add(manageStop);
 		buttons.add(manageOpen);
 		buttons.add(logB);
-		JButton historyB = new JButton("History of servers\u2026");
-		historyB.setToolTipText("Every server a Gatekeeper of this constellation has made or looked after, and which Gatekeeper that was: kept after a server is gone, and handed to a Gatekeeper that joins later");
-		historyB.addActionListener(e -> PackUi.history(p));
-		buttons.add(historyB);
-		JButton systemsB = new JButton("Systems…");
-		systemsB.setToolTipText("<html>Every machine this one knows of, and how it stands with each: a neighbor (in a constellation with this one now),<br>remembered (kept by you, also after the constellation is left), or unknown. A neighbor can be remembered from here.</html>");
-		systemsB.addActionListener(e -> PackUi.systems(p));
-		buttons.add(systemsB);
+		// (History of servers and Systems are in the menu beside Constellation, so they are no longer buttons here too:
+		// R38. That also keeps this row on one line at the Steam Deck's size.)
 		JPanel joinRow = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2));
 		joinRow.add(new JLabel("Join another Gatekeeper's constellation:"));
 		joinRow.add(address);
@@ -198,7 +193,8 @@ final class ConstellationUi {
 				null).get("gather"); SwingUtilities.invokeLater(() -> pips.set(gg)); }); }).start();
 		for (javax.swing.JComponent c : new javax.swing.JComponent[] {buttons, said, pips, joinRow, leadSaid,
 				did}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); bottom.add(c); }
-		p.add(head, BorderLayout.NORTH); p.add(new JScrollPane(table), BorderLayout.CENTER); p.add(bottom, BorderLayout.SOUTH);
+		p.add(head, BorderLayout.NORTH); JScrollPane tableScroll = new JScrollPane(table); tableScroll.setPreferredSize(new java.awt.Dimension(400, 230));   // (R39: so the buttons under it fit on a Steam Deck)
+		p.add(tableScroll, BorderLayout.CENTER); p.add(bottom, BorderLayout.SOUTH);
 		new Timer(5000, e -> { if (p.isShowing()) load.run(); }).start();
 		load.run();
 		return p;

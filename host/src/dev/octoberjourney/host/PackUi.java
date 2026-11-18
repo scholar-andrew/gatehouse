@@ -76,7 +76,7 @@ final class PackUi {
 				{"public", "Public: every launcher that connects here"}};
 		JComboBox<String> whoBox = new JComboBox<>(new String[] {modes[0][1], modes[1][1], modes[2][1]});
 		whoBox.setToolTipText("<html>Who this server and its pack are for. Private unless you change it.<br>Private: this machine's launcher, launchers with control here or allowed to start this server, launchers playing as someone on its whitelist, and anyone you invite.<br>Shareable: those, and anyone one of them invites.<br>Public: every launcher that connects to this Gatekeeper.<br>An invite never puts anyone on the whitelist or gives any control.</html>");
-		JButton inviteB = new JButton("Invite…"), takeBackB = new JButton("Take back invites");
+		JButton inviteB = new JButton("Invite…"), takeBackB = dev.gatehouse.look.SteamLook.danger(new JButton("Take back invites"));
 		inviteB.setToolTipText("Makes an invite to send someone: in their Gatehouse they add this Gatekeeper with it, and this server is then listed for them with Install. Lasts seven days.");
 		takeBackB.setToolTipText("Every invite to this server that hasn't run out stops working, and launchers that only came in by invite are no longer given it");
 		JLabel invitedSaid = ServerToolsUi.note(" ");
@@ -267,7 +267,7 @@ final class PackUi {
 		java.util.List<String> hands = new java.util.ArrayList<>();
 		rowHand.put(tm, hands);
 		JTable table = new JTable(tm);
-		table.setRowHeight(24);
+		table.setRowHeight(28);
 		int[] widths = {50, 210, 90, 50, 150, 130, 420};
 		for (int i = 0; i < widths.length; i++) table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
 		JLabel head = ServerToolsUi.note(" "), said = new JLabel(" ");
@@ -326,13 +326,13 @@ final class PackUi {
 		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands",
 				"Its Gatekeeper's address", "Seen through", "Last heard from"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(tm);
-		table.setRowHeight(24);
+		table.setRowHeight(28);
 		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
 		int[] wide = {170, 90, 170, 230, 160, 120, 120};
 		for (int i = 0; i < wide.length; i++) table.getColumnModel().getColumn(i).setPreferredWidth(wide[i]);
 		java.util.List<Map<String, Object>> shown = new java.util.ArrayList<>();
 		JLabel said = new JLabel(" ");
-		JButton keep = new JButton("Remember"), forget = new JButton("Forget");
+		JButton keep = new JButton("Remember"), forget = dev.gatehouse.look.SteamLook.danger(new JButton("Forget"));
 		keep.setToolTipText("Keeps the chosen system in this list after the constellation is left. Only a neighbor can be remembered. It gives that system nothing.");
 		forget.setToolTipText("Stops remembering the chosen system");
 		Runnable pick = () -> { int i = table.getSelectedRow(); Map<String, Object> r = i >= 0 && i < shown.size() ? shown.get(i)
@@ -396,7 +396,7 @@ final class PackUi {
 						: "; ").append(Json.str(k.get("name"))).append(ServerTools.yes(k.get("this")) ? " (this one)"
 						: Json.str(k.get("address")).isEmpty() ? "" : " at "
 						+ Json.str(k.get("address"))).append(", ").append(ServerToolsUi.num(k.get("servers"))).append(" server(s), last ").append(Json.str(k.get("last"))); }
-				JTable lt = new JTable(lm); lt.setRowHeight(24);
+				JTable lt = new JTable(lm); lt.setRowHeight(28);
 				JScrollPane ls = new JScrollPane(lt); ls.setPreferredSize(new java.awt.Dimension(1000, 380));
 				JPanel lp = new JPanel(new BorderLayout(0, 6));
 				String head = lm.getRowCount() == 0

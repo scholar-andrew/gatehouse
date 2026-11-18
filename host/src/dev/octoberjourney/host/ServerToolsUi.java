@@ -42,7 +42,7 @@ import dev.gatehouse.look.Quiet;
  * Gatekeeper (/admin/tools/...); it changes nothing itself.
  */
 final class ServerToolsUi {
-	static final Color GREY = new Color(0x8F98A0), GREEN = new Color(0x8BD46E), RED = new Color(0xFF7B72), AMBER = new Color(0xE9B949);
+	static final Color GREY = new Color(0xA9B5C1), GREEN = new Color(0x8BD46E), RED = new Color(0xFF7B72), AMBER = new Color(0xE9B949);
 	static final String NO_FILE = "Not needed for this kind: Gatekeeper fetches it";
 	static final String[][] WHEN = {{"daily", "Every day at a time"}, {"every", "Every so many minutes"}, {"manual", "Only when I press Run now"}};
 	static final String[][] WHO = {{"any", "Whoever is on"}, {"empty", "Only if nobody is playing"}, {"some", "Only if someone is playing"}};
@@ -101,7 +101,7 @@ final class ServerToolsUi {
 		JComboBox<String> kindF = new JComboBox<>(), verF = new JComboBox<>();
 		for (Object k : kinds) kindF.addItem(Json.str(Json.map(k).get("name")));
 		JComboBox<String> javaF = javaBox(Json.list(start.get("javas")), "", "Choose one that fits the version");
-		JButton browse = new JButton("Browse…"), eulaB = new JButton("Open the EULA"), make = new JButton("Make the server");
+		JButton browse = new JButton("Browse…"), eulaB = new JButton("Open the EULA"), make = dev.gatehouse.look.SteamLook.main(new JButton("Make the server"));
 		JCheckBox eula = new JCheckBox("I have read Minecraft's EULA and I agree to it");
 		JLabel verNote = note(" "), said = new JLabel(" "), fileL = new JLabel("File");
 		java.util.function.Supplier<String> kind = () -> Json.str(Json.map(kinds.get(Math.max(0, kindF.getSelectedIndex()))).get("id"));
@@ -198,9 +198,9 @@ final class ServerToolsUi {
 
 		// ---- Console
 		JTextArea out = new JTextArea(22, 110);
-		out.setEditable(false); out.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+		out.setEditable(false); out.setFont(new Font(Font.MONOSPACED, Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12)));
 		JTextField typed = new JTextField();
-		JButton send = new JButton("Send"), runB = new JButton("Start"), restartB = new JButton("Restart"), killB = new JButton("End it now…");
+		JButton send = new JButton("Send"), runB = dev.gatehouse.look.SteamLook.main(new JButton("Start")), restartB = new JButton("Restart"), killB = dev.gatehouse.look.SteamLook.danger(new JButton("End it now…"));
 		killB.setToolTipText("For a server that no longer answers: it is ended at once, without saving");
 		JLabel stats = new JLabel(" "), conSaid = new JLabel(" ");
 		long[] next = {0};
@@ -297,7 +297,7 @@ final class ServerToolsUi {
 		row(set, y++, null, line(saveSet));
 		row(set, y++, null, setSaid);
 		// Deleting the server: out of Gatekeeper only, or its files too (which needs its name typed).
-		JButton delB = new JButton("Delete this server\u2026");
+		JButton delB = dev.gatehouse.look.SteamLook.danger(new JButton("Delete this server\u2026"));
 		delB.setToolTipText("Takes this server out of Gatekeeper, and, if you choose, deletes its folder for good");
 		delB.addActionListener(e -> {
 			String nm = Json.str(first.get("name"));
@@ -405,14 +405,14 @@ final class ServerToolsUi {
 		JTable tt = new JTable(tm);
 		HostHelper.roomy(tt);
 		tt.putClientProperty("terminateEditOnFocusLost", true);
-		tt.setRowHeight(24);
+		tt.setRowHeight(28);
 		tt.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(new JComboBox<>(words(WHEN))));
 		tt.getColumnModel().getColumn(5).setCellEditor(new DefaultCellEditor(new JComboBox<>(words(WHO))));
 		tt.getColumnModel().getColumn(6).setCellEditor(new DefaultCellEditor(new JComboBox<>(words(JOB))));
 		tt.getColumnModel().getColumn(0).setMaxWidth(40); tt.getColumnModel().getColumn(7).setPreferredWidth(260);
 		int[] wide = {40, 130, 190, 80, 60, 190, 150};
 		for (int i = 1; i < wide.length; i++) tt.getColumnModel().getColumn(i).setPreferredWidth(wide[i]);
-		JButton addT = new JButton("Add a task"), delT = new JButton("Remove"), saveT = new JButton("Save"), runT = new JButton("Run now");
+		JButton addT = new JButton("Add a task"), delT = dev.gatehouse.look.SteamLook.danger(new JButton("Remove")), saveT = new JButton("Save"), runT = new JButton("Run now");
 		JLabel taskSaid = new JLabel(" ");
 		addT.addActionListener(e -> tm.addRow(new Object[] {true, "Nightly restart", WHEN[0][1], "04:00", "", WHO[1][1], JOB[0][1], ""}));
 		delT.addActionListener(e -> { if (tt.isEditing()) tt.getCellEditor().stopCellEditing(); if (tt.getSelectedRow() >= 0) tm.removeRow(tt.getSelectedRow()); });
@@ -450,11 +450,7 @@ final class ServerToolsUi {
 		later(readConsole);
 		return tabs;
 	}
-	static void manage(JFrame f, String id, String name) {
-		JDialog d = new JDialog(f, "Manage " + name, false);
-		d.setContentPane(manageTabs(d, id, true));
-		d.pack(); d.setLocationRelativeTo(f); d.setVisible(true);
-	}
+	// (R38: the separate Manage window is gone; a server's tools are tabs on its own page in Gatekeeper's window)
 
 	/** Testing: pictures of the forms (<prefix>-newserver.png, -manage-<tab>.png) instead of the dialogs. */
 	static void shots(String prefix, String id) {

@@ -39,10 +39,10 @@ public final class FilesBox {
 		DefaultTableModel model = new DefaultTableModel(new Object[] {"File", "Size", "From", "When"},
 				0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(model);
-		table.setRowHeight(26);
+		table.setRowHeight(30);
 		List<String[]>[] rows = new List[] {List.of()};
 		JLabel said = new JLabel(" ");
-		said.setForeground(new Color(0x8F98A0));
+		said.setForeground(new Color(0xA9B5C1));
 		Runnable load = () -> new Thread(() -> {
 			List<String[]> got = list.get();
 			SwingUtilities.invokeLater(() -> { rows[0] = got; model.setRowCount(0); for (String[] r : got) model.addRow(new Object[] {r[1],
@@ -86,7 +86,7 @@ public final class FilesBox {
 		buttons.add(save); buttons.add(offer); buttons.add(close);
 		JPanel bottom = new JPanel(new BorderLayout(0, 6));
 		bottom.add(buttons, BorderLayout.NORTH); bottom.add(said, BorderLayout.CENTER);
-		bottom.add(new JLabel("<html><div style='width:520px;color:#8F98A0'>A file you offer is kept on the Gatekeeper for a day, for everyone in this room to save a copy of" + (limit.isEmpty() ? "" : " (" + limit + " at most)") + ". Nothing is put on anyone's device unless they save it.</div></html>"), BorderLayout.SOUTH);
+		bottom.add(new JLabel("<html><div style='width:520px;color:#A9B5C1'>A file you offer is kept on the Gatekeeper for a day, for everyone in this room to save a copy of" + (limit.isEmpty() ? "" : " (" + limit + " at most)") + ". Nothing is put on anyone's device unless they save it.</div></html>"), BorderLayout.SOUTH);
 		JPanel p = new JPanel(new BorderLayout(0, 8));
 		p.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
 		p.add(new JScrollPane(table), BorderLayout.CENTER); p.add(bottom, BorderLayout.SOUTH);

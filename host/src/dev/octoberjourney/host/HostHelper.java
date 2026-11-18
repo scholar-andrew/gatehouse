@@ -359,7 +359,7 @@ public final class HostHelper {
 		// ---- Gatekeeper itself
 		if (outdated()) add.accept(new String[] {"Gatekeeper is up to date", "todo", "This is " + ownVersion() + "; " + newestKeeper
 				+ " is out. Until it's updated Gatekeeper starts no server, and launchers aren't offered Play.",
-				"Servers tab: Update Gatekeeper. It restarts by itself in a few seconds; running Minecraft servers aren't touched."});
+				"Press Update Gatekeeper at the top of Servers. It restarts by itself in a few seconds; running Minecraft servers aren't touched."});
 		else add.accept(new String[] {"Gatekeeper is up to date", "ok", ownVersion() + (newestKeeper.isEmpty()
 				? " (nowhere to compare with could be reached)" : "")});
 		// ---- Tailscale on this machine
@@ -411,10 +411,10 @@ public final class HostHelper {
 		// ---- Gatekeeper's own address
 		String bind = setting("bind", "");
 		if (bind.isEmpty()) add.accept(new String[] {"Gatekeeper listens on the Tailscale address", "todo", "No address chosen yet.",
-				"Servers tab: Server setup. It fills the address in when Tailscale is connected."});
+				"Server setup fills the address in when Tailscale is connected.", "server_setup", "Server setup…", ""});
 		else if (!ips.isEmpty() && !ips.contains(bind)) add.accept(new String[] {"Gatekeeper listens on the Tailscale address", "warn",
 				"It listens on " + bind + ", but Tailscale now gives this machine " + ips.get(0) + ".",
-				"Servers tab: Server setup, and save the new address. Paired launchers need the new pairing."});
+				"Open Server setup and save the new address. Paired launchers need the new pairing.", "server_setup", "Server setup…", ""});
 		else add.accept(new String[] {"Gatekeeper listens on the Tailscale address", remote != null ? "ok" : "todo", bind + ":" + port()
 				+ (remote != null ? "" : " (not answering yet)"), remote != null ? "" : "It keeps trying; Tailscale may still be starting."});
 		// ---- the servers' host: MCSS, or Gatekeeper itself
@@ -435,7 +435,7 @@ public final class HostHelper {
 		} else {
 		if (exe.isEmpty() || !Files.isRegularFile(Path.of(exe))) add.accept(new String[] {"MCSS is found", "todo", exe.isEmpty()
 				? "Gatekeeper doesn't know where MCSS is." : "There's no file at " + exe + ".",
-				"Install MC Server Soft (mcserversoft.com) if it isn't yet, make a server in it, then: Servers tab, Server setup."});
+				"Install MC Server Soft (mcserversoft.com) if it isn't yet, make a server in it, then open Server setup.", "server_setup", "Server setup…", ""});
 		else add.accept(new String[] {"MCSS is found", "ok", exe});
 		if (host.hasAccess()) add.accept(new String[] {"Gatekeeper can use MCSS", "ok", "It has its own key for MCSS."});
 		else add.accept(new String[] {"Gatekeeper can use MCSS", "todo",
@@ -445,7 +445,7 @@ public final class HostHelper {
 		// ---- the servers
 		List<Object> servers = servers();
 		if (servers.isEmpty()) add.accept(new String[] {"Servers are chosen", "todo", "None yet.",
-				"Servers tab: Server setup, and tick the servers players should see."});
+				"Open Server setup and tick the servers players should see.", "server_setup", "Server setup…", ""});
 		else {
 			List<String> names = new ArrayList<>(), open = new ArrayList<>(), offline = new ArrayList<>(), moved = new ArrayList<>(), openLists = new ArrayList<>();
 			Map<String, List<String>> byPort = new LinkedHashMap<>();
@@ -474,7 +474,7 @@ public final class HostHelper {
 			for (Object o : servers()) if (goneFromMcss(Json.map(o))) deleted.add(Json.str(Json.map(o).get("name")));
 			if (!deleted.isEmpty()) add.accept(new String[] {"Every chosen server still exists", "warn",
 					"Deleted in MCSS, but still listed here: " + String.join(", ", deleted) + ".",
-					"Servers tab: press Remove from Gatekeeper beside it. Launchers are already no longer shown it."});
+					"Under Servers, press Remove from Gatekeeper on its card. Launchers are already no longer shown it."});
 			List<String> clash = new ArrayList<>();
 			for (Map.Entry<String, List<String>> e : byPort.entrySet()) if (e.getValue().size() > 1) clash.add(String.join(" and ",
 					e.getValue()) + " (port " + e.getKey() + ")");
@@ -491,7 +491,7 @@ public final class HostHelper {
 			else if (servers.size() > 1) add.accept(new String[] {"Each server has its own port", "ok", ""});
 			if (!moved.isEmpty()) add.accept(new String[] {"Gatekeeper has each server's current port", "warn",
 					"A port was changed since Server setup: " + String.join("; ", moved) + ". Launchers are still told the old one.",
-					"Servers tab: Server setup, then Save. It reads the ports again."});
+					"Open Server setup and press Save. It reads the ports again.", "server_setup", "Server setup…", ""});
 			if (!open.isEmpty()) add.accept(new String[] {"Only whitelisted players can join", "warn", "The whitelist is off for "
 					+ String.join(", ", open) + ": anyone who can reach this machine can join.",
 					"The button turns it on: a running server is told in its console, one that's off gets it in its settings file. Then only players on the whitelist can join; you add them in that server's Access Manager.",
@@ -508,8 +508,8 @@ public final class HostHelper {
 		if (reached > 0) add.accept(new String[] {"A launcher has reached this Gatekeeper", "ok", reached + " so far; the latest on " + last + "."});
 		else add.accept(new String[] {"A launcher has reached this Gatekeeper", "todo",
 				"None yet. Everything above can look right from here and still be blocked from outside.",
-				"Pair a launcher on another device (Servers tab: Share pairing) and open it. If it can't connect: "
-						+ say("Windows Firewall has to allow Java for Gatekeeper on private networks (Windows asks the first time; otherwise Windows Security, Firewall, Allow an app).", "a firewall on this machine, if it has one, has to let Gatekeeper's port in on the Tailscale network (most desktop Linux systems, and SteamOS, have none switched on).")});
+				"Pair a launcher on another device (Share pairing) and open it. If it can't connect: "
+						+ say("Windows Firewall has to allow Java for Gatekeeper on private networks (Windows asks the first time; otherwise Windows Security, Firewall, Allow an app).", "a firewall on this machine, if it has one, has to let Gatekeeper's port in on the Tailscale network (most desktop Linux systems, and SteamOS, have none switched on)."), "share_pairing", "Share pairing…", ""});
 		// ---- the invite players need
 		String share = setting("tailscale_share_link", "");
 		if (!share.isEmpty()) add.accept(new String[] {"Players have a way into Tailscale", "ok", "Your invite link goes out with the pairing link and file."});
@@ -2725,7 +2725,7 @@ public final class HostHelper {
 			p.setBorder(BorderFactory.createEmptyBorder(14, 24, 10, 24));
 			p.setOpaque(false);
 			JLabel head = new JLabel("Gatekeeper");
-			head.setFont(head.getFont().deriveFont(Font.BOLD, 24f));
+			head.setFont(head.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(24f)));
 			JLabel state = new JLabel(" ");
 			// MCSS itself: start it, or close it (how follows MCSS's own X-button setting, as for the launchers).
 			JButton mcssRun = new JButton("Start MCSS");
@@ -2768,18 +2768,18 @@ public final class HostHelper {
 			JTable table = new JTable(model);
 			roomy(table);
 			table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			table.setRowHeight(24);
+			table.setRowHeight(28);
 			List<String> ids = new ArrayList<>();
 			JTextArea log = new JTextArea(8, 80);
 			log.setEditable(false);
-			log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+			log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12)));
 			JPanel mid = new JPanel(new BorderLayout(0, 8));
 			JScrollPane ts = new JScrollPane(table); ts.setPreferredSize(new Dimension(1180, 200));
 			mid.add(ts, BorderLayout.CENTER);
 			JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			JButton serverB = new JButton("Allow server control"), mcssB = new JButton("Allow MCSS control"),
 					sleepB = new JButton("Allow machine wake/sleep"), adminB = new JButton("Allow Gatekeeper control"),
-					forget = new JButton("Forget"), refreshB = new JButton("Refresh");
+					forget = dev.gatehouse.look.SteamLook.danger(new JButton("Forget")), refreshB = new JButton("Refresh");
 			serverB.setToolTipText("Server control: the selected launcher may start and stop this Minecraft server (through Gatekeeper; it needs no MCSS account).");
 			mcssB.setToolTipText(builtin() ? "MCSS control: " + noMcssShort() + ". Use Server control instead."
 					: "MCSS control: the selected launcher may start and close MCSS itself. It includes server control.");
@@ -2803,7 +2803,7 @@ public final class HostHelper {
 					+ noMcssShort()); keyB.setText("Set MCSS key: " + noMcssShort()); mcssRun.setEnabled(false); mcssRun.setText("Start MCSS: " + noMcssShort()); }
 			// For the selected launcher: an MCSS key of its own, made and handed over by Gatekeeper; and taking away
 			// whatever lets it control the server.
-			JButton revokeB = new JButton("Remove server access");
+			JButton revokeB = dev.gatehouse.look.SteamLook.danger(new JButton("Remove server access"));
 			revokeB.setToolTipText("Switches off the selected launcher's server and MCSS control, and tells it to forget any sign-in or key it has saved.");
 			buttons.add(revokeB);
 			java.util.function.BiConsumer<String, String> ask = (path, confirm) -> {
@@ -2838,15 +2838,15 @@ public final class HostHelper {
 			JTable ptable = new JTable(pmodel);
 			roomy(ptable);
 			ptable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-			ptable.setRowHeight(24);
+			ptable.setRowHeight(28);
 			List<String> pnames = new ArrayList<>();
 			Map<String, boolean[]> pallow = new java.util.HashMap<>();   // player -> allowed {server, mcss, sleep, admin}
 			JButton[] pB = {new JButton("Allow server control"), new JButton("Allow MCSS control"),
 					new JButton("Allow machine wake/sleep"), new JButton("Allow Gatekeeper control")};
 			JPanel pbuttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			for (JButton b : pB) pbuttons.add(b);
-			JLabel pnote = new JLabel("<html><div style='width:900px'>A player appears once they've joined the server from a device with the launcher (matched by its Tailscale address), or when a launcher says who last played on it (\"not confirmed\" until they join). Click a permission to set it: white is not allowed, green allowed, red denied. What you set for a player is set on all their confirmed launchers (and on launchers they join from later), except a launcher that is itself Denied that thing. The Whitelisted box puts a player on the server's whitelist or takes them off (a name that is \"not confirmed\" is only what a launcher said, so check it before ticking). The Launchers tab still changes one launcher at a time.</div></html>");
-			pnote.setForeground(new Color(0x8F98A0));
+			JLabel pnote = new JLabel("<html><div style='width:900px'>A player appears once they've joined the server from a device with the launcher (matched by its Tailscale address), or when a launcher says who last played on it (\"not confirmed\" until they join). Click a permission to set it: grey is not allowed, green allowed, red denied. What you set for a player is set on all their confirmed launchers (and on launchers they join from later), except a launcher that is itself Denied that thing. The Whitelisted box puts a player on the server's whitelist or takes them off (a name that is \"not confirmed\" is only what a launcher said, so check it before ticking). The Launchers tab still changes one launcher at a time.</div></html>");
+			pnote.setForeground(new Color(0xA9B5C1));
 			JPanel psouth = new JPanel(new BorderLayout(0, 6)); psouth.add(pbuttons, BorderLayout.NORTH); psouth.add(pnote, BorderLayout.SOUTH);
 			JPanel playersTab = new JPanel(new BorderLayout(0, 8));
 			playersTab.add(new JScrollPane(ptable), BorderLayout.CENTER); playersTab.add(psouth, BorderLayout.SOUTH);
@@ -2875,7 +2875,7 @@ public final class HostHelper {
 			statusTop.setLayout(new javax.swing.BoxLayout(statusTop, javax.swing.BoxLayout.Y_AXIS));
 			java.util.function.BiConsumer<String, javax.swing.JComponent[]> section = (title, rows) -> {
 				JLabel h = new JLabel(title);
-				h.setFont(h.getFont().deriveFont(Font.BOLD, 14f));
+				h.setFont(h.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
 				h.setBorder(BorderFactory.createEmptyBorder(statusTop.getComponentCount() == 0 ? 0 : 10, 0, 2, 0));
 				h.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); statusTop.add(h);
 				for (javax.swing.JComponent c : rows) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); statusTop.add(c); }
@@ -2887,24 +2887,56 @@ public final class HostHelper {
 			setupB.setToolTipText("Which MCSS and which Minecraft servers on this machine Gatekeeper looks after, and this machine's Tailscale address.");
 			pairB.setToolTipText("Ways to connect a launcher to this Gatekeeper: its address, a pairing link to paste, or a pairing file to send.");
 			JLabel pairNote = new JLabel(" ");
-			pairNote.setForeground(new Color(0x8F98A0));
+			pairNote.setForeground(new Color(0xA9B5C1));
 			JPanel setupRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2)); setupRow.add(setupB); setupRow.add(pairB); setupRow.add(pairNote);
 			PairingUi.wire(pairB, pairNote, f);   // (Share pairing: see PairingUi)
 			Runnable setup = ServerSetupUi.dialog(f);   // (Server setup: see ServerSetupUi)
 			setupB.addActionListener(e -> setup.run());
-			section.accept("Gatekeeper", new javax.swing.JComponent[] {helperRow, setupRow});
+			// (R38: these lines are about the machine, so they are on Host setup now, not on a server's page)
+			section.accept("Gatekeeper", new javax.swing.JComponent[] {helperRow});
 			section.accept(builtin() ? "MCSS (the server software): " + noMcssShort() : "MCSS (the server software)", new javax.swing.JComponent[] {mcssRow, keyRow});
-			section.accept("Minecraft server", new javax.swing.JComponent[] {serverRow});
 			JPanel activity = new JPanel(new BorderLayout(0, 4));
-			JLabel actHead = new JLabel("Activity"); actHead.setFont(actHead.getFont().deriveFont(Font.BOLD, 14f));
+			JLabel actHead = new JLabel("Activity"); actHead.setFont(actHead.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
 			activity.add(actHead, BorderLayout.NORTH);
 			log.setRows(14);
 			activity.add(new JScrollPane(log), BorderLayout.CENTER);
-			JPanel statusTab = new JPanel(new BorderLayout(0, 10));
-			statusTab.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
-			statusTab.add(statusTop, BorderLayout.NORTH); statusTab.add(activity, BorderLayout.CENTER);
+			activity.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
 			JPanel pullsTab = PullsUi.tab();   // (Updates Pulled: see PullsUi)
-			tabs.addTab("Access Manager", accessTab); tabs.addTab("Server Status", statusTab); tabs.addTab("Updates Pulled", pullsTab);
+			// A server's page is only about that server (R38): its Overview first (whether it is on, Start and Stop,
+			// who is playing and how it is doing), then its own tools. The Access Manager is PLAYERS in the top bar,
+			// Gatekeeper's and MCSS's lines are on Host setup, the activity log has a page of its own in the menu, and
+			// Updates Pulled is under UPDATES.
+			JPanel serverOverview = new JPanel(new BorderLayout(0, 10));
+			serverOverview.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
+			JPanel ovTop = new JPanel();
+			ovTop.setLayout(new javax.swing.BoxLayout(ovTop, javax.swing.BoxLayout.Y_AXIS));
+			JLabel ovFacts = new JLabel(" ");
+			ovFacts.setVerticalAlignment(JLabel.TOP);
+			for (Object[] part : new Object[][] {{"Minecraft server", serverRow}, {"Details", ovFacts}}) {
+				JLabel h = new JLabel((String) part[0]);
+				h.setFont(h.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
+				h.setBorder(BorderFactory.createEmptyBorder(ovTop.getComponentCount() == 0 ? 0 : 14, 0, 4, 0));
+				h.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); ovTop.add(h);
+				((javax.swing.JComponent) part[1]).setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); ovTop.add((java.awt.Component) part[1]);
+			}
+			serverOverview.add(ovTop, BorderLayout.NORTH);
+			// (its facts, as the panel beside the server cards has them, asked again every few seconds while it shows)
+			new Timer(3000, ev -> { if (serverOverview.isShowing() || (System.getenv("OJ_PANEL_PNG") != null && tabs.getSelectedIndex() == 0)) new Thread(() -> {
+				try {
+					Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/overview", null)));
+					for (Object o : Json.list(r.get("servers"))) {
+						Map<String, Object> s = Json.map(o);
+						if (!panelServer.isEmpty() && !Json.str(s.get("id")).equals(panelServer)) continue;
+						StringBuilder sb = new StringBuilder("<html><table cellpadding=2>");
+						for (String[] fact : ServerCardsUi.facts(r, s)) sb.append("<tr><td style='color:#66C0F4'>").append(fact[0])
+								.append("&nbsp;&nbsp;</td><td>").append(fact[1].replace("&", "&amp;").replace("<", "&lt;")).append("</td></tr>");
+						String html = sb.append("</table></html>").toString();
+						SwingUtilities.invokeLater(() -> ovFacts.setText(html));
+						break;
+					}
+				} catch (Exception ignored) { Quiet.seen(ignored); }
+			}, "server-overview").start(); }).start();
+			tabs.addTab("Overview", serverOverview);
 			// The window's three levels: MCSS on this machine, the servers it runs (both on the first screen), and one
 			// server's own pages (the tabs). Open goes in; "Servers" at the top right comes back.
 			java.awt.CardLayout levels = new java.awt.CardLayout();
@@ -2949,7 +2981,7 @@ public final class HostHelper {
 			JButton checkNow = new JButton("Check for updates");
 			checkNow.setToolTipText("Looks now for a newer Gatekeeper, instead of waiting for the next look (every five minutes)");
 			JLabel checkSaid = new JLabel(" ");
-			checkSaid.setForeground(new Color(0x8F98A0));
+			checkSaid.setForeground(new Color(0xA9B5C1));
 			// (R22: these sit on the Updates page, beside its pages; Play or Host is in the menu)
 			JPanel checkRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 6)); checkRow.add(checkNow); checkRow.add(checkSaid);
 			// (in constellation mode, while an update is being gathered: a pip for every client it is taking along)
@@ -3039,7 +3071,18 @@ public final class HostHelper {
 						: ". This version still works with it, so nothing is held up: update when it suits you.") + "</html>"); ownUpdate.setVisible(true); }
 			} catch (Exception ignored) { Quiet.seen(ignored); }
 			firstTabs.addTab("Servers", serversTab); firstTabs.addTab("Gatekeeper updates", ownNotes); firstTabs.addTab("Gatehouse updates", launcherNotes);
-			HostSetupUi.build(f, firstTabs);   // (see HostSetupUi)
+			HostSetupUi.build(f, firstTabs, statusTop);   // (see HostSetupUi; with Gatekeeper's and MCSS's lines, R38)
+			// PLAYERS (R38): the Access Manager, for all of Gatekeeper rather than inside one server's page. Server
+			// control and the whitelist are kept per server, so it says which server those columns are for.
+			JPanel playersPage = new JPanel(new BorderLayout(0, 4));
+			JPanel playersFor = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
+			JLabel playersForL = new JLabel("Server control and the whitelist for:"); playersForL.setFont(playersForL.getFont().deriveFont(Font.BOLD));
+			playersFor.add(playersForL); playersFor.add(serverPick);
+			playersFor.setBorder(BorderFactory.createEmptyBorder(8, 6, 0, 6));
+			playersPage.add(playersFor, BorderLayout.NORTH); playersPage.add(accessTab, BorderLayout.CENTER);
+			firstTabs.addTab("Players", playersPage);   // (7)
+			firstTabs.addTab("Activity", activity);   // (8: in the menu)
+			firstTabs.addTab("Updates pulled", pullsTab);   // (9: under UPDATES)
 			// A program's notes as a scrolling list, newest on top; versions not seen here yet are boxed in blue with a red
 			// dot (R18), drawn with what had been seen before, so they stay while read and are plain the next time.
 			java.nio.file.Path[] notesSeenAt = {dir.resolve("notes-seen-gatekeeper.txt"), dir.resolve("notes-seen-gatehouse.txt")};
@@ -3074,7 +3117,7 @@ public final class HostHelper {
 			dev.gatehouse.look.GameShell.hideTabs(firstTabs);   // (the sections in the top bar, and the buttons under the heading, choose its page)
 			p.add(dev.gatehouse.look.GameShell.sheet(stack), BorderLayout.CENTER);
 			JButton backB = new JButton("\u2039 Servers");
-			backB.setToolTipText("Back to MCSS and the list of servers on this machine");
+			backB.setToolTipText("Back to the list of servers on this machine");
 			backB.setVisible(false);
 			// ---- Options (the wheel at the top right): which Gatekeeper this is, where it lives, and removing it.
 			JPanel options = new JPanel();
@@ -3082,7 +3125,7 @@ public final class HostHelper {
 			options.setBorder(BorderFactory.createEmptyBorder(8, 14, 10, 14));
 			java.util.function.BiConsumer<String, Boolean> optLine = (text, bold) -> {
 				JLabel l = new JLabel("<html><div style='width:760px'>" + text.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>");
-				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, 15f)); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4,
+				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(15f))); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4,
 						0)); } else l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 				l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 				options.add(l);
@@ -3096,12 +3139,7 @@ public final class HostHelper {
 			optLine.accept("About", true);
 			optLine.accept("Gatekeeper " + Json.str(notesInside("gatekeeper").get("version")) + " on " + systemName() + ", running from "
 					+ keeperDir + ". Its settings, its list of launchers and its log are in " + dir + ".", false);
-			optLine.accept("Setup guide", true);
-			optLine.accept("The steps from a machine with nothing on it to a server your friends can join, each with a check for whether it's done.", false);
-			JButton guideB = new JButton("Open the setup guide");
-			JPanel guideRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
-			guideRow.add(guideB); guideRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-			options.add(guideRow);
+			// (The setup guide is in the menu, so Options no longer lists it a second time: R38.)
 			// How this Gatekeeper updates: normal unless changed here.
 			PicturesUi.addTo(options, f, optLine);   // (Options, Pictures: see PicturesUi)
 			MachineUi.addTo(options, f, optLine);   // (Options, This machine: see MachineUi)
@@ -3140,7 +3178,6 @@ public final class HostHelper {
 			}, leaveGuide, HostHelper.class);
 			stack.add(guide[0], "wizard");
 			Runnable openGuide = () -> { head.setText("Gatekeeper \u2013 Setup guide"); pickRow.setVisible(false); levels.show(stack, "wizard"); guide[0].open(); };
-			guideB.addActionListener(ev -> openGuide.run());
 			// (the first time Gatekeeper's window is opened on a machine that still has steps to do, it opens on the guide)
 			if (System.getenv("OJ_PANEL_PNG") == null && !Files.exists(dir.resolve("setup-guide-shown.txt"))) new Thread(() -> {
 				try {
@@ -3206,7 +3243,7 @@ public final class HostHelper {
 						String works = Json.str(r.get("key_works"));
 						keyState.setForeground(!hasKey ? new Color(0xE9B949) : !works.equals("yes") ? new Color(0xFF7B72) : new Color(0x8BD46E));
 						String as = Json.str(r.get("mcss_user"));
-						if (builtin()) keyState.setForeground(new Color(0x8F98A0));
+						if (builtin()) keyState.setForeground(new Color(0xA9B5C1));
 						keyState.setText(builtin() ? "Nothing to sign in to: Gatekeeper runs the servers itself."
 								: works.equals("forbidden")
 										? "MCSS knows Gatekeeper's key, but it has no permission for this server: give it the server (view, start, stop) under API Keys in MCSS's panel."
@@ -3221,7 +3258,7 @@ public final class HostHelper {
 							for (Object o : sv) { serverIds.add(Json.str(Json.map(o).get("id"))); serverPick.addItem(Json.str(Json.map(o).get("name"))); }
 							int at = Math.max(0, serverIds.indexOf(Json.str(r.get("server_id"))));
 							if (!serverIds.isEmpty()) serverPick.setSelectedIndex(at);
-							pickRow.setVisible(sv.size() > 1);
+							pickRow.setVisible(true);
 						}
 						List<Object> asked = Json.list(r.get("requests"));
 						iconMessages = asked.size(); dev.gatehouse.look.AppIcon.apply(f, true, iconMessages, iconUpdate);   // (the red circle: requests waiting)
@@ -3289,13 +3326,13 @@ public final class HostHelper {
 						state.setForeground(new Color(0x8BD46E));
 						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over Tailscale).");
 						boolean mBusy = mph.equals("starting") || mph.equals("closing"), sBusy = sph.equals("starting") || sph.equals("stopping");
-						mcssState.setForeground(mBusy ? new Color(0xE9B949) : Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0x8F98A0));
-						if (builtin()) mcssState.setForeground(new Color(0x8F98A0));
+						mcssState.setForeground(mBusy ? new Color(0xE9B949) : Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0xA9B5C1));
+						if (builtin()) mcssState.setForeground(new Color(0xA9B5C1));
 						mcssState.setText(builtin() ? noMcss() + "." : mph.equals("starting") ? "MCSS is starting\u2026"
 								: mph.equals("closing") ? "MCSS is closing\u2026 (after the Minecraft server has stopped)"
 								: Boolean.TRUE.equals(r.get("mcss")) ? "MCSS is running" : "MCSS isn't running");
 						serverUpNow[0] = sph.equals("online") || sph.equals("stopping");
-						serverState.setForeground(sBusy ? new Color(0xE9B949) : sph.equals("online") ? new Color(0x8BD46E) : new Color(0x8F98A0));
+						serverState.setForeground(sBusy ? new Color(0xE9B949) : sph.equals("online") ? new Color(0x8BD46E) : new Color(0xA9B5C1));
 						serverState.setText("The Minecraft server is " + phaseWords(sph));
 						serverRun.setText(serverUpNow[0] ? "Stop server" : "Start server");
 						serverRun.setEnabled(!sBusy);
@@ -3390,17 +3427,19 @@ public final class HostHelper {
 			java.util.function.Consumer<String[]> openServer = w -> {
 				String sid = w[0], snm = w[1], which = w[3];
 				boolean snat = "true".equals(w[2]);
-				panelServer = sid; inServer[0] = true; head.setText("Gatekeeper \u2013 " + snm); backB.setVisible(true);
-				while (tabs.getTabCount() > 3) tabs.removeTabAt(3);
-				tabs.addTab("Pack", scrolled(PackUi.tab(f, "?server=" + sid)));
+				panelServer = sid; inServer[0] = true; head.setText(snm); backB.setVisible(true);
+				int pickAt = serverIds.indexOf(sid);   // (PLAYERS follows the server last opened)
+				if (pickAt >= 0 && serverPick.getSelectedIndex() != pickAt) serverPick.setSelectedIndex(pickAt);
+				while (tabs.getTabCount() > 1) tabs.removeTabAt(1);
 				if (snat && farUrl == null) ServerToolsUi.manageTabs(f, sid, true, tabs);
-				tabs.setSelectedIndex(which.equals("pack") ? 3 : which.equals("manage") && tabs.getTabCount() > 4 ? 4 : 0);
+				tabs.addTab("Pack", scrolled(PackUi.tab(f, "?server=" + sid)));
+				tabs.setSelectedIndex(which.equals("pack") ? tabs.getTabCount() - 1 : which.equals("manage") && tabs.getTabCount() > 2 ? 1 : 0);
 				levels.show(stack, "server"); refresh.run();
 			};
 			java.util.function.BiFunction<String, String, Object[]> overRow = (title, button) -> {
 				JPanel r = new dev.gatehouse.look.GameCard.Strip(new BorderLayout(14, 0));   // (a slim card: it glows while one of its buttons is selected)
 				r.setBorder(BorderFactory.createEmptyBorder(14, 18, 14, 18));
-				JLabel n = new JLabel(title); n.setFont(n.getFont().deriveFont(Font.BOLD, 16f));
+				JLabel n = new JLabel(title); n.setFont(n.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(16f)));
 				JLabel st = new JLabel(" ");
 				JPanel text = new JPanel(new BorderLayout(0, 4)); text.setOpaque(false);
 				text.add(n, BorderLayout.NORTH); text.add(st, BorderLayout.SOUTH);
@@ -3438,17 +3477,17 @@ public final class HostHelper {
 					case "MACHINE" -> { toOverview.run(); firstTabs.setSelectedIndex(3); }
 					case "WEB" -> { toOverview.run(); firstTabs.setSelectedIndex(4); }
 					case "CONSTELLATION" -> { toOverview.run(); firstTabs.setSelectedIndex(5); }
-					case "PLAYERS" -> { if (firstEnter[0] == null) { JOptionPane.showMessageDialog(f,
-							"There is no server yet. Add one under Servers first."); return; } toOverview.run(); peopleJump[0] = true; firstEnter[0].doClick(0); tabs.setSelectedIndex(0); }
+					case "PLAYERS" -> { toOverview.run(); firstTabs.setSelectedIndex(7); }
+					case "ACTIVITY" -> { toOverview.run(); firstTabs.setSelectedIndex(8); }
 					case "OPTIONS" -> { if (!optionsScroll.isVisible()) { if (guide[0].isVisible()) leaveGuide.run(); gear.doClick(0); } }
 					case "GUIDE" -> { if (inServer[0]) backB.doClick(); if (optionsScroll.isVisible()) optBack.doClick(); openGuide.run(); }
 					default -> { }
 				}
 			};
-			dev.gatehouse.look.GameShell shell = new dev.gatehouse.look.GameShell("Gatekeeper", new String[] {"SERVERS", "CHAT", "UPDATES"}, pickSection);
+			dev.gatehouse.look.GameShell shell = new dev.gatehouse.look.GameShell("Gatekeeper", new String[] {"SERVERS", "PLAYERS", "CHAT", "UPDATES"}, pickSection);
 			// The menu down the left: what is about setting this machine and its constellation up, rather than its servers.
 			shell.menu("This machine", "machine", "Host setup", () -> pickSection.accept("MACHINE"));
-			shell.menu("This machine", "players", "Launchers and players", () -> pickSection.accept("PLAYERS"));
+			shell.menu("This machine", "activity", "Activity log", () -> pickSection.accept("ACTIVITY"));
 			shell.menu("This machine", "web", "Web panel", () -> pickSection.accept("WEB"));
 			shell.menu("Constellation", "constellation", "Constellation", () -> pickSection.accept("CONSTELLATION"));
 			shell.menu("Constellation", "systems", "Systems" + "\u2026", () -> PackUi.systems(f));
@@ -3465,11 +3504,11 @@ public final class HostHelper {
 				int at = firstTabs.getSelectedIndex();
 				if (!inServer[0]) peopleJump[0] = false;
 				// (a page of the menu is lit there, and puts out the sections; any other page lights its section)
-				String item = optionsScroll.isVisible() ? "options" : guide[0].isVisible() ? "guide" : inServer[0] ? (peopleJump[0]
-						&& tabs.getSelectedIndex() == 0 ? "players" : "") : at == 3 ? "machine" : at == 4 ? "web" : at == 5 ? "constellation" : "";
-				String lit = !item.isEmpty() ? "MENU" : inServer[0] || at == 0 ? "SERVERS" : at == 6 ? "CHAT" : "UPDATES";
-				if (!aside && !inServer[0]) { String hd = at == 0 ? "Gatekeeper" : at == 6 ? "Chat" : at == 1 || at == 2 ? "Updates"
-						: at == 3 ? "Host setup" : at == 4 ? "Web panel" : "Constellation"; if (!hd.equals(head.getText())) head.setText(hd); }
+				String item = optionsScroll.isVisible() ? "options" : guide[0].isVisible() ? "guide" : inServer[0] ? ""
+						: at == 3 ? "machine" : at == 4 ? "web" : at == 5 ? "constellation" : at == 8 ? "activity" : "";
+				String lit = !item.isEmpty() ? "MENU" : inServer[0] || at == 0 ? "SERVERS" : at == 6 ? "CHAT" : at == 7 ? "PLAYERS" : "UPDATES";
+				if (!aside && !inServer[0]) { String hd = at == 0 ? "Gatekeeper" : at == 6 ? "Chat" : at == 1 || at == 2 || at == 9 ? "Updates"
+						: at == 3 ? "Host setup" : at == 4 ? "Web panel" : at == 7 ? "Players" : at == 8 ? "Activity log" : "Constellation"; if (!hd.equals(head.getText())) head.setText(hd); }
 				if (!item.isEmpty()) { if (!item.equals(shell.menuLit())) shell.menuLight(item); }
 				else if (!lit.equals(shell.lit())) shell.light(lit);
 				// (R17, R18: notes not seen yet put a red dot on UPDATES and on their page; looking at the page marks them
@@ -3484,7 +3523,7 @@ public final class HostHelper {
 						&& notesNew[at - 1]) { dev.gatehouse.look.NotesView.markSeen(notesSeenAt[at - 1], notesHeld[at - 1]); notesNew[at - 1] = false; subShown[0] = null; }
 				shell.badge("UPDATES", notesNew[0] || notesNew[1] ? -1 : 0);
 				// (what is waiting: launchers' requests, setup steps still to do)
-				shell.menuBadge("players", reqRow.isVisible() ? reqRow.getComponentCount() : 0);
+				shell.badge("PLAYERS", reqRow.isVisible() ? reqRow.getComponentCount() : 0);   // (launchers' requests waiting)
 				java.util.regex.Matcher todoM = java.util.regex.Pattern.compile("\\((\\d+) to do\\)").matcher(firstTabs.getTitleAt(3));
 				shell.menuBadge("machine", todoM.find() ? Integer.parseInt(todoM.group(1)) : 0);
 				String want = aside || inServer[0] ? "" : lit + at + notesNew[0] + notesNew[1];
@@ -3492,7 +3531,7 @@ public final class HostHelper {
 				subShown[0] = want;
 				subRow.removeAll();
 				String[][] pages = want.isEmpty() ? new String[0][] : lit.equals("UPDATES") ? new String[][] {{"What's new in Gatekeeper",
-						"1"}, {"What's new in Gatehouse", "2"}, {"Update log\u2026", "log"}} : new String[0][];
+						"1"}, {"What's new in Gatehouse", "2"}, {"Updates pulled", "9"}, {"Update log\u2026", "log"}} : new String[0][];
 				for (String[] pg : pages) {
 					boolean here = pg[1].equals(String.valueOf(at));
 					boolean dot = (pg[1].equals("1") && notesNew[0]) || (pg[1].equals("2") && notesNew[1]);
@@ -3514,7 +3553,7 @@ public final class HostHelper {
 			new Timer(350, ev -> sync.run()).start();
 			sync.run();
 			JLabel verL = new JLabel(farUrl != null ? "Managing " + remoteName + " from here: what it doesn't allow says so" : "Gatekeeper " + ownV);
-			verL.setFont(verL.getFont().deriveFont(Font.BOLD, 13f));
+			verL.setFont(verL.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(13f)));
 			shell.left().add(verL);
 			dev.gatehouse.look.GameShell.Hint backHint = new dev.gatehouse.look.GameShell.Hint("B", "Esc", "Back");
 			backHint.setVisible(false);
@@ -3639,33 +3678,37 @@ public final class HostHelper {
 					} catch (IOException ex) { ex.printStackTrace(); }
 					if (!serverIds.isEmpty()) {   // (a server's own page, on its Pack tab and on its console: <file>-serverpack.png, -serverconsole.png)
 						try {
-							openServer.accept(new String[] {serverIds.get(0), "the first server", "true", "pack"}); Thread.sleep(1500); sync.run(); shell.validate();
+							openServer.accept(new String[] {serverIds.get(0), String.valueOf(serverPick.getItemAt(0)), "true", "pack"}); Thread.sleep(1500); sync.run(); shell.validate();
 							java.awt.image.BufferedImage si = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 							java.awt.Graphics2D sg = si.createGraphics(); shell.paint(sg); sg.dispose();
 							javax.imageio.ImageIO.write(si, "png", new java.io.File(shot + "-serverpack.png"));
-							if (tabs.getTabCount() > 4) { tabs.setSelectedIndex(4); sync.run(); shell.validate();
+							tabs.setSelectedIndex(0); { java.awt.SecondaryLoop ovWait = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop(); javax.swing.Timer ovStop = new javax.swing.Timer(4500, ev3 -> ovWait.exit()); ovStop.setRepeats(false); ovStop.start(); ovWait.enter(); } sync.run(); shell.validate();
+							java.awt.image.BufferedImage soi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D sog = soi.createGraphics(); shell.paint(sog); sog.dispose();
+							javax.imageio.ImageIO.write(soi, "png", new java.io.File(shot + "-serveroverview.png"));
+							if (tabs.getTabCount() > 2) { tabs.setSelectedIndex(1); sync.run(); shell.validate();
 								java.awt.image.BufferedImage ci = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 								java.awt.Graphics2D cg = ci.createGraphics(); shell.paint(cg); cg.dispose();
 								javax.imageio.ImageIO.write(ci, "png", new java.io.File(shot + "-serverconsole.png")); }
 						} catch (IOException | InterruptedException ex) { ex.printStackTrace(); }
 					}
-					inServer[0] = true; backB.setVisible(true); levels.show(stack, "server");
+					backB.doClick(0);
 					try {
-						// (the Updates Pulled tab, filled in directly: <file>-pulls.png)
-						tabs.setSelectedIndex(2);
+						// (Updates pulled, filled in directly: <file>-pulls.png)
+						firstTabs.setSelectedIndex(9);
 						try { PullsUi.fill(pullsTab, Json.list(Json.map(Json.parse(call("GET", "/admin/pulls",
 								null))).get("pulls"))); } catch (Exception ignored) { Quiet.seen(ignored); }
 						sync.run(); shell.validate();
 						java.awt.image.BufferedImage pi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D pg = pi.createGraphics(); shell.paint(pg); pg.dispose();
 						javax.imageio.ImageIO.write(pi, "png", new java.io.File(shot + "-pulls.png"));
-						for (int i = 0; i < 3; i++) {
-							tabs.setSelectedIndex(i == 2 ? 1 : 0);
+						for (int i = 0; i < 3; i++) {   // (PLAYERS by launcher and by player, then the activity log)
+							firstTabs.setSelectedIndex(i == 2 ? 8 : 7);
 							if (i == 1) byPlayer.doClick(); else if (i == 0) byDevice.doClick();
 							sync.run(); shell.validate();
 							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 							java.awt.Graphics2D g = img.createGraphics(); shell.paint(g); g.dispose();
-							javax.imageio.ImageIO.write(img, "png", new java.io.File(shot + (i == 0 ? "-access.png" : i == 1 ? "-players.png" : "-status.png")));
+							javax.imageio.ImageIO.write(img, "png", new java.io.File(shot + (i == 0 ? "-access.png" : i == 1 ? "-players.png" : "-activity.png")));
 						}
 					} catch (IOException ex) { ex.printStackTrace(); }
 					ServerToolsUi.shots(shot, serverIds.isEmpty() ? "" : serverIds.get(0));

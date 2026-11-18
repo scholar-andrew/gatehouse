@@ -131,8 +131,8 @@ public final class Nav {
 			case "lb" -> flip(w, -1);
 			case "rb" -> flip(w, 1);
 			case "x" -> select(w, "extra");
-			case "y" -> select(w, "restart");
-			case "start" -> select(w, "quit");
+			case "y" -> selectOrMenu(w, "restart");
+			case "start" -> selectOrMenu(w, "quit");
 			case "rt-down", "rt-up" -> {
 				try {
 					if (robot == null) robot = new java.awt.Robot();
@@ -285,6 +285,15 @@ public final class Nav {
 	private static boolean select(Window w, String tag) {
 		for (Component c : stops(w)) if (c instanceof JComponent j && tag.equals(j.getClientProperty("nav"))) { land(c); return true; }
 		return false;
+	}
+	/** Selects the button with that tag; if none is showing and the window has a menu (where Restart and Quit live now,
+	 *  R38), opens the menu and selects it there. */
+	private static void selectOrMenu(Window w, String tag) {
+		if (select(w, tag)) return;
+		dev.gatehouse.look.GameShell gm = shellOf(w);
+		if (gm == null || !gm.hasMenu()) return;
+		if (!gm.menuOpen()) gm.toggleMenu();
+		SwingUtilities.invokeLater(() -> select(w, tag));
 	}
 	private static void selectByText(Window w, String... texts) {
 		for (String t : texts) for (Component c : stops(w)) if (c instanceof AbstractButton b && t.equals(b.getText())) { land(c); return; }

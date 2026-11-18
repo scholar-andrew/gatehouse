@@ -102,14 +102,14 @@ final class PanelUi {
 			for (int i = 0; i < boxes.size(); i++) if (boxes.get(i).isSelected()) may.add(perms.get(i)[0]);
 			post.accept("/admin/panel/user", m("name", nameF.getText().trim(), "password", a, "admin", adminF.isSelected(), "enabled", enF.isSelected(), "perms", may));
 		};
-		JButton addU = new JButton("New account…"), changeU = new JButton("Change…"), delU = new JButton("Remove");
+		JButton addU = new JButton("New account…"), changeU = new JButton("Change…"), delU = dev.gatehouse.look.SteamLook.danger(new JButton("Remove"));
 		addU.addActionListener(e -> edit.accept(null));
 		changeU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i >= 0
 				&& i < users.size()) edit.accept(users.get(i)); else { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); } });
 		delU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i < 0
 				|| i >= users.size()) { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); return; } String n = Json.str(users.get(i).get("name")); if (JOptionPane.showConfirmDialog(f, "Remove the account " + n + "? It is signed out everywhere.", "Remove account", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) post.accept("/admin/panel/user", m("name", n, "remove", true)); });
 
-		JButton addW = new JButton("Add a device…"), delW = new JButton("Remove"), wakeW = new JButton("Wake it now");
+		JButton addW = new JButton("Add a device…"), delW = dev.gatehouse.look.SteamLook.danger(new JButton("Remove")), wakeW = new JButton("Wake it now");
 		addW.addActionListener(e -> {
 			JTextField nameF = new JTextField(18), macF = new JTextField(18);
 			JPanel form = new JPanel(); form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));

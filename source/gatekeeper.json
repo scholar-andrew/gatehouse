@@ -1,8 +1,29 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.25.2",
+ "version": "3.28.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.28.0", "date": "2026-11-18", "notes": [
+   "Gatekeeper reorganised (R38, phase C of the menu and look audit): PLAYERS is a section of its own in the top bar. It holds the Access Manager for all of Gatekeeper, with a choice of which server the server-control and whitelist columns are for. It used to be inside a server's page, and in the menu as Launchers and players.",
+   "A server's page is only about that server now: Overview first (Start or Stop, and what the panel beside the cards says: whether it's on, who is playing, how it's doing), then Console, Settings, Game settings, Backups, Tasks and Pack. Its heading is the server's name.",
+   "Gatekeeper's and MCSS's lines (Start MCSS, Sign in to MCSS, Set MCSS key) moved from a server's Server Status tab to Host setup. The activity log is a page of its own in the menu (Activity log), and Updates pulled is under UPDATES.",
+   "Each server's card has Start or Stop and Open. Pack and Manage are gone from the card, since both are tabs on the server's page. MCSS is one line at the top of Servers instead of a box with its full path (the path is in its tip).",
+   "Fixed: with only one server, the button back to the list of servers could be missing on that server's page."
+  ]},
+  {"version": "3.27.0", "date": "2026-11-18", "notes": [
+   "Easier to read on a Steam Deck (R39, phase B of the menu and look audit): all text is one size bigger, so the smallest is 13 points on the Deck's screen, and table rows are taller to match.",
+   "Quieter grey text (hints, \u201cNot installed on this device\u201d, status lines) is lighter, so it can be read on cards too.",
+   "The Access Manager's permission cells are dark now, with green text for allowed and red for denied, instead of pale mint, pink and white. Its button sets have small headings instead of boxes, and its columns fit what is in them, so names and dates aren't cut off.",
+   "Buttons come in four kinds, the same everywhere: blue for the main thing (Launch, Open, Start), plain for the rest, text-only for extras, and a red outline for anything that removes or ends something (Remove, Delete, Forget, Suspend, Blacklist, Uninstall). Remove on a server's card is at the far left, away from Launch. Restart and Quit are no longer gold and red.",
+   "Gatekeeper's Constellation page: shorter button names, so the row fits."
+  ]},
+  {"version": "3.26.0", "date": "2026-11-18", "notes": [
+   "Menus tidied, the first part of the menu and look audit (R38, phase A): Restart and Quit moved from the bottom bar into the menu (\u2261), at the bottom, as in a game's menu; Y and Start on a controller open the menu on them.",
+   "Add Gatekeeper shows only on the Servers pages, not on Chat, Updates or Options.",
+   "Gatekeeper: Host setup has Server setup and Share pairing buttons of its own, and each step that needs one has the button under it. Its steps no longer send you to a \"Servers tab\" that isn't there any more.",
+   "Gatekeeper: History of servers and Systems are no longer buttons on the Constellation page as well as in the menu (the row fits on one line now), and Options no longer lists the setup guide a second time (it is in the menu).",
+   "The setup guide says where it lives now (the menu) and where Restart is."
+  ]},
   {"version": "3.25.2", "date": "2026-11-18", "notes": [
    "Tidier code, with nothing changed in what Gatehouse and Gatekeeper do (the code review, R36): Gatekeeper's window code is in pieces now (its main part went from 1,874 lines to under 1,000, with twelve parts in classes of their own), long lines are broken up (lines over 200 characters went from 797 to about 190), and work over several servers is done through helpers that can't leave the wrong server selected.",
    "Errors that are passed over on purpose now leave a trace when debugging is on: put a file named debug-on.txt in Gatekeeper's folder (or Gatehouse's home folder) and they are written to debug.log there."

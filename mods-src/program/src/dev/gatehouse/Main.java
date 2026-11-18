@@ -53,7 +53,7 @@ import dev.gatehouse.look.Quiet;
  */
 public final class Main {
 	static final boolean WIN = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
-	static final Color GREY = new Color(0x8F98A0), GREEN = new Color(0x8BD46E), AMBER = new Color(0xE9B949);
+	static final Color GREY = new Color(0xA9B5C1), GREEN = new Color(0x8BD46E), AMBER = new Color(0xE9B949);
 
 	public static void main(String[] args) throws Exception {
 		// Plain (GDI / X11) drawing, not Direct3D or OpenGL: Steam's overlay hooks those in programs Steam started, and
@@ -349,7 +349,7 @@ public final class Main {
 		JPanel p = new JPanel(new BorderLayout(0, 10));
 		p.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(16, 16, 16, 16)));
 		JLabel t = new JLabel(title);
-		t.setFont(t.getFont().deriveFont(Font.BOLD, 20f));
+		t.setFont(t.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(20f)));
 		JLabel w = new JLabel("<html><div style='width:250px'>" + what + "</div></html>");
 		JLabel s = new JLabel(state);
 		s.setForeground(colour);
@@ -358,7 +358,7 @@ public final class Main {
 		for (Component c : new Component[] {t, javax.swing.Box.createVerticalStrut(6), w, javax.swing.Box.createVerticalStrut(10),
 				s}) { if (c instanceof JLabel l) l.setAlignmentX(Component.LEFT_ALIGNMENT); text.add(c); }
 		JButton b = new JButton(button);
-		b.setFont(b.getFont().deriveFont(Font.BOLD, 15f));
+		b.setFont(b.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(15f)));
 		b.addActionListener(e -> press.run());
 		p.add(text, BorderLayout.CENTER); p.add(b, BorderLayout.SOUTH);
 		return p;
@@ -410,7 +410,7 @@ public final class Main {
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(18, 18, 14, 18));
 			JLabel head = new JLabel("Gatehouse");
-			head.setFont(head.getFont().deriveFont(Font.BOLD, 22f));
+			head.setFont(head.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(22f)));
 			JLabel sub = new JLabel("One program, two halves. Open the one you need on this device; a half that isn't set up here yet can be set up from its button.");
 			sub.setForeground(GREY);
 			JPanel top = new JPanel(new BorderLayout(0, 4)); top.add(head, BorderLayout.NORTH); top.add(sub, BorderLayout.SOUTH);

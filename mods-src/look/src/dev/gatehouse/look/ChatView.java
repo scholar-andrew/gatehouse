@@ -341,7 +341,7 @@ public final class ChatView extends JPanel {
 		JPanel p = new JPanel(new BorderLayout(0, 3)); p.setOpaque(false);
 		p.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
 		p.setAlignmentX(LEFT_ALIGNMENT);
-		JLabel head = new JLabel("<html><b>" + esc(m.who()) + "</b>&nbsp;&nbsp;<span style='color:#8F98A0'>" + esc(m.when()) + "</span></html>");
+		JLabel head = new JLabel("<html><b>" + esc(m.who()) + "</b>&nbsp;&nbsp;<span style='color:#A9B5C1'>" + esc(m.when()) + "</span></html>");
 		head.setForeground(GameShell.TEXT);
 		p.add(head, BorderLayout.NORTH);
 		if (m.fileId() == null || m.fileId().isEmpty()) {

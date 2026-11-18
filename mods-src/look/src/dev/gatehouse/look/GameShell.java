@@ -66,7 +66,7 @@ public final class GameShell extends JPanel {
 		g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
 		return g2;
 	}
-	static Font font(float size, boolean bold) { return new Font(Font.SANS_SERIF, bold ? Font.BOLD : Font.PLAIN, 12).deriveFont(size); }
+	static Font font(float size, boolean bold) { return new Font(Font.SANS_SERIF, bold ? Font.BOLD : Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12)).deriveFont(dev.gatehouse.look.SteamLook.pt(size)); }
 	static Font spaced(float size, float tracking) { return font(size, true).deriveFont(Map.of(java.awt.font.TextAttribute.TRACKING, tracking)); }
 
 	// ---- a button's picture: a round controller button, or a keyboard key
@@ -238,6 +238,8 @@ public final class GameShell extends JPanel {
 		if (first) burger.setVisible(true);
 		drawerList.revalidate();
 	}
+	/** Marks a menu page for the controller (Nav's client property "nav"), so a button such as Start can find it. */
+	public void menuTag(String id, String nav) { Item it = items.get(id); if (it != null) it.putClientProperty("nav", nav); }
 	/** A count beside a menu page (0 for none, -1 for a dot). */
 	public void menuBadge(String id, int count) { Item it = items.get(id); if (it != null
 			&& it.badge != count) { it.badge = count; it.repaint(); burger.repaint(); } }

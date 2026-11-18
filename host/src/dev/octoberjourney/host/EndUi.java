@@ -39,7 +39,7 @@ final class EndUi {
 		// Ending the background Gatekeeper (this window is only a view of it): for when it should not be running.
 		optLine.accept("End Gatekeeper", true);
 		optLine.accept("Gatekeeper runs in the background whether this window is open or not; closing the window stops nothing. Ending it stops it until you next sign in, or until it is started again (Start Gatekeeper in the launcher on this machine, or opening this window). While it is ended, launchers can't see or start this machine's servers.", false);
-		JButton endB = new JButton("End Gatekeeper\u2026");
+		JButton endB = dev.gatehouse.look.SteamLook.danger(new JButton("End Gatekeeper\u2026"));
 		JLabel endSaid = new JLabel(" ");
 		JPanel endRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 6));
 		endRow.add(endB); endRow.add(javax.swing.Box.createHorizontalStrut(10)); endRow.add(endSaid); endRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
@@ -65,12 +65,12 @@ final class EndUi {
 				+ " and its program are taken away. MC Server Soft, your Minecraft servers and their worlds are not touched; launchers simply stop getting an answer from here. If Gatekeeper is in your Steam library, remove it there afterwards.", false);
 		javax.swing.JCheckBox forgetSettings = new javax.swing.JCheckBox("Also remove its settings: who is allowed to do what, its key for MCSS, and its log");
 		forgetSettings.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-		JButton uninstall = new JButton("Uninstall Gatekeeper\u2026");
+		JButton uninstall = dev.gatehouse.look.SteamLook.danger(new JButton("Uninstall Gatekeeper\u2026"));
 		uninstall.setToolTipText("Asks you to type confirm first");
 		uninstall.setForeground(new Color(0xFF7B72));
 		JPanel uninstallRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 8));
 		uninstallRow.add(uninstall); uninstallRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-		JLabel uninstallSaid = new JLabel(" "); uninstallSaid.setForeground(new Color(0x8F98A0)); uninstallSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		JLabel uninstallSaid = new JLabel(" "); uninstallSaid.setForeground(new Color(0xA9B5C1)); uninstallSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		options.add(forgetSettings); options.add(uninstallRow); options.add(uninstallSaid);
 		if (viewOnly) {   // (still listed, as what can't be done from here always is)
 			forgetSettings.setEnabled(false); uninstall.setEnabled(false);

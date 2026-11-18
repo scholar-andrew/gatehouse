@@ -204,14 +204,14 @@ final class SystemsBox {
 		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands",
 				"Its Gatekeeper's address", "Seen through"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(tm);
-		table.setRowHeight(26);
+		table.setRowHeight(30);
 		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
 		int[] wide = {160, 80, 160, 240, 150, 110};
 		for (int i = 0; i < wide.length; i++) table.getColumnModel().getColumn(i).setPreferredWidth(wide[i]);
 		List<Map<String, Object>> shown = new ArrayList<>();
 		String[] localUrl = {null};
 		JLabel head = new JLabel("<html><div style='width:820px'>Asking your Gatekeepers…</div></html>"), said = new JLabel(" ");
-		JButton keep = new JButton("Remember"), forget = new JButton("Forget");
+		JButton keep = new JButton("Remember"), forget = dev.gatehouse.look.SteamLook.danger(new JButton("Forget"));
 		keep.setToolTipText("Keeps the chosen system in this list after the constellation is left. Only a neighbor can be remembered. It gives that system nothing.");
 		forget.setToolTipText("Stops remembering the chosen system");
 		keep.setEnabled(false); forget.setEnabled(false);

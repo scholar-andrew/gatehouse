@@ -47,7 +47,7 @@ final class PicturesUi {
 		List<String> picIds = new ArrayList<>();
 		JButton picChoose = new JButton("Choose a picture\u2026"), picRemove = new JButton("Remove it");
 		JLabel picSaid = new JLabel(" ");
-		picSaid.setForeground(new Color(0x8F98A0));
+		picSaid.setForeground(new Color(0xA9B5C1));
 		JPanel picRow = new JPanel(new dev.gatehouse.look.WrapLayout(java.awt.FlowLayout.LEFT, 6, 4));
 		picRow.add(picFor); picRow.add(picChoose); picRow.add(picRemove); picRow.add(picSaid);
 		picRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);

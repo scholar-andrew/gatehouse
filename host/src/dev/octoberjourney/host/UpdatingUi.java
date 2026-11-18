@@ -45,7 +45,7 @@ final class UpdatingUi {
 				modeGroup}) { modeGroupOf.add(rb); rb.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(rb); }
 		optLine.accept("Normal is what it is unless you choose otherwise. Auto: Gatekeeper looks every minute and updates itself, waiting only for a server it runs itself to be off. Constellation: when a new version is out, Gatekeeper waits until every open launcher that is in constellation mode too has seen it, waits for any server it runs itself to be off, and then they all update at once. Each launcher chooses its own mode in its own Options; the Constellation tab shows which is in which.", false);
 		JLabel autoSaid = new JLabel(" ");
-		autoSaid.setForeground(new Color(0x8F98A0)); autoSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		autoSaid.setForeground(new Color(0xA9B5C1)); autoSaid.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		options.add(autoSaid);
 		boolean[] autoFilling = {false};
 		Runnable autoRead = () -> new Thread(() -> {

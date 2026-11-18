@@ -36,9 +36,68 @@ public final class SteamLook {
 	/** The window; panels set into it (lists, text boxes); raised things (buttons, the selected row). */
 	public static final Color BACK = new Color(0x1B2838), DEEP = new Color(0x141D29), RAISED = new Color(0x2A475E), HOVER = new Color(0x3D6C8E);
 	/** Text; quieter text; the accent (focus, the selected tab); thin lines. */
-	public static final Color TEXT = new Color(0xDCE6EF), DIM = new Color(0x8F98A0), ACCENT = new Color(0x66C0F4), LINE = new Color(0x2F4860);
+	public static final Color TEXT = new Color(0xDCE6EF), DIM = new Color(0xA9B5C1), ACCENT = new Color(0x66C0F4), LINE = new Color(0x2F4860);
 	/** Text that says something went well, needs attention, or went wrong, readable on the dark background. */
 	public static final Color GOOD = new Color(0x8BD46E), WARN = new Color(0xE9B949), BAD = new Color(0xFF7B72);
+
+	/** How much bigger than the old sizes all text is (R39: one size up, so the smallest text on a Steam Deck's
+	 *  1280 x 800 screen is at least 13 points). Every font size in Gatehouse and Gatekeeper goes through pt(). */
+	public static final float UP = 2f;
+	public static float pt(float size) { return size + UP; }
+	public static int pt(int size) { return size + (int) UP; }
+
+	/** A permission cell in an Access Manager table (Allowed, Denied, Not allowed, Blacklisted, Suspended), in the dark
+	 *  theme's colours: green for allowed, red for denied or shut out, quiet grey for not set (R39: these were pale
+	 *  mint, pink and white, the brightest things on screen). Says whether the text was one of those. */
+	public static boolean permCell(java.awt.Component c, String s, boolean selected) {
+		boolean good = s.startsWith("Allowed"), bad = s.startsWith("Denied") || s.startsWith("Blacklisted") || s.startsWith("Suspended"),
+				none = s.startsWith("Not allowed");
+		if (!good && !bad && !none) return false;
+		Color tint = good ? new Color(0x1F3B2C) : bad ? new Color(0x40242A) : DEEP;
+		c.setBackground(selected ? tint.brighter() : tint);
+		c.setForeground(good ? GOOD : bad ? BAD : DIM);
+		return true;
+	}
+
+	/** R39: four kinds of button, the same everywhere. Secondary is what a plain button is; the others are marked:
+	 *  main (filled blue: the one thing a card or page is for, one per place), quiet (text only, filled under the
+	 *  pointer: small extras) and danger (red outline and text: removes or ends something, and always asks first). */
+	public static final Color MAIN = new Color(0x2F7DE1), BUTTON = new Color(0x3A5A78), BUTTON_HOVER = new Color(0x4A7396);
+	public static <T extends AbstractButton> T main(T b) { b.putClientProperty("level", "main"); b.repaint(); return b; }
+	public static <T extends AbstractButton> T quiet(T b) { b.putClientProperty("level", "quiet"); b.repaint(); return b; }
+	public static <T extends AbstractButton> T danger(T b) { b.putClientProperty("level", "danger"); b.repaint(); return b; }
+
+	/** A set of buttons under a small heading (R39: in place of the old etched boxes with a title in the line). */
+	public static javax.swing.JPanel group(String title, javax.swing.JButton... bs) {
+		javax.swing.JPanel g = new javax.swing.JPanel(new java.awt.BorderLayout(0, 4));
+		javax.swing.JLabel h = new javax.swing.JLabel(title.toUpperCase(java.util.Locale.ROOT));
+		h.setFont(h.getFont().deriveFont(java.awt.Font.BOLD, pt(11f))); h.setForeground(DIM);
+		h.setBorder(BorderFactory.createEmptyBorder(0, 2, 0, 0));
+		javax.swing.JPanel row = new javax.swing.JPanel();
+		WrapLayout.on(row, 6, 0);
+		for (javax.swing.JButton b : bs) row.add(b);
+		g.add(h, java.awt.BorderLayout.NORTH); g.add(row, java.awt.BorderLayout.CENTER);
+		g.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 18));
+		return g;
+	}
+
+	/** Sizes a table's columns to what is in them (and their headings), again whenever the rows change, so short
+	 *  columns stay short and names and dates aren't cut off while there is room (R39). */
+	public static void fitColumns(javax.swing.JTable t) {
+		Runnable fit = () -> {
+			javax.swing.table.TableColumnModel cm = t.getColumnModel();
+			for (int c = 0; c < cm.getColumnCount(); c++) {
+				javax.swing.table.TableColumn col = cm.getColumn(c);
+				javax.swing.table.TableCellRenderer hr = col.getHeaderRenderer() != null ? col.getHeaderRenderer()
+						: t.getTableHeader() == null ? null : t.getTableHeader().getDefaultRenderer();
+				int w = hr == null ? 40 : hr.getTableCellRendererComponent(t, col.getHeaderValue(), false, false, -1, c).getPreferredSize().width;
+				for (int r = 0; r < Math.min(t.getRowCount(), 200); r++) w = Math.max(w, t.prepareRenderer(t.getCellRenderer(r, c), r, c).getPreferredSize().width);
+				col.setPreferredWidth(w + 14);
+			}
+		};
+		t.getModel().addTableModelListener(e -> javax.swing.SwingUtilities.invokeLater(fit));
+		fit.run();
+	}
 
 	private static boolean applied;
 
@@ -86,8 +145,8 @@ public final class SteamLook {
 		private final FontUIResource plain, small;
 		Theme() {
 			String face = System.getProperty("os.name", "").startsWith("Windows") ? "Segoe UI" : Font.SANS_SERIF;
-			plain = new FontUIResource(new Font(face, Font.PLAIN, 14));
-			small = new FontUIResource(new Font(face, Font.PLAIN, 12));
+			plain = new FontUIResource(new Font(face, Font.PLAIN, dev.gatehouse.look.SteamLook.pt(14)));
+			small = new FontUIResource(new Font(face, Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12)));
 		}
 		@Override public String getName() { return "Gatehouse"; }
 		@Override protected ColorUIResource getPrimary1() { return new ColorUIResource(ACCENT); }
@@ -123,9 +182,21 @@ public final class SteamLook {
 			ButtonModel m = b.getModel();
 			Graphics2D g2 = (Graphics2D) g.create();
 			g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-			Color base = b.getBackground() == null || b.getBackground() instanceof javax.swing.plaf.UIResource ? RAISED : b.getBackground();
-			g2.setColor(!b.isEnabled() ? new Color(0x222F3F) : m.isArmed() && m.isPressed() ? base.darker() : m.isRollover() ? HOVER : base);
-			if (b.isContentAreaFilled()) g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), 8, 8);
+			String level = String.valueOf(c.getClientProperty("level"));
+			boolean own = b.getBackground() != null && !(b.getBackground() instanceof javax.swing.plaf.UIResource) && !b.getBackground().equals(RAISED);
+			Color base = own ? b.getBackground() : level.equals("main") ? MAIN : BUTTON;
+			Color over = own ? HOVER : level.equals("main") ? MAIN.brighter() : BUTTON_HOVER;
+			boolean down = m.isArmed() && m.isPressed();
+			if (level.equals("quiet") || level.equals("danger")) {
+				// (text-only kinds: a fill only under the pointer; danger has its red outline always)
+				if (b.isEnabled() && (m.isRollover() || down)) {
+					g2.setColor(level.equals("danger") ? new Color(0x40242A) : BUTTON); g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), 8, 8); }
+				if (level.equals("danger")) { g2.setColor(b.isEnabled() ? BAD : new Color(0x6B7785));
+					g2.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, 8, 8); }
+			} else {
+				g2.setColor(!b.isEnabled() ? new Color(0x222F3F) : down ? base.darker() : m.isRollover() ? over : base);
+				if (b.isContentAreaFilled()) g2.fillRoundRect(0, 0, c.getWidth(), c.getHeight(), 8, 8);
+			}
 			if (b.isFocusOwner() && b.isEnabled()) { g2.setColor(ACCENT); g2.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, 8, 8); }
 			g2.dispose();
 			super.paint(g, c);
@@ -135,7 +206,10 @@ public final class SteamLook {
 			g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 			FontMetrics fm = g2.getFontMetrics(b.getFont());
 			g2.setFont(b.getFont());
-			g2.setColor(b.isEnabled() ? (b.getForeground() instanceof javax.swing.plaf.UIResource ? TEXT : b.getForeground()) : new Color(0x6B7785));
+			String level = String.valueOf(b.getClientProperty("level"));
+			Color ink = level.equals("main") ? Color.WHITE : level.equals("quiet") ? ACCENT : level.equals("danger") ? BAD
+					: b.getForeground() instanceof javax.swing.plaf.UIResource ? TEXT : b.getForeground();
+			g2.setColor(b.isEnabled() ? ink : new Color(0x6B7785));
 			g2.drawString(text, r.x, r.y + fm.getAscent());
 			g2.dispose();
 		}

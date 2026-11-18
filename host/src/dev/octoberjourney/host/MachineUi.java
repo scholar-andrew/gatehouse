@@ -42,7 +42,7 @@ final class MachineUi {
 		deviceBox.addItem("Automatic");
 		for (String[] k : dev.gatehouse.look.DeviceIcon.KINDS) deviceBox.addItem(k[1]);
 		JLabel deviceSaid = new JLabel(" ");
-		deviceSaid.setForeground(new Color(0x8F98A0));
+		deviceSaid.setForeground(new Color(0xA9B5C1));
 		JPanel deviceRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 4));
 		deviceRow.add(deviceBox); deviceRow.add(javax.swing.Box.createHorizontalStrut(10)); deviceRow.add(deviceSaid);
 		deviceRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);

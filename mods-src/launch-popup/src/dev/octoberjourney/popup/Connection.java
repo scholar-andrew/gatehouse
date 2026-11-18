@@ -213,7 +213,7 @@ final class Connection {
 		JPanel p = new JPanel(new BorderLayout(0, 8));
 		p.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
 		JLabel head = new JLabel("Checking the connection…");
-		head.setFont(head.getFont().deriveFont(Font.BOLD, 14f));
+		head.setFont(head.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
 		p.add(head, BorderLayout.NORTH);
 		JPanel list = new JPanel();
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
@@ -226,9 +226,9 @@ final class Connection {
 		getTs.setToolTipText("Opens Tailscale's download page in your browser");
 		copy.setToolTipText("Copies the result of these checks, to send to the owner");
 		JPanel buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
-		for (JButton b : new JButton[] {again, openTs, getTs, copy}) { b.setFont(b.getFont().deriveFont(13f)); buttons.add(b); }
+		for (JButton b : new JButton[] {again, openTs, getTs, copy}) { b.setFont(b.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(13f))); buttons.add(b); }
 		JLabel note = new JLabel(" ");
-		note.setForeground(new Color(0x8F98A0));
+		note.setForeground(new Color(0xA9B5C1));
 		JPanel south = new JPanel(new BorderLayout(0, 2));
 		south.add(buttons, BorderLayout.NORTH); south.add(note, BorderLayout.SOUTH);
 		p.add(south, BorderLayout.SOUTH);
@@ -240,16 +240,16 @@ final class Connection {
 			Check first = null;
 			for (Check k : checks) {
 				if (first == null && !k.fix().isEmpty() && (k.state().equals("failed") || k.state().equals("warn"))) first = k;
-				JLabel row = new JLabel("<html><b>" + esc(k.label()) + "</b>&nbsp;&nbsp;<font color='#8f98a0'>" + esc(k.detail())
+				JLabel row = new JLabel("<html><b>" + esc(k.label()) + "</b>&nbsp;&nbsp;<font color='#A9B5C1'>" + esc(k.detail())
 						+ "</font></html>", LaunchPopup.mark(k.state()), JLabel.LEFT);
-				row.setFont(row.getFont().deriveFont(Font.PLAIN, 13f));
+				row.setFont(row.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13f)));
 				row.setIconTextGap(10);
 				row.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
 				row.setAlignmentX(Component.LEFT_ALIGNMENT);
 				list.add(row);
 				if (!k.fix().isEmpty()) {
 					JLabel fix = new JLabel("<html><div style='width:470px'>" + esc(k.fix()) + "</div></html>");
-					fix.setForeground(new Color(0x8F98A0));
+					fix.setForeground(new Color(0xA9B5C1));
 					fix.setBorder(BorderFactory.createEmptyBorder(0, 28, 4, 0));
 					fix.setAlignmentX(Component.LEFT_ALIGNMENT);
 					list.add(fix);

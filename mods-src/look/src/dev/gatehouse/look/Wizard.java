@@ -132,7 +132,7 @@ public final class Wizard extends JPanel {
 	}
 
 	private static String colour(String state) { return state.equals("ok") ? "#3FB950" : state.equals("warn") ? "#E3B341"
-			: state.equals("todo") ? "#F85149" : "#8F98A0"; }
+			: state.equals("todo") ? "#F85149" : "#A9B5C1"; }
 	private static String word(String state) { return state.equals("ok") ? "Done" : state.equals("warn") ? "Works, but worth changing"
 			: state.equals("todo") ? "Not done yet" : state.equals("wait") ? "An earlier step comes first" : ""; }
 	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;").replace("\n", "<br>"); }
@@ -164,13 +164,13 @@ public final class Wizard extends JPanel {
 			body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 			body.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
 			JLabel title = new JLabel(s.title);
-			title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+			title.setFont(title.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(18f)));
 			boolean na = s.state.equals("na");   // (this system can't do it: its detail is what is said in place of a state)
 			String says = na ? esc(s.detail.isEmpty() ? "Not supported here" : s.detail) : word(s.state);
 			JLabel mark = new JLabel(says.isEmpty() ? " " : "<html><span style='color:" + colour(s.state) + "'>● &nbsp;<b>" + says + "</b></span>" + "</html>");
 			mark.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
 			body.add(title); body.add(mark);
-			if (!s.detail.isEmpty() && !na) { JLabel d = new JLabel("<html><div style='width:" + textWidth + "px; color:#8F98A0'>"
+			if (!s.detail.isEmpty() && !na) { JLabel d = new JLabel("<html><div style='width:" + textWidth + "px; color:#A9B5C1'>"
 					+ esc(s.detail) + "</div></html>"); d.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0)); body.add(d); }
 			java.net.URL art = artFrom == null ? null : artFrom.getResource("/wizard/" + (artFrom.getPackageName().endsWith(".host")
 					? "gatekeeper" : "gatehouse") + "/" + s.key + ".png");
@@ -194,5 +194,5 @@ public final class Wizard extends JPanel {
 	}
 
 	/** A dim note for callers that want one. */
-	public static JLabel note(String text) { JLabel l = new JLabel(text); l.setForeground(new Color(0x8F98A0)); return l; }
+	public static JLabel note(String text) { JLabel l = new JLabel(text); l.setForeground(new Color(0xA9B5C1)); return l; }
 }

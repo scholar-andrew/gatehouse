@@ -91,28 +91,24 @@ final class ServerCardsUi {
 			overShown[0] = overSig;
 			overList.removeAll();
 			firstEnter[0] = null;
-			JLabel h1 = new JLabel(builtin() ? "What runs the servers" : "MCSS on this machine");
-			h1.setFont(h1.getFont().deriveFont(Font.BOLD, 14f));
-			h1.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
-			h1.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-			overList.add(h1);
+			// What runs the servers, in one line (R38: it used to lead the page with MCSS's full path, now in its tip)
 			boolean up = Boolean.TRUE.equals(r.get("mcss"));
-			String exe = Json.str(r.get("mcss_exe"));
-			Object[] mr = overRow.apply(builtin() ? "Gatekeeper itself, from " + exe : exe.isEmpty()
-					? "MCSS (not set up yet: Server setup, on a server's Status tab)" : exe, null);
-			String mph0 = Json.str(r.get("mcss_phase"));
-			((JLabel) mr[1]).setText((mph0.equals("starting") ? "Starting\u2026" : mph0.equals("closing") ? "Closing\u2026" : up
-					? "Running" : "Not running") + (Boolean.TRUE.equals(r.get("has_key")) ? "" : ". Gatekeeper isn't signed in to it yet."));
-			((JLabel) mr[1]).setForeground(up ? new Color(0x8BD46E) : new Color(0x8F98A0));
-			if (builtin()) { ((JLabel) mr[1]).setText("MC Server Soft: " + noMcssShort()); ((JLabel) mr[1]).setForeground(new Color(0x8F98A0)); }
-			overList.add((JPanel) mr[0]);
+			String exe = Json.str(r.get("mcss_exe")), mph0 = Json.str(r.get("mcss_phase"));
+			JLabel mLine = new JLabel(builtin() ? "\u25CF  Gatekeeper runs the servers itself" : exe.isEmpty()
+					? "\u25CF  MCSS isn't set up yet: Server setup, in Host setup (menu)" : "\u25CF  MCSS: " + (mph0.equals("starting")
+					? "starting\u2026" : mph0.equals("closing") ? "closing\u2026" : up ? "running" : "not running") + (Boolean.TRUE.equals(
+					r.get("has_key")) ? "" : ". Gatekeeper isn't signed in to it yet (Host setup, in the menu)."));
+			mLine.setForeground(builtin() || !up ? new Color(0xA9B5C1) : new Color(0x8BD46E));
+			mLine.setToolTipText(exe.isEmpty() ? null : exe);
+			mLine.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			overList.add(mLine);
 			JLabel h2 = new JLabel(builtin() || Boolean.TRUE.equals(r.get("native_ok")) ? "Servers" : "Servers in this MCSS");
-			h2.setFont(h2.getFont().deriveFont(Font.BOLD, 14f));
-			h2.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0));
+			h2.setFont(h2.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
+			h2.setBorder(BorderFactory.createEmptyBorder(12, 0, 6, 0));
 			h2.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 			overList.add(h2);
 			List<Object> sv = Json.list(r.get("servers"));
-			if (sv.isEmpty()) { JLabel none = new JLabel("None yet. Gatekeeper opens Server setup for you; it's also on a server's Status tab."); none.setForeground(new Color(0x8F98A0)); overList.add(none); }
+			if (sv.isEmpty()) { JLabel none = new JLabel("None yet. Gatekeeper opens Server setup for you; it's also in Host setup, in the menu."); none.setForeground(new Color(0xA9B5C1)); overList.add(none); }
 			String hotWas = cardSide.showing() == null ? "" : cardSide.showing().name.getText();
 			cardGrid.removeAll(); cardSide.clear();
 			dev.gatehouse.look.GameCard firstCard = null;
@@ -123,25 +119,34 @@ final class ServerCardsUi {
 				String ph = Json.str(s.get("phase"));
 				boolean nat = Boolean.TRUE.equals(s.get("native"));
 				String id = Json.str(s.get("id")), nm = Json.str(s.get("name"));
-				JButton openB = new JButton("Open");
-				openB.setToolTipText("This server's page: who may join and what each launcher may do, how it is, its pack" + (nat
-						? ", and its console, settings and backups" : ""));
+				JButton openB = dev.gatehouse.look.SteamLook.main(new JButton("Open"));
+				openB.setToolTipText("This server's page: how it is, its pack" + (nat ? ", and its console, settings, backups and tasks" : ""));
 				if (firstEnter[0] == null) firstEnter[0] = openB;
 				openB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), ""}));
-				JButton manageB = new JButton("Manage\u2026");
-				manageB.setEnabled(nat);
-				manageB.setToolTipText(nat ? "Its console, settings, game settings, backups and scheduled tasks" : ServerTools.HERE_MCSS);
-				manageB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), "manage"}));
-				JButton packB = new JButton("Pack\u2026");
-				packB.setToolTipText("<html>What players' launchers install for this server: its pack and the mods in it, its pictures for Steam,<br>who the server is for (private, shareable or public), and invites</html>");
-				packB.addActionListener(ev -> openServer.accept(new String[] {id, nm, String.valueOf(nat), "pack"}));
-				packB.setVisible(!gone);
-				dev.gatehouse.look.GameCard card = new dev.gatehouse.look.GameCard(nm, new java.awt.Component[] {packB, manageB, openB});
+				// (R38: Start or Stop on the card itself; Pack and Manage are tabs on the server's page, which Open shows)
+				boolean busy = ph.equals("starting") || ph.equals("stopping");
+				JButton manageB = new JButton(on ? "Stop" : "Start");
+				manageB.setEnabled(!busy);
+				manageB.setToolTipText(on ? "Stops this server: anyone playing is disconnected (the world is saved first)" : "Starts this server");
+				manageB.addActionListener(ev -> {
+					if (on && JOptionPane.showConfirmDialog(f, "Stop " + nm + "? Anyone playing is disconnected (the world is saved first).",
+							"Minecraft server", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+					manageB.setEnabled(false);
+					new Thread(() -> {
+						Map<String, Object> did;
+						try { did = Json.map(Json.parse(call("POST", (on ? "/admin/server/stop" : "/admin/server/start") + "?server=" + id, "{}"))); }
+						catch (Exception ex) { did = Map.of("message", "Couldn't ask Gatekeeper: is it running?"); }
+						String said = Json.str(did.get("message")), result = Json.str(did.get("result"));
+						if (!result.equals("ok") && !said.isEmpty()) SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f,
+								"<html><div style='width:380px'>" + said.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>", nm, JOptionPane.PLAIN_MESSAGE));
+					}, "card-run").start();
+				});
+				dev.gatehouse.look.GameCard card = new dev.gatehouse.look.GameCard(nm, new java.awt.Component[] {manageB, openB});
 				String stateText = gone ? "Deleted in MC Server Soft: launchers are no longer shown it" : on ? "Running, " + players
 						+ " playing" : ph.equals("starting") ? "Starting\u2026" : ph.equals("stopping") ? "Shutting down\u2026" : "Off";
 				card.state.setText(stateText);
 				card.state.setForeground(gone ? new Color(0xFF7B72) : on ? new Color(0x8BD46E) : ph.equals("starting")
-						|| ph.equals("stopping") ? new Color(0xE9B949) : new Color(0x8F98A0));
+						|| ph.equals("stopping") ? new Color(0xE9B949) : new Color(0xA9B5C1));
 				if (farUrl == null) {   // (its picture: the one chosen for it here, or its own server-icon.png)
 					String tag = Icons.tag(id), pk = id + "|" + tag;
 					if (!tag.isEmpty()) { java.awt.Image img = cardPics.computeIfAbsent(pk,
@@ -151,34 +156,12 @@ final class ServerCardsUi {
 							: im; } catch (IOException ex) { return new java.awt.image.BufferedImage(1, 1,
 							java.awt.image.BufferedImage.TYPE_INT_ARGB); } }); if (img.getWidth(null) > 1) card.picture(img); }
 				}
-				List<String[]> facts = new ArrayList<>();
-				facts.add(new String[] {"Now", gone ? "Deleted in MC Server Soft" : on ? "Running" : ph.equals("starting") ? "Starting"
-						: ph.equals("stopping") ? "Shutting down" : "Off"});
-				if (on) facts.add(new String[] {"Playing", players.isEmpty() ? "0" : players});
-				facts.add(new String[] {"Port", Json.str(s.get("port"))});
-				facts.add(new String[] {"Run by", Json.str(r.get("host")).equals("mcss") ? (nat ? "Gatekeeper itself" : "MC Server Soft") : "Gatekeeper itself"});
-				facts.add(new String[] {"Folder", Json.str(s.get("dir"))});
-				// (R34: how it is doing, now and over the last hour)
-				Map<String, Object> pf = Json.map(s.get("perf"));
-				if (on && !pf.isEmpty()) {
-					long mem = (long) Double.parseDouble(Json.str(pf.get("mem")).isEmpty() ? "-1" : Json.str(pf.get("mem"))),
-							memPeak = (long) Double.parseDouble(Json.str(pf.get("mem_peak")).isEmpty() ? "-1" : Json.str(pf.get("mem_peak")));
-					int cpu = (int) Double.parseDouble(Json.str(pf.get("cpu")).isEmpty() ? "-1" : Json.str(pf.get("cpu"))),
-							cpuPeak = (int) Double.parseDouble(Json.str(pf.get("cpu_peak")).isEmpty() ? "-1" : Json.str(pf.get("cpu_peak")));
-					int lag = (int) Double.parseDouble(Json.str(pf.get("lag")).isEmpty() ? "0" : Json.str(pf.get("lag"))),
-							mins = (int) Double.parseDouble(Json.str(pf.get("minutes")).isEmpty() ? "0" : Json.str(pf.get("minutes")));
-					java.util.function.LongFunction<String> gb = n -> n >= 1024 ? String.format(java.util.Locale.ROOT, "%.1f GB", n / 1024.0) : n + " MB";
-					if (mem >= 0) facts.add(new String[] {"Memory", gb.apply(mem) + (memPeak > mem ? " (up to " + gb.apply(memPeak)
-							+ " in the last " + (mins >= 60 ? "hour" : mins + " min") + ")" : "")});
-					if (cpu >= 0) facts.add(new String[] {"Processor", cpu + "%" + (cpuPeak > cpu ? " (up to " + cpuPeak + "%)" : "")});
-					facts.add(new String[] {"Keeping up", lag == 0 ? "Yes: no lag warnings in the last " + (mins >= 60 ? "hour" : mins
-							+ " min") : lag + " \"can't keep up\" warning" + (lag == 1 ? "" : "s") + " in the last " + (mins >= 60 ? "hour" : mins + " min")});
-				}
+				List<String[]> facts = facts(r, s);   // (see facts(), below)
 				card.facts(facts);
 				if (gone) {
 					// MCSS has deleted it: said so, and Manage's place is taken by the one thing left to do with it.
 					for (java.awt.event.ActionListener al : manageB.getActionListeners()) manageB.removeActionListener(al);
-					manageB.setText("Remove from Gatekeeper"); manageB.setEnabled(true);
+					manageB.setText("Remove from Gatekeeper"); manageB.setEnabled(true); dev.gatehouse.look.SteamLook.danger(manageB);
 					manageB.setToolTipText("Takes it off Gatekeeper's list. There are no files left to delete.");
 					manageB.addActionListener(ev -> {
 						if (JOptionPane.showConfirmDialog(f, "Remove " + nm + " from Gatekeeper? MCSS has already deleted it.",
@@ -227,7 +210,7 @@ final class ServerCardsUi {
 							null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2 + "</div></html>", "Servers run by Gatekeeper", JOptionPane.PLAIN_MESSAGE); }); } catch (Exception ignored) { Quiet.seen(ignored); }
 				}, "native").start());
 				setupLine.add(own);
-				if (!natOk) { JLabel inMcss = new JLabel("Until then, New server and Manage are done in MC Server Soft"); inMcss.setForeground(new Color(0x8F98A0)); setupLine.add(inMcss); }
+				if (!natOk) { JLabel inMcss = new JLabel("Until then, New server and Manage are done in MC Server Soft"); inMcss.setForeground(new Color(0xA9B5C1)); setupLine.add(inMcss); }
 			}
 			overList.add(setupLine);
 			overList.revalidate(); overList.repaint();
@@ -262,5 +245,37 @@ final class ServerCardsUi {
 			}, "server-run").start();
 		});
 		return fillOverview;
+	}
+
+	/** What the panel beside the server cards says about one server (and its Overview tab on its own page): whether it
+	 *  is on, who is playing, its port, what runs it, its folder, and how it is doing. r is /admin/overview, s one of
+	 *  its servers. */
+	static List<String[]> facts(Map<String, Object> r, Map<String, Object> s) {
+		boolean on = Boolean.TRUE.equals(s.get("running")), gone = Boolean.TRUE.equals(s.get("gone")), nat = Boolean.TRUE.equals(s.get("native"));
+		String players = Json.str(s.get("players")).replaceAll("\\.0$", ""), ph = Json.str(s.get("phase"));
+		List<String[]> facts = new ArrayList<>();
+		facts.add(new String[] {"Now", gone ? "Deleted in MC Server Soft" : on ? "Running" : ph.equals("starting") ? "Starting"
+				: ph.equals("stopping") ? "Shutting down" : "Off"});
+		if (on) facts.add(new String[] {"Playing", players.isEmpty() ? "0" : players});
+		facts.add(new String[] {"Port", Json.str(s.get("port"))});
+		facts.add(new String[] {"Run by", Json.str(r.get("host")).equals("mcss") ? (nat ? "Gatekeeper itself" : "MC Server Soft") : "Gatekeeper itself"});
+		facts.add(new String[] {"Folder", Json.str(s.get("dir"))});
+		// (R34: how it is doing, now and over the last hour)
+		Map<String, Object> pf = Json.map(s.get("perf"));
+		if (on && !pf.isEmpty()) {
+			long mem = (long) Double.parseDouble(Json.str(pf.get("mem")).isEmpty() ? "-1" : Json.str(pf.get("mem"))),
+					memPeak = (long) Double.parseDouble(Json.str(pf.get("mem_peak")).isEmpty() ? "-1" : Json.str(pf.get("mem_peak")));
+			int cpu = (int) Double.parseDouble(Json.str(pf.get("cpu")).isEmpty() ? "-1" : Json.str(pf.get("cpu"))),
+					cpuPeak = (int) Double.parseDouble(Json.str(pf.get("cpu_peak")).isEmpty() ? "-1" : Json.str(pf.get("cpu_peak")));
+			int lag = (int) Double.parseDouble(Json.str(pf.get("lag")).isEmpty() ? "0" : Json.str(pf.get("lag"))),
+					mins = (int) Double.parseDouble(Json.str(pf.get("minutes")).isEmpty() ? "0" : Json.str(pf.get("minutes")));
+			java.util.function.LongFunction<String> gb = n -> n >= 1024 ? String.format(java.util.Locale.ROOT, "%.1f GB", n / 1024.0) : n + " MB";
+			if (mem >= 0) facts.add(new String[] {"Memory", gb.apply(mem) + (memPeak > mem ? " (up to " + gb.apply(memPeak)
+					+ " in the last " + (mins >= 60 ? "hour" : mins + " min") + ")" : "")});
+			if (cpu >= 0) facts.add(new String[] {"Processor", cpu + "%" + (cpuPeak > cpu ? " (up to " + cpuPeak + "%)" : "")});
+			facts.add(new String[] {"Keeping up", lag == 0 ? "Yes: no lag warnings in the last " + (mins >= 60 ? "hour" : mins
+					+ " min") : lag + " \"can't keep up\" warning" + (lag == 1 ? "" : "s") + " in the last " + (mins >= 60 ? "hour" : mins + " min")});
+		}
+		return facts;
 	}
 }

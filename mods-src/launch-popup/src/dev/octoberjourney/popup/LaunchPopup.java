@@ -288,9 +288,9 @@ public final class LaunchPopup {
 			JPanel p = new JPanel(new BorderLayout(0, 12));
 			p.setBorder(BorderFactory.createEmptyBorder(16, 18, 14, 18));
 			JLabel h = new JLabel("Getting " + NAME + " ready");
-			h.setFont(h.getFont().deriveFont(Font.BOLD, 18f));
+			h.setFont(h.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(18f)));
 			JLabel s = new JLabel("Checking for updates before the game starts.");
-			s.setFont(s.getFont().deriveFont(14f));
+			s.setFont(s.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(14f)));
 			progressSub = s;
 			JPanel top = new JPanel(new BorderLayout(0, 4));
 			top.add(h, BorderLayout.NORTH); top.add(s, BorderLayout.SOUTH);
@@ -300,7 +300,7 @@ public final class LaunchPopup {
 			list.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), BorderFactory.createEmptyBorder(8, 10, 8, 10)));
 			for (int i = 0; i < STEPS.length; i++) {
 				rows[i] = new JLabel(STEPS[i], mark("pending"), JLabel.LEFT);
-				rows[i].setFont(rows[i].getFont().deriveFont(Font.PLAIN, 14f));
+				rows[i].setFont(rows[i].getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(14f)));
 				rows[i].setIconTextGap(10);
 				rows[i].setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
 				rows[i].setPreferredSize(new Dimension(560, 26));
@@ -309,11 +309,11 @@ public final class LaunchPopup {
 			JPanel listAndBar = new JPanel(new BorderLayout(0, 8)); listAndBar.setOpaque(false);
 			listAndBar.add(list, BorderLayout.CENTER); listAndBar.add(packBar, BorderLayout.SOUTH);
 			p.add(listAndBar, BorderLayout.CENTER);
-			JButton quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
+			JButton quit = new PlayButton("Quit", SLATE, Color.WHITE, 14f);
 			quit.addActionListener(e -> { if (into != null) { embedQuit = true; return; } exitCode = QUIT; f.dispose(); });
 			JPanel bottom = new JPanel(new BorderLayout());
 			JLabel hint = new JLabel("Quit cancels this launch.");
-			hint.setForeground(new Color(0x8F98A0));
+			hint.setForeground(new Color(0xA9B5C1));
 			bottom.add(hint, BorderLayout.WEST);
 			progressPlay = new PlayButton("Play");
 			progressPlay.setEnabled(false);
@@ -323,7 +323,7 @@ public final class LaunchPopup {
 			// The size question, shown above the bottom row when the sync asks before downloading: the Play button
 			// becomes "Download" and accepts it; Quit cancels the launch.
 			askText = new JLabel(" ");
-			askText.setFont(askText.getFont().deriveFont(Font.PLAIN, 14f));
+			askText.setFont(askText.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(14f)));
 			askPanel = new JPanel(new BorderLayout(0, 2));
 			askPanel.add(askText, BorderLayout.NORTH);
 			askPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
@@ -668,7 +668,7 @@ public final class LaunchPopup {
 		PlayButton(String text, Color base, Color ink, float size) {
 			super(text);
 			this.base = base; this.ink = ink;
-			setFont(getFont().deriveFont(Font.BOLD, size));
+			setFont(getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(size)));
 			setContentAreaFilled(false); setBorderPainted(false); setFocusPainted(false); setOpaque(false);
 			setBorder(BorderFactory.createEmptyBorder(7, 22, 7, 22));
 		}
@@ -707,7 +707,7 @@ public final class LaunchPopup {
 	 *  When it's done it starts Steam again and calls after (the Quit button's halo). */
 	static JPanel steamRow(Path mc, String which, String label, JFrame f, Runnable after) {
 		JButton b = new JButton(label);
-		Color grey = new Color(0x8F98A0), plain = b.getBackground();
+		Color grey = new Color(0xA9B5C1), plain = b.getBackground();
 		JLabel note = new JLabel(" ");
 		java.util.function.BiConsumer<Color, String> say = (col,
 				msg) -> { note.setForeground(col); note.setText("<html><div style='width:470px'>" + esc(msg).replace("\n", "<br>") + "</div></html>"); };
@@ -890,7 +890,7 @@ public final class LaunchPopup {
 	private static String html(String label, String detail) {
 		if (detail == null || detail.isEmpty()) return label;
 		String d = detail.length() > 70 ? detail.substring(0, 67) + "..." : detail;
-		return "<html>" + esc(label) + "<font color='#8f98a0'>&nbsp;&nbsp;" + esc(Character.toUpperCase(d.charAt(0)) + d.substring(1)) + "</font></html>";
+		return "<html>" + esc(label) + "<font color='#A9B5C1'>&nbsp;&nbsp;" + esc(Character.toUpperCase(d.charAt(0)) + d.substring(1)) + "</font></html>";
 	}
 
 	/** The last line packwiz-installer wrote (its progress, such as "(12/28) Downloaded ..."). */
@@ -1177,16 +1177,16 @@ public final class LaunchPopup {
 		// and the Minecraft server itself. Each has its own status line, buttons and messages.
 		JLabel pcStatus = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
 		JLabel status = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
-		for (JLabel l : new JLabel[] {pcStatus, status}) { l.setFont(l.getFont().deriveFont(Font.PLAIN, 13f)); l.setIconTextGap(8); }
+		for (JLabel l : new JLabel[] {pcStatus, status}) { l.setFont(l.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13f))); l.setIconTextGap(8); }
 		JLabel pcNote = new JLabel(" ");
-		pcNote.setFont(pcNote.getFont().deriveFont(Font.PLAIN, 12f));
-		pcNote.setForeground(new Color(0x8F98A0));
+		pcNote.setFont(pcNote.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12f)));
+		pcNote.setForeground(new Color(0xA9B5C1));
 		JLabel note = new JLabel(" ");
-		note.setFont(note.getFont().deriveFont(Font.PLAIN, 12f));
-		note.setForeground(new Color(0x8F98A0));
+		note.setFont(note.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12f)));
+		note.setForeground(new Color(0xA9B5C1));
 		// How the last stop went: watched after Stop until the server is off, then the log is read for the save.
 		JLabel stopped = new JLabel(" ");
-		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, 13f));
+		stopped.setFont(stopped.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13f)));
 		stopped.setIconTextGap(8);
 		JButton wake = new JButton("Wake server machine"), start = new JButton("Start server"), stop = new JButton("Stop server");
 		wake.setToolTipText("Wakes the server machine if it's asleep (Wake on LAN: works from the owner's home network)");
@@ -1199,9 +1199,9 @@ public final class LaunchPopup {
 		// Ping (from Minecraft's own server ping) as ten pips from red to green, then the players connected.
 		PipMeter meter = new PipMeter();
 		JLabel pingText = new JLabel("\u2014"), players = new JLabel("Players: \u2014");
-		for (JLabel l : new JLabel[] {pingText, players}) l.setFont(l.getFont().deriveFont(Font.PLAIN, 13f));
+		for (JLabel l : new JLabel[] {pingText, players}) l.setFont(l.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13f)));
 		JLabel pingLabel = new JLabel("Ping");
-		pingLabel.setFont(pingLabel.getFont().deriveFont(Font.PLAIN, 13f));
+		pingLabel.setFont(pingLabel.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13f)));
 		JPanel pingRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 2));
 		pingRow.add(pingLabel); pingRow.add(meter); pingRow.add(pingText);
 		JPanel playersRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
@@ -1310,7 +1310,7 @@ public final class LaunchPopup {
 
 		// MCSS itself (the server software), through Gatekeeper on the server machine: allowed per launcher by the owner.
 		JLabel mcss = new JLabel("Checking\u2026", dot(GRAY), JLabel.LEFT);
-		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, 13f));
+		mcss.setFont(mcss.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13f)));
 		mcss.setIconTextGap(8);
 		JButton mStart = new JButton("Start MCSS"), mClose = new JButton("Close MCSS"), pcSleep = new JButton("Sleep server machine");
 		mStart.setToolTipText("Starts MCSS (the program that runs the Minecraft server) on the server machine");
@@ -1319,8 +1319,8 @@ public final class LaunchPopup {
 		boolean[] forceMode = {false};
 		mStart.setEnabled(false); mClose.setEnabled(false); pcSleep.setEnabled(false);
 		JLabel mNote = new JLabel(" ");
-		mNote.setFont(mNote.getFont().deriveFont(Font.PLAIN, 12f));
-		mNote.setForeground(new Color(0x8F98A0));
+		mNote.setFont(mNote.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12f)));
+		mNote.setForeground(new Color(0xA9B5C1));
 		Runnable mcssRefresh = () -> new Thread(() -> {
 			String state, text, mode = "close"; boolean granted = false, running = false, sleepOk = false, game = false;
 			try {
@@ -1400,7 +1400,7 @@ public final class LaunchPopup {
 		// The layout: each group a heading, its status line, its buttons and its messages.
 		java.util.function.BiConsumer<String, JComponent[]> group = (title, parts) -> {
 			JLabel h = new JLabel(title);
-			h.setFont(h.getFont().deriveFont(Font.BOLD, 14f));
+			h.setFont(h.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
 			h.setBorder(BorderFactory.createCompoundBorder(
 					BorderFactory.createEmptyBorder(box.getComponentCount() == 0 ? 0 : 10, 0, 0, 0),
 					BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(box.getComponentCount() == 0 ? 0 : 1, 0, 0, 0,
@@ -1412,7 +1412,7 @@ public final class LaunchPopup {
 		};
 		java.util.function.Function<JButton[], JPanel> row = bs -> {
 			JPanel r = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
-			for (JButton b : bs) { b.setFont(b.getFont().deriveFont(13f)); r.add(b); }
+			for (JButton b : bs) { b.setFont(b.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(13f))); r.add(b); }
 			return r;
 		};
 		// "Request permission", one for each thing this device may not do: it asks the owner (a chime and a line in the
@@ -1468,8 +1468,8 @@ public final class LaunchPopup {
 				pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
 		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose, reqB[1]}), mNote});
 		JLabel via = new JLabel(wrap("Control: " + c.accessText()));
-		via.setFont(via.getFont().deriveFont(Font.PLAIN, 12f));
-		via.setForeground(new Color(0x8F98A0));
+		via.setFont(via.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12f)));
+		via.setForeground(new Color(0xA9B5C1));
 		group.accept("Minecraft server", new JComponent[] {status, pingRow, playersRow, row.apply(new JButton[] {start, stop, reqB[2]}), via, note, stopped});
 
 		// Server config: how this device controls the server, and signing in to the server panel with a panel account
@@ -1478,9 +1478,9 @@ public final class LaunchPopup {
 		cfg.setLayout(new BoxLayout(cfg, BoxLayout.Y_AXIS));
 		cfg.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
 		JLabel cfgNote = new JLabel(" ");
-		cfgNote.setForeground(new Color(0x8F98A0));
+		cfgNote.setForeground(new Color(0xA9B5C1));
 		JLabel who = new JLabel();
-		who.setFont(who.getFont().deriveFont(Font.PLAIN, 13f));
+		who.setFont(who.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(13f)));
 		who.setIconTextGap(8);
 		JButton signOut = new JButton("Sign out");
 		Runnable showWho = () -> {
@@ -1490,7 +1490,7 @@ public final class LaunchPopup {
 			signOut.setEnabled(c.hasKey());
 		};
 		JLabel signHead = new JLabel("Server panel sign-in");
-		signHead.setFont(signHead.getFont().deriveFont(Font.BOLD, 14f));
+		signHead.setFont(signHead.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
 		signHead.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
 		javax.swing.JTextField user = new javax.swing.JTextField(c.username, 18);
 		javax.swing.JPasswordField pass = new javax.swing.JPasswordField(18);
@@ -1529,16 +1529,16 @@ public final class LaunchPopup {
 		gc.gridx = 0; gc.gridy = 1; fields.add(new JLabel("Password"), gc);
 		gc.gridx = 1; fields.add(pass, gc);
 		JPanel signButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
-		for (JButton bt : new JButton[] {signIn, signOut}) { bt.setFont(bt.getFont().deriveFont(13f)); signButtons.add(bt); }
+		for (JButton bt : new JButton[] {signIn, signOut}) { bt.setFont(bt.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(13f))); signButtons.add(bt); }
 		gc.gridx = 1; gc.gridy = 2; gc.insets = new java.awt.Insets(2, -6, 2, 0); fields.add(signButtons, gc);
 		JPanel fieldsWrap = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 0, 0));
 		fieldsWrap.add(fields);
 		JLabel signHelp = new JLabel(wrap("Sign in with your own account on the server panel. Only the key the panel hands back is saved, on this device; your password isn't. If the owner allowed this device through Gatekeeper, you don't need to sign in."));
-		signHelp.setForeground(new Color(0x8F98A0));
+		signHelp.setForeground(new Color(0xA9B5C1));
 		showWho.run();
 		// Which Gatekeeper this launcher talks to: the pack's, or one this device was paired with by address.
 		JLabel keeperHead = new JLabel("Gatekeeper");
-		keeperHead.setFont(keeperHead.getFont().deriveFont(Font.BOLD, 14f));
+		keeperHead.setFont(keeperHead.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
 		keeperHead.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
 		JLabel keeperNow = new JLabel(), keeperNote = new JLabel(" ");
 		Runnable showKeeper = () -> keeperNow.setText(wrap(!c.hasHelper()
@@ -1568,9 +1568,9 @@ public final class LaunchPopup {
 		unpairB.addActionListener(e -> pairWith.accept(""));
 		JPanel keeperRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
 		keeperRow.add(new JLabel("Gatekeeper address")); keeperRow.add(keeperField);
-		for (JButton bt : new JButton[] {pairB, unpairB}) { bt.setFont(bt.getFont().deriveFont(13f)); keeperRow.add(bt); }
+		for (JButton bt : new JButton[] {pairB, unpairB}) { bt.setFont(bt.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(13f))); keeperRow.add(bt); }
 		JLabel keeperHelp = new JLabel(wrap("To pair with another Gatekeeper, ask its owner for the pairing address (Gatekeeper on the server machine: Status, Copy pairing address) and type it here. This device has to be in that owner's Tailscale network."));
-		keeperHelp.setForeground(new Color(0x8F98A0));
+		keeperHelp.setForeground(new Color(0xA9B5C1));
 		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote, keeperHead, keeperNow, keeperHelp, keeperRow,
 				keeperNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
 
@@ -1594,7 +1594,7 @@ public final class LaunchPopup {
 	 *  control itself and Gatekeeper's MCSS sign-in stay with the panel on the server machine. Returns the one panel
 	 *  that holds both (the launcher's Remote Gatekeeper tab). */
 	private static JPanel[] managePanel(ServerControl c, JFrame f) {
-		Color grey = new Color(0x8F98A0);
+		Color grey = new Color(0xA9B5C1);
 		// ---- Access Manager: each permission is Allowed (green), Not allowed (white) or Denied (red); click one to change
 		// it. A player's setting goes to all their devices, except a device that is itself Denied. Whitelist, kick,
 		// suspend and blacklist are here too.
@@ -1618,15 +1618,15 @@ public final class LaunchPopup {
 			@Override public Component getTableCellRendererComponent(javax.swing.JTable tb, Object v, boolean sel, boolean focus, int r, int col) {
 				Component x = super.getTableCellRendererComponent(tb, v, sel, focus, r, col);
 				String tx = s(v);
-				Color bg = tx.startsWith("Allowed") ? new Color(0xCDEFD3) : tx.startsWith("Denied") || tx.startsWith("Blacklisted")
-						|| tx.startsWith("Suspended") ? new Color(0xF6CACA) : tx.startsWith("Not allowed") ? Color.WHITE : null;
-				x.setBackground(bg != null ? bg : sel ? tb.getSelectionBackground() : tb.getBackground());
-				x.setForeground(bg != null ? Color.BLACK : sel ? tb.getSelectionForeground() : tb.getForeground());
+				if (!dev.gatehouse.look.SteamLook.permCell(x, tx, sel)) {   // (R39: dark cells, green or red text)
+					x.setBackground(sel ? tb.getSelectionBackground() : tb.getBackground());
+					x.setForeground(sel ? tb.getSelectionForeground() : tb.getForeground());
+				}
 				return x;
 			}
 		};
 		for (javax.swing.JTable tb : new javax.swing.JTable[] {table,
-				ptable}) { tb.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION); tb.setRowHeight(24); tb.setDefaultRenderer(Object.class, paint); }
+				ptable}) { tb.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION); tb.setRowHeight(28); tb.setDefaultRenderer(Object.class, paint); dev.gatehouse.look.SteamLook.fitColumns(tb); }
 		List<String> ids = new ArrayList<>(), pnames = new ArrayList<>();
 		Map<String, String> dban = new LinkedHashMap<>(), pban = new LinkedHashMap<>();   // (who is suspended or blacklisted: a device itself, or a player)
 		Map<String, Boolean> pwl = new LinkedHashMap<>();
@@ -1636,9 +1636,9 @@ public final class LaunchPopup {
 		JPanel deck = new JPanel(cards);
 		deck.add(ts, "device"); deck.add(pts, "player");
 		access.add(deck, BorderLayout.CENTER);
-		JButton wlB = new JButton("Add to whitelist"), kickB = new JButton("Kick\u2026"), suspendB = new JButton("Suspend\u2026"),
-				blackB = new JButton("Blacklist\u2026"), liftB = new JButton("Lift"),
-				forget = new JButton("Forget"), revoke = new JButton("Remove server access");
+		JButton wlB = new JButton("Add to whitelist"), kickB = dev.gatehouse.look.SteamLook.danger(new JButton("Kick\u2026")), suspendB = dev.gatehouse.look.SteamLook.danger(new JButton("Suspend\u2026")),
+				blackB = dev.gatehouse.look.SteamLook.danger(new JButton("Blacklist\u2026")), liftB = new JButton("Lift"),
+				forget = dev.gatehouse.look.SteamLook.danger(new JButton("Forget")), revoke = dev.gatehouse.look.SteamLook.danger(new JButton("Remove server access"));
 		wlB.setToolTipText("Adds the selected player to the server's whitelist, or takes them off it");
 		kickB.setToolTipText("Kicks the selected player off the Minecraft server now. They can join again.");
 		suspendB.setToolTipText("Suspends the selected launcher or player: they still get updates and see the server's status, but can't start the game or use any control.");
@@ -1648,13 +1648,7 @@ public final class LaunchPopup {
 		forget.setToolTipText("Takes the selected launcher off the list, with everything it was allowed. It can introduce itself again later.");
 		// Three sets, as in Gatekeeper itself: what they may do with the server, shutting someone out, and the list.
 		java.util.function.BiFunction<String, JButton[], JPanel> set = (title, bs) -> {
-			JPanel g = new JPanel();
-			dev.gatehouse.look.WrapLayout.on(g, 6, 2);   // (a set wider than the window puts its own buttons in rows too)
-			javax.swing.border.TitledBorder tb = BorderFactory.createTitledBorder(BorderFactory.createLineBorder(new Color(0x2F4860)), title);
-			tb.setTitleColor(new Color(0x8F98A0));
-			g.setBorder(tb);
-			for (JButton b : bs) g.add(b);
-			return g;
+			return dev.gatehouse.look.SteamLook.group(title, bs);   // (R39: a small heading, not an etched box)
 		};
 		JPanel buttons = new JPanel();
 		dev.gatehouse.look.WrapLayout.on(buttons, 6, 1);   // (side by side while they fit, in rows when the window is narrower: never squeezed)
@@ -1681,7 +1675,7 @@ public final class LaunchPopup {
 		activity.add(lines, BorderLayout.NORTH);
 		javax.swing.JTextArea log = new javax.swing.JTextArea(12, 40);
 		log.setEditable(false);
-		log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
+		log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, dev.gatehouse.look.SteamLook.pt(11)));
 		JPanel logBox = new JPanel(new BorderLayout(0, 4));
 		JLabel logHead = new JLabel("Activity on the server machine");
 		logHead.setFont(logHead.getFont().deriveFont(Font.BOLD));
@@ -1691,7 +1685,7 @@ public final class LaunchPopup {
 		// ---- Updates Pulled: each update a launcher fetched from the server machine, for this server
 		javax.swing.table.DefaultTableModel pullModel = newModel.apply(new String[] {"When", "Launcher", "Player", "Update", "Files", "Mods", "Size"});
 		javax.swing.JTable pullTable = new javax.swing.JTable(pullModel);
-		pullTable.setRowHeight(24);
+		pullTable.setRowHeight(28);
 		JPanel pulled = new JPanel(new BorderLayout(0, 6));
 		pulled.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
 		JLabel pullHead = new JLabel(" ");
@@ -1902,7 +1896,7 @@ public final class LaunchPopup {
 		box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
 		box.setBorder(BorderFactory.createEmptyBorder(10, 12, 10, 12));
 		JLabel top = new JLabel(wrap("Optional mods on this device. Switching one off never stops you joining the server. A change is applied when the update runs again: press Restart."));
-		top.setForeground(new Color(0x8F98A0));
+		top.setForeground(new Color(0xA9B5C1));
 		top.setAlignmentX(Component.LEFT_ALIGNMENT);
 		box.add(top); box.add(Box.createVerticalStrut(8));
 		JLabel note = new JLabel(" ");
@@ -1927,10 +1921,10 @@ public final class LaunchPopup {
 			if (key.isEmpty()) continue;
 			boolean on = choice.containsKey(key) ? choice.get(key) : !"false".equals(s(m.get("default")));
 			javax.swing.JCheckBox cb = new javax.swing.JCheckBox(s(m.get("name")), on);
-			cb.setFont(cb.getFont().deriveFont(Font.BOLD, 13f));
+			cb.setFont(cb.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(13f)));
 			cb.setAlignmentX(Component.LEFT_ALIGNMENT);
 			JLabel d = new JLabel(wrap(s(m.get("description")) + ("false".equals(s(m.get("default"))) ? " (Off unless you switch it on.)" : "")));
-			d.setForeground(new Color(0x8F98A0));
+			d.setForeground(new Color(0xA9B5C1));
 			d.setBorder(BorderFactory.createEmptyBorder(0, 24, 6, 0));
 			d.setAlignmentX(Component.LEFT_ALIGNMENT);
 			boxes.put(key, cb); names.put(key, s(m.get("name")));
@@ -2076,17 +2070,17 @@ public final class LaunchPopup {
 
 	static JComponent heading(String s) {
 		JLabel l = new JLabel(s);
-		l.setFont(l.getFont().deriveFont(Font.BOLD, 14f));
+		l.setFont(l.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f)));
 		l.setBorder(BorderFactory.createEmptyBorder(10, 0, 3, 0));
 		return l;
 	}
 
 	private static JComponent row(Color c, String label, String detail) {
 		if (detail != null && !detail.isEmpty()) detail = Character.toUpperCase(detail.charAt(0)) + detail.substring(1);
-		JLabel l = new JLabel("<html>" + esc(label) + (detail == null || detail.isEmpty() ? "" : "<font color='#8f98a0'>&nbsp;&nbsp;"
+		JLabel l = new JLabel("<html>" + esc(label) + (detail == null || detail.isEmpty() ? "" : "<font color='#A9B5C1'>&nbsp;&nbsp;"
 				+ esc(detail) + "</font>") + "</html>", dot(c), JLabel.LEFT);
 		l.setIconTextGap(8);
-		l.setFont(l.getFont().deriveFont(Font.PLAIN, 14f));
+		l.setFont(l.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(14f)));
 		l.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 0));
 		return l;
 	}
@@ -2094,7 +2088,7 @@ public final class LaunchPopup {
 	static JComponent text(String s) {
 		// (Swing's HTML widths come out about a third wider than given on a normal display.)
 		JLabel l = new JLabel("<html><div style='width:410px'>" + esc(s) + "</div></html>");
-		l.setFont(l.getFont().deriveFont(Font.PLAIN, 14f));
+		l.setFont(l.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(14f)));
 		l.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 0));
 		return l;
 	}
@@ -2136,9 +2130,9 @@ public final class LaunchPopup {
 			JPanel top = new JPanel(new BorderLayout(0, 4));
 			top.setOpaque(false);
 			JLabel h = new JLabel(headline);
-			h.setFont(h.getFont().deriveFont(Font.BOLD, 24f));
+			h.setFont(h.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(24f)));
 			JLabel s = new JLabel(sub);
-			s.setFont(s.getFont().deriveFont(14f));
+			s.setFont(s.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(14f)));
 			// An update to this pack published while this window is open: a line under the heading says so (which
 			// version, how much to download), with Update now (the same as Restart: the update runs again) and Later,
 			// and a chime. Looked for every couple of minutes; what the source served when the window opened is the
@@ -2188,7 +2182,7 @@ public final class LaunchPopup {
 			p.add(top, BorderLayout.NORTH);
 			// Two tabs: this device (the pack's update) and the server.
 			javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
-			tabs.setFont(tabs.getFont().deriveFont(Font.BOLD, 13f));
+			tabs.setFont(tabs.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(13f)));
 			List<Component> deviceRows = rows.isEmpty() ? List.of(text("Nothing to report.")) : rows;
 			// Under the list, where setup added Steam shortcuts: a button that brings them up to date with the pack (they
 			// start through the Gatehouse launcher, the launcher's own name and art, the controller layout), without
@@ -2207,7 +2201,7 @@ public final class LaunchPopup {
 			// The Server tab: a live line on top (whether the server answers right now; the rest of the tab is the last
 			// published record of what it runs, so it reads the same with the server down), then that record.
 			JLabel liveLine = new JLabel("Checking the server…", dot(GRAY), JLabel.LEFT);
-			liveLine.setFont(liveLine.getFont().deriveFont(Font.BOLD, 13f));
+			liveLine.setFont(liveLine.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(13f)));
 			liveLine.setIconTextGap(8);
 			liveLine.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 			JPanel serverTab = new JPanel(new BorderLayout());
@@ -2286,15 +2280,15 @@ public final class LaunchPopup {
 			PlayButton play = new PlayButton("Play");
 			play.setToolTipText("Starts the game once the server is online. Until then it asks the owner for whatever is missing: the server turned on, a place on the whitelist, or being let back in.");
 			JLabel playWhy = new JLabel(" ");
-			playWhy.setFont(playWhy.getFont().deriveFont(Font.PLAIN, 12f));
-			playWhy.setForeground(new Color(0x8F98A0));
+			playWhy.setFont(playWhy.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(12f)));
+			playWhy.setForeground(new Color(0xA9B5C1));
 			JPanel bottom = new JPanel(new BorderLayout());
 			// What the colours mean.
 			JPanel legend = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 			for (Object[] k : new Object[][] {{GREEN, "OK / added"}, {BLUE, "updated"}, {GRAY, "off / removed"}, {AMBER, "not checked"}, {RED, "failed"}}) {
 				JLabel l = new JLabel((String) k[1], dot((Color) k[0]), JLabel.LEFT);
-				l.setFont(l.getFont().deriveFont(Font.PLAIN, 11f));
-				l.setForeground(new Color(0x8F98A0));
+				l.setFont(l.getFont().deriveFont(Font.PLAIN, dev.gatehouse.look.SteamLook.pt(11f)));
+				l.setForeground(new Color(0xA9B5C1));
 				legend.add(l);
 			}
 			legend.setOpaque(false);
@@ -2306,7 +2300,7 @@ public final class LaunchPopup {
 			shell.corner(NAME);
 			shell.left().add(legend);
 			// Beside Play: run the update again, or don't start the game.
-			JButton again = new PlayButton("Restart", YELLOW, INK, 14f), quit = new PlayButton("Quit", QUIT_RED, Color.WHITE, 14f);
+			JButton again = new PlayButton("Restart", SLATE, Color.WHITE, 14f), quit = new PlayButton("Quit", SLATE, Color.WHITE, 14f);
 			// Menu: back to the Gatehouse launcher's own window (the Gatekeepers and their servers), without starting the
 			// game. It leaves a note the menu looks for when it's the one that started this pack; started some other way
 			// (from Prism Launcher), the menu is opened here.

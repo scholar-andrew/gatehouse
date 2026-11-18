@@ -106,7 +106,7 @@ public final class NotesView {
 			JPanel sum = new Box(); sum.setOpaque(false); sum.setLayout(new Column());
 			sum.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
 			JLabel sh = new JLabel("What's new since " + seen + ": " + unseenOnes.size() + " updates");
-			sh.setFont(sh.getFont().deriveFont(java.awt.Font.BOLD, 14f)); sh.setForeground(GameShell.TEXT);
+			sh.setFont(sh.getFont().deriveFont(java.awt.Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f))); sh.setForeground(GameShell.TEXT);
 			JPanel shRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0,
 					0)) { @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); } };
 			shRow.setOpaque(false); shRow.add(sh);
@@ -133,9 +133,9 @@ public final class NotesView {
 			};
 			top.setOpaque(false);
 			JLabel h = new JLabel(v + (date.isEmpty() ? "" : " (" + date + ")"));
-			h.setFont(h.getFont().deriveFont(java.awt.Font.BOLD, 14f)); h.setForeground(GameShell.TEXT);
+			h.setFont(h.getFont().deriveFont(java.awt.Font.BOLD, dev.gatehouse.look.SteamLook.pt(14f))); h.setForeground(GameShell.TEXT);
 			top.add(h);
-			if (fresh) { top.add(javax.swing.Box.createHorizontalStrut(8)); top.add(new Dot()); top.add(javax.swing.Box.createHorizontalStrut(6)); JLabel nw = new JLabel("NEW"); nw.setFont(nw.getFont().deriveFont(java.awt.Font.BOLD, 11f)); nw.setForeground(new Color(0xFF8A8E)); top.add(nw); }
+			if (fresh) { top.add(javax.swing.Box.createHorizontalStrut(8)); top.add(new Dot()); top.add(javax.swing.Box.createHorizontalStrut(6)); JLabel nw = new JLabel("NEW"); nw.setFont(nw.getFont().deriveFont(java.awt.Font.BOLD, dev.gatehouse.look.SteamLook.pt(11f))); nw.setForeground(new Color(0xFF8A8E)); top.add(nw); }
 			top.setAlignmentX(Component.LEFT_ALIGNMENT);
 			entry.add(top);
 			if (c.get("notes") instanceof List<?> ns) for (Object n : ns) entry.add(line("• " + n));
