@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.35.5 - 2026-11-18
+
+- A test update with no changes, published to try the phone notification that tells you when your Gate Systems update.
+
 ## 3.35.4 - 2026-11-18
 
 - Phone notifications can tell you when a Gate System updates: a launcher, your Gatekeeper, or one that joined it, with the version it went from and to. Those that update within a minute of each other (a constellation updating together) come as one message. On unless you turn it off: Gatekeeper's Options, or the web panel's.

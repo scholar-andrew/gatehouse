@@ -2,7 +2,7 @@
  "pack": {
   "name": "October Journey",
   "author": "Andrew",
-  "version": "1.68.4",
+  "version": "1.68.5",
   "minecraft": "26.3",
   "fabric": "0.19.5"
  },

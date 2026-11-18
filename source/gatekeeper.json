@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.35.4",
+ "version": "3.35.5",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.35.5", "date": "2026-11-18", "notes": [
+   "A test update with no changes, published to try the phone notification that tells you when your Gate Systems update."
+  ]},
   {"version": "3.35.4", "date": "2026-11-18", "notes": [
    "Phone notifications can tell you when a Gate System updates: a launcher, your Gatekeeper, or one that joined it, with the version it went from and to. Those that update within a minute of each other (a constellation updating together) come as one message. On unless you turn it off: Gatekeeper's Options, or the web panel's."
   ]},
