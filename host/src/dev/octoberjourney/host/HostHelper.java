@@ -1044,6 +1044,7 @@ public final class HostHelper {
 		ServerTools.schedule();
 		ServerTools.autostart();
 		menuEntry();
+		Notify.restore();   // (update messages held when Gatekeeper last ended: before ownStart, so its own update joins them)
 		UpdateLog.ownStart();
 		AutoUpdate.start();
 		Handout.start();   // (R40: this machine handing out pack updates to other Gate Systems)

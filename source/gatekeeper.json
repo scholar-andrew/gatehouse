@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.35.5",
+ "version": "3.35.6",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.35.6", "date": "2026-11-18", "notes": [
+   "Update notifications: an update Gatekeeper was holding to gather into one message is no longer lost when Gatekeeper restarts for its own update. It is kept, and sent a minute after Gatekeeper starts again, together with Gatekeeper's own update (in the test of 3.35.5 the Deck's update went missing this way)."
+  ]},
   {"version": "3.35.5", "date": "2026-11-18", "notes": [
    "A test update with no changes, published to try the phone notification that tells you when your Gate Systems update."
   ]},

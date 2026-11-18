@@ -1,3 +1,5 @@
+== 1.68.6 | 2026-11-18
+- Gatehouse 3.35.6: no update is left out of the update notification. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.68.5 | 2026-11-18
 - Gatehouse 3.35.5: a test update with no changes. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.68.4 | 2026-11-18

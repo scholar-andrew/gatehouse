@@ -81,6 +81,35 @@ final class Notify {
 	private static final java.util.List<String[]> pendingUpdates = new java.util.ArrayList<>();
 	private static final java.util.concurrent.ScheduledExecutorService LATER = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
 		Thread t = new Thread(r, "notify-updates"); t.setDaemon(true); return t; });
+	// Kept across a restart: Gatekeeper often restarts (for its own update) inside the minute it gathers updates for, and
+	// what it held was lost. When it ends, what it holds is written to notify-pending.json; when it starts, it is read
+	// back and sent a minute later, together with whatever comes in meanwhile (its own update among them).
+	static { Runtime.getRuntime().addShutdownHook(new Thread(Notify::keepForRestart, "notify-keep")); }
+	private static synchronized void keepForRestart() {
+		try {
+			if (dir == null) return;
+			java.nio.file.Path f = dir.resolve("notify-pending.json");
+			if (pendingUpdates.isEmpty()) { java.nio.file.Files.deleteIfExists(f); return; }
+			java.util.List<Object> l = new java.util.ArrayList<>();
+			for (String[] u : pendingUpdates) l.add(java.util.List.of(u[0], u[1], u[2], u[3]));
+			java.nio.file.Files.writeString(f, Json.write(m("at", System.currentTimeMillis(), "updates", l, "told", new java.util.ArrayList<Object>(toldUpdates))), StandardCharsets.UTF_8);
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+	}
+	static synchronized void restore() {
+		try {
+			java.nio.file.Path f = dir.resolve("notify-pending.json");
+			if (!java.nio.file.Files.isRegularFile(f)) return;
+			Map<String, Object> s = Json.map(Json.parse(java.nio.file.Files.readString(f, StandardCharsets.UTF_8)));
+			java.nio.file.Files.deleteIfExists(f);
+			// (only from a restart just now: held for longer than ten minutes, the moment has passed)
+			double at = 0; try { at = Double.parseDouble(Json.str(s.get("at"))); } catch (NumberFormatException e) { Quiet.seen(e); }
+			if (System.currentTimeMillis() - (long) at > 600_000) return;
+			for (Object o : Json.list(s.get("told"))) toldUpdates.add(Json.str(o));
+			for (Object o : Json.list(s.get("updates"))) { java.util.List<Object> u = Json.list(o); if (u.size() == 4) pendingUpdates.add(new String[] {
+					Json.str(u.get(0)), Json.str(u.get(1)), Json.str(u.get(2)), Json.str(u.get(3))}); }
+			if (!pendingUpdates.isEmpty()) LATER.schedule(Notify::sendUpdates, 60, java.util.concurrent.TimeUnit.SECONDS);
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+	}
 
 	/** Queued and sent in the background, in order (never more than 30 waiting, and two seconds apart). */
 	static void send(String title, String body, String tags, int priority) {

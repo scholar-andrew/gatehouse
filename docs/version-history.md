@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.35.6 - 2026-11-18
+
+- Update notifications: an update Gatekeeper was holding to gather into one message is no longer lost when Gatekeeper restarts for its own update. It is kept, and sent a minute after Gatekeeper starts again, together with Gatekeeper's own update (in the test of 3.35.5 the Deck's update went missing this way).
+
 ## 3.35.5 - 2026-11-18
 
 - A test update with no changes, published to try the phone notification that tells you when your Gate Systems update.
