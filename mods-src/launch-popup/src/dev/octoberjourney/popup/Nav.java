@@ -25,7 +25,8 @@ import dev.gatehouse.look.Quiet;
  *    Y                   selects Restart
  *    Start               selects Quit
  *    right trigger       a left mouse click where the pointer is (the right trackpad moves it, in the Steam layout)
- *    right stick         scrolls: the list or panel the selection is in or on, else the biggest one that scrolls
+ *    right stick         scrolls: the list or panel the selection is in or on, else the biggest one that scrolls;
+ *                        up and down, and left and right where something is wider than it shows (R41)
  *  On tabs, left and right change the tab; in a list, up and down move the row. Whatever window of the launcher is in
  *  front is the one being driven, questions included. Buttons say what they are with tag(): "back", "restart", "quit".
  *  The arrow keys do the same moving when a button or a tab row is selected. */
@@ -141,26 +142,31 @@ public final class Nav {
 				} catch (java.awt.AWTException | RuntimeException ignored) { Quiet.seen(ignored); }
 			}
 			default -> { if (word.startsWith("scroll:")) try { scroll(w, fo,
-					Integer.parseInt(word.substring(7))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); } }
+					Integer.parseInt(word.substring(7)), false); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
+				else if (word.startsWith("hscroll:")) try { scroll(w, fo,
+					Integer.parseInt(word.substring(8)), true); } catch (NumberFormatException ignored) { Quiet.seen(ignored); } }
 		}
 	}
 
 	/** R23: the right stick scrolls one thing: the scrolling list or panel the selection is in (or is), else the
-	 *  biggest one showing that has more than fits. */
-	private static void scroll(Window w, Component fo, int px) {
+	 *  biggest one showing that has more than fits. Up and down, or (R41, sideways) left and right: then the one that
+	 *  is wider than it shows. */
+	private static void scroll(Window w, Component fo, int px, boolean sideways) {
 		javax.swing.JScrollPane sp = null;
-		for (Component c = fo; c != null && c != w; c = c.getParent()) if (c instanceof javax.swing.JScrollPane s && scrolls(s)) { sp = s; break; }
+		for (Component c = fo; c != null && c != w; c = c.getParent()) if (c instanceof javax.swing.JScrollPane s && scrolls(s, sideways)) { sp = s; break; }
 		if (sp == null) {
 			long biggest = 0;
-			for (javax.swing.JScrollPane s : panes(w)) { long a = (long) s.getWidth() * s.getHeight(); if (scrolls(s) && a > biggest) { biggest = a; sp = s; } }
+			for (javax.swing.JScrollPane s : panes(w)) { long a = (long) s.getWidth() * s.getHeight(); if (scrolls(s, sideways) && a > biggest) { biggest = a; sp = s; } }
 		}
 		if (sp == null) return;
-		javax.swing.JScrollBar bar = sp.getVerticalScrollBar();
+		javax.swing.JScrollBar bar = sideways ? sp.getHorizontalScrollBar() : sp.getVerticalScrollBar();
 		bar.setValue(Math.max(bar.getMinimum(), Math.min(bar.getMaximum() - bar.getVisibleAmount(), bar.getValue() + px)));
 	}
-	private static boolean scrolls(javax.swing.JScrollPane s) {
+	private static boolean scrolls(javax.swing.JScrollPane s) { return scrolls(s, false); }
+	private static boolean scrolls(javax.swing.JScrollPane s, boolean sideways) {
 		Component v = s.getViewport().getView();
-		return s.isShowing() && v != null && v.getHeight() > s.getViewport().getExtentSize().height + 2;
+		java.awt.Dimension shown = s.getViewport().getExtentSize();
+		return s.isShowing() && v != null && (sideways ? v.getWidth() > shown.width + 2 : v.getHeight() > shown.height + 2);
 	}
 	private static List<javax.swing.JScrollPane> panes(Container c) {
 		List<javax.swing.JScrollPane> out = new ArrayList<>();

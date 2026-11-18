@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.33.0",
+ "version": "3.34.0",
  "changes": [
+  {"version": "3.34.0", "date": "2026-11-18", "notes": [
+   "The right stick scrolls sideways too (R41): push it left or right where a list or page is wider than the window, such as a wide table. Up and down work as before; pushed slantwise, it does both. In Gatehouse and in Gatekeeper."
+  ]},
   {"version": "3.33.0", "date": "2026-11-18", "notes": [
    "Updates from any Gate System, step 3 of 3 (R40): Gate Systems now hand pack updates to each other over Tailscale. Gatekeeper hands out the packs on its machine all the time; Gatehouse hands out while its window is open. A device then takes an update from whichever answers fastest: your PC, GitHub, or another Gate System.",
    "Only the published pack is handed out, with its signature, and only once the machine holds all of it. The device that takes it checks the signature and every file, and never takes an older pack, or another pack, from another machine. Packs a Gatekeeper builds aren't handed out.",

@@ -15,8 +15,9 @@ import dev.gatehouse.look.Quiet;
  *    Windows: XInput, through Java's own foreign-function support (PadWin; Java 22 or newer, else no controller here).
  *    Linux:   the kernel's joystick devices (/dev/input/js*), which Prism's Flatpak can read.
  *  It reports presses as words: a, b, x, y, start, back, up, down, left, right (d-pad or left stick, repeating while
- *  held), rt-down / rt-up (the right trigger, used as a mouse click), and scroll:<pixels> while the right stick is
- *  pushed up or down (R23: it scrolls, faster the further it is pushed). Nothing is read while no launcher window is
+ *  held), rt-down / rt-up (the right trigger, used as a mouse click), scroll:<pixels> while the right stick is
+ *  pushed up or down (R23: it scrolls, faster the further it is pushed), and hscroll:<pixels> while it is pushed left
+ *  or right (R41: sideways, the same way). Nothing is read while no launcher window is
  *  showing, and nothing is ever sent to the controller. */
 final class Pad {
 	private Pad() {}
@@ -27,6 +28,8 @@ final class Pad {
 	private static final boolean[] held = new boolean[COUNT];
 	/** The right stick, up and down (R23: it scrolls): -32768 (up) to 32767 (down). */
 	private static volatile int rightY;
+	/** The right stick, left and right (R41: it scrolls sideways): -32768 (left) to 32767 (right). */
+	private static volatile int rightX;
 	private static volatile boolean started;
 	static volatile String source = "none";
 
@@ -62,8 +65,8 @@ final class Pad {
 								held[UP] = (b & 0x1) != 0 || s[3] > 20000; held[DOWN] = (b & 0x2) != 0 || s[3] < -20000;
 								held[LEFT] = (b & 0x4) != 0 || s[2] < -20000; held[RIGHT] = (b & 0x8) != 0 || s[2] > 20000;
 								held[RT] = s[1] > 120;
-								if (s.length > 5) rightY = -s[5];   // (XInput counts up as more)
-							} else rightY = 0;
+								if (s.length > 5) { rightY = -s[5]; rightX = s[4]; }   // (XInput counts up as more; right as more)
+							} else { rightY = 0; rightX = 0; }
 						}
 					}
 					boolean[] now;
@@ -76,11 +79,9 @@ final class Pad {
 						was[i] = now[i];
 					}
 					// (the right stick: past a small dead zone, a scroll each tick, faster the further it is pushed)
-					int ry = rightY;
-					if (Math.abs(ry) > 8000) {
-						double f = (Math.abs(ry) - 8000) / 24767.0;
-						listener.accept("scroll:" + (int) Math.round(Math.signum(ry) * (3 + 30 * f * f)));
-					}
+					int ry = rightY, rx = rightX;
+					if (Math.abs(ry) > 8000) listener.accept("scroll:" + speed(ry));
+					if (Math.abs(rx) > 8000) listener.accept("hscroll:" + speed(rx));   // (R41: sideways too; both at once when pushed slantwise)
 					Thread.sleep(30);
 				} catch (InterruptedException e) { return; }
 				catch (RuntimeException e) { try { Thread.sleep(500); } catch (InterruptedException ie) { return; } }
@@ -90,10 +91,16 @@ final class Pad {
 		t.start();
 	}
 
+	/** Pixels to scroll this tick for a stick pushed this far past its dead zone: faster the further it is pushed. */
+	static int speed(int v) {
+		double f = (Math.abs(v) - 8000) / 24767.0;
+		return (int) Math.round(Math.signum(v) * (3 + 30 * f * f));
+	}
+
 	/** Linux: one reader for each joystick device there is (and ones that appear later). An event is 8 bytes: time (4),
 	 *  value (2, signed), type (1: 1 button, 2 axis; +0x80 for the state sent on opening), number (1). Numbers as an
 	 *  Xbox-style pad has them: buttons 0 A, 1 B, 2 X, 3 Y, 6 Back, 7 Start; axes 0 and 1 the left stick, 5 the right
-	 *  trigger, 6 and 7 the d-pad. */
+	 *  trigger, 3 and 4 the right stick, 6 and 7 the d-pad. */
 	private static void linux() {
 		List<String> open = new ArrayList<>();
 		Thread finder = new Thread(() -> {
@@ -123,6 +130,7 @@ final class Pad {
 											else if (n == 7) { hatY[0] = value < -16000; hatY[1] = value > 16000; }
 											else if (n == 5) held[RT] = value > 0;
 											else if (n == 4) rightY = value;   // (the right stick, up and down: down is more, as it is here)
+											else if (n == 3) rightX = value;   // (and left and right: right is more)
 											held[LEFT] = stickX[0] || hatX[0]; held[RIGHT] = stickX[1] || hatX[1];
 											held[UP] = stickY[0] || hatY[0]; held[DOWN] = stickY[1] || hatY[1];
 										}
@@ -130,7 +138,7 @@ final class Pad {
 								}
 							} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 							synchronized (held) { java.util.Arrays.fill(held, false); }
-							rightY = 0;
+							rightY = 0; rightX = 0;
 							synchronized (open) { open.remove(d.toString()); }
 						}, "pad-" + d.getFileName());
 						r.setDaemon(true);

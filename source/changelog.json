@@ -1,4 +1,7 @@
 [
+ {"version": "1.67.0", "date": "2026-11-18", "notes": [
+  "Gatehouse 3.34.0: the right stick scrolls sideways too. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.66.0", "date": "2026-11-18", "notes": [
   "Gatehouse 3.33.0: Gate Systems hand pack updates to each other over Tailscale, each file checked against the signed list (the last step towards updates from any Gate System). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},
