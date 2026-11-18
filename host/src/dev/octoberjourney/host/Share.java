@@ -103,6 +103,27 @@ final class Share {
 			: index()) if (id.equals(Json.str(Json.map(o).get("id")))) return Json.map(o); return null; }
 	private static byte[] bodyBytes(HttpExchange x) throws IOException { try (InputStream in = x.getRequestBody()) { return in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, max() + 1)); } }
 
+	/** R42: a file for the web panel (its account may use chat). A picture (PNG, JPEG, GIF or WebP, by its first bytes)
+	 *  is sent as that picture, so the page can show it; anything else only as a download, never shown in the page. */
+	static void panel(HttpExchange x, String id) throws IOException {
+		Map<String, Object> e = id.isEmpty() ? null : find(id);
+		Path f = e == null ? null : folder().resolve(Json.str(e.get("id")));
+		if (f == null || !Files.isRegularFile(f)) { reply(x, 404, m("result", "refused", "message", "That file is no longer kept.")); return; }
+		byte[] b = Files.readAllBytes(f);
+		String type = b.length > 8 && (b[0] & 0xFF) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G' ? "image/png"
+				: b.length > 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 ? "image/jpeg"
+				: b.length > 6 && b[0] == 'G' && b[1] == 'I' && b[2] == 'F' ? "image/gif"
+				: b.length > 12 && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F' && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P' ? "image/webp" : "";
+		String name = Json.str(e.get("name")).replaceAll("[^\\w .\\-]", "_");
+		x.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
+		x.getResponseHeaders().set("Cache-Control", "no-store");
+		x.getResponseHeaders().set("Content-Security-Policy", "default-src 'none'; sandbox");
+		if (type.isEmpty()) { x.getResponseHeaders().set("Content-Type", "application/octet-stream");
+			x.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + (name.isEmpty() ? "file" : name) + "\""); }
+		else x.getResponseHeaders().set("Content-Type", type);
+		x.sendResponseHeaders(200, b.length);
+		try (OutputStream o = x.getResponseBody()) { o.write(b); }
+	}
 	/** A launcher that has said hello. */
 	static void launcher(HttpExchange x, String path, String id, Map<String, Object> d) throws IOException {
 		if (path.equals("/v1/share/list")) { String room = q(x, "room"); reply(x, 200, m("on", on(), "max", max(), "files", Chat.may(id, d,

@@ -134,9 +134,18 @@ which it normally is.
 **The web panel** controls Gatekeeper from a browser on any device in your Tailscale network. It is off until you
 turn it on. Under **Web panel**: **New account** (a name, a password of 10 characters or more, and what it may do, or
 **Admin** for everything), tick **The web panel is on**, and open the address beside it
-(`http://<this machine's Tailscale address>:25570/panel/`). The panel has the same sections as the window (Servers,
-Players, Chat, Updates) and a **Menu** for the rest; a section the account may not use is shown greyed. On a phone the
-sections fold behind a menu button.
+(`http://<this machine's Tailscale address>:25570/panel/`). It is made for a phone first: there the sections are a bar
+along the bottom, within thumb's reach, and wide tables become cards. On a wide screen they run across the top, as in
+the window. A section the account may not use is shown greyed; the rest is in the menu at the top left. A phone can
+keep it on its home screen (Share, Add to Home Screen; or the browser's menu, Install), where it opens like an app.
+
+| Section | What is there |
+|---|---|
+| **Systems** | Every Gate System at a glance: this Gatekeeper (its servers and who is on each, whether an update is ready, requests waiting on you), then a card for each launcher and Gatekeeper in its constellation: in game and on which server, in the launcher, or offline; its version and update mode; its ping to this Gatekeeper; its battery (a laptop or a Steam Deck); whether it hands out pack updates; when it was last seen. Filters: All, Online, In game. Needs *See the constellation*. |
+| **Servers** | Start, stop and restart; a server's console, backups and tasks. |
+| **Players** | Players and the whitelist; launchers, their requests and permissions. |
+| **Chat** | Every room as a chip with a count of new messages, the messages as bubbles, pictures shown in the page and other files to save. You write as Host. |
+| **Updates** | The update log. |
 
 | An account that may... | Gets |
 |---|---|
@@ -159,7 +168,9 @@ no buttons, no addresses or folders. Off until you turn it on.
 
 **Phone notifications** (Options) go through [ntfy](https://ntfy.sh): install the ntfy app and subscribe to the topic
 Options shows. You choose which: a friend joins a server, a server goes down, an update needs you (or Gatekeeper froze
-and restarted itself). What is sent is the server's and player's names and a sentence. Off until you turn it on.
+and restarted itself), and someone writes in chat (at most one a minute for each room). What is sent is the server's
+and player's names and a sentence; for chat, who wrote, the room and the first 140 characters of the message. Off until
+you turn it on.
 
 ## Updates and constellations
 

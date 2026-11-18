@@ -2,36 +2,47 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#0d141d">
+<meta name="color-scheme" content="dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gatekeeper">
 <title>Gatekeeper</title>
+<link rel="manifest" href="/panel/panel.webmanifest">
+<link rel="icon" href="/panel/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/panel/icon.png">
 <link rel="stylesheet" href="/panel/panel.css">
 </head>
 <body>
 <header id="top">
-  <button id="more" class="hidden" type="button" aria-label="Menu" aria-controls="drawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+  <button id="more" class="iconbtn hidden" type="button" aria-label="Menu" aria-controls="drawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
   <div class="brand">
     <svg class="mark" viewBox="22 16 40 34" aria-hidden="true"><path d="M24 48V18h5v4h4v-4h5v9h8v-9h5v4h4v-4h5v30H48v-8C48 32 36 32 36 40v8z"/></svg>
     <span>GATEKEEPER</span>
   </div>
-  <button id="menu" class="hidden" type="button" aria-label="Menu" aria-controls="nav" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg><span id="menu-now"></span></button>
   <nav id="nav" aria-label="Sections"></nav>
-  <div class="who"><span id="whoami"></span><button id="signout" class="quiet hidden">Sign out</button></div>
+  <div class="who"><span id="whoami"></span><button id="signout" class="quiet small hidden" type="button">Sign out</button></div>
 </header>
+<div id="scrim" class="hidden"></div>
 <aside id="drawer" class="hidden" aria-label="Menu"></aside>
 <main id="signin" class="hidden">
-  <form id="signin-form" class="card sheet narrow">
-    <h2>Sign in</h2>
-    <label>Account <input id="user" autocomplete="username" required></label>
+  <form id="signin-form" class="signin">
+    <svg class="mark big" viewBox="22 16 40 34" aria-hidden="true"><path d="M24 48V18h5v4h4v-4h5v9h8v-9h5v4h4v-4h5v30H48v-8C48 32 36 32 36 40v8z"/></svg>
+    <h1>Gatekeeper</h1>
+    <p class="note center">Sign in with the account your Gatekeeper's owner made for you.</p>
+    <label>Account <input id="user" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
     <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
-    <button type="submit" class="primary">Sign in</button>
-    <p id="signin-said" class="said"></p>
-    <p class="note">Accounts are made by this Gatekeeper's owner, in Gatekeeper's window on the machine itself.</p>
+    <button type="submit" class="primary big">Sign in</button>
+    <p id="signin-said" class="said center"></p>
+    <p class="note center small">Accounts are made in Gatekeeper's window, on the machine itself. This page is only reachable over Tailscale.</p>
   </form>
 </main>
 <main id="app" class="hidden">
-  <h1 id="title">Gatekeeper</h1>
-  <div id="subnav" class="row"></div>
+  <div class="headline"><h1 id="title">Gatekeeper</h1><span id="live" class="live" title="Live: this page asks Gatekeeper again every few seconds"></span></div>
+  <div id="subnav" class="chips"></div>
   <p id="said" class="said"></p>
   <section id="view"></section>
 </main>
@@ -41,6 +52,10 @@
   <span id="pipline" class="grey"></span>
   <span class="keys"><kbd>Q</kbd><kbd>E</kbd> Sections</span>
 </footer>
+<nav id="tabbar" class="hidden" aria-label="Sections"></nav>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="sheet"><form method="dialog" class="sheetbody"><p id="sheet-text"></p><div class="sheetbuttons"><button value="no" class="quiet big" type="submit">Cancel</button><button id="sheet-ok" value="yes" class="primary big" type="submit">OK</button></div></form></dialog>
+<dialog id="viewer"><form method="dialog"><button class="iconbtn close" type="submit" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></form><img id="viewer-img" alt=""></dialog>
 <script src="/panel/panel.js"></script>
 </body>
 </html>

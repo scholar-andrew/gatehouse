@@ -40,6 +40,17 @@ final class Notify {
 	/** A server went down without being asked to. */
 	static void down(String server, String what) { if (wants("down")) send(server + " went down", what, "warning", 4); }
 	/** Something about updating needs the owner. */
+	/** R42: someone wrote in a chat room (not the host). At most one a minute for each room, so a busy room doesn't
+	 *  fill the phone (or ntfy's limits). */
+	static void chat(String room, String who, String text) {
+		if (!wants("chat")) return;
+		long now = System.currentTimeMillis();
+		Long was = chatSaid.get(room);
+		if (was != null && now - was < 60_000) return;
+		chatSaid.put(room, now);
+		send(who + " in " + room, text.length() > 140 ? text.substring(0, 140) + "\u2026" : text, "speech_balloon", 3);
+	}
+	private static final Map<String, Long> chatSaid = new java.util.concurrent.ConcurrentHashMap<>();
 	static void update(String title, String what) { if (wants("update")) send(title, what, "arrow_up", 3); }
 
 	/** Queued and sent in the background, in order (never more than 30 waiting, and two seconds apart). */
@@ -92,7 +103,7 @@ final class Notify {
 		}
 		else if (path.equals("/admin/notify") && x.getRequestMethod().equals("POST")) {
 			Map<String, Object> b = body(x);
-			for (String k : new String[] {"on", "join", "down", "update"}) if (b.containsKey(k)) set("ntfy_" + k, ServerTools.yes(b.get(k)) ? "true" : "false");
+			for (String k : new String[] {"on", "join", "down", "update", "chat"}) if (b.containsKey(k)) set("ntfy_" + k, ServerTools.yes(b.get(k)) ? "true" : "false");
 			if (b.containsKey("url")) { String u = Json.str(b.get("url")).trim(); set("ntfy_url",
 					u.matches("https?://[A-Za-z0-9.\\-:]+(/[\\w.\\-/]*)?") ? u.replaceAll("/+$", "") : "https://ntfy.sh"); }
 			if (setting("ntfy_on", "false").equals("true") && setting("ntfy_topic", "").isEmpty()) set("ntfy_topic", newTopic());
@@ -110,7 +121,7 @@ final class Notify {
 				Json.str(s.get("name")), "keep", Json.str(s.get("keep_online")).equals("crash"))); }
 		reply(x, 200, m("on", setting("ntfy_on", "false").equals("true"), "url", setting("ntfy_url", "https://ntfy.sh"), "topic", setting("ntfy_topic", ""),
 				"join", !setting("ntfy_join", "true").equals("false"), "down", !setting("ntfy_down", "true").equals("false"), "update",
-						!setting("ntfy_update", "true").equals("false"), "last", lastResult,
+						!setting("ntfy_update", "true").equals("false"), "chat", !setting("ntfy_chat", "true").equals("false"), "last", lastResult,
 				"servers", keep));
 		return true;
 	}

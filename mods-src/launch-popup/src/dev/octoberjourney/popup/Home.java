@@ -2024,6 +2024,7 @@ final class Home {
 			// that is gathering has it look at once, and one that says "go" has it update, as if Update had been pressed.
 			if (shot == null && (System.getenv("OJ_HOME_DRY") == null || System.getenv("OJ_KEEPER_DIR") != null)) {
 				Map<String, ServerControl> asked = new java.util.concurrent.ConcurrentHashMap<>();
+				Map<String, Long> pings = new java.util.concurrent.ConcurrentHashMap<>();   // (how long the last report to each took, ms)
 				String cameFrom = updateSource(instances);
 				Thread auto = new Thread(() -> {
 					long lookedAt = 0;
@@ -2038,13 +2039,16 @@ final class Home {
 						for (String[] k : new ArrayList<>(keepers)) try {
 							ServerControl sc = asked.computeIfAbsent(k[0], u -> client(home, u, packs));
 							String[] found = offered[0];
-							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"mode\":\"" + mode + "\",\"source\":\""
+							long askedAt = System.nanoTime();
+							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"ping\":" + pings.getOrDefault(k[0], 0L)
+									+ ",\"battery\":\"" + ServerControl.jsonEsc(PackShare.battery()) + "\",\"mode\":\"" + mode + "\",\"source\":\""
 									+ ServerControl.jsonEsc(cameFrom) + "\",\"install\":\"" + installId(home) + "\",\"info\":\""
 									+ ServerControl.jsonEsc(System.getProperty("os.name", "") + " " + System.getProperty("os.version", "")
 									+ " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", ""))
 									+ "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\""
 									+ ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? ""
 									: ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\",\"share\":" + PackShare.report() + "}");
+							pings.put(k[0], (System.nanoTime() - askedAt) / 1_000_000);   // (R42: told next time, for the web panel's Systems page)
 								heard.add(r);
 							if ("go".equals(str(r.get("state")))) go = true;
 							if (Notes.cmp(str(r.get("version")).isEmpty() ? "0" : str(r.get("version")),

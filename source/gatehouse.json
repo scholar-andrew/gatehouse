@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.34.1",
+ "version": "3.35.0",
  "changes": [
+  {"version": "3.35.0", "date": "2026-11-18", "notes": [
+   "Your Gate Systems from your phone (R42): the web panel has a new first page, Systems. It shows this Gatekeeper (its servers and who is on each, whether an update is ready, requests waiting on you), then a card for every launcher and Gatekeeper in its constellation: in game and on which server, in the launcher or offline, its version and update mode, its ping, a laptop's or Steam Deck's battery, whether it hands out updates, and when it was last seen.",
+   "The whole web panel is redone for a phone: the sections are a bar along the bottom, wide tables become cards, questions come up as a sheet from the bottom, and messages come and go by themselves. A phone can keep it on its home screen, where it opens like an app. On a wide screen it looks as before, refreshed.",
+   "Chat in the web panel: every room as a chip with a count of new messages, the messages as bubbles, and pictures people offer shown in the page (other files to save). Phone notifications can now tell you when someone writes in chat, at most once a minute for each room (Options, Phone notifications)."
+  ]},
   {"version": "3.34.1", "date": "2026-11-18", "notes": [
    "Wording: Gatekeeper's setup guide and messages pointed to tabs that no longer exist (a Server Status tab, a Status tab, Server config, Remote Gatekeeper). They now say where things are: Sign in to MCSS and Share pairing are on Host setup, in the menu; managing others' access from a launcher is on a server page's Host tools tab."
   ]},

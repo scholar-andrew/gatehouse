@@ -277,6 +277,28 @@ public final class PackShare {
 		} catch (IOException | RuntimeException none) { Quiet.seen(none); }
 	}
 
+	private static volatile java.util.function.Supplier<String> powerWin;
+	/** R42: this machine's battery in words ("82%, charging", "45%"), or "" with none. */
+	static String battery() {
+		if (System.getProperty("os.name", "").startsWith("Windows")) {
+			// (a laptop: Windows' own power status, through PowerWin, which needs Java 22; on an older Java nothing is said)
+			if (powerWin == null) try {
+				@SuppressWarnings("unchecked") java.util.function.Supplier<String> s = (java.util.function.Supplier<String>) Class.forName("dev.octoberjourney.popup.PowerWin").getDeclaredConstructor().newInstance();
+				powerWin = s;
+			} catch (Throwable t) { powerWin = () -> ""; }
+			return powerWin.get();
+		}
+		try (java.util.stream.Stream<Path> s = Files.list(Path.of("/sys/class/power_supply"))) {
+			for (Path p : (Iterable<Path>) s::iterator) {
+				if (!PackRelay.read(p.resolve("type")).trim().equals("Battery")) continue;
+				String pct = PackRelay.read(p.resolve("capacity")).trim(), st = PackRelay.read(p.resolve("status")).trim();
+				if (!pct.matches("\\d{1,3}")) continue;
+				return pct + "%" + (st.equals("Charging") ? ", charging" : st.equals("Full") ? ", full" : st.equals("Not charging") ? ", plugged in" : "");
+			}
+		} catch (IOException | RuntimeException none) { Quiet.seen(none); }
+		return "";
+	}
+
 	/** True on a machine that runs on its battery right now (a Steam Deck unplugged): it doesn't hand out then. */
 	public static boolean onBattery() {
 		if (System.getProperty("os.name", "").startsWith("Windows")) return false;

@@ -75,6 +75,7 @@ final class Chat {
 				? who.substring(0, 40) : who, "text", t);
 		if (file != null) msg.put("file", file);
 		l.add(msg);
+		if (!key.startsWith("host")) Notify.chat(Json.str(all().get(roomId)), msg.get("who").toString(), file != null ? "offered a file: " + Json.str(file.get("name")) : t);   // (R42)
 		while (l.size() > KEEP) l.remove(0);
 		try { Files.createDirectories(file(roomId).getParent()); Files.writeString(file(roomId), Json.write(l),
 				StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }

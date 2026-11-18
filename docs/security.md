@@ -105,6 +105,9 @@ Both are off until the host turns them on, and both listen only on the machine's
   cookie plus a token every change must carry, and end after 2 idle hours (24 at most). Nothing reachable from the
   panel can name a program or a folder on the machine, make accounts, or touch Gatekeeper's access to MCSS. Every
   change is logged with the account. The page runs under a strict Content-Security-Policy.
+- **Files offered in chat** are given to the panel only to an account allowed chat. A picture (by its first bytes:
+  PNG, JPEG, GIF or WebP) is sent as that picture so the page can show it; anything else only as a download, never
+  opened in the page, and every file under its own strict Content-Security-Policy.
 - **The status page** is read-only and needs no sign-in: server names, which are up, and who is playing. No
   addresses, folders, keys or buttons.
 
@@ -116,7 +119,7 @@ Both are off until the host turns them on, and both listen only on the machine's
 | Mods | Fetched from Modrinth | Updates |
 | Modrinth lookups (file hashes only, no sign-in) | Modrinth | When a Gatekeeper builds a pack's mod list |
 | Server programs | Mojang, PaperMC, Fabric | Only when you press Make the server |
-| Phone notifications: the server's and player's names and a sentence | [ntfy](https://ntfy.sh) (or your own ntfy server); on Android delivered through Google's Firebase | Only when turned on. A topic has no password: its long random name is the secret |
+| Phone notifications: the server's and player's names and a sentence; for chat, who wrote, the room and the start of the message | [ntfy](https://ntfy.sh) (or your own ntfy server); on Android delivered through Google's Firebase | Only when turned on (chat has its own switch). A topic has no password: its long random name is the secret |
 | Nothing else | | Neither half reports anything about you anywhere |
 
 Prism Launcher talks to Microsoft (sign-in), Mojang and Fabric as it does for any instance. Gatehouse never sees your

@@ -63,6 +63,8 @@ final class WebPanel {
 		ALLOWED.put("GET auto",
 				"updates");            // (how this Gatekeeper updates, and the pips while its constellation gathers)   // (who updated, when, from which version to which: its own permission)
 		ALLOWED.put("GET constellation", "view");
+		ALLOWED.put("GET glance", "updates");   // (R42: every Gate System at a glance, the Systems page)
+		ALLOWED.put("GET share/list", "access");   // (R42: the files offered in a chat room; fetched through /panel/file)
 		for (String c : new String[] {"GET update", "POST update", "GET tools/new", "POST tools/new", "POST tools/versions"}) ALLOWED.put(c, "admin");
 	}
 	/** Things in a call's body that only the machine's own window may set (they name a program or a place on its disk). */
@@ -276,6 +278,10 @@ final class WebPanel {
 			if (method.equals("GET") && (path.equals("/panel") || path.equals("/panel/"))) { page(x, "panel.html", "text/html; charset=utf-8"); return; }
 			if (method.equals("GET") && path.equals("/panel/panel.js")) { page(x, "panel.js", "text/javascript; charset=utf-8"); return; }
 			if (method.equals("GET") && path.equals("/panel/panel.css")) { page(x, "panel.css", "text/css; charset=utf-8"); return; }
+			// (R42: so a phone can keep the panel on its home screen, as an app)
+			if (method.equals("GET") && path.equals("/panel/panel.webmanifest")) { page(x, "panel.webmanifest", "application/manifest+json; charset=utf-8"); return; }
+			if (method.equals("GET") && path.equals("/panel/icon.svg")) { page(x, "icon.svg", "image/svg+xml"); return; }
+			if (method.equals("GET") && path.equals("/panel/icon.png")) { page(x, "icon.png", "image/png"); return; }
 			if (path.equals("/panel/login") && method.equals("POST")) { login(x, from); return; }
 			Session s = session(x);
 			if (s == null) { json(x, 401, m("result", "signin", "message", "Sign in first.")); return; }
@@ -288,6 +294,12 @@ final class WebPanel {
 				sessions.remove(sha(cookie(x)));
 				x.getResponseHeaders().add("Set-Cookie", "gk_session=; Path=/panel; Max-Age=0; HttpOnly; SameSite=Strict");
 				json(x, 200, m("result", "ok")); return;
+			}
+			// (R42: a file someone offered in a chat room. A picture is shown in the page; anything else is only ever saved)
+			if (path.equals("/panel/file") && method.equals("GET")) {
+				if (!may(Json.map(users().get(s.user)), "access")) { json(x, 403, m("result", "refused", "message", "Your account isn't allowed to do that (access).")); return; }
+				String q = x.getRequestURI().getQuery() == null ? "" : x.getRequestURI().getQuery();
+				Share.panel(x, q.startsWith("id=") ? q.substring(3).replaceAll("[^\\w.\\-]", "") : ""); return;
 			}
 			if (!path.startsWith("/panel/api/")) { json(x, 404, m("result", "refused", "message", "No such page.")); return; }
 			String call = path.substring(11), need = ALLOWED.get(method + " " + call);
@@ -305,7 +317,8 @@ final class WebPanel {
 				body = Json.write(b);
 			}
 			String query = x.getRequestURI().getQuery(), server = serverIn(query);
-			String answer = local(method, "/admin/" + call + (server.isEmpty() ? call.equals("update") && "1".equals(query) ? "?1" : "" : "?server=" + server), body);
+			String room = call.equals("share/list") && query != null && query.startsWith("room=") ? query.substring(5).replaceAll("[^\\w.\\-]", "") : "";
+			String answer = local(method, "/admin/" + call + (!room.isEmpty() ? "?room=" + room : server.isEmpty() ? call.equals("update") && "1".equals(query) ? "?1" : "" : "?server=" + server), body);
 			if (method.equals("POST") && !call.equals("tools/console") && !call.equals("tools/versions")) {
 				Map<String, Object> said = Json.map(Json.parse(answer));
 				log("web panel, " + s.user + ": " + call + (server.isEmpty() ? "" : " (" + server + ")")

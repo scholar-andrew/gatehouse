@@ -33,7 +33,8 @@ final class NotifyUi {
 		optLine.accept("Gatekeeper can tell your phone when a friend joins, when a server goes down, and when an update needs you. It uses ntfy (free, no account): install the ntfy app, add the topic below, and press Send a test. Only names and a sentence are sent. The topic works like a password: keep it to yourself.", false);
 		javax.swing.JCheckBox ntOn = new javax.swing.JCheckBox("Send notifications to my phone"), ntJoin = new javax.swing.JCheckBox("When a friend joins a server"),
 				ntDown = new javax.swing.JCheckBox("When a server goes down"),
-						ntUpd = new javax.swing.JCheckBox("When an update needs me (or Gatekeeper restarted itself)");
+						ntUpd = new javax.swing.JCheckBox("When an update needs me (or Gatekeeper restarted itself)"),
+						ntChat = new javax.swing.JCheckBox("When someone writes in chat (at most one a minute for each room)");
 		JLabel ntTopic = new JLabel(" "); ntTopic.setFont(ntTopic.getFont().deriveFont(Font.BOLD));
 		javax.swing.JTextField ntUrl = new javax.swing.JTextField("https://ntfy.sh", 22);
 		JButton ntNew = new JButton("New topic"), ntTest = new JButton("Send a test");
@@ -47,7 +48,7 @@ final class NotifyUi {
 		ntUrlRow.add(ntUrl);
 		ntUrlRow.add(ntTest);
 		ntUrlRow.add(ntSaid);
-		for (javax.swing.JComponent c : new javax.swing.JComponent[] {ntOn, ntJoin, ntDown, ntUpd, ntTopicRow,
+		for (javax.swing.JComponent c : new javax.swing.JComponent[] {ntOn, ntJoin, ntDown, ntUpd, ntChat, ntTopicRow,
 				ntUrlRow}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
 		optLine.accept("Status page for friends", true);
 		optLine.accept("A read-only page showing which servers are up and who is playing, with no sign-in. Only people on your Tailscale network can open it, as with the rest of Gatekeeper. It shows no addresses, folders or buttons.", false);
@@ -70,9 +71,10 @@ final class NotifyUi {
 					ntJoin.setSelected(!Boolean.FALSE.equals(nt.get("join")));
 					ntDown.setSelected(!Boolean.FALSE.equals(nt.get("down")));
 					ntUpd.setSelected(!Boolean.FALSE.equals(nt.get("update")));
+					ntChat.setSelected(!Boolean.FALSE.equals(nt.get("chat")));
 					ntTopic.setText(Json.str(nt.get("topic")).isEmpty() ? "(made when you turn it on)" : Json.str(nt.get("topic")));
 					if (!ntUrl.isFocusOwner()) ntUrl.setText(Json.str(nt.get("url")));
-					for (javax.swing.JComponent c : new javax.swing.JComponent[] {ntJoin, ntDown, ntUpd}) c.setEnabled(ntOn.isSelected());
+					for (javax.swing.JComponent c : new javax.swing.JComponent[] {ntJoin, ntDown, ntUpd, ntChat}) c.setEnabled(ntOn.isSelected());
 					stOn.setSelected(Boolean.TRUE.equals(st.get("on")));
 					stUrl.setText(Boolean.TRUE.equals(st.get("on")) && !Json.str(st.get("url")).isEmpty() ? "Friends open: " + Json.str(st.get("url")) : " ");
 					keepList.removeAll();
@@ -94,11 +96,11 @@ final class NotifyUi {
 		java.awt.event.ActionListener ntSave = ev -> {
 			if (ntFilling[0]) return;
 			Map<String, Object> body = m("on", ntOn.isSelected(), "join", ntJoin.isSelected(), "down", ntDown.isSelected(), "update",
-					ntUpd.isSelected(), "url", ntUrl.getText().trim());
+					ntUpd.isSelected(), "chat", ntChat.isSelected(), "url", ntUrl.getText().trim());
 			new Thread(() -> { try { call("POST", "/admin/notify",
 					Json.write(body)); } catch (Exception ignored) { Quiet.seen(ignored); } ntRead.run(); }, "notify-save").start();
 		};
-		for (javax.swing.JCheckBox c : new javax.swing.JCheckBox[] {ntOn, ntJoin, ntDown, ntUpd}) c.addActionListener(ntSave);
+		for (javax.swing.JCheckBox c : new javax.swing.JCheckBox[] {ntOn, ntJoin, ntDown, ntUpd, ntChat}) c.addActionListener(ntSave);
 		ntUrl.addActionListener(ntSave);
 		ntUrl.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { ntSave.actionPerformed(null); } });
 		ntNew.addActionListener(ev -> {

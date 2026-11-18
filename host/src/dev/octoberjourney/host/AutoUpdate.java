@@ -55,6 +55,9 @@ final class AutoUpdate {
 		String source = "";
 		boolean busy, waiting;
 		List<Object> clients = new ArrayList<>();
+		/** R42: how long its last report to this Gatekeeper took (ms, 0 unknown), and its battery ("" when it has none or
+		 *  doesn't say): for the web panel's Systems page. */
+		int ping; String battery = "";
 	}
 	static final Map<String, Rep> seen = new ConcurrentHashMap<>();
 	static volatile long gatherSince = 0, goUntil = 0, notBefore = 0;
@@ -117,6 +120,8 @@ final class AutoUpdate {
 		r.install = installOf(b);
 		r.info = clean(Json.str(b.get("info")), 120).replace("<", "");
 		r.source = clean(Json.str(b.get("source")), 200).replace("<", "");
+		try { r.ping = Math.max(0, Math.min(60_000, (int) Double.parseDouble(Json.str(b.get("ping")).isEmpty() ? "0" : Json.str(b.get("ping"))))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
+		r.battery = clean(Json.str(b.get("battery")), 24).replaceAll("[^\\w%,. ]", "");
 		if (keeper) for (Object o : Json.list(b.get("clients"))) {   // (its own launchers, for the lead's list: kept as plain words)
 			Map<String, Object> c = Json.map(o);
 			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player",
