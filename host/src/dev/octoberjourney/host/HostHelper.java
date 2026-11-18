@@ -948,8 +948,9 @@ public final class HostHelper {
 		watch.start();
 		// The panel's side, on this PC only.
 		HttpServer local = HttpServer.create(new InetSocketAddress("127.0.0.1", port()), 0);
-		local.createContext("/admin/", HostHelper::admin);
-		local.createContext("/v1/", HostHelper::launcher);   // (the launcher on this same machine reaches Gatekeeper here, with or without Tailscale)
+		// (R36: these doors are for Gatekeeper's own window and the launchers, never for a web page: see notFromBrowser)
+		local.createContext("/admin/", x -> { if (notFromBrowser(x, true)) admin(x); });
+		local.createContext("/v1/", x -> { if (notFromBrowser(x, true)) launcher(x); });   // (the launcher on this same machine reaches Gatekeeper here, with or without Tailscale)
 		local.start();
 		bindRemote();
 		// (for the servers Gatekeeper runs itself: their tasks by the clock, and the ones set to start with it)
@@ -988,7 +989,7 @@ public final class HostHelper {
 				if (bind.isEmpty()) { if (!said) log("no Tailscale address yet (host.json \"bind\"): open Gatekeeper, Status, Server setup"); said = true; }
 				else try {
 					HttpServer r = HttpServer.create(new InetSocketAddress(bind, port()), 0);
-					r.createContext("/v1/", HostHelper::launcher);
+					r.createContext("/v1/", x -> { if (notFromBrowser(x, false)) launcher(x); });
 					r.createContext("/panel", WebPanel::web);   // (the web panel: off unless the owner turned it on)
 					r.createContext("/status", StatusPage::page);   // (R34: the read-only page for friends: off unless the owner turned it on)
 					r.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(4));
@@ -1190,9 +1191,37 @@ public final class HostHelper {
 		try (OutputStream o = x.getResponseBody()) { o.write(b); }
 	}
 
+	/** The most a request's JSON may be (R36): enough for anything Gatekeeper is sent; more is refused unread. Program
+	 *  files and shared files have their own, larger limits (Peer.MAX, Share's). */
+	static final int BODY_MAX = 1 << 20;
 	static Map<String, Object> body(HttpExchange x) throws IOException {
-		try (InputStream in = x.getRequestBody()) { return Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))); }
+		try (InputStream in = x.getRequestBody()) {
+			byte[] b = in.readNBytes(BODY_MAX + 1);
+			if (b.length > BODY_MAX) throw new IOException("the request is too large (more than " + BODY_MAX / 1024 + " KB)");
+			return Json.map(Json.parse(new String(b, StandardCharsets.UTF_8)));
+		}
 	}
+
+	/** R36: true when a request may go on; false (with 403 sent) when it came from a web page. Gatekeeper's doors answer
+	 *  only Gatekeeper's own window, the launchers and other Gatekeepers, none of which is a browser. A browser can be
+	 *  made by any website to send requests to this machine (127.0.0.1) or a Tailscale address, and Gatekeeper would
+	 *  have done as asked: change settings, start programs, take a program file. So a request bearing a browser's
+	 *  marks (Origin, or any Sec-Fetch- header, which browsers add and nothing of Gatehouse's sends) is refused; and on
+	 *  this machine's own door, so is one whose Host isn't this machine (a web address made to point here, "DNS
+	 *  rebinding", carries its own name). The web panel and the status page are on their own paths and aren't affected. */
+	static boolean notFromBrowser(HttpExchange x, boolean local) throws IOException {
+		com.sun.net.httpserver.Headers h = x.getRequestHeaders();
+		boolean browser = h.containsKey("Origin");
+		for (String k : h.keySet()) if (k != null && k.toLowerCase(java.util.Locale.ROOT).startsWith("sec-fetch-")) browser = true;
+		String host = String.valueOf(h.getFirst("Host")).toLowerCase(java.util.Locale.ROOT).replaceAll(":\\d+$", "");
+		boolean wrongHost = local && !(host.equals("127.0.0.1") || host.equals("localhost") || host.equals("[::1]"));
+		if (!browser && !wrongHost) return true;
+		long now = System.currentTimeMillis();
+		if (now - browserRefusedAt > 60_000) { browserRefusedAt = now; log("refused a request from a web page (" + (browser ? "Origin " + String.valueOf(h.getFirst("Origin")) : "Host " + host) + ", " + x.getRequestURI().getPath() + "): Gatekeeper's doors are for its own window and the launchers"); }
+		try (x) { reply(x, 403, m("result", "refused", "message", "Gatekeeper doesn't take requests from web pages.")); }
+		return false;
+	}
+	private static volatile long browserRefusedAt;
 
 	static Map<String, Object> m(Object... kv) {
 		Map<String, Object> o = new LinkedHashMap<>();

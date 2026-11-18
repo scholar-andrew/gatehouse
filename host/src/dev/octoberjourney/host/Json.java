@@ -9,6 +9,10 @@ import java.util.Map;
 final class Json {
 	private final String s;
 	private int i;
+	private int depth;
+	/** R36: how deep objects and lists may nest. Nothing Gatehouse sends comes near it; much deeper would only be an
+	 *  attempt to exhaust the reader's stack. */
+	private static final int MAX_DEPTH = 64;
 	private Json(String s) { this.s = s; }
 
 	static Object parse(String s) {
@@ -24,6 +28,15 @@ final class Json {
 	private Object value() {
 		ws();
 		char c = s.charAt(i);
+		if ((c == '{' || c == '[') && depth >= MAX_DEPTH) throw new IllegalArgumentException("nested too deeply");
+		if (c == '{' || c == '[') { depth++; try { return nested(c); } finally { depth--; } }
+		if (c == '"') return str();
+		int st = i;
+		while (i < s.length() && ",}] \t\r\n".indexOf(s.charAt(i)) < 0) i++;
+		String w = s.substring(st, i);
+		return w.equals("true") ? Boolean.TRUE : w.equals("false") ? Boolean.FALSE : w.equals("null") ? null : w;
+	}
+	private Object nested(char c) {
 		if (c == '{') {
 			i++;
 			Map<String, Object> m = new LinkedHashMap<>();
@@ -42,11 +55,7 @@ final class Json {
 			if (s.charAt(i) == ']') { i++; return l; }
 			while (true) { l.add(value()); ws(); if (s.charAt(i++) == ']') return l; }
 		}
-		if (c == '"') return str();
-		int st = i;
-		while (i < s.length() && ",}] \t\r\n".indexOf(s.charAt(i)) < 0) i++;
-		String w = s.substring(st, i);
-		return w.equals("true") ? Boolean.TRUE : w.equals("false") ? Boolean.FALSE : w.equals("null") ? null : w;
+		return null;
 	}
 
 	private String str() {

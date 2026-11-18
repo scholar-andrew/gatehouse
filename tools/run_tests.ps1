@@ -9,6 +9,8 @@
 #   2. notes and icons: boxes, the what's-new summary, a list opening at its top, the shortcut icon
 #   3. a frozen Gatekeeper: one made to lock up the way it did on 2026-11-17 is noticed and restarted by its watchdog
 #   4. a busy Gatekeeper: many calls at once for a while, and it still answers, with no freeze noticed
+#   4b. its doors: requests from web pages (Origin, Sec-Fetch-*, another host name) are refused, oversized and deeply
+#       nested requests do no harm, and Gatekeeper's own window still gets in
 #   5. the update check (tools/update_check.ps1): old versions still update themselves to this build
 # On success the program file's checksum goes in tools/tests/passed.txt.
 param([switch]$Quick)
@@ -76,6 +78,31 @@ try {
     $ok4 = (Alive 25592) -and -not $froze -and -not $k4[0].HasExited
     Write-Host ("  " + $(if ($ok4) { 'ok      ' } else { 'FAILED  ' }) + "still answering after $calls calls at once, no freeze noticed")
     Result 'a busy Gatekeeper' $ok4
+
+    # (R36: what a web page, or an oversized or malformed request, can't do)
+    Write-Host 'its doors:'
+    function Code($url, $method, $headers, $body) {
+        try { $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 15 -Method $method -Uri $url -Headers $headers -Body $body -ContentType 'text/plain'; return [int]$r.StatusCode }
+        catch { if ($_.Exception.Response) { return [int]$_.Exception.Response.StatusCode } else { return -1 } }
+    }
+    function CodeWithHost($url, $hostName) {
+        $q = [Net.HttpWebRequest]::Create($url); $q.Host = $hostName; $q.Timeout = 15000
+        try { $r = $q.GetResponse(); $c = [int]$r.StatusCode; $r.Close(); return $c }
+        catch [Net.WebException] { if ($_.Exception.Response) { return [int]$_.Exception.Response.StatusCode } else { return -1 } }
+    }
+    $base = 'http://127.0.0.1:25592'
+    # (each condition in brackets: in PowerShell a comma binds tighter than -eq)
+    $script:ok6 = $true
+    function Check($name, [bool]$ok) { Write-Host ("  " + $(if ($ok) { 'ok      ' } else { 'FAILED  ' }) + $name); if (-not $ok) { $script:ok6 = $false } }
+    Check 'a web page (Origin) is refused' ((Code "$base/admin/notify" 'POST' @{ Origin = 'https://example.org' } '{"on":true}') -eq 403)
+    Check 'a web page (Sec-Fetch) is refused' ((Code "$base/admin/program" 'POST' @{ 'Sec-Fetch-Site' = 'cross-site'; 'Sec-Fetch-Mode' = 'no-cors' } 'x') -eq 403)
+    Check 'a web page on the launchers'' door is refused' ((Code "$base/v1/alive" 'GET' @{ Origin = 'null' } $null) -eq 403)
+    Check 'another name for this machine (DNS rebinding) is refused' ((CodeWithHost "$base/admin/overview" 'evil.example') -eq 403)
+    Check 'Gatekeeper''s own window still gets in' ((Code "$base/admin/notify" 'GET' @{} $null) -eq 200)
+    Check 'nothing was changed by the refused ones' (-not ((Invoke-RestMethod "$base/admin/notify").on))
+    Check 'an oversized request is refused' ((Code "$base/admin/notify" 'POST' @{} ('{"x":"' + ('a' * 1100000) + '"}')) -ge 400)
+    Check 'deeply nested JSON does no harm' (((Code "$base/admin/notify" 'POST' @{} (('[' * 20000) + (']' * 20000))) -gt 0) -and (Alive 25592))
+    Result 'its doors' $script:ok6
 } finally {
     foreach ($id in $started) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
     Get-CimInstance Win32_Process -Filter "Name like 'java%'" | Where-Object { $_.CommandLine -like "*$jar*--serve*" -or $_.CommandLine -like "*$work*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

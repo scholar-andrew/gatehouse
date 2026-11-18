@@ -1,8 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.25.0",
+ "version": "3.25.1",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.25.1", "date": "2026-11-18", "notes": [
+   "Security fix (important): Gatekeeper no longer takes requests from web pages. Before, a web page open in a browser on the same machine could have sent Gatekeeper requests (browsers allow that), including ones that change settings or start programs. Requests carrying a browser's marks, or addressed to this machine by another name, are now refused. Gatekeeper's own window, the launchers and other Gatekeepers are unaffected, as are the web panel and the status page.",
+   "Gatekeeper refuses requests over 1 MB (program and shared files keep their own limits) and messages nested absurdly deep, so neither can be used to wear it down."
+  ]},
   {"version": "3.25.0", "date": "2026-11-18", "notes": [
    "Phone notifications (Options, Phone notifications): when a friend joins a server, when a server goes down, and when an update needs you or Gatekeeper restarted itself. Through ntfy (free, no account): install the ntfy app and add the topic shown there. Off until you turn it on; only names and a sentence are sent.",
    "Status page for friends (Options): a read-only page at http://<this machine's Tailscale address>:<Gatekeeper's port>/status showing which servers are up and who is playing, with no sign-in. Only people on your Tailscale network can open it. Off until you turn it on.",
