@@ -63,7 +63,8 @@ final class WebPanel {
 		ALLOWED.put("GET auto",
 				"updates");            // (how this Gatekeeper updates, and the pips while its constellation gathers)   // (who updated, when, from which version to which: its own permission)
 		ALLOWED.put("GET constellation", "view");
-		ALLOWED.put("GET glance", "updates");   // (R42: every Gate System at a glance, the Systems page)
+		ALLOWED.put("GET glance", "updates");
+		ALLOWED.put("POST linkcheck", "view");   // (R54: is one of the panel's own links working? only known sites are tried)   // (R42: every Gate System at a glance, the Systems page)
 		ALLOWED.put("GET share/list", "access");   // (R42: the files offered in a chat room; fetched through /panel/file)
 		for (String c : new String[] {"GET update", "POST update", "GET tools/new", "POST tools/new", "POST tools/versions"}) ALLOWED.put(c, "admin");
 		// (phone notifications, set from the panel too; admin accounts only, since the topic works like a password)

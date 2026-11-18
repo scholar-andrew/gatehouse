@@ -136,7 +136,7 @@ final class ServerToolsUi {
 				? System.getProperty("user.home", "")
 				: fileF.getText()); fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Jar files",
 				"jar")); if (fc.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) fileF.setText(fc.getSelectedFile().getPath()); });
-		eulaB.addActionListener(e -> dev.gatehouse.look.Links.openOrShow(owner, "https://aka.ms/MinecraftEULA"));
+		eulaB.addActionListener(e -> dev.gatehouse.look.Links.openChecked(owner, "https://aka.ms/MinecraftEULA"));
 		Timer[] poll = {null};
 		make.addActionListener(e -> {
 			Map<String, Object> r = ask("POST", "/admin/tools/new", m("name", nameF.getText(), "game", game.get(), "kind", kind.get(), "version",

@@ -120,7 +120,7 @@ final class Connect {
 		// 1. Tailscale
 		JButton get = new JButton("Get Tailscale"), openTs = new JButton("Open Tailscale");
 		get.setToolTipText("Opens Tailscale's own download page (" + DOWNLOAD + ") in your browser");
-		get.addActionListener(e -> Connection.open(DOWNLOAD));
+		get.addActionListener(e -> dev.gatehouse.look.Links.openChecked(get, DOWNLOAD));
 		openTs.setToolTipText("Opens Tailscale on this device, to sign in or connect");
 		openTs.addActionListener(e -> {
 			Path app = tailscaleApp();
@@ -138,7 +138,7 @@ final class Connect {
 		inviteF.setEditable(false);
 		JButton openInvite = new JButton("Open invite"), copyInvite = new JButton("Copy");
 		openInvite.setToolTipText("Opens the owner's Tailscale invite in your browser: sign in with your own Tailscale account and accept");
-		openInvite.addActionListener(e -> Connection.open(invite));
+		openInvite.addActionListener(e -> dev.gatehouse.look.Links.openChecked(openInvite, invite));
 		copyInvite.addActionListener(e -> java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(invite), null));
 		JPanel b2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
 		b2.add(openInvite); b2.add(inviteF); b2.add(copyInvite);

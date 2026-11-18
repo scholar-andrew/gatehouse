@@ -1681,7 +1681,7 @@ final class Home {
 						"Press Launch beside a server. Its update runs, then its page shows Play.\n\nThe button changes with what's in the way, and says what to do: Request whitelist asks the owner to add you to the server's whitelist; Request server asks them to turn the server on; Update needed means " + LaunchPopup.TOOL + " or the owner's Gatekeeper has to be updated first.\n\nThat's everything. This guide stays in the menu.", ""));
 				return steps;
 			}, id -> {
-				if (id.startsWith("open:")) Connection.open(id.substring(5));
+				if (id.startsWith("open:")) dev.gatehouse.look.Links.openChecked(f, id.substring(5));
 				else if (id.equals("prism")) { try { new ProcessBuilder(prismFor).start(); } catch (IOException ex) { JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>Prism Launcher couldn't be started from here (" + LaunchPopup.esc(String.valueOf(ex.getMessage())) + "). Open it yourself, from the Start menu or your applications.</div></html>", "Prism Launcher", JOptionPane.PLAIN_MESSAGE); } }
 				else if (id.equals("add")) addB.doClick();
 				else if (id.equals("keepers")) leaveGuide.run();
@@ -1899,8 +1899,8 @@ final class Home {
 			shell[0].menu("This device", "options", "Options", () -> gear.doClick(0));
 			shell[0].menu("Help", "guide", "Setup guide", () -> { if (openGuide[0] != null) openGuide[0].run(); });
 			shell[0].menu("Help", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
-			shell[0].menu("Help", "userguide", "User guide", () -> dev.gatehouse.look.Links.openOrShow(f, dev.gatehouse.look.Links.GUIDE));
-			shell[0].menu("Help", "github", "GitHub page", () -> dev.gatehouse.look.Links.openOrShow(f, dev.gatehouse.look.Links.REPO));
+			shell[0].menu("Help", "userguide", "User guide", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.GUIDE));
+			shell[0].menu("Help", "github", "GitHub page", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.REPO));
 			// Restart and Quit at the bottom of the menu, as in a game's menu, rather than on every screen (R38). Y and
 			// Start on a controller still find them: they open the menu on them.
 			shell[0].menu(LaunchPopup.TOOL, "restart", "Restart", () -> restartB.doClick(0));

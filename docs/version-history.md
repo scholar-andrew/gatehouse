@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.38.0 - 2026-11-18
+
+- Links that don't work say why (R54): every link in Gatehouse, Gatekeeper and the web panel is tried before it opens. One that isn't working says what is wrong (no internet, the site's name not found, the site not answering, the page gone, the site failing, or for your own machines Tailscale not connected or the machine asleep), with Try again and Open anyway.
+- Steam Deck: the left trackpad scrolls (R55). Swipe it to scroll whatever scrolls, up, down and sideways; the page follows your finger. Clicking it is still the d-pad Minecraft uses, so the Steam layout doesn't change.
+
 ## 3.37.0 - 2026-11-18
 
 - Ready for other games, step 1 (R34): a server now records which game it is for, and everything in Gatekeeper that depends on the game (starting it, knowing when it is up, who joined or left, its settings, who may join, backups) goes through one place, with Minecraft as the only game so far. Nothing you use changes: a scenario run on 3.36.0 and on this version gave the same answers.

@@ -44,7 +44,7 @@ final class Pad {
 			xinput = s;
 			source = "XInput";
 		} catch (Throwable t) { source = "none (this Java can't read XInput: " + t.getClass().getSimpleName() + ")"; }
-		else linux();
+		else { linux(); deckPad(listener); }
 		java.util.function.Supplier<int[]> xi = xinput;
 		Thread t = new Thread(() -> {
 			boolean[] was = new boolean[COUNT];
@@ -95,6 +95,76 @@ final class Pad {
 	static int speed(int v) {
 		double f = (Math.abs(v) - 8000) / 24767.0;
 		return (int) Math.round(Math.signum(v) * (3 + 30 * f * f));
+	}
+
+	/** R55: the Steam Deck's left trackpad scrolls, up, down and sideways, like a laptop's: the page follows the finger.
+	 *  The Steam layout keeps it a d-pad that sends a press only when it is clicked (what Minecraft uses), so a swipe is
+	 *  read here from the controller itself, alongside Steam: its raw reports (/dev/hidraw*, Valve 28de:1205), which Steam
+	 *  lets this user read. Read only, nothing is sent to it. A report: bytes 0-1 version (1), 2 type (9: the Deck's
+	 *  state), 16-17 the left pad's x and 18-19 its y (signed, 0 when untouched). Each movement scrolls by how far the
+	 *  finger moved; lifting the finger and putting it down elsewhere doesn't (a jump is ignored). Where the controller
+	 *  can't be read (another device, or a sandbox without it), nothing happens. OJ_DECKPAD_FLIP=1 turns the direction. */
+	private static void deckPad(Consumer<String> listener) {
+		Thread finder = new Thread(() -> {
+			List<String> open = new ArrayList<>();
+			while (true) {
+				try {
+					List<Path> devs = new ArrayList<>();
+					String only = System.getenv("OJ_DECKPAD_DEV");   // (testing: a file of recorded reports)
+					if (only != null) devs.add(Path.of(only));
+					else try (java.util.stream.Stream<Path> s = Files.list(Path.of("/sys/class/hidraw"))) {
+						s.forEach(h -> { String u = readSmall(h.resolve("device/uevent")); if (u.toUpperCase(java.util.Locale.ROOT).contains("000028DE:00001205")) devs.add(Path.of("/dev", h.getFileName().toString())); });
+					} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+					for (Path d : devs) {
+						synchronized (open) { if (open.contains(d.toString())) continue; open.add(d.toString()); }
+						Thread r = new Thread(() -> { readDeckPad(d, listener); synchronized (open) { open.remove(d.toString()); } }, "deckpad-" + d.getFileName());
+						r.setDaemon(true);
+						r.start();
+					}
+					Thread.sleep(only != null ? 600_000 : 5000);
+				} catch (InterruptedException e) { return; }
+			}
+		}, "deckpad-find");
+		finder.setDaemon(true);
+		finder.start();
+	}
+	private static String readSmall(Path p) { try { return Files.readString(p); } catch (IOException | RuntimeException e) { return ""; } }
+	/** Reads one hidraw device's reports until it goes away, scrolling as the left pad's finger moves. */
+	static void readDeckPad(Path d, Consumer<String> listener) {
+		boolean flip = "1".equals(System.getenv("OJ_DECKPAD_FLIP")), test = System.getenv("OJ_DECKPAD_DEV") != null;
+		int lastX = 0, lastY = 0;
+		boolean was = false;
+		double carryX = 0, carryY = 0;
+		long flushed = 0;
+		try (InputStream in = Files.newInputStream(d)) {
+			byte[] b = new byte[64];
+			while (true) {
+				int n = test ? in.readNBytes(b, 0, 64) : in.read(b);
+				if (n < 24) { if (n < 0 || test) break; continue; }
+				if (b[0] != 1 || b[2] != 9) continue;   // (not the Deck's state report)
+				int x = (short) ((b[16] & 0xFF) | (b[17] << 8)), y = (short) ((b[18] & 0xFF) | (b[19] << 8));
+				boolean touched = x != 0 || y != 0;
+				if (touched && was) {
+					int dx = x - lastX, dy = y - lastY;
+					if (Math.abs(dx) < 9000 && Math.abs(dy) < 9000) {   // (a jump: the finger was lifted and put down elsewhere)
+						// (the page follows the finger: finger up shows what is above; the pad counts up as more)
+						carryY += (flip ? dy : -dy) / 45.0;
+						carryX += (flip ? dx : -dx) / 45.0;
+					}
+				}
+				lastX = x; lastY = y; was = touched;
+				long now = System.currentTimeMillis();
+				if (now - flushed >= 25 || test) {
+					boolean showing = test;
+					for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) showing = true;
+					int py = (int) carryY, px = (int) carryX;
+					if (showing && py != 0) listener.accept("scroll:" + py);
+					if (showing && px != 0) listener.accept("hscroll:" + px);
+					carryY -= py; carryX -= px;
+					flushed = now;
+				}
+			}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 	}
 
 	/** Linux: one reader for each joystick device there is (and ones that appear later). An event is 8 bytes: time (4),

@@ -303,7 +303,7 @@ What changed in each version is under **UPDATES**:
 
 - The installer offers to add **Gatehouse** to Steam, so it's there in **Game Mode**.
 - Everything works with a controller: the stick or D-pad moves, **A** presses, **B** goes back, the **bumpers** flip
-  between the sections at the top, the **View** button opens the menu, and the **right stick** scrolls (sideways too,
+  between the sections at the top, the **View** button opens the menu, the **left trackpad** scrolls when you swipe it (any direction), and the **right stick** scrolls (sideways too,
   on wide pages).
 - The bottom bar always shows which button does what, with the controller's buttons or the keyboard's keys,
   whichever you used last.
@@ -327,6 +327,10 @@ thing in the way and tells you what to do. It only looks; it changes nothing.
 | **Players can't join (host)** | Host setup: anything red is the reason. Check Tailscale is **Connected** and key expiry is off. |
 | **A server keeps stopping (host)** | Menu, **Activity log**, and the server's **Console** tab, show why. |
 | **Steam Deck lost Tailscale** | A SteamOS update removed it: install it again in Desktop Mode, as before. |
+
+**A link that doesn't open:** Gatehouse, Gatekeeper and the web panel try a link before opening it. If it isn't
+working, they say why (no internet, the site not found or not answering, the page gone, or your own machine asleep or
+off Tailscale), with **Try again** and **Open anyway**.
 
 More: [Troubleshooting](troubleshooting.md). Still stuck? Ask in **Chat**, or open an
 [issue on GitHub](https://github.com/scholar-andrew/gatehouse/issues).

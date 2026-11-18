@@ -119,8 +119,10 @@ presents as a gamepad.
 | Right stick | Scroll the list or page the selection is in, else the biggest one that scrolls: up and down, and left and right where something is wider than the window. Faster the further it is pushed. |
 | Right trigger | A left click where the pointer is. |
 | Right trackpad | Moves the pointer; pressing it clicks. |
+| Left trackpad (Steam Deck) | Swipe to scroll whatever scrolls, up, down and sideways: the page follows your finger. Clicking it is still the d-pad. |
 
-Typing still needs the on-screen keyboard (Steam + X). On Windows the controller is read through XInput, which needs
+Typing still needs the on-screen keyboard (Steam + X). The Deck's left trackpad is read from the controller itself
+alongside Steam (read only), since Steam's layout keeps it a d-pad for the game. On Windows the controller is read through XInput, which needs
 Java 22 or newer (the Java the game itself uses); on Linux through the system's joystick devices.
 
 ## Options and removing it

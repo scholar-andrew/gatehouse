@@ -182,6 +182,9 @@ public final class HostHelper {
 	/** Whatever runs the current server: Gatekeeper itself, or the host program. */
 	static ServerHost sh() { return isNative() ? DIRECT : host; }
 	/** The folder Gatekeeper's own servers are in, one folder each (host.json "servers_dir"). */
+	/** The sites the web panel's links go to: the only ones /admin/linkcheck tries (R54). */
+	static final java.util.Set<String> LINK_SITES = java.util.Set.of("github.com", "aka.ms", "tailscale.com", "login.tailscale.com", "ntfy.sh",
+			"prismlauncher.org", "www.mcserversoft.com", "apps.apple.com", "play.google.com");
 	static String serversDir() { return setting("servers_dir", WIN ? "C:\\Gatehouse\\servers" : System.getProperty("user.home", "") + "/game-servers"); }
 	/** Where servers went before Gatekeeper knew more than one game; a machine that has that folder keeps using it (recordGames). */
 	static String oldServersDir() { return WIN ? "C:\\Minecraft\\servers" : System.getProperty("user.home", "") + "/minecraft-servers"; }
@@ -2362,6 +2365,14 @@ public final class HostHelper {
 					reply(x, 200, m("result", "ok", "message", link.isEmpty() ? "Removed: pairings no longer carry an invite link."
 							: "Saved: the pairing link and file now carry it."));
 				} else reply(x, 200, checklist());
+			} else if (path.equals("/admin/linkcheck")) {
+				// (R54: the web panel asks whether one of its links works before opening it; only the sites its own links go
+				// to are tried, so this can't be used to reach anything else from this machine)
+				String url = Json.str(body(x).get("url"));
+				String host = url.replaceFirst("(?i)^https://([^/:?#]+).*$", "$1").toLowerCase(java.util.Locale.ROOT);
+				boolean known = url.matches("(?i)https://[^\s]+") && LINK_SITES.contains(host);
+				String why = known ? dev.gatehouse.look.Links.diagnose(url) : "";
+				reply(x, 200, m("ok", why.isEmpty(), "checked", known, "why", why));
 			} else if (path.equals("/admin/setup")) {
 				String[] r = setupSave(body(x));
 				reply(x, 200, m("result", r[0], "message", r[1]));
@@ -3152,7 +3163,7 @@ public final class HostHelper {
 				} catch (Exception ex) { throw new RuntimeException(ex); }
 				return steps;
 			}, id -> {
-				if (id.startsWith("open:")) dev.gatehouse.look.Links.openOrShow(f, id.substring(5));
+				if (id.startsWith("open:")) dev.gatehouse.look.Links.openChecked(f, id.substring(5));
 				else if (id.equals("setup")) setupB.doClick();
 				else if (id.equals("newserver")) ServerToolsUi.newServer(f, null);
 				else if (id.equals("pairing")) pairB.doClick();
@@ -3479,8 +3490,8 @@ public final class HostHelper {
 			shell.menu("Gatekeeper", "options", "Options", () -> pickSection.accept("OPTIONS"));
 			shell.menu("Gatekeeper", "guide", "Setup guide", () -> pickSection.accept("GUIDE"));
 			shell.menu("Gatekeeper", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
-			shell.menu("Help", "userguide", "User guide", () -> dev.gatehouse.look.Links.openOrShow(f, dev.gatehouse.look.Links.GUIDE));
-			shell.menu("Help", "github", "GitHub page", () -> dev.gatehouse.look.Links.openOrShow(f, dev.gatehouse.look.Links.REPO));
+			shell.menu("Help", "userguide", "User guide", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.GUIDE));
+			shell.menu("Help", "github", "GitHub page", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.REPO));
 			shell.afterMenu(() -> dev.octoberjourney.popup.Nav.home(f));
 			ChatUi.unread = n -> SwingUtilities.invokeLater(() -> shell.badge("CHAT", n));   // (rooms with messages not read here)
 			shell.body(StuckBar.around(p, f));   // (R29: the bar when Gatekeeper stops answering: see StuckBar)

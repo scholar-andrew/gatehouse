@@ -64,6 +64,20 @@ function confirmSheet(text, ok, danger) {
     d.showModal();
   });
 }
+// R54: a link to another site is tried first (Gatekeeper tries it: a page can't), and one that isn't working says why,
+// with Open anyway. The new tab is opened at once, while the press still counts, and pointed at the link once it answers.
+document.addEventListener('click', async e => {
+  const a = e.target.closest && e.target.closest('a[href^="https://"]');
+  if (!a || !me || e.defaultPrevented || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  e.preventDefault();
+  const url = a.href, tab = window.open('', '_blank');
+  if (tab) { tab.opener = null; try { tab.document.title = 'Opening…'; tab.document.body.textContent = 'Checking the link…'; } catch (x) { /* (a browser that won't let it be written) */ } }
+  let r = {};
+  try { r = await api('POST', 'linkcheck', { url }); } catch (x) { r = {}; }
+  if (r.ok !== false) { if (tab) tab.location.replace(url); else window.open(url, '_blank', 'noopener'); return; }
+  if (tab) tab.close();
+  if (await confirmSheet("This link isn't working right now. " + (r.why || ''), 'Open anyway')) window.open(url, '_blank', 'noopener');
+});
 async function act(call, body, server, confirmText, okWord) {
   if (confirmText && !(await confirmSheet(confirmText, okWord || 'Yes', /stop|close|kick|forget|sleep|restart|take off/i.test(confirmText)))) return;
   say({ message: 'Asking Gatekeeper…' });

@@ -62,6 +62,87 @@ public final class Links {
 		JOptionPane.showMessageDialog(parent, p, "Open this page", JOptionPane.PLAIN_MESSAGE);
 	}
 
+	// ------------------------------------------------------------------ R54: a link that doesn't work says why
+
+	/** Opens a link a person pressed, once it has been tried: a web address that answers opens as before; one that
+	 *  doesn't shows what is wrong (no internet, the site's name not found, the site not answering, the page gone or the
+	 *  site failing; for a machine on Tailscale, Tailscale or the machine itself), with Try again, Open anyway and Copy.
+	 *  Links that aren't web addresses (steam://, ntfy://...) open straight away. The trying is off the window's thread. */
+	public static void openChecked(Component parent, String url) {
+		if (!url.matches("(?i)https?://.+")) { openOrShow(parent, url); return; }
+		Thread t = new Thread(() -> {
+			String why = diagnose(url);
+			javax.swing.SwingUtilities.invokeLater(() -> { if (why.isEmpty()) openOrShow(parent, url); else broken(parent, url, why); });
+		}, "link-check");
+		t.setDaemon(true);
+		t.start();
+	}
+	private static void broken(Component parent, String url, String why) {
+		JTextField field = new JTextField(url, Math.min(46, Math.max(24, url.length())));
+		field.setEditable(false);
+		JPanel p = new JPanel(new java.awt.BorderLayout(6, 8));
+		p.add(new javax.swing.JLabel("<html><div style='width:420px'><b>This link isn't working right now.</b><br><br>"
+				+ why.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"), java.awt.BorderLayout.NORTH);
+		p.add(field, java.awt.BorderLayout.CENTER);
+		Object[] options = {"Try again", "Open anyway", "Copy the address", "Close"};
+		int c = JOptionPane.showOptionDialog(parent, p, "Link not working", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+		if (c == 0) openChecked(parent, url);
+		else if (c == 1) openOrShow(parent, url);
+		else if (c == 2) java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(url), null);
+	}
+	/** Tries a web address: "" when it answers (even with "sign in first"), else what is wrong, in words for a person.
+	 *  Blocking: a few seconds at most. */
+	public static String diagnose(String url) {
+		URI u;
+		try { u = URI.create(url.trim()); } catch (RuntimeException e) { return "The address itself is malformed, so it can't be opened."; }
+		String host = u.getHost();
+		if (host == null || host.isEmpty()) return "The address has no site in it, so it can't be opened.";
+		boolean tailnet = tailnet(host);
+		try { java.net.InetAddress.getByName(host); }
+		catch (IOException e) {
+			if (tailnet) return "The name " + host + " is on your Tailscale network, and this device can't look it up: Tailscale isn't running or signed in here.";
+			return online() ? "The site's name (" + host + ") can't be found. The address may be mistyped, or the site no longer exists."
+					: "This device isn't online: no website can be reached. Check its Wi-Fi or network cable, then Try again.";
+		}
+		for (String method : new String[] {"HEAD", "GET"}) {
+			try {
+				java.net.HttpURLConnection c = (java.net.HttpURLConnection) u.toURL().openConnection();
+				c.setRequestMethod(method); c.setConnectTimeout(6000); c.setReadTimeout(6000); c.setInstanceFollowRedirects(true);
+				c.setRequestProperty("User-Agent", "Gatehouse link check");
+				int code = c.getResponseCode();
+				c.disconnect();
+				if (code == 405 || code == 501) continue;   // (it doesn't take HEAD: ask with GET)
+				if (code < 400 || code == 401 || code == 403 || code == 429) return "";   // (it is there; it may want a sign-in)
+				if (code == 404 || code == 410) return "The site " + host + " is up, but this page isn't there any more (error " + code + "): it has moved or been removed.";
+				if (code >= 500) return "The site " + host + " is having trouble of its own (error " + code + "). That is on its side; try again later.";
+				return "The site " + host + " answered, but not with the page (error " + code + ").";
+			} catch (javax.net.ssl.SSLException e) {
+				return "The site " + host + " answered, but its security certificate wasn't accepted, so the browser would warn about it too. Check this device's date and time.";
+			} catch (java.net.SocketTimeoutException e) {
+				return tailnet ? "Your machine at " + host + " isn't answering: it may be asleep or off, or Tailscale isn't connected on this device."
+						: "The site " + host + " isn't answering (it took too long). It may be down, or this network is blocking it.";
+			} catch (java.net.ConnectException e) {
+				return tailnet ? "Your machine at " + host + " is there but refused: the program behind this link isn't running on it (Gatekeeper, or its web panel turned off)."
+						: "The site " + host + " refused the connection: it is down, or this network is blocking it.";
+			} catch (IOException | RuntimeException e) {
+				return "The site " + host + " couldn't be reached (" + e.getClass().getSimpleName() + (e.getMessage() == null ? "" : ": " + e.getMessage()) + ").";
+			}
+		}
+		return "";
+	}
+	/** Is it an address on Tailscale (100.64.0.0/10, or a *.ts.net name)? */
+	static boolean tailnet(String host) {
+		if (host.endsWith(".ts.net")) return true;
+		String[] p = host.split("\\.");
+		if (p.length != 4 || !host.matches("[0-9.]+")) return false;
+		try { int a = Integer.parseInt(p[0]), b = Integer.parseInt(p[1]); return a == 100 && b >= 64 && b <= 127; } catch (NumberFormatException e) { return false; }
+	}
+	/** Can this device reach the internet at all (a well-known name looks up)? */
+	static boolean online() {
+		for (String h : new String[] {"github.com", "cloudflare.com"}) try { java.net.InetAddress.getByName(h); return true; } catch (IOException e) { /* (the next) */ }
+		return false;
+	}
+
 	private static boolean desktop(String what, boolean folder) {
 		try {
 			if (!java.awt.Desktop.isDesktopSupported()) return false;

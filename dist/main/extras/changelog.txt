@@ -1,3 +1,5 @@
+== 1.71.0 | 2026-11-18
+- Gatehouse 3.38.0: links that say why they do not work, and the Steam Deck left trackpad scrolls. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.70.0 | 2026-11-18
 - Gatehouse 3.37.0: groundwork for other games, and a neutral start. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.69.0 | 2026-11-18
