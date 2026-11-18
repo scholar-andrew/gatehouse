@@ -1,8 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.41.0",
+ "version": "3.42.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.42.0", "date": "2026-11-18", "notes": [
+   "AI helper (R60): it now knows about Gatekeeper itself (its version, GitHub page and guide, what each section is for). Help, Ask Gatekeeper AI answers your own questions, including where your files and backups are on this machine; folders are never given to it for chat rooms, which players read.",
+   "AI helper setup: in Options, choose which Ollama (its address) and which of its models to use; the line under them says whether it answers and what to do if not."
+  ]},
   {"version": "3.41.0", "date": "2026-11-18", "notes": [
    "Find mods on Modrinth (R57): a Fabric server's Pack tab can search Modrinth for mods that fit its Minecraft version and add one to its mods folder, with the mods it requires. Each file comes from Modrinth's own file server and is kept only if it matches Modrinth's checksum. Players get it after a restart and a new pack version, as before.",
    "AI helper (R60), when Ollama runs on the Gatekeeper machine: @ai in chat answers questions about the servers, and when a server stops by itself the error lines in its log are explained in plain words in the notification. Everything stays on the machine."

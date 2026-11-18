@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.42.0 - 2026-11-18
+
+- AI helper (R60): it now knows about Gatekeeper itself (its version, GitHub page and guide, what each section is for). Help, Ask Gatekeeper AI answers your own questions, including where your files and backups are on this machine; folders are never given to it for chat rooms, which players read.
+- AI helper setup: in Options, choose which Ollama (its address) and which of its models to use; the line under them says whether it answers and what to do if not.
+
 ## 3.41.0 - 2026-11-18
 
 - Find mods on Modrinth (R57): a Fabric server's Pack tab can search Modrinth for mods that fit its Minecraft version and add one to its mods folder, with the mods it requires. Each file comes from Modrinth's own file server and is kept only if it matches Modrinth's checksum. Players get it after a restart and a new pack version, as before.

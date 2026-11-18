@@ -27,6 +27,34 @@ final class NotifyUi {
 	private NotifyUi() {}
 
 	/** Adds the section to the Options page. optLine adds a line of text (bold: a heading). */
+	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;"); }
+
+	/** Help > Ask Gatekeeper AI: the owner's own questions, answered with what Gatekeeper knows, folders included (R60). */
+	static void askDialog(java.awt.Component over) {
+		javax.swing.JTextField q = new javax.swing.JTextField(40);
+		javax.swing.JTextArea answer = new javax.swing.JTextArea(9, 46);
+		answer.setEditable(false); answer.setLineWrap(true); answer.setWrapStyleWord(true);
+		answer.setText("Ask about Gatekeeper or your servers: \"where are my backups?\", \"how do I add a mod?\", \"which version is this?\".\n"
+				+ "A small AI answers on " + "this machine (or the Ollama set in Options). It can be wrong: the user guide is under Help.");
+		JButton ask = new JButton("Ask");
+		Runnable go = () -> {
+			String w = q.getText().strip(); if (w.isEmpty()) return;
+			ask.setEnabled(false); answer.setText("Thinking\u2026 (a few seconds; the first question after a while takes longer)");
+			new Thread(() -> {
+				String a;
+				try { a = Json.str(Json.map(Json.parse(call("POST", "/admin/ai/ask", Json.write(m("question", w))))).get("answer")); }
+				catch (java.io.IOException | RuntimeException ex) { a = "Gatekeeper didn't answer: " + ex.getMessage(); }
+				String said = a;
+				SwingUtilities.invokeLater(() -> { answer.setText(said); answer.setCaretPosition(0); ask.setEnabled(true); });
+			}, "ai-owner").start();
+		};
+		ask.addActionListener(e -> go.run());
+		q.addActionListener(e -> go.run());
+		JPanel top = new JPanel(new BorderLayout(6, 0)); top.add(q, BorderLayout.CENTER); top.add(ask, BorderLayout.EAST);
+		JPanel p = new JPanel(new BorderLayout(0, 8)); p.add(top, BorderLayout.NORTH); p.add(new javax.swing.JScrollPane(answer), BorderLayout.CENTER);
+		javax.swing.JOptionPane.showMessageDialog(over, p, "Ask Gatekeeper AI", javax.swing.JOptionPane.PLAIN_MESSAGE);
+	}
+
 	static void addTo(JPanel options, JFrame f, java.util.function.BiConsumer<String, Boolean> optLine) {
 		// (R34) Phone notifications, the status page for friends, and crash watch.
 		optLine.accept("Phone notifications", true);
@@ -60,11 +88,32 @@ final class NotifyUi {
 		optLine.accept("A small AI on this machine (Ollama, the model Jarvis uses) answers players who write @ai in a chat room, from what Gatekeeper knows (its servers, who is on, how to join), and explains in plain words why a server stopped unexpectedly (activity log, and your phone). It can't start, stop or allow anything, everything it says is marked as the AI's, and nothing leaves this machine. It can be wrong.", false);
 		javax.swing.JCheckBox aiOn = new javax.swing.JCheckBox("Turn the AI helper on");
 		JLabel aiSaid = new JLabel(" "); aiSaid.setForeground(new Color(0xA9B5C1));
-		for (javax.swing.JComponent c : new javax.swing.JComponent[] {aiOn, aiSaid}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
+		// (R60 follow-up: which Ollama, and which of its models; an Ollama on another machine gets the questions)
+		javax.swing.JTextField aiUrl = new javax.swing.JTextField(24);
+		javax.swing.JComboBox<String> aiModel = new javax.swing.JComboBox<>(); aiModel.setEditable(true);
+		JButton aiSave = new JButton("Use these"), aiAsk = new JButton("Ask Gatekeeper AI\u2026");
+		aiUrl.setToolTipText("Where Ollama answers: http://127.0.0.1:11434 is Ollama on this machine. Another machine's Ollama works too (it then gets the questions).");
+		aiModel.setToolTipText("The model Ollama uses: the list holds the ones it has. A small one (qwen2.5:3b) answers in seconds.");
+		aiAsk.setToolTipText("Ask about Gatekeeper and your servers, here on this machine: it knows where your files are too");
+		aiAsk.addActionListener(e -> askDialog(options));
+		JPanel aiSetup = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); aiSetup.setOpaque(false);
+		aiSetup.add(new JLabel("Ollama at")); aiSetup.add(aiUrl); aiSetup.add(new JLabel("model")); aiSetup.add(aiModel); aiSetup.add(aiSave); aiSetup.add(aiAsk);
+		for (javax.swing.JComponent c : new javax.swing.JComponent[] {aiOn, aiSetup, aiSaid}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
 		java.util.function.Consumer<Map<String, Object>> aiShow = a -> SwingUtilities.invokeLater(() -> {
 			aiOn.setSelected(Boolean.TRUE.equals(a.get("on")));
-			String problem = Json.str(a.get("problem"));
-			aiSaid.setText(problem.isEmpty() ? "Ready: " + Json.str(a.get("model")) + " answers on this machine." : problem);
+			if (!aiUrl.isFocusOwner()) aiUrl.setText(Json.str(a.get("url")));
+			String want = Json.str(a.get("model"));
+			aiModel.removeAllItems();
+			for (Object o : Json.list(a.get("models"))) aiModel.addItem(Json.str(o));
+			aiModel.setSelectedItem(want);
+			String problem = Json.str(a.get("problem")), said = Json.str(a.get("said"));
+			aiSaid.setText("<html>" + esc(!said.isEmpty() ? said : problem.isEmpty() ? "Ready: " + want + " answers"
+					+ (Boolean.TRUE.equals(a.get("local")) ? " on this machine." : " at " + Json.str(a.get("url")) + " (questions go to that machine).") : problem) + "</html>");
+		});
+		aiSave.addActionListener(e -> {
+			String u = aiUrl.getText().strip(), md = String.valueOf(aiModel.getEditor().getItem()).strip();
+			aiSaid.setText("Asking Ollama\u2026");
+			new Thread(() -> { try { aiShow.accept(Json.map(Json.parse(call("POST", "/admin/ai", Json.write(m("url", u, "model", md)))))); } catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "ai-setup").start();
 		});
 		new Thread(() -> { try { aiShow.accept(Json.map(Json.parse(call("GET", "/admin/ai", null)))); } catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "ai-read").start();
 		aiOn.addActionListener(e -> { boolean want = aiOn.isSelected(); new Thread(() -> { try { aiShow.accept(Json.map(Json.parse(call("POST", "/admin/ai", Json.write(m("on", want)))))); } catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "ai-set").start(); });

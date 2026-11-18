@@ -20,6 +20,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *   2. When a server ends without being asked to, the last lines it printed are explained in plain words, in the
  *      activity log and (with phone notifications on) on the owner's phone.
  * A small local model is quick but not always right: everything it says is marked as the AI's.
+ * It also knows about Gatekeeper itself (R60 follow-up): its version, its GitHub page and guide, what each section of
+ * its window is for; and, only when the owner asks it in Gatekeeper's own window (Help, Ask Gatekeeper AI), where its
+ * files and servers are on this machine. Folders are never given to it for a chat room, which players read.
+ * The Ollama it uses can be set in Options (address and model; another machine's Ollama gets the questions then).
  */
 final class Ai {
 	private Ai() {}
@@ -28,6 +32,9 @@ final class Ai {
 
 	static boolean on() { return "true".equals(setting("ai", "false")); }
 	static String url() { return setting("ollama_url", "http://127.0.0.1:11434").replaceAll("/+$", ""); }
+	/** Is the address this machine itself (so nothing leaves it)? */
+	static boolean local(String u) { return u.matches("(?i)https?://(127\\.\\d+\\.\\d+\\.\\d+|localhost|\\[::1\\])(:\\d+)?/?"); }
+	static final List<String> models = new java.util.concurrent.CopyOnWriteArrayList<>();   // (what Ollama said it has, last asked)
 	static String model() { return setting("ollama_model", "qwen2.5:3b"); }
 
 	/** Does Ollama answer here, with the model? "" when it does, else what is missing, in words. */
@@ -36,19 +43,28 @@ final class Ai {
 			HttpURLConnection c = (HttpURLConnection) new URL(url() + "/api/tags").openConnection();
 			c.setConnectTimeout(1500); c.setReadTimeout(3000);
 			String t = new String(c.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-			for (Object o : Json.list(Json.map(Json.parse(t)).get("models"))) if (model().equals(Json.str(Json.map(o).get("name")))) return "";
-			return "Ollama answers, but doesn't have " + model() + " (in a terminal: ollama pull " + model() + ")";
-		} catch (IOException | RuntimeException e) { return "Ollama isn't answering on this machine (" + url() + "): install it from ollama.com, or start it"; }
+			List<String> have = new java.util.ArrayList<>();
+			for (Object o : Json.list(Json.map(Json.parse(t)).get("models"))) have.add(Json.str(Json.map(o).get("name")));
+			models.clear(); models.addAll(have);
+			if (have.contains(model())) return "";
+			return "Ollama answers, but doesn't have " + model() + (have.isEmpty() ? "" : " (it has " + String.join(", ", have) + ")")
+					+ ". In a terminal on that machine: ollama pull " + model();
+		} catch (IOException | RuntimeException e) {
+			models.clear();
+			return local(url()) ? "Ollama isn't answering on this machine (" + url() + "): install it from ollama.com, or start it"
+					: "Ollama isn't answering at " + url() + ": is it on, and does it listen beyond its own machine (OLLAMA_HOST=0.0.0.0)?";
+		}
 	}
 
 	/** One answer from the model, or "" when it couldn't give one. Blocking (up to about a minute and a half). */
-	static String ask(String system, String prompt) {
+	static String ask(String system, String prompt) { return ask(system, prompt, 220); }
+	static String ask(String system, String prompt, int words) {
 		try {
 			HttpURLConnection c = (HttpURLConnection) new URL(url() + "/api/generate").openConnection();
 			c.setRequestMethod("POST"); c.setDoOutput(true); c.setConnectTimeout(2000); c.setReadTimeout(90_000);
 			c.setRequestProperty("Content-Type", "application/json");
 			c.getOutputStream().write(Json.write(m("model", model(), "system", system, "prompt", prompt, "stream", false,
-					"options", m("temperature", 0.2, "num_predict", 220))).getBytes(StandardCharsets.UTF_8));
+					"options", m("temperature", 0.2, "num_predict", words))).getBytes(StandardCharsets.UTF_8));
 			if (c.getResponseCode() != 200) return "";
 			String t = new String(c.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 			return Json.str(Json.map(Json.parse(t)).get("response")).strip();
@@ -75,10 +91,54 @@ final class Ai {
 						.append(".\n");
 			}
 		} finally { SERVER.set(keep); }
+		b.append(about());
 		b.append("How players join: in the Gatehouse launcher, open this Gatekeeper, pick the server, press Install (once) then Launch and Play. "
 				+ "A server that is off: press Start if the host allowed it, else Request server. Not on the whitelist: Request whitelist. "
 				+ "Can't connect: the server's Connection tab has a network check that says what is in the way (Tailscale, the host's machine asleep, the server off).\n");
 		return b.toString();
+	}
+
+	/** Gatekeeper itself, for the model: what anyone may know (no folders, addresses or passwords). */
+	static String about() {
+		return "About Gatekeeper: Gatekeeper is the hosting half of Gatehouse (players use the Gatehouse launcher; the host runs Gatekeeper). "
+				+ "This one is version " + ownVersion() + ". "
+				+ "It runs its servers " + (builtin() ? "itself" : "through MC Server Soft (MCSS)") + ". "
+				+ "Its GitHub page (source, releases, problems): " + dev.gatehouse.look.Links.REPO + " . The user guide: " + dev.gatehouse.look.Links.GUIDE + " .\n"
+				+ "Gatekeeper's window: along the top SERVERS (a card for each server: Start, Stop, and Manage, with tabs such as Connection (with a network check), "
+				+ "Pack (the mods players get, Find mods on Modrinth), Backups, Game settings and Console; New server is here too), PLAYERS (who may join and what each may do), "
+				+ "CHAT (chat rooms with players) and UPDATES (the program's updates and their notes). The menu on the left: Host setup (this machine: MCSS or "
+				+ "Gatekeeper running servers itself, folders), Activity log (what Gatekeeper did), Web panel (manage it from a phone or browser), Constellation "
+				+ "and Systems (other machines with Gatehouse), History of servers, Options (notifications to a phone, the AI helper, crash watch), Setup guide, "
+				+ "and Help (User guide, GitHub page, Ask Gatekeeper AI).\n";
+	}
+	/** Where things are on this machine: only for the owner's own questions in Gatekeeper's window, never a chat room. */
+	static String places() {
+		StringBuilder b = new StringBuilder("Where things are on this machine (only the owner sees this): Gatekeeper's folder " + dir.toAbsolutePath()
+				+ " (its settings host.json, its log host.log, the players and devices it knows in devices.json, packs it builds in packs). ");
+		b.append("New servers go in ").append(serversDir()).append(". ");
+		String keep = SERVER.get();
+		try {
+			for (Object o : servers()) {
+				Map<String, Object> s = Json.map(o);
+				SERVER.set(Json.str(s.get("id")));
+				String d = Json.str(s.get("dir"));
+				if (!d.isEmpty()) b.append("Server \"").append(Json.str(s.get("name"))).append("\" is in ").append(d).append(", its backups in ").append(ServerTools.backupDir()).append(". ");
+			}
+		} catch (RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); }
+		finally { SERVER.set(keep); }
+		return b.append("\n").toString();
+	}
+
+	/** The owner's own question, from Gatekeeper's window: answered with everything, folders included. Blocking. */
+	static String ownerAsks(String question) {
+		if (question.isBlank()) return "Ask something, like \"where are my backups?\" or \"how do I add a mod?\".";
+		String why = ready();
+		if (!why.isEmpty()) return why + ".";
+		String a = ask("You are Gatekeeper AI, helping the owner of a small private game server group use Gatekeeper, the program they host with. "
+				+ "Answer plainly in at most five short sentences, only from the facts given; name the section and button to use. "
+				+ "If the facts don't say, say you don't know and point to the user guide or the GitHub page. Never invent buttons, folders or versions.",
+				"Facts:\n" + facts() + places() + "\nThe owner asks: " + question.strip(), 320);
+		return a.isEmpty() ? "The AI didn't answer just now (Ollama at " + url() + "). Try again in a moment." : a;
 	}
 
 	/** A chat message: answered in its room when it starts with @ai and the helper is on. Off the caller's thread. */
@@ -132,16 +192,37 @@ final class Ai {
 		th.start();
 	}
 
-	/** /admin/ai: GET how it stands; POST {on} turns it on or off (the machine's own window only). */
+	/** /admin/ai: GET how it stands; POST {on?, url?, model?} changes it. /admin/ai/ask: POST {question} -> {answer}. */
 	static boolean admin(com.sun.net.httpserver.HttpExchange x, String path) throws IOException {
+		if (path.equals("/admin/ai/ask")) {
+			reply(x, 200, m("answer", ownerAsks(Json.str(body(x).get("question")))));
+			return true;
+		}
 		if (!path.equals("/admin/ai")) return false;
+		String said = "";
 		if (x.getRequestMethod().equals("POST")) {
 			Map<String, Object> b = body(x);
-			cfg.put("ai", ServerTools.yes(b.get("on")) ? "true" : "false");
+			if (b.containsKey("on")) {
+				cfg.put("ai", ServerTools.yes(b.get("on")) ? "true" : "false");
+				log("AI helper turned " + (on() ? "on" : "off"));
+			}
+			if (b.containsKey("url")) {
+				String u = Json.str(b.get("url")).strip().replaceAll("/+$", "");
+				if (u.isEmpty()) cfg.remove("ollama_url");
+				else if (!u.matches("(?i)https?://([A-Za-z0-9.\\-]+|\\[[0-9a-f:]+\\])(:\\d{1,5})?")) said = "That isn't an address like http://127.0.0.1:11434, so it wasn't kept.";
+				else { cfg.put("ollama_url", u); log("AI helper: Ollama at " + u); }
+			}
+			if (b.containsKey("model")) {
+				String md = Json.str(b.get("model")).strip();
+				if (md.isEmpty()) cfg.remove("ollama_model");
+				else if (!md.matches("[A-Za-z0-9._:/\\-]{1,80}")) said = "That isn't a model name like qwen2.5:3b, so it wasn't kept.";
+				else { cfg.put("ollama_model", md); log("AI helper: model " + md); }
+			}
 			ServerTools.saveCfg();
-			log("AI helper turned " + (on() ? "on" : "off"));
 		}
-		reply(x, 200, m("on", on(), "model", model(), "url", url(), "problem", ready(), "facts", facts()));
+		String problem = ready();
+		reply(x, 200, m("on", on(), "model", model(), "url", url(), "local", local(url()), "models", new java.util.ArrayList<>(models),
+				"problem", problem, "said", said, "facts", facts()));
 		return true;
 	}
 }

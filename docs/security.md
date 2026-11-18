@@ -119,7 +119,7 @@ Both are off until the host turns them on, and both listen only on the machine's
 | Mods | Fetched from Modrinth | Updates |
 | Modrinth lookups (file hashes only, no sign-in) | Modrinth | When a Gatekeeper builds a pack's mod list |
 | Searches for mods (the words and the server's Minecraft version), and the mods you add | Modrinth | When you use Find mods on Modrinth |
-| Nothing: the AI helper's questions go to Ollama on the same machine (127.0.0.1) | | When the AI helper is on |
+| Nothing by default: the AI helper's questions go to Ollama on the same machine (127.0.0.1) | Only if you set another machine's Ollama in Options: the questions and the facts sent with them (servers, who is on; for your own questions, folders) go to that machine | When the AI helper is on |
 | Server programs | Mojang, PaperMC, Fabric; for other games SteamCMD, from Valve (signing in anonymously) | Only when you press Make the server |
 | The Steam account signed in on a launcher's device (its Steam ID and name) | That launcher's own Gatekeepers, over Tailscale | With each report, when Steam is signed in there; used only for games whose list of who may join holds Steam IDs |
 | Whether a link works (the link only) | The site it goes to; for the web panel's links, from the Gatekeeper machine | When you press a link |

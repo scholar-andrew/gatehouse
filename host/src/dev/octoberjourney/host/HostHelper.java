@@ -3523,6 +3523,7 @@ public final class HostHelper {
 			shell.menu("Gatekeeper", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
 			shell.menu("Help", "userguide", "User guide", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.GUIDE));
 			shell.menu("Help", "github", "GitHub page", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.REPO));
+			shell.menu("Help", "ai", "Ask Gatekeeper AI" + "\u2026", () -> NotifyUi.askDialog(f));
 			shell.afterMenu(() -> dev.octoberjourney.popup.Nav.home(f));
 			ChatUi.unread = n -> SwingUtilities.invokeLater(() -> shell.badge("CHAT", n));   // (rooms with messages not read here)
 			shell.body(StuckBar.around(p, f));   // (R29: the bar when Gatekeeper stops answering: see StuckBar)

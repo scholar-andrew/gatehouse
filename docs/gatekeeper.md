@@ -120,14 +120,25 @@ server, add mods in MCSS). Nothing reaches players until the server has restarte
 
 ## The AI helper
 
-If [Ollama](https://ollama.com) runs on the Gatekeeper machine with the model `qwen2.5:3b` (or another, set as
-`ollama_model` in host.json), Gatekeeper can use it (3.41.0; Notifications section, **AI helper**). Nothing leaves the
-machine: the model runs locally, and Gatekeeper talks to it only on 127.0.0.1.
+If [Ollama](https://ollama.com) runs on the Gatekeeper machine with the model `qwen2.5:3b`, Gatekeeper can use it
+(3.41.0; Options, **AI helper**). Gatekeeper talks to Ollama directly; nothing else needs installing. Nothing leaves the
+machine: the model runs locally, and Gatekeeper talks to it on 127.0.0.1.
+
+**Using an Ollama you already have** (3.42.0): in Options, AI helper, **Ollama at** is its address
+(`http://127.0.0.1:11434` is Ollama on this machine) and **model** lists the models it has; press **Use these**. The
+line under them says whether it answers and has that model, and what to do if not (`ollama pull <model>`). An Ollama on
+another machine works too, if it listens beyond its own machine (`OLLAMA_HOST=0.0.0.0` there): the questions, and the
+facts about your servers sent with them, then go to that machine.
 
 - **In chat**, a message starting with `@ai` gets an answer from "Gatekeeper AI" in the same room, about the servers
   (which are on, who is on them, who may join, how to join). One question at a time per room.
 - **When a server Gatekeeper runs stops by itself**, the error lines at the end of its log are explained in plain words,
   in the log and in the "server went down" notification. If the log shows no error, it says so instead of guessing.
+
+- **Help, Ask Gatekeeper AI…** (3.42.0; also a button under AI helper) is for your own questions about Gatekeeper:
+  which version this is, where its GitHub page and guide are, which section and button does something, and where your
+  files are on this machine (Gatekeeper's folder, each server's folder and backups). Folders are given to it only here,
+  never for a chat room, which players read.
 
 The answers are a small model's guesses: useful as a pointer, not a diagnosis.
 
