@@ -258,6 +258,8 @@ public final class LaunchPopup {
 	 *  Gatehouse button (back to the main window's own page). */
 	static volatile Runnable embedClose;
 	static volatile boolean embedBack;
+	/** R38: the section of Gatehouse's window (CHAT, UPDATES) to show on going back from a server's page; null for Servers. */
+	static volatile String embedSection;
 	/** The main Gatehouse window: a window that a page shown inside it can "close" without the window going. */
 	static final class HostFrame extends JFrame {
 		HostFrame(String title) { super(title); }
@@ -2108,6 +2110,31 @@ public final class LaunchPopup {
 		return sp;
 	}
 
+	/** Host tools (R38, phase D): for a device the owner allowed Gatekeeper control. A short page: Open Gatekeeper when
+	 *  there is one on this machine, and the Access Manager (with Gatekeeper's activity and Updates pulled) only when
+	 *  asked for, for managing it from a device such as a Steam Deck. */
+	private static JComponent hostTools(JComponent full) {
+		JPanel p = new JPanel(new BorderLayout(0, 8));
+		p.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
+		boolean here = dev.gatehouse.Main.keeperDir() != null;
+		JLabel about = new JLabel("<html><div style='width:600px'>The owner lets this device manage their Gatekeeper: who may do what on its servers."
+				+ (here ? " There is a Gatekeeper on this machine: Open Gatekeeper shows its own window." : " Its own window is on the server machine; its Access Manager can be used from here.") + "</div></html>");
+		JButton open = dev.gatehouse.look.SteamLook.main(new JButton("Open Gatekeeper"));
+		open.setVisible(here);
+		open.addActionListener(e -> { String t = dev.gatehouse.Main.openGatekeeper(); if (!t.isEmpty()) javax.swing.JOptionPane.showMessageDialog(p,
+				"Couldn't open Gatekeeper: " + t, "Gatekeeper", javax.swing.JOptionPane.PLAIN_MESSAGE); });
+		JButton show = new JButton("Show the Access Manager here");
+		full.setVisible(false);
+		show.addActionListener(e -> { boolean on = !full.isVisible(); full.setVisible(on); show.setText(on ? "Hide the Access Manager"
+				: "Show the Access Manager here"); p.revalidate(); p.repaint(); });
+		JPanel row = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 4));
+		row.add(open); row.add(show);
+		JPanel top = new JPanel(new BorderLayout(0, 6));
+		top.add(about, BorderLayout.NORTH); top.add(row, BorderLayout.CENTER);
+		p.add(top, BorderLayout.NORTH); p.add(full, BorderLayout.CENTER);
+		return p;
+	}
+
 	private static String plain(List<Component> rows) {
 		StringBuilder sb = new StringBuilder();
 		for (Component c : rows) if (c instanceof JLabel jl) sb.append(jl.getText().replaceAll("<[^>]+>", "").replace("&nbsp;",
@@ -2232,14 +2259,17 @@ public final class LaunchPopup {
 					case "online" -> text = "Right now: online" + (ping.isEmpty() ? "" : ", " + ping + " ms") + (pl.isEmpty() ? "" : ", " + pl + " players");
 					case "starting" -> text = "Right now: starting";
 					case "stopping" -> text = "Right now: stopping";
-					case "off" -> text = "Right now: the server machine is awake, but the Minecraft server is off (Connection, Server controls)";
-					case "nomcss" -> text = "Right now: the server machine is awake, but MCSS isn't running, so the server is off (Connection, Server controls, Start MCSS)";
-					case "asleep" -> text = "Right now: the server machine isn't answering, so it may be asleep or off (Connection, Server controls, Wake server machine). Below is the server as last recorded.";
+					case "off" -> text = "Right now: the server machine is awake, but the Minecraft server is off (Start server, below)";
+					case "nomcss" -> text = "Right now: the server machine is awake, but MCSS isn't running, so the server is off (Start MCSS, below)";
+					case "asleep" -> text = "Right now: the server machine isn't answering, so it may be asleep or off (Wake server machine, below).";
 					default -> text = "Right now: " + r[1];
 				}
 				liveLine.setIcon(dot(colour(r[0])));
 				liveLine.setText("<html><div style='width:470px'>" + esc(text) + "</div></html>");
 			};
+			// (what the branches below make, put in order further down: controls, config, the Gatekeeper's tools, mods)
+			JComponent[] keep = new JComponent[4];
+			JComponent[] hostToolsRef = {null};
 			// Server controls, a tab of their own: status, wake, start, stop, the panel, and this device's access.
 			if (control.configured()) {
 				Runnable[] syncTabs = {() -> {}};
@@ -2258,24 +2288,44 @@ public final class LaunchPopup {
 					tab.add(sc, BorderLayout.CENTER);
 					serverTabs[i] = tab;
 				}
-				connTabs.addTab("Server controls", serverTabs[0]);
-				connTabs.addTab("Network diagnosis", diagnosis);
-				tabs.addTab("Server config", serverTabs[1]);
-				JComponent modsTab = modsPanel(dir);
-				if (modsTab != null) tabs.addTab("Client mods", modsTab);
+				keep[0] = serverTabs[0]; keep[1] = serverTabs[1]; keep[2] = serverTabs[2];
+				keep[3] = modsPanel(dir);
+				hostToolsRef[0] = hostTools(serverTabs[2]);   // (R38: a short page; see hostTools)
 				// Remote Gatekeeper: only for a device the owner allowed Gatekeeper control (in Gatekeeper on the
 				// server machine); it comes and goes as that's allowed or removed.
 				syncTabs[0] = () -> {
-					boolean wantM = control.permAdmin && control.ban.isEmpty(), haveM = tabs.indexOfComponent(serverTabs[2]) >= 0;
-					if (wantM && !haveM) tabs.addTab("Remote Gatekeeper", serverTabs[2]);
-					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == serverTabs[2]) tabs.setSelectedIndex(0); tabs.remove(serverTabs[2]); }
+					boolean wantM = control.permAdmin && control.ban.isEmpty(), haveM = tabs.indexOfComponent(hostToolsRef[0]) >= 0;
+					if (wantM && !haveM && tabs.getTabCount() > 0 && "Overview".equals(tabs.getTitleAt(0))) tabs.addTab("Host tools", hostToolsRef[0]);
+					else if (!wantM && haveM) { if (tabs.getSelectedComponent() == hostToolsRef[0]) tabs.setSelectedIndex(0); tabs.remove(hostToolsRef[0]); }
 				};
 				syncTabs[0].run();
-			} else {
-				connTabs.addTab("Network diagnosis", diagnosis);
-				JComponent modsTab = modsPanel(dir);
-				if (modsTab != null) tabs.addTab("Client mods", modsTab);
+			} else keep[3] = modsPanel(dir);
+			// The page's tabs (R38, phase D), flat and in this order: Overview (whether the server is up, switching it
+			// on and off, what this device may do), News (what changed on this device and on the server), Connection
+			// (reaching the server machine), Server (what it runs), Mods, and Host tools for a device the owner allowed
+			// Gatekeeper control. It opens on News when something changed, otherwise on Overview.
+			tabs.removeAll();
+			JPanel overviewTab = new JPanel(new BorderLayout());
+			if (control.configured()) { overviewTab.add(liveLine, BorderLayout.NORTH); overviewTab.add(keep[0], BorderLayout.CENTER); }
+			else overviewTab.add(scroller(List.of(text("This server has no Gatekeeper to ask, so there is nothing to switch on or off from here. What changed is under News.")), false), BorderLayout.CENTER);
+			tabs.addTab("Overview", overviewTab);
+			JPanel newsTab = new JPanel(new java.awt.GridLayout(2, 1, 0, 10));
+			for (Object[] part : new Object[][] {{"On this device", clientTab}, {"On the server", serverTab}}) {
+				JPanel box = new JPanel(new BorderLayout(0, 4));
+				JLabel bh = new JLabel((String) part[0]);
+				bh.setFont(bh.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(13f)));
+				box.add(bh, BorderLayout.NORTH); box.add((Component) part[1], BorderLayout.CENTER);
+				newsTab.add(box);
 			}
+			tabs.addTab(serverNews ? "News (new)" : "News", newsTab);
+			JPanel connFlat = new JPanel(new BorderLayout());
+			connFlat.setBorder(BorderFactory.createEmptyBorder(6, 6, 4, 6));
+			connFlat.add(diagnosis, BorderLayout.CENTER);
+			tabs.addTab("Connection", connFlat);
+			if (keep[1] != null) tabs.addTab("Server", keep[1]);
+			if (keep[3] != null) tabs.addTab("Mods", keep[3]);
+			if (hostToolsRef[0] != null && control.permAdmin && control.ban.isEmpty()) tabs.addTab("Host tools", hostToolsRef[0]);
+			tabs.setSelectedIndex(rows.isEmpty() && !serverNews ? 0 : 1);
 			p.add(dev.gatehouse.look.GameShell.sheet(tabs), BorderLayout.CENTER);
 			PlayButton play = new PlayButton("Play");
 			play.setToolTipText("Starts the game once the server is online. Until then it asks the owner for whatever is missing: the server turned on, a place on the whitelist, or being let back in.");
@@ -2294,8 +2344,17 @@ public final class LaunchPopup {
 			legend.setOpaque(false);
 			// The window as a game's menu (GameShell): this page's tabs are the sections across the top, and the
 			// buttons that leave the page are along the bottom with what reaches them.
-			dev.gatehouse.look.GameShell shell = dev.gatehouse.look.GameShell.mirror(TOOL, tabs, title -> switch (title) {
-				case "Client updates" -> "Updates"; case "Server updates" -> "Server news"; case "Server config" -> "Server"; case "Client mods" -> "Mods"; case "Remote Gatekeeper" -> "Gatekeeper"; default -> title; });
+			// (R38, phase D: the same top bar as Gatehouse's own window, with SERVERS lit: CHAT and UPDATES go back to
+			// that window on that section. The page's own tabs are under its heading, and the bumpers move along them.)
+			JButton[] backRef = {null};
+			dev.gatehouse.look.GameShell shell = new dev.gatehouse.look.GameShell(TOOL, new String[] {"SERVERS", "CHAT", "UPDATES"}, sec -> {
+				JButton bk = backRef[0];
+				if (bk == null || (!embedded && !bk.isVisible())) return;
+				embedSection = sec.equals("SERVERS") ? null : sec;
+				bk.doClick(0);
+			});
+			shell.light("SERVERS");
+			shell.pageTabs(tabs);
 			shell.body(p);
 			shell.corner(NAME);
 			shell.left().add(legend);
@@ -2304,8 +2363,9 @@ public final class LaunchPopup {
 			// Menu: back to the Gatehouse launcher's own window (the Gatekeepers and their servers), without starting the
 			// game. It leaves a note the menu looks for when it's the one that started this pack; started some other way
 			// (from Prism Launcher), the menu is opened here.
-			JButton menu = new PlayButton("Gatehouse", SLATE, Color.WHITE, 14f);
-			menu.setToolTipText("Back to the Gatehouse launcher's menu (your Gatekeepers and their servers), without starting the game");
+			JButton menu = new PlayButton("\u2039 Servers", SLATE, Color.WHITE, 14f);
+			menu.setToolTipText("Back to the list of servers, without starting the game");
+			backRef[0] = menu;
 			menu.addActionListener(e -> {
 				if (embedded) { embedBack = true; exitCode = QUIT; f.dispose(); return; }
 				leaveBounds(dir.resolve("back-to-menu"), f);   // (the note the menu looks for; it says where this window is, so the menu opens right there)
@@ -2322,7 +2382,7 @@ public final class LaunchPopup {
 					? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")));
 			Nav.tag(menu, "back"); Nav.tag(again, "restart"); Nav.tag(quit, "quit");
 			Nav.start();
-			haloQuit[0] = () -> ((PlayButton) quit).halo();
+			haloQuit[0] = () -> { if (!shell.menuOpen()) shell.toggleMenu(); shell.menuLight("quit"); };
 			again.setToolTipText("Run the update again");
 			quit.setToolTipText("Don't start the game");
 			again.addActionListener(e -> { exitCode = RESTART; f.dispose(); });
@@ -2331,8 +2391,11 @@ public final class LaunchPopup {
 			JPanel right = shell.right();
 			right.add(new dev.gatehouse.look.GameShell.Hint("A", "Enter", "Select"));
 			right.add(new dev.gatehouse.look.GameShell.Glyph("B", "Esc").of(menu)); right.add(menu);
-			right.add(new dev.gatehouse.look.GameShell.Glyph("Y", "")); right.add(again);
-			right.add(new dev.gatehouse.look.GameShell.Glyph("Start", "")); right.add(quit);
+			// (R38: running the update again and Quit are in the menu, as on Gatehouse's own window; Y and Start open it on them)
+			shell.menu(NAME, "restart", "Run the update again", () -> again.doClick(0));
+			shell.menu(NAME, "quit", "Quit", () -> quit.doClick(0));
+			shell.menuTag("restart", "restart"); shell.menuTag("quit", "quit");
+			Nav.tag(again, "restart-bar"); Nav.tag(quit, "quit-bar");
 			right.add(play);
 			// The line about Play (why it's grey, or what a request did) sits above the buttons, wrapped to their width.
 			JPanel rightCol = new JPanel(new BorderLayout(0, 3));
@@ -2343,6 +2406,7 @@ public final class LaunchPopup {
 			// The button: "Next: server changes" while there's something new on the Server tab that hasn't been shown;
 			// "Play" after. Nothing happens on its own: no countdown, the game starts only when the player presses Play.
 			boolean[] serverShown = {!serverNews};
+			if (tabs.getSelectedIndex() == 1) serverShown[0] = true;   // (opened on News: the server's part is on it)
 			// While the server isn't online, the same button is "Request server": it asks Gatekeeper on the server
 			// machine to let the owner know (a chime and Gatekeeper there). It goes back to Play by itself when the
 			// server comes up. One request a minute.
@@ -2421,7 +2485,7 @@ public final class LaunchPopup {
 							msg = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty()
 									? "The server machine didn't take the request" : s(r.get("error"))) : s(r.get("message"));
 							ok = "ok".equals(s(r.get("result")));
-						} catch (IOException | RuntimeException ex) { msg = "Couldn't reach the server machine (it may be asleep: Connection, Server controls can wake it, if you're allowed)"; }
+						} catch (IOException | RuntimeException ex) { msg = "Couldn't reach the server machine (it may be asleep: Overview can wake it, if you're allowed)"; }
 						String shown = msg;
 						boolean took = ok;
 						SwingUtilities.invokeLater(() -> {
@@ -2470,6 +2534,7 @@ public final class LaunchPopup {
 			}
 			f.setContentPane(shell);
 			f.pack();
+			if (f.getWidth() < 1120) f.setSize(1120, f.getHeight());   // (R38: room for the top bar beside the title)
 			fit(f, true);
 			f.validate();
 			// Testing: OJ_POPUP_PNG=<file> saves a picture of each tab (<file>, and <file> with "-server") and their text
@@ -2487,10 +2552,8 @@ public final class LaunchPopup {
 						tabs.setSelectedIndex(i);
 						String title = tabs.getTitleAt(i);
 						List<String> shots = new ArrayList<>();
-						if (title.equals("Connection")) for (int j = 0; j < connTabs.getTabCount(); j++) shots.add(connTabs.getTitleAt(j).startsWith("Server") ? "-controls.png" : "-connection.png");
-						else shots.add(title.startsWith("Server config") ? "-config.png" : title.startsWith("Client mods") ? "-mods.png" : "-manage.png");
+						shots.add(title.equals("Connection") ? "-connection.png" : title.equals("Server") ? "-config.png" : title.equals("Mods") ? "-mods.png" : "-manage.png");
 						for (int j = 0; j < shots.size(); j++) {
-							if (title.equals("Connection")) connTabs.setSelectedIndex(j);
 							shell.validate();
 							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 							java.awt.Graphics2D g = img.createGraphics(); shell.paint(g); g.dispose();

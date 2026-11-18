@@ -1,8 +1,15 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.28.0",
+ "version": "3.29.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.29.0", "date": "2026-11-18", "notes": [
+   "Gatehouse: a server's page (after Launch) has the same top bar as the main window, SERVERS, CHAT and UPDATES, with SERVERS lit; CHAT and UPDATES go back to the main window on that section (R38, phase D of the menu and look audit). \u2039 Servers (or B) goes back to the list.",
+   "The page's own tabs are flat and in a new order: Overview (whether the server is up, waking the machine and starting or stopping things, what this device may do), News (what changed on this device and on the server, together), Connection, Server, Mods. It opens on News when something changed, otherwise on Overview. The bumpers (Q and E) move along these tabs.",
+   "Host tools replaces the Remote Gatekeeper tab for a device allowed Gatekeeper control: a short page with Open Gatekeeper (when there is one on this machine), and the Access Manager only when you ask for it.",
+   "Servers: Start or Stop is on each server's card (when this device may), and the host's machine is one line above the cards (awake or not, MCSS, with Sleep, Wake or Start MCSS when allowed). So The host's machine and What this device may do are no longer pages in the menu.",
+   "Running the update again and Quit are in the menu on a server's page too, as on the main window."
+  ]},
   {"version": "3.28.0", "date": "2026-11-18", "notes": [
    "Gatekeeper reorganised (R38, phase C of the menu and look audit): PLAYERS is a section of its own in the top bar. It holds the Access Manager for all of Gatekeeper, with a choice of which server the server-control and whitelist columns are for. It used to be inside a server's page, and in the menu as Launchers and players.",
    "A server's page is only about that server now: Overview first (Start or Stop, and what the panel beside the cards says: whether it's on, who is playing, how it's doing), then Console, Settings, Game settings, Backups, Tasks and Pack. Its heading is the server's name.",

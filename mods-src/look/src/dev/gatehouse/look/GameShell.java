@@ -494,8 +494,14 @@ public final class GameShell extends JPanel {
 		for (Tab t : tabs.values()) t.repaint();
 	}
 	public String lit() { return lit; }
+	private javax.swing.JTabbedPane pageTabs;
+	/** A page's own row of tabs (a server's page): while it shows, the bumpers move along it instead of the sections
+	 *  across the top (R38, phase D), and B goes back to the list. */
+	public void pageTabs(javax.swing.JTabbedPane t) { pageTabs = t; }
 	/** The next section (by 1) or the one before (by -1), as the bumpers do it. */
 	public void flip(int by) {
+		javax.swing.JTabbedPane pt = pageTabs;
+		if (pt != null && pt.isShowing() && pt.getTabCount() > 1) { pt.setSelectedIndex(Math.floorMod(pt.getSelectedIndex() + by, pt.getTabCount())); return; }
 		List<String> names = new ArrayList<>(tabs.keySet());
 		if (names.isEmpty()) return;
 		int i = names.indexOf(lit);

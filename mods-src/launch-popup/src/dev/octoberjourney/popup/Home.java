@@ -694,6 +694,9 @@ final class Home {
 			boolean[] atServers = {false};
 			// (which page is showing is told to onPage, so buttons that belong to one page can follow it: R38)
 			java.util.function.Consumer<String>[] onPage = new java.util.function.Consumer[] {pg -> { }};
+			java.util.function.Consumer<String>[] sectionTo = new java.util.function.Consumer[] {null};   // (pickSection, once it exists)
+			JPanel machineStrip = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));   // (R38: the host's machine, on Servers)
+			machineStrip.setOpaque(false);
 			CardLayout cards = new CardLayout() {
 				@Override public void show(java.awt.Container parent, String name) { super.show(parent, name); onPage[0].accept(name); }
 			};
@@ -716,7 +719,9 @@ final class Home {
 				sc.getVerticalScrollBar().setUnitIncrement(16);
 				dev.gatehouse.look.GameShell.clear(sc);
 				if (c[1].equals("Servers")) { JPanel both = new JPanel(new BorderLayout(14, 0)); both.setOpaque(false); both.add(sc,
-						BorderLayout.CENTER); both.add(side, BorderLayout.EAST); deck.add(both, "servers"); }
+						BorderLayout.CENTER); both.add(side, BorderLayout.EAST);
+					JPanel withStrip = new JPanel(new BorderLayout(0, 8)); withStrip.setOpaque(false);
+					withStrip.add(machineStrip, BorderLayout.NORTH); withStrip.add(both, BorderLayout.CENTER); deck.add(withStrip, "servers"); }
 				else deck.add(sc, c[1].equals("keepers") ? "keepers" : "machine");
 			}
 			// Gatehouse's own notes, newest on top: always there to read, and in front when Gatehouse has just updated.
@@ -954,7 +959,9 @@ final class Home {
 						}
 						again[0] = url; f.dispose();   // (the window comes straight back, without it)
 					});
-					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {removeB, missing, inviteB, install, go});
+					JButton runB = new JButton("Start");   // (R38: Start or Stop, when this device may; set from the Gatekeeper's answer)
+					runB.setVisible(false);
+					Object[] r = row.apply(pack != null ? pack[1] : id, new Component[] {removeB, missing, inviteB, install, runB, go});
 					go.setVisible(pack != null); missing.setVisible(pack == null);
 					if (pack != null) go.addActionListener(ev -> {
 						if (launchBusy) return;
@@ -1062,6 +1069,9 @@ final class Home {
 										f.validate();
 										f.repaint();
 										Nav.home(f);
+										// (R38: CHAT or UPDATES chosen on the server's page: that section, here)
+										String sec = LaunchPopup.embedSection; LaunchPopup.embedSection = null;
+										if (sec != null && sectionTo[0] != null) sectionTo[0].accept(sec);
 									});
 									return;
 								}
@@ -1078,7 +1088,7 @@ final class Home {
 					// (opened from this pack's own Steam shortcut: as if Launch had been pressed)
 					if (pack != null && autoLaunch != null && autoLaunch[0].equals(pack[0])) { autoLaunch = null; autoDirect = true; SwingUtilities.invokeLater(go::doClick); }
 					serverList.add((JPanel) r[0]);
-					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install, r[0], inviteB});
+					rows.put(id, new Object[] {r[2], pack, go, r[1], missing, install, r[0], inviteB, runB});
 				};
 				for (String[] pk : packs) if (pk[4].equals(url)) add.accept(pk[0].startsWith("gatehouse-") ? pk[0].substring("gatehouse-".length()) : pk[0], pk);
 				ServerControl c = url.isEmpty() ? null : client(home, url, packs);
@@ -1161,7 +1171,7 @@ final class Home {
 											: str(s.get("profile")).isEmpty() && !kindIs.equals("vanilla")
 											? "Not installed, and its pack isn't published for launchers: ask the owner" : "Not installed yet: Install sets it up in Prism Launcher"});
 									facts.add(new String[] {"What you may do", "true".equals(str(s.get("allowed")))
-											? "Start and stop this server from here (menu, The host's machine)"
+											? "Start and stop this server from here (Start or Stop on its card)"
 											: "Play, once you are on its whitelist. Starting and stopping it is the host's to allow."});
 									card.facts(facts);
 								}
@@ -1279,7 +1289,7 @@ final class Home {
 						String connSig = String.valueOf(cat) + "|" + (c != null);
 						boolean connSame = connSig.equals(connShown[0]) && connList.getComponentCount() > 0;
 						connShown[0] = connSig;
-						if (!connSame) connList.removeAll();
+						if (!connSame) { connList.removeAll(); machineStrip.removeAll(); }
 						if (c != null && !connSame) {
 							boolean answering = cat != null && !cat.containsKey("_refused");
 							Runnable[] again2 = {null};
@@ -1313,6 +1323,14 @@ final class Home {
 							sleepB.addActionListener(ev -> { if (sure.test("Sleep",
 									"Put the server machine to sleep?")) { ActionListenerOnce.run(sleepB, press, () -> c.helper("POST", "/v1/pc/sleep", "{}")); } });
 							connList.add((JPanel) mr[0]);
+							// (R38: the machine in one line above the servers, with what this device may do about it)
+							java.util.function.BiConsumer<String, JButton[]> strip = (said, bs) -> {
+								if (machineStrip.getComponentCount() > 0) machineStrip.add(new JLabel("   \u00b7   "));
+								JLabel sl = new JLabel(said); sl.setForeground(new Color(0xA9B5C1)); machineStrip.add(sl);
+								for (JButton ob : bs) if (ob.isVisible()) { JButton mirror = new JButton(ob.getText()); mirror.setToolTipText(ob.getToolTipText());
+									mirror.setEnabled(ob.isEnabled()); mirror.addActionListener(ev -> ob.doClick(0)); machineStrip.add(mirror); }
+							};
+							strip.accept(answering ? "Server machine: awake" : "Server machine: not answering (asleep or off)", new JButton[] {wakeB, sleepB});
 							if (answering && !cat.containsKey("_old")) {
 								// What runs the servers there, as that Gatekeeper says: MCSS ("mcss", and what an older Gatekeeper
 								// means by saying nothing), Gatekeeper itself ("builtin"), or both. With no MCSS there, its line
@@ -1346,6 +1364,7 @@ final class Home {
 								mb.addActionListener(ev -> { if (!mUp || sure.test("Close MCSS",
 										"Close MCSS? Any Minecraft server that is running is stopped first (the world is saved), and anyone playing is disconnected.")) ActionListenerOnce.run(mb, press, () -> mUp ? c.mcssClose(force) : c.mcssStart()); });
 								connList.add((JPanel) cr[0]);
+								if (!noMcss) strip.accept("MCSS: " + (mph.equals("starting") ? "starting" : mph.equals("closing") ? "closing" : mUp ? "running" : "not running"), new JButton[] {mb});
 								// each server
 								if (cat.get("servers") instanceof List<?> sl) for (Object o : sl) {
 									Map<String, Object> s = ServerControl.asMap(o);
@@ -1368,6 +1387,14 @@ final class Home {
 									sb.addActionListener(ev -> { if (!sUp || sure.test("Stop server", "Stop " + LaunchPopup.esc(snm)
 											+ "? The world is saved first, and anyone playing is disconnected.")) ActionListenerOnce.run(sb, press, () -> c.helperAs(sid, "POST", sUp ? "/v1/server/stop" : "/v1/server/start", "{}")); });
 									connList.add((JPanel) sr[0]);
+									// (R38: the same on the server's card)
+									Object[] cardRow = rows.get(sid);
+									if (cardRow != null && cardRow.length > 8 && cardRow[8] instanceof JButton rb) {
+										for (java.awt.event.ActionListener al : rb.getActionListeners()) rb.removeActionListener(al);
+										rb.setText(sUp ? "Stop" : "Start"); rb.setToolTipText(sb.getToolTipText());
+										rb.setVisible(sb.isVisible()); rb.setEnabled(!sBusy);
+										rb.addActionListener(ev -> sb.doClick(0));
+									}
 								}
 							}
 							again2[0] = () -> { for (Runnable r : new ArrayList<>(polls)) r.run(); };
@@ -1841,8 +1868,9 @@ final class Home {
 			updatesDot[0].run();
 			// The menu down the left: the pages that are about this device and its setup rather than playing.
 			shell[0].menu("Servers", "gatekeepers", "Gatekeepers", () -> showKeepers[0].run());
-			shell[0].menu("Servers", "machine", "The host's machine", () -> pickSection.accept("MACHINE"));
-			shell[0].menu("This device", "access", "What this device may do", () -> pickSection.accept("ACCESS"));
+			// (R38: the host's machine is a line above the servers, and Start or Stop is on each server's card; what this
+			// device may do is beside the server in focus. So neither has a page in the menu any more.)
+			sectionTo[0] = pickSection;
 			shell[0].menu("This device", "systems", "Systems" + "\u2026", () -> SystemsBox.show(f, home, keepers, packs));
 			shell[0].menu("This device", "options", "Options", () -> gear.doClick(0));
 			shell[0].menu("Help", "guide", "Setup guide", () -> { if (openGuide[0] != null) openGuide[0].run(); });
