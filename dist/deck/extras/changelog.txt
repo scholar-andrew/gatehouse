@@ -1,3 +1,5 @@
+== 1.76.0 | 2026-11-18
+- Gatehouse 3.43.0: videos and sounds play in chat. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.75.0 | 2026-11-18
 - Gatehouse 3.42.0: the AI helper knows Gatekeeper itself, and its Ollama can be chosen. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.74.0 | 2026-11-18

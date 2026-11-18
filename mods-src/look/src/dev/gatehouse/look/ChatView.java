@@ -45,8 +45,8 @@ import javax.swing.SwingUtilities;
  * and Attach.
  *
  * A message that offers a file shows the file's name, kind and size with View and Save a copy. Nothing is fetched until
- * one of those is pressed. View shows a picture in the chat; a video, a sound or any other file is opened with this
- * device's own program for it. Paste takes what is on the clipboard: words go into the line; a picture, or a copied
+ * one of those is pressed. View shows a picture in the chat; Play plays a video or a sound in Gatehouse's own player
+ * (R62: see MediaEngine; fetched once, asked first), and any other file is opened with this device's own program for it. Paste takes what is on the clipboard: words go into the line; a picture, or a copied
  * file (a video, a sound, anything), is offered to the room.
  *
  * A short sound plays when a message arrives in a room while it isn't the one being read here, unless that is
@@ -358,14 +358,17 @@ public final class ChatView extends JPanel {
 		JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)); row.setOpaque(false);
 		JLabel what = new JLabel("offered a " + (k.equals("picture file") ? "picture" : k) + ":  " + m.fileName() + "  (" + size(m.fileSize()) + ")");
 		what.setForeground(GameShell.TEXT);
-		JButton view = new JButton(k.equals("picture") ? "View" : "Open"), keep = new JButton("Save a copy…");
+		boolean playable = (k.equals("video") || k.equals("sound")) && MediaEngine.available() && MediaEngine.plays(m.fileName());
+		JButton view = new JButton(k.equals("picture") ? "View" : playable ? "Play" : "Open"), keep = new JButton("Save a copy…");
 		view.setToolTipText(k.equals("picture") ? "Fetches the picture and shows it here. Nothing is fetched before you press this."
+				: playable ? "Fetches it and plays it in Gatehouse's player: pause, skip 10 seconds, volume, theater and full screen"
 				: "Fetches it and opens it with this device's own program for it");
 		keep.setToolTipText("Fetches it and saves it where you choose");
 		row.add(what); row.add(view); row.add(keep);
 		box.add(row, BorderLayout.NORTH);
 		JLabel shownPic = new JLabel(); box.add(shownPic, BorderLayout.CENTER);
 		view.addActionListener(e -> {
+			if (playable) { play(r, m, view); return; }
 			view.setEnabled(false);
 			fetch(r, m, bytes -> {
 				if (k.equals("picture")) {
@@ -406,14 +409,49 @@ public final class ChatView extends JPanel {
 		}, "chat-file");
 		t.setDaemon(true); t.start();
 	}
+	/** Plays a video or a sound in Gatehouse's player (R62), fetching the player first if this device hasn't it (asked). */
+	private void play(Room r, Msg m, JButton view) {
+		if (!MediaEngine.ready()) {
+			int a = javax.swing.JOptionPane.showConfirmDialog(this, "<html><body style='width:380px'>Videos and sounds play in Gatehouse's own player, which this device "
+					+ "fetches once: " + MediaEngine.size() + " of OpenJFX (Java's media player) from Maven Central, checked before it is kept.<br><br>Fetch it now? "
+					+ "No opens this one with this device's own program instead.</body></html>", "Gatehouse's player", javax.swing.JOptionPane.YES_NO_CANCEL_OPTION);
+			if (a == javax.swing.JOptionPane.CANCEL_OPTION || a == javax.swing.JOptionPane.CLOSED_OPTION) return;
+			if (a == javax.swing.JOptionPane.NO_OPTION) { view.setEnabled(false); fetch(r, m, bytes -> { open(m, bytes); view.setEnabled(true); }, () -> view.setEnabled(true)); return; }
+		}
+		view.setEnabled(false);
+		Thread t = new Thread(() -> {
+			try { MediaEngine.fetch(this::tell); }
+			catch (Exception e) {
+				tell("The player couldn't be fetched: " + why(e) + ". Opening it with this device's own program instead.");
+				SwingUtilities.invokeLater(() -> fetch(r, m, bytes -> { open(m, bytes); view.setEnabled(true); }, () -> view.setEnabled(true)));
+				return;
+			}
+			SwingUtilities.invokeLater(() -> fetch(r, m, bytes -> {
+				view.setEnabled(true);
+				Runnable instead = () -> SwingUtilities.invokeLater(() -> open(m, bytes));
+				try { MediaEngine.play(temp(m, bytes), m.fileName(), instead); }
+				catch (Throwable ex) {
+					Throwable c = ex instanceof java.lang.reflect.InvocationTargetException && ex.getCause() != null ? ex.getCause() : ex;
+					tell("Gatehouse's player couldn't start here (" + why(c instanceof Exception ce ? ce : new Exception(String.valueOf(c))) + "): opening it with this device's own program.");
+					open(m, bytes);
+				}
+			}, () -> view.setEnabled(true)));
+		}, "chat-player");
+		t.setDaemon(true); t.start();
+	}
+	/** A fetched file in a folder of its own in the temporary files. */
+	private static Path temp(Msg m, byte[] bytes) throws java.io.IOException {
+		Path d = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-chat");
+		Files.createDirectories(d);
+		String safe = m.fileName().replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
+		Path f = d.resolve(m.fileId().replaceAll("[^A-Za-z0-9\\-]", "") + "-" + safe);
+		Files.write(f, bytes);
+		return f;
+	}
 	/** Opens a fetched file with this device's own program for it (from a folder of its own in the temporary files). */
 	private void open(Msg m, byte[] bytes) {
 		try {
-			Path d = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-chat");
-			Files.createDirectories(d);
-			String safe = m.fileName().replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
-			Path f = d.resolve(m.fileId().replaceAll("[^A-Za-z0-9\\-]", "") + "-" + safe);
-			Files.write(f, bytes);
+			Path f = temp(m, bytes);
 			if (java.awt.Desktop.isDesktopSupported()
 					&& java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) java.awt.Desktop.getDesktop().open(f.toFile());
 			else new ProcessBuilder("xdg-open", f.toString()).start();

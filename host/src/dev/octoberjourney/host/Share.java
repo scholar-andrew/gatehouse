@@ -104,7 +104,9 @@ final class Share {
 	private static byte[] bodyBytes(HttpExchange x) throws IOException { try (InputStream in = x.getRequestBody()) { return in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, max() + 1)); } }
 
 	/** R42: a file for the web panel (its account may use chat). A picture (PNG, JPEG, GIF or WebP, by its first bytes)
-	 *  is sent as that picture, so the page can show it; anything else only as a download, never shown in the page. */
+	 *  is sent as that picture, so the page can show it; R62: a video or a sound (MP4/M4A/MOV, WebM/MKV, Ogg, MP3, WAV,
+	 *  FLAC, by its first bytes) as that, in parts when the browser asks (Range: so it can seek, and Safari plays it at
+	 *  all); anything else only as a download, never shown in the page. */
 	static void panel(HttpExchange x, String id) throws IOException {
 		Map<String, Object> e = id.isEmpty() ? null : find(id);
 		Path f = e == null ? null : folder().resolve(Json.str(e.get("id")));
@@ -118,11 +120,50 @@ final class Share {
 		x.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
 		x.getResponseHeaders().set("Cache-Control", "no-store");
 		x.getResponseHeaders().set("Content-Security-Policy", "default-src 'none'; sandbox");
+		String media = type.isEmpty() ? mediaType(b, name) : "";
+		if (!media.isEmpty()) { sendMedia(x, b, media); return; }
 		if (type.isEmpty()) { x.getResponseHeaders().set("Content-Type", "application/octet-stream");
 			x.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"" + (name.isEmpty() ? "file" : name) + "\""); }
 		else x.getResponseHeaders().set("Content-Type", type);
 		x.sendResponseHeaders(200, b.length);
 		try (OutputStream o = x.getResponseBody()) { o.write(b); }
+	}
+	/** What kind of video or sound the bytes are (by their first bytes; the name only tells sound from video), or "". */
+	static String mediaType(byte[] b, String name) {
+		String n = name.toLowerCase(java.util.Locale.ROOT);
+		if (b.length > 12 && b[4] == 'f' && b[5] == 't' && b[6] == 'y' && b[7] == 'p') return n.matches(".*\\.(m4a|aac)$") ? "audio/mp4" : "video/mp4";
+		if (b.length > 4 && (b[0] & 0xFF) == 0x1A && (b[1] & 0xFF) == 0x45 && (b[2] & 0xFF) == 0xDF && (b[3] & 0xFF) == 0xA3) return "video/webm";
+		if (b.length > 4 && b[0] == 'O' && b[1] == 'g' && b[2] == 'g' && b[3] == 'S') return n.endsWith(".ogv") ? "video/ogg" : "audio/ogg";
+		if (b.length > 4 && b[0] == 'f' && b[1] == 'L' && b[2] == 'a' && b[3] == 'C') return "audio/flac";
+		if (b.length > 12 && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F' && b[8] == 'W' && b[9] == 'A' && b[10] == 'V' && b[11] == 'E') return "audio/wav";
+		if (b.length > 3 && ((b[0] == 'I' && b[1] == 'D' && b[2] == '3') || ((b[0] & 0xFF) == 0xFF && (b[1] & 0xE0) == 0xE0))) return "audio/mpeg";
+		return "";
+	}
+	/** A video or a sound, whole or the part asked for (one "bytes=a-b" range). */
+	private static void sendMedia(HttpExchange x, byte[] b, String type) throws IOException {
+		x.getResponseHeaders().set("Content-Type", type);
+		x.getResponseHeaders().set("Accept-Ranges", "bytes");
+		String r = x.getRequestHeaders().getFirst("Range");
+		java.util.regex.Matcher mr = r == null ? null : java.util.regex.Pattern.compile("bytes=(\\d*)-(\\d*)").matcher(r.strip());
+		if (mr == null || !mr.matches() || (mr.group(1).isEmpty() && mr.group(2).isEmpty())) {
+			x.sendResponseHeaders(200, b.length);
+			try (OutputStream o = x.getResponseBody()) { o.write(b); }
+			return;
+		}
+		long len = b.length, from, to;
+		try {
+			if (mr.group(1).isEmpty()) { from = Math.max(0, len - Long.parseLong(mr.group(2))); to = len - 1; }
+			else { from = Long.parseLong(mr.group(1)); to = mr.group(2).isEmpty() ? len - 1 : Math.min(len - 1, Long.parseLong(mr.group(2))); }
+		} catch (NumberFormatException ex) { from = len; to = -1; }
+		if (from >= len || to < from) {
+			x.getResponseHeaders().set("Content-Range", "bytes */" + len);
+			x.sendResponseHeaders(416, -1);
+			x.close();
+			return;
+		}
+		x.getResponseHeaders().set("Content-Range", "bytes " + from + "-" + to + "/" + len);
+		x.sendResponseHeaders(206, to - from + 1);
+		try (OutputStream o = x.getResponseBody()) { o.write(b, (int) from, (int) (to - from + 1)); }
 	}
 	/** A launcher that has said hello. */
 	static void launcher(HttpExchange x, String path, String id, Map<String, Object> d) throws IOException {

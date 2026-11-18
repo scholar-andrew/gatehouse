@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.43.0 - 2026-11-18
+
+- Videos and sounds in chat (R62): Play plays one in Gatehouse's own player, in Gatehouse and Gatekeeper: pause, a seek bar, back and forward 10 seconds, volume, theater and full screen, with keys. It plays MP4, M4A, MP3, WAV and AIFF; the player (OpenJFX, about 7.5 MB from Maven Central, checked against checksums in the signed program) is fetched once, the first time you press Play, if you say yes.
+- The web panel plays videos and sounds right in the chat, with the same controls and theater and full screen for videos; Gatekeeper sends them in parts so a browser can seek (and Safari plays them).
+
 ## 3.42.0 - 2026-11-18
 
 - AI helper (R60): it now knows about Gatekeeper itself (its version, GitHub page and guide, what each section is for). Help, Ask Gatekeeper AI answers your own questions, including where your files and backups are on this machine; folders are never given to it for chat rooms, which players read.

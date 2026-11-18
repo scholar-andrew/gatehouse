@@ -23,7 +23,7 @@ Four sections across the top (click one, or flip with Q and E, or a controller's
 | --- | --- |
 | **Servers** | The servers as cards (picture, whether it's on, who is playing, memory and processor use), the panel beside them with more about the one you are on, **New server**, **Server setup**, **Check for updates**. |
 | **Players** | The Access Manager: launchers and players and what each may do ([below](#players-who-may-do-what)). A red number is launchers asking for something. |
-| **Chat** | The rooms (this Gatekeeper and each server), where you write as Host, paste or attach files, view what others offered, and can empty a room. |
+| **Chat** | The rooms (this Gatekeeper and each server), where you write as Host, paste or attach files, view what others offered (a video or sound plays in Gatehouse's player: see [Using Gatehouse](gatehouse.md)), and can empty a room. |
 | **Updates** | What's new in Gatekeeper and in Gatehouse, **Updates pulled** (what launchers fetched from this machine), and the **Update log**. |
 
 The **menu** at the top left has the rest:
@@ -187,7 +187,7 @@ keep it on its home screen (Share, Add to Home Screen; or the browser's menu, In
 | **Systems** | Every Gate System at a glance: this Gatekeeper (its servers and who is on each, whether an update is ready, requests waiting on you), then a card for each machine in its constellation, marked with the halves it has (Gatehouse, Gatekeeper, or both), with a line for each: in game and on which server, in the launcher, or offline; its version and update mode; its ping to this Gatekeeper; its battery (a laptop or a Steam Deck); whether it hands out pack updates; when it was last seen. Filters: All, Online, In game. Needs *See the constellation*. |
 | **Servers** | Start, stop and restart; a server's console, backups and tasks. |
 | **Players** | Players and the whitelist; launchers, their requests and permissions. |
-| **Chat** | Every room as a chip with a count of new messages, the messages as bubbles, pictures shown in the page and other files to save. You write as Host. |
+| **Chat** | Every room as a chip with a count of new messages, the messages as bubbles, pictures shown in the page, videos and sounds played in it (pause, skip 10 seconds, volume, theater, full screen), and other files to save. You write as Host. |
 | **Updates** | The update log. |
 
 | An account that may... | Gets |

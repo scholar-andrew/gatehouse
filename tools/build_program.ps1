@@ -27,6 +27,24 @@ if ($LASTEXITCODE) { throw 'javac failed' }
 $files22 = @(Get-ChildItem (Join-Path $root 'mods-src\launch-popup\src22') -Recurse -Filter *.java | ForEach-Object FullName)
 & (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 22 -cp $classes -d $classes @files22
 if ($LASTEXITCODE) { throw 'javac (Java 22 part) failed' }
+# The chat's video and sound player (R62), built against OpenJFX and put inside as media-player.jar: devices fetch
+# OpenJFX itself the first time they play something (dev.gatehouse.look.MediaEngine). Building needs OpenJFX's Windows
+# parts in tools\cache\openjfx-21.0.6 (not in the repository); they are fetched once from Maven Central and checked.
+$fx = Join-Path $root 'tools\cache\openjfx-21.0.6'
+$fxParts = [ordered]@{ 'javafx-base' = '618a1149089d1459cc569cc10eac05c5589a532473d09f35c1e9ea2c5b6de50e'; 'javafx-graphics' = '4b0981384551f39a0ca9679672f2abbedd9d0966763205534fca230b1cf314a5'; 'javafx-media' = '59fbb279c303eb9a4598ca88228884bbc267f287769b6d22af8e65b923af25a6' }
+New-Item -ItemType Directory -Force $fx | Out-Null
+$fxJars = @()
+foreach ($m in $fxParts.Keys) {
+    $f = Join-Path $fx "$m-21.0.6-win.jar"
+    if (-not (Test-Path $f)) { Invoke-WebRequest -UseBasicParsing "https://repo1.maven.org/maven2/org/openjfx/$m/21.0.6/$m-21.0.6-win.jar" -OutFile $f }
+    if ((Get-FileHash $f -Algorithm SHA256).Hash.ToLower() -ne $fxParts[$m]) { Remove-Item $f; throw "$f didn't match its checksum" }
+    $fxJars += $f
+}
+$media = Join-Path $out 'media'
+& (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 17 -cp ($fxJars -join ';') -d $media @(Get-ChildItem (Join-Path $root 'mods-src\media\src') -Recurse -Filter *.java | ForEach-Object FullName)
+if ($LASTEXITCODE) { throw 'javac (media player) failed' }
+& (Join-Path $jdk 'jar.exe') --create --file (Join-Path $classes 'dev\gatehouse\look\media-player.jar') -C $media .
+if ($LASTEXITCODE) { throw 'jar (media player) failed' }
 # Each half's version and notes go inside (the Gatekeeper updates and Gatehouse updates tabs).
 Copy-Item (Join-Path $root 'source\gatekeeper.json') (Join-Path $classes 'gatekeeper-notes.json')
 Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $classes 'gatehouse-notes.json')

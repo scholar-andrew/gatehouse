@@ -458,16 +458,93 @@ function bubble(m) {
   if (m.file) {
     const f = m.file, url = '/panel/file?id=' + encodeURIComponent(f.id || '');
     b.appendChild(el('div', '', mine ? 'Offered a file' : 'Offers a file'));
-    if (IMAGE.test(f.name || '')) {
+    if (MEDIA.test(f.name || '')) {
+      b.appendChild(player(url, f.name, f.size));
+      b.appendChild(chip(url, f));
+    } else if (IMAGE.test(f.name || '')) {
       const img = el('img', 'shot'); img.src = url; img.alt = f.name; img.loading = 'lazy';
       img.addEventListener('click', () => { const d = $('viewer'); $('viewer-img').src = url; $('viewer-img').alt = f.name; if (d.showModal) d.showModal(); });
       b.appendChild(img);
     } else {
-      const a = el('a', 'filechip', null, [icon(ICONS.file)]); a.href = url; a.download = f.name || 'file';
-      a.appendChild(document.createTextNode((f.name || 'file') + (f.size ? ' · ' + size(f.size) : ''))); b.appendChild(a);
+      b.appendChild(chip(url, f));
     }
   }
   return el('div', 'msg' + (mine ? ' mine' : ''), null, [el('div', 'meta', (mine ? 'You (Host)' : m.who) + ' · ' + m.when), b]);
+}
+function chip(url, f) {
+  const a = el('a', 'filechip', null, [icon(ICONS.file)]); a.href = url; a.download = f.name || 'file';
+  a.appendChild(document.createTextNode((f.name || 'file') + (f.size ? ' · ' + size(f.size) : ''))); return a;
+}
+// R62: a video or a sound plays in the chat: play/pause, back and forward 10 seconds, a seek bar with the time, mute and
+// volume, theater (the message as wide as the chat) and full screen. Keys while it has focus: Space/K, Left/Right or
+// J/L, Up/Down, M, T, F. Nothing is fetched until Play is pressed (preload none), as for pictures on a phone's data.
+const MEDIA = /\.(mp4|m4v|webm|mov|mkv|ogv|mp3|m4a|wav|ogg|oga|opus|flac|aac)$/i, VIDEO = /\.(mp4|m4v|webm|mov|mkv|ogv)$/i;
+const PICONS = {
+  play: 'M8 5v14l11-7z', pause: 'M7 5h4v14H7zm6 0h4v14h-4z',
+  vol: 'M4 9v6h4l5 4V5L8 9zm12 3a4 4 0 0 0-2.2-3.6v7.2A4 4 0 0 0 16 12z',
+  muted: 'M4 9v6h4l5 4V5L8 9zm11.3.3 1.4-1.4 2 2 2-2 1.4 1.4-2 2 2 2-1.4 1.4-2-2-2 2-1.4-1.4 2-2z',
+  theater: 'M2 6h20v12H2zm2 2v8h16V8z', full: 'M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z'
+};
+const clock = s => { s = Math.floor(s || 0); const h = Math.floor(s / 3600), mm = Math.floor(s / 60) % 60, ss = String(s % 60).padStart(2, '0'); return h ? h + ':' + String(mm).padStart(2, '0') + ':' + ss : mm + ':' + ss; };
+function player(url, name, bytes) {
+  const video = VIDEO.test(name), m = el(video ? 'video' : 'audio');
+  m.preload = 'none'; m.src = url; m.setAttribute('playsinline', '');
+  const box = el('div', 'player ' + (video ? 'video' : 'sound')); box.tabIndex = 0; box.setAttribute('aria-label', 'Player: ' + name);
+  const ib = (d, label, fn) => { const b = button(null, fn, 'pbtn'); b.appendChild(icon(d)); b.setAttribute('aria-label', label); b.title = label; return b; };
+  const tb = (t, label, fn) => { const b = button(t, fn, 'pbtn txt'); b.setAttribute('aria-label', label); b.title = label; return b; };
+  const swap = (b, d, label) => { b.replaceChildren(icon(d)); b.setAttribute('aria-label', label); b.title = label; };
+  const toggle = () => { if (m.paused) m.play().catch(() => {}); else m.pause(); };
+  const fullscreen = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else if (box.requestFullscreen) box.requestFullscreen().catch(() => { if (m.webkitEnterFullscreen) m.webkitEnterFullscreen(); });
+    else if (m.webkitEnterFullscreen) m.webkitEnterFullscreen();
+  };
+  const play = ib(PICONS.play, 'Play (Space)', toggle);
+  const back = tb('\u221210', 'Back 10 seconds (Left)', () => { m.currentTime = Math.max(0, m.currentTime - 10); });
+  const fwd = tb('+10', 'Forward 10 seconds (Right)', () => { if (m.duration) m.currentTime = Math.min(m.duration, m.currentTime + 10); });
+  const seek = el('input', 'seek'); seek.type = 'range'; seek.min = 0; seek.max = 1000; seek.value = 0; seek.setAttribute('aria-label', 'Position');
+  const at = el('span', 'ptime', bytes ? size(bytes) : '0:00');
+  const mute = ib(PICONS.vol, 'Mute (M)', () => { m.muted = !m.muted; });
+  const vol = el('input', 'vol'); vol.type = 'range'; vol.min = 0; vol.max = 1; vol.step = 0.05; vol.value = 1; vol.setAttribute('aria-label', 'Volume');
+  const kids = [play, back, fwd, seek, at, mute, vol];
+  let theater = null, full = null;
+  if (video) {
+    theater = ib(PICONS.theater, 'Theater (T)', () => { const msg = box.closest('.msg'); if (msg) msg.classList.toggle('theater'); });
+    full = ib(PICONS.full, 'Full screen (F)', fullscreen);
+    kids.push(theater, full);
+    box.appendChild(m);
+    m.addEventListener('click', toggle);
+    m.addEventListener('dblclick', fullscreen);
+  } else {
+    box.appendChild(el('div', 'pname', name));
+    box.appendChild(m);
+  }
+  box.appendChild(el('div', 'pbar', null, kids));
+  let held = false;
+  const show = () => { if (!held) seek.value = m.duration ? Math.round(m.currentTime / m.duration * 1000) : 0; at.textContent = clock(m.currentTime) + ' / ' + clock(m.duration); };
+  m.addEventListener('timeupdate', show);
+  m.addEventListener('loadedmetadata', show);
+  m.addEventListener('play', () => swap(play, PICONS.pause, 'Pause (Space)'));
+  m.addEventListener('pause', () => swap(play, PICONS.play, 'Play (Space)'));
+  m.addEventListener('volumechange', () => swap(mute, m.muted || m.volume === 0 ? PICONS.muted : PICONS.vol, m.muted ? 'Unmute (M)' : 'Mute (M)'));
+  seek.addEventListener('input', () => { held = true; if (m.duration) at.textContent = clock(seek.value / 1000 * m.duration) + ' / ' + clock(m.duration); });
+  seek.addEventListener('change', () => { if (m.duration) m.currentTime = seek.value / 1000 * m.duration; held = false; });
+  vol.addEventListener('input', () => { m.volume = +vol.value; m.muted = +vol.value === 0; });
+  m.addEventListener('error', () => { box.replaceWith(el('div', 'note', "This browser can't play " + name + ': save it below and open it on this device.')); });
+  box.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase(), inRange = e.target.tagName === 'INPUT';
+    if (k === ' ' || k === 'k') { if (e.target.tagName === 'BUTTON') return; toggle(); }
+    else if ((k === 'arrowleft' || k === 'j') && !inRange) back.click();
+    else if ((k === 'arrowright' || k === 'l') && !inRange) fwd.click();
+    else if (k === 'arrowup' && !inRange) { m.volume = Math.min(1, m.volume + 0.1); vol.value = m.volume; }
+    else if (k === 'arrowdown' && !inRange) { m.volume = Math.max(0, m.volume - 0.1); vol.value = m.volume; }
+    else if (k === 'm') mute.click();
+    else if (k === 't' && theater) theater.click();
+    else if (k === 'f' && full) full.click();
+    else return;
+    e.preventDefault();
+  });
+  return box;
 }
 const size = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : n > 1024 ? Math.round(n / 1024) + ' KB' : n + ' B';
 function chatBadge(rooms) {
