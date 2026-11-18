@@ -71,7 +71,7 @@ Still fixed in code or scripts:
 | --- | --- |
 | Launcher (`LaunchPopup.java`) | "October Journey" in the window title, the checklist heading, the update question and every summary headline (10 places) |
 | Sync scripts (`pack-sync.ps1`, `.sh`) | "October Journey" in two messages each; the rest is already read from files beside the script |
-| Gatekeeper (`HostHelper.java`) | default address `100.91.134.102`, default server folder `...\servers\octoberserver`, one MCSS server, window titles |
+| Gatekeeper (`HostHelper.java`) | default address (the owner's Tailscale address), default server folder `...\servers\octoberserver`, one MCSS server, window titles |
 | `tools/serve.ps1` (and `installer/keeper/install-keeper.ps1`) | the PC's Tailscale address, `C:\Minecraft\...` paths, task and shortcut names |
 | Installers and uninstallers | the name in every message (31 places in the Windows setup), the Tailscale address in the uninstallers |
 | `clients/pack-sources.txt` | the two pack sources (a copy of what the profile already says) |

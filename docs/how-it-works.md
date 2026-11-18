@@ -1,6 +1,7 @@
 # How the October Journey pack works
 
-For whoever maintains the pack. Players want [INSTALL.md](../INSTALL.md).
+For whoever maintains the pack: how it is built, served and brought onto each device. Players want
+[Getting started](getting-started.md); building, testing and publishing the program is in [For developers](developers.md).
 
 ## The pieces
 
@@ -10,7 +11,7 @@ source/ + installer/art + installer/steam + clients/pack-sync.*      what you ed
         ▼
 dist/main, dist/deck  (packwiz pack)  +  docs/mods.md                 what devices download
         │  served two ways
-        ├── owner's PC over Tailscale: http://100.91.134.102:8467   (tools/serve.ps1, scheduled task)
+        ├── owner's PC over Tailscale: http://<its Tailscale address>:8467   (tools/serve.ps1, scheduled task)
         └── GitHub: raw.githubusercontent.com/.../main/dist           (git push)
         ▼
 each device: Prism pre-launch → pack-sync.ps1 / pack-sync.sh → packwiz-installer → game starts
@@ -22,8 +23,10 @@ each device: Prism pre-launch → pack-sync.ps1 / pack-sync.sh → packwiz-insta
 - **Two variants**, `dist/main` and `dist/deck`. A mod marked `"deck": true` in `source/mods.json` goes only into the
   Deck variant; the Linux sync picks `deck` on Steam Deck hardware (DMI product `Jupiter` or `Galileo`). Right now no
   mod is Deck-only, so the two are the same; the mechanism is kept for later.
-- **Hosting.** Devices try the owner's PC first (fast, and live as soon as `dist/` is rebuilt), then GitHub (works
-  anywhere, but only after a push, and `raw.githubusercontent.com` caches for about five minutes).
+- **Hosting.** The owner's PC is fast, and live as soon as `dist/` is rebuilt; GitHub works anywhere, but only after
+  a push, and `raw.githubusercontent.com` caches for about five minutes. Since Gatehouse 3.32.0 a device asks every
+  source at once, including other Gate Systems that hand the pack out, and takes the newest that answers well
+  ([For developers](developers.md#fetching-and-handing-out-pack-updates-r40)); older ones try the sources in order.
 
 ## Repository layout
 
@@ -351,10 +354,10 @@ their next launch; nobody has to touch a device.
   all, for a file that isn't a Gatekeeper's own) is the first screen with a card for each half, anything else is the
   Play half. The same bytes are published under both old names (`extras/launch-popup.jar` in the pack,
   `gatekeeper/oj-host.jar`), so each half still updates the way it did, and both carry one version number (the build
-  refuses two). Merging is staged: this is stage 1; one installer, same-machine linking and one combined update follow.
+  refuses two). One installer, same-machine linking and one combined update followed in later versions.
 - **Two ways Gatekeeper runs servers.** `ServerHost` is the seam: `McssHost` (through MC Server Soft, Windows) and
   `DirectHost` (Gatekeeper starts the server's own files and keeps its console; always on Linux and SteamOS, where
-  there is no MCSS). `docs/server.md` has the details. What a system or a host kind can't do stays listed, marked
+  there is no MCSS). [Gatekeeper internals](gatekeeper-internals.md) has the details. What a system or a host kind can't do stays listed, marked
   "Not supported on <system>".
 - **The setup guides.** `mods-src/look/.../Wizard.java` is the page both programs show: steps down the left with a
   mark each (`ok`, `todo`, `warn`, `info`, `wait`), one step on the right with its text, buttons and Back / Next; the
@@ -479,7 +482,7 @@ The installers download everything else at run time, so they only need a new rel
 | `tools/build_mod.ps1 <mod>` | Builds `mods-src/chatlift`, `handofffix` or `octoberjourney` into `source/files/mods/`. |
 | `mods-src/launch-popup/.../Connection.java` | The Connection tab: the checks (this device's Tailscale address from its network interfaces; `tailscale status --json` where the command can be run; connections to the server machine's ports) and what to do about each. `java -jar launch-popup.jar --server <game folder> connection` prints them. |
 | `mods-src/launch-popup/.../ServerControl.java` | The Server controls tab: status (Minecraft's server list ping for online, ping and players; panel port; MCSS API; Gatekeeper's port, so a PC with MCSS closed still counts as awake), Wake on LAN, Start, Stop, opening the panel, sign-in. `java -jar launch-popup.jar --server <game folder> status\|wake\|start\|stop` runs one of them from a terminal (`OJ_WAKE_TEST=host:port` also sends the wake signal there, for testing). |
-| `tools/build_program.ps1` | Builds the one program, both halves (`mods-src/launch-popup`, `host/`, `mods-src/look`, `mods-src/program`; plain Java 17), into `source/files/launch-popup.jar` and `host/oj-host.jar` (the same file). It used to be installed on the server PC by a separate tool: `C:\Minecraft\GatehouseKeeper`, the sign-in scheduled task and the Start menu shortcut ([docs/server.md](server.md#the-host-helper-starting-and-closing-mcss)). |
+| `tools/build_program.ps1` | Builds the one program, both halves (`mods-src/launch-popup`, `host/`, `mods-src/look`, `mods-src/program`; plain Java 17), into `source/files/launch-popup.jar` and `host/oj-host.jar` (the same file). Gatekeeper is installed by `installer/gatehouse-install.ps1` / `.sh` ([Gatekeeper internals](gatekeeper-internals.md#installing-and-running)). |
 | `tools/mod_sizes.py` | Records each Modrinth mod's download size (`size` in `source/mods.json`) from Modrinth's listing, for the launcher's update size question. Run it after adding or updating a mod; the build refuses a mod without one. |
 | `tools/server_snapshot.py` | Records what the server runs from its files (`server/state.json`) with a note for players (`server/changelog.json`); `--check` reports drift. |
 | `tools/serve.ps1` | Serves `dist/` on the Tailscale address. Run at logon by the scheduled task "Minecraft pack server"; waits for Tailscale and restarts the server if it stops. |
@@ -490,7 +493,9 @@ The installers download everything else at run time, so they only need a new rel
 | `installer/keeper/install-keeper.ps1` | Installs Gatekeeper from `gatehouse-keeper.zip` on any Windows machine (a readable script, not a program). |
 | `tools/make_prism_art.ps1` | Draws the Prism Launcher shortcut's art into `installer/art-prism/` from Prism's logo. |
 | `tools/steam_shortcut.py` | Adds or renames a non-Steam shortcut in `shortcuts.vdf` by hand (Steam closed). The installers do this themselves. |
-| `tools/move-prism-out-of-sandbox.ps1` | One-off repair from 2026-11-14 (Prism data written into the Claude app's sandboxed AppData). Kept for reference. |
+| `tools/move-prism-out-of-sandbox.ps1` | One-off repair from 2026-11-14 (Prism data written into another app's sandboxed AppData). Kept for reference. |
+| `tools/run_tests.ps1`, `tools/update_check.ps1` | The tests run before every publish ([For developers](developers.md#tests)). |
+| `tools/setup_signing_key.ps1`, `tools/sign-release.workflow.yml` | The release key and the workflow that signs each publish ([For developers](developers.md#signing)). |
+| `tools/version_history.py` | Writes `docs/version-history.md` from the program's notes; run by `build_pack.py`. |
 
-Python on the owner's PC is the Codex runtime's (`C:\Users\andre\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe`);
-there's no system Python.
+On the owner's PC there's no system Python; the build is run with a Python runtime kept apart from the system.

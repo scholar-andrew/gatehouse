@@ -1,7 +1,7 @@
 # Playing on October Journey
 
-> New here? **[How to use Gatehouse and Gatekeeper](docs/guide.md)** is the short, step-by-step page. This one is the
-> full reference for the October Journey pack and its installers.
+> New here? **[Getting started](docs/getting-started.md)** is the short, step-by-step page. This one is the full
+> reference for the October Journey pack and its installers.
 
 One download sets everything up: Prism Launcher, the modpack (it updates itself every time you play), the server in your
 server list, and two Steam shortcuts: **October Journey**, which updates the pack, starts the game and joins the
@@ -26,7 +26,7 @@ a server's owner gave you, and install that Gatekeeper's servers from its list.
   `%LOCALAPPDATA%\Gatehouse\jre`, for Gatehouse's use only). It puts the launcher in
   `%APPDATA%\PrismLauncher\gatehouse\app` and a **Gatehouse** shortcut in the Start menu.
 - **Gatekeeper on Linux or SteamOS**: `bash gatehouse-install.sh --gatekeeper`. MC Server Soft is Windows only,
-  so there Gatekeeper runs the Minecraft servers itself ([how](docs/guide.md#on-linux-and-steamos-the-servers)). Putting the machine to sleep from a launcher is not
+  so there Gatekeeper runs the Minecraft servers itself ([how](docs/gatekeeper.md#running-servers-without-mcss)). Putting the machine to sleep from a launcher is not
   supported on SteamOS, and adding Gatekeeper to Steam is not supported on Linux or SteamOS; both are still listed
   where they would be, marked so. In use on one Steam Deck; not yet tried on a plain Linux desktop.
 - **Linux, including Steam Deck:** `bash gatehouse-install.sh`. It offers Prism Launcher from Flathub if it's
@@ -81,8 +81,8 @@ real Steam, or on a Steam Deck; Gatekeeper's part only as a dry run.
 3. Click **Quick install** for everything in the usual folders, or **Choose what to install...** to tick items and pick
    folders ([Choosing what to install](#choosing-what-to-install)).
 4. If you chose a Steam shortcut, it asks you to quit Steam (Steam menu, then Exit): do that and click OK.
-5. Start Steam, find **October Journey - PC (or Laptop, Steam Deck, ROG: your kind of device)** in your library, and play: it updates the pack, then
-   starts the game and joins the server. The first time, Prism Launcher opens to sign in with your Microsoft account.
+5. Start Steam, find **October Journey - PC (or Laptop, Steam Deck, ROG: your kind of device)** in your library, and
+   play: it updates the pack, then starts the game and joins the server. The first time, Prism Launcher opens to sign in with your Microsoft account.
 
 ## Linux, including Steam Deck
 1. Download (on a Steam Deck, switch to **Desktop Mode** first)
@@ -109,7 +109,7 @@ choose item by item (Windows: checkboxes; Linux: a question per item; all on by 
 | --- | --- | --- |
 | **Prism Launcher** | The game launcher | Only offered when it isn't installed. Without it, the Steam shortcuts can't be made; install Prism later and the instance shows up in it. |
 | **October Journey server** | The server in the game's server list | |
-| **October Journey shortcut** | **October Journey - your device's name** in Steam: updates the pack (and shows the [launch pop-up](#before-the-game-starts-the-launch-pop-up)), then starts the game and joins the server | Needs Steam and Prism. Steam has to be closed. |
+| **October Journey shortcut** | **October Journey - your device's name** in Steam: updates the pack, then starts the game and joins the server | Needs Steam and Prism. Steam has to be closed. |
 | **Gatehouse launcher shortcut** | **Gatehouse Minecraft Launcher - your kind of device** in Steam: opens the Gatehouse launcher (your packs, whether each server is online, Play, and a button for Prism Launcher) | Needs Steam and Prism. Steam has to be closed. |
 | **Steam library art** | Cover, banner, logo and icon: October Journey's own for its shortcut, Prism Launcher's logo for Prism's | Needs a shortcut. |
 | **Steam Deck controller layout** | The pack's layout for Steam Deck controls, on both shortcuts | Needs a shortcut. |
@@ -147,240 +147,15 @@ safe; it updates your setup without duplicating anything.
 
 ### The Gatehouse launcher
 
-**Gatehouse Minecraft Launcher** in your Steam library opens the launcher's own window. It has three levels:
+**Gatehouse Minecraft Launcher** in your Steam library opens Gatehouse's own window: your Gatekeepers and their
+servers, chat, updates, and each server's page with Play. How to use it, including the controller:
+[Using Gatehouse](docs/gatehouse.md). The **October Journey** shortcut goes straight into the game whenever it can (the
+update went through, the server is on, and you may join), and shows the server's page otherwise.
 
-1. **Gatekeepers.** Each Gatekeeper this device knows: the one your packs came with, and any you add. Each says
-   whether it's answering and how many servers it has. **Add Gatekeeper...** connects to another one: paste the address
-   or pairing link its owner gave you, or open the pairing file they sent (your device has to be in their Tailscale
-   network, and that owner still decides what your device may do). **Remove** forgets one that has no pack installed
-   here. The list is kept in a `gatehouse` folder beside Prism's instances.
-2. **Servers.** **Open** shows the servers that Gatekeeper looks after, each with whether it's on. One whose pack is
-   on this device has **Play**. One that isn't has **Install**, which sets its pack up in Prism Launcher from the
-   address the Gatekeeper gives (it asks first, naming where the files come from; the mods download on the first
-   Play; no Steam shortcut is added, and Prism Launcher has to be installed already). A plain server (no mods) has
-   **Install** too: it makes a plain Minecraft instance in the server's version (`gatehouse-<server>` in Prism) with
-   the server in its server list; nothing is downloaded until Prism fetches the game on the first Play. It gets the
-   same launcher window before the game as a pack, with nothing to update (a small script, `plain-launch`, and the
-   launcher itself are copied from a pack installed on this device and kept current by the menu). A server with mods
-   whose pack isn't published says so.
-   **Gatekeepers** at the top right goes back.
-   Beside **Servers** is **Connections**: the server machine, MCSS and each server, each with what it's doing right
-   now (including Starting and Shutting down) and the buttons your device is allowed: **Wake** or **Sleep**, **Start
-   MCSS** or **Close MCSS**, **Start server** or **Stop server**. Stopping and closing ask first.
-3. **The server's own launcher.** **Launch** beside a server starts that pack: its update runs first, in this same
-   window (a checklist, and a question before anything big is downloaded; **Quit** there goes back to the list), and
-   then the launcher described below takes its place in the same window, where **Play** starts the game. Its **Gatehouse** button comes back here without starting
-   the game.
-
-Along the bottom are **Open Prism Launcher** (accounts, other instances, settings), **Restart** (opens the launcher
-again from the start, looking for a newer Gatehouse), **Quit**, and the launcher's own
-Steam config button.
-
-The two shortcuts differ in one thing. A pack's own Steam shortcut (**October Journey - ...**) goes straight into the
-game whenever it can: the update went through, the server is online, and you may join. News it would have shown is
-kept for the next time the window appears. It shows the window described below instead when the update failed or
-couldn't be checked, the server is off, or you aren't on the whitelist or have been suspended or blacklisted.
-Pressing **Play** in the Gatehouse launcher, like starting the instance from inside Prism Launcher, always shows that
-window first.
-
-Both programs use the same dark look, sized for a Steam Deck's screen.
-
-### The setup guide
-
-On a device with nothing set up yet, Gatehouse opens on its **setup guide**: Prism Launcher, your Minecraft account,
-adding the owner's Gatekeeper, connecting to it, installing a server, and playing, one step at a time. Each step says
-what to do and shows whether it's done, and ticks by itself once it is. It's always in the menu (the three lines
-at the top left of the main window), as **Setup guide**. Gatekeeper has one of its own for the machine that runs the servers.
-
-### Connecting to a Gatekeeper for the first time
-
-A Gatekeeper is reached over Tailscale, a private network between its owner's machine and the devices they let in.
-**Add Gatekeeper** takes the address, pairing link or pairing file the owner gave you. If it can't be reached yet,
-Gatehouse keeps it in the list and shows the steps, each ticking by itself when it's done:
-
-1. **Tailscale is running on this device and connected.** Get Tailscale opens Tailscale's own download page; sign in
-   with your own Tailscale account (making one is free). On a Steam Deck this is done in Desktop Mode, following
-   Tailscale's own guide for the Steam Deck.
-2. **You've accepted the owner's invite.** Open invite opens it in your browser, when the pairing came with one. It
-   gives this device access to that one machine only. Without one, ask the owner for their invite link.
-3. **This device can reach the Gatekeeper.** If the first two are done and this isn't, its machine may be asleep.
-4. **The Gatekeeper knows this device.** After that the owner decides what this device may do.
-
-Gatehouse doesn't install Tailscale, sign in or accept anything for you. A Gatekeeper in the list that isn't
-answering has a **Connect** button that shows the same steps.
-
-**Remove** beside a Gatekeeper takes it off this device's list, after asking. Gatehouse forgets it and this device's
-link to it; packs installed from it stay, are listed under **Other packs**, and update and start as before. It stays
-off the list until you add it again. The owner still sees this device in their Access Manager until they remove it.
-
-### Notes about Gatehouse and Gatekeeper themselves
-
-Gatehouse and Gatekeeper each have a version and notes of their own, apart from any pack's or server's:
-
-- **Gatehouse updates**, a tab on the launcher's main window, lists what changed in the launcher, newest on top. When
-  you open Gatehouse directly it looks for a newer copy of itself and asks, under its heading: which version is
-  ready, which you have and how big it is, with **Update Gatehouse** and **Later**. Update fetches it and reopens,
-  with that tab in front, marked "(new)". This is apart from a pack's update, which that server's launcher asks
-  about; starting a server straight from its Steam shortcut still updates both, Gatehouse first. You can read the tab
-  any time.
-- **While a window is open** it keeps looking, every couple of minutes: the main window for a newer Gatehouse, a
-  server's launcher for a newer version of its pack. When one appears, a line shows under the heading, with a chime:
-  **Update Gatehouse** or, in a server's launcher, **Update now** (the update runs again, as with Restart), and
-  **Later** (not asked again about that one while the window stays open).
-- **Gatekeeper updates**, a tab beside a Gatekeeper's servers, lists what changed in that Gatekeeper (it's asked for
-  them; one from before Gatekeeper 2.0.0 says so instead).
-- A server's own window shows neither: its Client updates tab is about the pack, and Server updates about the server.
-
-### Using a controller
-
-Every window of the launcher can be driven with a controller: the Steam Deck's own controls, a Steam Controller, or
-any pad Steam presents as a gamepad (the launcher reads the same pad the game does, so the Steam layout stays a gamepad
-layout).
-
-| Control | What it does |
-| --- | --- |
-| Left stick, d-pad | Move the selection to the nearest button, tab, box or list that way. An outline shows it. |
-| A | Presses the selected button (ticks a box, opens a drop-down). |
-| B, Select | Jump to the button that goes up a level: **Gatehouse** in a server's launcher, **Gatekeepers** in the list of servers, Cancel in a question. |
-| Y | Jumps to **Restart**. |
-| Start | Jumps to **Quit**. |
-| Right trigger | A left click where the pointer is. |
-| Right trackpad | Moves the pointer; pressing it clicks. (The Steam layout makes that press a right click, for the game; on a Steam Deck the launcher's windows take a right click as a left click.) |
-| Left trigger | Nothing. |
-
-On a row of tabs, left and right change the tab; in a list, up and down move the row. B, Y and Start only move the
-selection: nothing happens until you press A. Typing (a sign-in, an address) still needs the on-screen keyboard
-(Steam + X on a Steam Deck). On Windows the controller is read through XInput, which needs the Java the game itself
-uses (22 or newer); on Linux through the system's joystick devices, which Prism Launcher's Flatpak can read.
-
-### Before the game starts: the launch pop-up
-From the moment you press Play, one October Journey window shows the update's steps as a checklist, each ticked off as
-it finishes (the download shows its progress), with **Quit** to cancel the launch. When there's something to
-download, it first says about how big the update is and where it downloads from (the owner's PC over Tailscale, or
-GitHub when that isn't reachable; mods from Modrinth) and asks: the blue button reads **Download** and continues; **Quit** cancels
-the launch. When the update is done, the same
-window shows what happened, with **Play** (blue; it only works while the server is online. While the server is off
-the same button reads **Request server**: it asks the owner's PC to turn the server on, where it chimes and shows who
-asked, and it turns back into Play by itself when the server comes up), **Restart** (run the update again) and **Quit** (don't start the game;
-Prism then says the pre-launch step failed, which is expected). It starts with **This build** (the version installed on this device and its size), then lists everything the update
-checked, each with a coloured dot: the connection, mods and settings, your mod switches, the Steam art and controller
-layouts, the server list, and the update script itself. Green means up to date, blue updated, grey off or not set up,
-amber not checked (offline) and red failed. Below that:
-- **Mods:** each mod added (green), updated (blue, with its old and new file) or removed (grey) by this update.
-- **Mod switches:** mods switched on or off this launch.
-- **Also on this device:** anything else the update did, such as a new pack default.
-- **What's new:** the patch notes for every version since you last played.
-
-The same button also reads **Request whitelist** when your player isn't on the server's whitelist, and **Request
-unsuspend** or **Request unblacklist** when the owner has suspended or blacklisted this device or your account (the
-line above the button says which, and the owner's reason; you can add a message of your own). The game doesn't start
-until the owner agrees. When a request is granted the launcher chimes; when it's dismissed the button flashes red and
-shows the owner's reason, if they gave one.
-
-The window is laid out for a Steam Deck's display (1280 x 800): it never opens bigger than the screen, its tabs
-scroll, and you can resize it.
-
-Under the list, on a device where setup added Steam shortcuts, is **Update <pack>'s Steam config**. It looks after this
-pack's own Steam shortcut: how it starts (through the Gatehouse launcher), its name (ending in the kind of device), its
-art and its controller layout. The button is grey while all of that matches the pack; otherwise the line beside it
-lists what would change. It is orange while Steam is running, because Steam has to be closed first: it changes Steam's
-`shortcuts.vdf` (backed up in the game folder as `shortcuts.vdf.bak-launcher`), which Steam writes itself when it
-exits. On Windows the launcher checks; inside Prism's Flatpak on Linux it can't see Steam, so it asks (on a Steam Deck
-that means Desktop Mode with Steam quit, starting the pack from Prism Launcher), and Prism's Flatpak has to be allowed
-to see that one file: setup allows it, and on a device set up before pack 1.10.3 the button gives the command to run
-once in Konsole. When it's done it starts Steam again (on Linux, by asking the desktop to open a `steam:` link) and a
-ring pulses round **Quit**. The Gatehouse launcher's own shortcut has the same button on the launcher's main window:
-**Update Gatehouse's Steam config**. A server that has no Steam shortcut yet (one set up from the
-launcher's menu) has **Add <server> to Steam** in the same place: it adds the shortcut to Steam's list (named for the
-server and the kind of device, starting it through the Gatehouse launcher), then gives it Gatehouse's art and the
-controller layout. It finds Steam through another pack's shortcut on this device, or on Windows through the registry.
-
-A second tab, **Server updates**, starts with a live line saying whether the server answers right now (with ping and
-players, or "not answering" when its PC is asleep or off), then shows what the server runs (game version, Jarvis, mods, main settings) and what changed
-there since you last played, with notes. When something on the server is new, the button reads **Next: server
-updates**: it takes you to that tab, and **Play** is there.
-
-The third tab, **Connection**, has two tabs inside: **Server controls** and **Network diagnosis**.
-
-**Server controls** is always there, and always shows how the server machine, MCSS and the Minecraft server are,
-whatever your device is allowed to do (only a blacklisted launcher isn't shown). Each permission is one of three
-things: **allowed**, **not allowed** (nobody has decided; you can ask) or **denied** (the owner said no). While you
-aren't allowed a section's buttons it has a **Request permission** button: it asks the owner on the server machine.
-The launcher chimes when it's granted; the button flashes red when it's dismissed. What the owner allows your player
-applies to all your devices, except a device that is itself denied. The tab is in three sections, each with its own status line: **Server Machine** (wake, sleep),
-**MCSS** (the server software: start, close) and **Minecraft server**. It shows whether the server is online (checked every few seconds), your **ping** to
-it as ten pips from red to green (all ten at 25 ms or less, one fewer for each step up to 500 ms), and the **players**
-connected, with these buttons (each only when it applies: Wake while the server PC isn't answering, Start while the
-server is off, Stop while it runs):
-- **Wake server machine:** wakes the server's PC if it's asleep (Wake on LAN). This works from the home network; not from
-  elsewhere.
-- **Start server:** starts the Minecraft server through the server panel, for when the PC is awake but the server is
-  off. It needs the owner's **Server control** permission for your device (set in Gatekeeper; nothing to sign
-  in to), or your own panel sign-in (Server config).
-- **Stop server:** stops the Minecraft server through the panel (the world is saved first). It asks before stopping,
-  since anyone playing is disconnected. Same access as Start. Then it watches the shutdown and says how it went: green
-  "shut down smoothly" when the server stopped and its log shows the world being saved, amber when the save couldn't
-  be confirmed or the log has errors, red when it didn't stop within 2 minutes.
-
-Below them, **MCSS (the server software)** shows whether MCSS is running on the server PC, with **Start MCSS** and
-**Close MCSS**. They need the owner's MCSS control permission (which includes Server control). Closing only works once the Minecraft server is stopped, so the world is never cut off mid-save. The
-button says how it will close MCSS, from MCSS's own close option on the server PC: **Close MCSS** when MCSS's X
-button exits it (a normal close), or **Force close MCSS** when its X button only hides it to the taskbar (MCSS is
-ended instead).
-
-**Sleep server machine** puts the server PC to sleep (MCSS stays open and carries on when it wakes). It needs its own
-permission from the owner, separate from MCSS control, and only works while the Minecraft server is stopped.
-
-A fourth tab, **Server config**, says how this device controls the server (the same line is under Start and Stop in
-Server controls): **through Gatekeeper** (the owner allowed it; nothing is saved on your device) or **with your
-panel sign-in**. When the owner allowed
-Gatekeeper way, that is the one used. The owner can remove any of them from the server PC; your device then forgets
-what it had saved. Below that is the **server panel sign-in**: username, password, **Sign in** and **Sign out**. The
-launcher keeps the key the panel hands back (in `server-access.json` in the game folder on this device only), never
-your password. You don't need it if the owner allowed your device through Gatekeeper.
-
-**Client mods** lists the pack's optional mods, each with a tick-box: untick one and it's switched off on this
-device. Only mods the game can join the server without are listed. A mod that needs another one goes off with it. A
-change is applied when the update runs again, so press **Restart** before you play. (The same switches are in the
-game, under Mod Menu.)
-
-Under that, **Gatekeeper** says which Gatekeeper this launcher talks to: the one the pack names, or one you paired
-it with. To pair with another Gatekeeper, ask its owner for the pairing address (Gatekeeper on the server machine:
-Status, **Copy pairing address**), type it in **Gatekeeper address** and press **Pair**. The launcher checks that a Gatekeeper
-answers there, introduces itself, and waits for that owner to allow it; what another Gatekeeper allowed doesn't carry
-over. **Use the pack's Gatekeeper** goes back. Your device has to be in that owner's Tailscale network.
-
-One more tab, **Remote Gatekeeper**, appears only on a device the owner has allowed **Gatekeeper control**. It has two
-tabs inside:
-- **Access Manager:** who may do what. **By launcher** lists the launchers Gatekeeper knows, with a coloured cell
-  for each permission (Server Machine, MCSS, Minecraft server): green allowed, white not allowed, red denied. Click a
-  cell to change it. **By player** lists the players the same way, plus whether each is on the server's
-  **whitelist** (click to add or remove); what you set for a player goes to all their confirmed devices, and ones
-  they join from later, except a device that is itself denied. Buttons: **Suspend** (can't start the game or use
-  any control), **Blacklist** (the same, and sees nothing about the server), **Lift**, **Kick** (a player, off the
-  server now), each with an optional reason the player is shown, plus **Remove server access** and **Forget**. None
-  of these work on a launcher or player that has Gatekeeper control.
-- **Gatekeeper activity:** whether MCSS and the Minecraft server are running right now, and Gatekeeper's activity.
-
-Gatekeeper control itself is only given on the server PC.
-
-**Network diagnosis** (the other tab inside Connection) is for when something doesn't connect. It checks in order: the internet, Tailscale on
-this device (installed, signed in, switched on), whether the server machine is in the Tailscale network this device is
-signed in to, whether the server machine answers, where updates come from, Gatekeeper, and the Minecraft server.
-The top line names the first thing to fix, and each failed line says what to do. **Open Tailscale** (Windows) and
-**Get Tailscale** open the app or its download page; **Copy details** copies the result to send to the owner. It
-only looks: it installs nothing and changes no settings. On Linux and the Steam Deck it can't ask Tailscale itself
-(Prism runs in a sandbox), so it tells from the network whether Tailscale is connected.
-
-The window stays open while the server wakes or starts: nothing closes it but you.
-
-Nothing starts the game by itself: there are no countdowns. The window waits until you press **Play** (or Enter or
-Space on it); closing the window is the same as **Quit**. With nothing new it shows the checks with "no updates".
-Offline, it says so, and Play starts the game with what's already installed. To skip the window entirely, turn off
-both pop-up switches in **Mods > Gatehouse Settings**; the game then starts straight after the update.
-
-Turn either pop-up off in **Mods > Gatehouse Settings** (**Update pop-up**, **No-update pop-up**). All the patch notes
-are in [CHANGELOG.md](CHANGELOG.md).
+Before the game starts, the update shows its steps as a checklist, and asks first when something is to be downloaded
+(how big, and where from). Nothing starts the game by itself: the window waits for **Play**. To skip the window
+entirely, turn off both pop-up switches in **Mods > Gatehouse Settings** (**Update pop-up**, **No-update pop-up**);
+the game then starts straight after the update. All the pack's patch notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## Mods you can switch on and off
 Every mod in the pack that isn't a library other mods need can be switched off: maps, recipe lookup, inventory
@@ -536,7 +311,10 @@ Same steps, with these differences:
 When you press Play, Prism runs the instance's update script ([`clients/pack-sync.ps1`](clients/pack-sync.ps1) on
 Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecraft starts. It:
 
-1. Checks each address in `pack-sources.txt` (the owner's PC over Tailscale, then GitHub), giving each 5 seconds. If
+1. Since Gatehouse 3.32.0, asks Gatehouse to fetch the update: it asks the owner's PC, GitHub and any other Gate
+   System handing the pack out all at once, takes the newest that answers well, and checks every file against the
+   pack's signed list ([Security](docs/security.md#updates-from-any-gate-system)). If that can't be done, or with an
+   older Gatehouse, it checks each address in `pack-sources.txt` (the owner's PC over Tailscale, then GitHub), giving each 5 seconds. If
    none answers (the network may still be coming up after sleep), it waits 5 seconds and checks again. If none answers
    then, the game starts with what's already installed, except on the very first launch:
    with no mods installed yet, it stops the launch with a message instead of starting a Minecraft that can't join the
@@ -556,8 +334,7 @@ Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecra
 5. Makes sure the October Journey server is in your server list, if `pack-options.json` says to. If you edit or delete that entry in the game, it's
    left as you set it.
 6. Replaces itself with the pack's newest copy of the script, for the next launch.
-7. Shows the [launch pop-up](#before-the-game-starts-the-launch-pop-up) (`extras/launch-popup.jar`, run with the same
-   Java) and waits for it to close. It notes the pack version it showed in `pack-version-seen.txt`, and what this
+7. Shows the server's page in Gatehouse (`extras/launch-popup.jar`, run with the same Java) and waits for **Play**. It notes the pack version it showed in `pack-version-seen.txt`, and what this
    launch changed on your device in `pack-sync-news.txt`.
 8. Writes one line per step to `pack-sync.log` in the instance's `minecraft` folder, and packwiz-installer's own output
    to `pack-sync-java.log` beside it. If the mods ever fail to install, those two files say why.
@@ -569,9 +346,10 @@ Windows, [`clients/pack-sync.sh`](clients/pack-sync.sh) on Linux) before Minecra
 | `github.com/PrismLauncher/PrismLauncher/releases` | Windows setup, only if Prism isn't installed | Prism Launcher installer |
 | `dl.flathub.org` | Linux setup, only if Prism isn't installed | Prism Launcher |
 | `github.com/packwiz/packwiz-installer` | launches | packwiz-installer-bootstrap fetches and updates packwiz-installer itself |
-| `100.91.134.102:8467` | launches | the pack, served from the owner's PC; only reachable through Tailscale |
+| The owner's PC's Tailscale address, port 8467 | launches | the pack, served from the owner's PC; only reachable through Tailscale |
+| Other Gate Systems' Tailscale addresses | launches (Gatehouse 3.32.0 or newer) | the pack, handed out by another device of the same Gatekeeper; every file checked |
 | `cdn.modrinth.com` | launches | the mods listed in [docs/mods.md](docs/mods.md) |
-| `100.91.134.102:25565` | when you join | the Minecraft server, through Tailscale |
+| The owner's PC's Tailscale address, port 25565 | when you join | the Minecraft server, through Tailscale |
 
 Prism Launcher also talks to Microsoft (sign-in), Mojang (Minecraft) and Fabric, as it does for any instance. Nothing
 in this pack sends anything about you anywhere.
@@ -584,7 +362,7 @@ removed. Steam has to be closed if you remove anything of Steam's; they ask. Not
 
 | Operating system | Already installed by setup | Or download it | Source |
 | --- | --- | --- | --- |
-| **Windows** | **Settings**, **Apps**, **October Journey (Minecraft modpack)**, **Uninstall** | [GatehouseUninstall.exe](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseUninstall.exe) | [`OctoberJourneyUninstall.cs`](installer/windows/OctoberJourneyUninstall.cs) |
+| **Windows** | **Settings**, **Apps**, **October Journey (Minecraft modpack)**, **Uninstall** | [GatehouseUninstall.exe](https://github.com/scholar-andrew/gatehouse/releases/latest/download/GatehouseUninstall.exe) | [`GatehouseUninstall.cs`](installer/windows/GatehouseUninstall.cs) |
 | **Linux**, including **Steam Deck** | **Uninstall October Journey** in the app menu (Steam Deck: Desktop Mode) | [gatehouse-uninstall.sh](https://github.com/scholar-andrew/gatehouse/releases/latest/download/gatehouse-uninstall.sh), then `bash gatehouse-uninstall.sh` | [`gatehouse-uninstall.sh`](installer/linux/gatehouse-uninstall.sh) |
 
 The downloaded copy works too on a setup made before setup saved the uninstaller.

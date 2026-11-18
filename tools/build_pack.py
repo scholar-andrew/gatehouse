@@ -371,6 +371,10 @@ def main() -> None:
     if not os.environ.get("OJ_DIST"):
         write_mod_list(src["pack"], src["mods"], {"mods": sorted(m["file"] for m in load_server()[0].get("mods", {}).values())})
         write_changelog_md(load_changelog(src["pack"]))
+        if not PROFILE:   # (the program's own versions: docs/version-history.md)
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import version_history
+            version_history.write(ROOT)
 
 
 if __name__ == "__main__":
