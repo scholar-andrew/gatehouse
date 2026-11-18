@@ -36,6 +36,7 @@ The **menu** at the top left has the rest:
 | **Constellation**, **Systems**, **History of servers** | [Below](#updates-and-constellations). |
 | **Options** | Pictures, update mode, notifications, the status page, starting servers with Gatekeeper, ending and uninstalling. |
 | **Setup guide**, **Play or Host** | The steps one at a time; which halves this machine has. |
+| **User guide**, **GitHub page** | Open the [user guide](user-guide.md) or the program's GitHub page in your browser (the web panel's menu has them too). |
 
 ## Servers
 

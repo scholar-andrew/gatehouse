@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 470" width="960" height="470" font-family="Segoe UI, -apple-system, Helvetica, Arial, sans-serif">
+  <title>How Gatehouse and Gatekeeper fit together</title>
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9fb0c3"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="470" rx="18" fill="#121b28"/>
+
+  <!-- players -->
+  <text x="40" y="48" fill="#e6edf5" font-size="20" font-weight="700">Players' devices</text>
+  <text x="40" y="72" fill="#9fb0c3" font-size="14">Each one has Gatehouse (Play)</text>
+  <g>
+    <rect x="40" y="92" width="250" height="92" rx="12" fill="#22324a" stroke="#34496a"/>
+    <text x="60" y="124" fill="#e6edf5" font-size="17" font-weight="600">Windows PC</text>
+    <rect x="60" y="138" width="98" height="28" rx="8" fill="#3a3112" stroke="#f2b705"/>
+    <text x="109" y="157" fill="#f7cf4d" font-size="13" font-weight="700" text-anchor="middle">Gatehouse</text>
+    <text x="170" y="157" fill="#9fb0c3" font-size="13">+ Prism Launcher</text>
+  </g>
+  <g>
+    <rect x="40" y="198" width="250" height="92" rx="12" fill="#22324a" stroke="#34496a"/>
+    <text x="60" y="230" fill="#e6edf5" font-size="17" font-weight="600">Laptop</text>
+    <rect x="60" y="244" width="98" height="28" rx="8" fill="#3a3112" stroke="#f2b705"/>
+    <text x="109" y="263" fill="#f7cf4d" font-size="13" font-weight="700" text-anchor="middle">Gatehouse</text>
+    <text x="170" y="263" fill="#9fb0c3" font-size="13">+ Prism Launcher</text>
+  </g>
+  <g>
+    <rect x="40" y="304" width="250" height="92" rx="12" fill="#22324a" stroke="#34496a"/>
+    <text x="60" y="336" fill="#e6edf5" font-size="17" font-weight="600">Steam Deck</text>
+    <rect x="60" y="350" width="98" height="28" rx="8" fill="#3a3112" stroke="#f2b705"/>
+    <text x="109" y="369" fill="#f7cf4d" font-size="13" font-weight="700" text-anchor="middle">Gatehouse</text>
+    <text x="170" y="369" fill="#9fb0c3" font-size="13">+ Prism Launcher</text>
+  </g>
+
+  <!-- tailscale -->
+  <rect x="340" y="92" width="260" height="304" rx="16" fill="#172536" stroke="#3d5a80" stroke-dasharray="7 6"/>
+  <text x="470" y="128" fill="#e6edf5" font-size="18" font-weight="700" text-anchor="middle">Tailscale</text>
+  <text x="470" y="152" fill="#9fb0c3" font-size="13.5" text-anchor="middle">A private network between</text>
+  <text x="470" y="170" fill="#9fb0c3" font-size="13.5" text-anchor="middle">the host's machine and the</text>
+  <text x="470" y="188" fill="#9fb0c3" font-size="13.5" text-anchor="middle">devices the host lets in.</text>
+  <text x="470" y="218" fill="#3fbf6f" font-size="13.5" font-weight="600" text-anchor="middle">Nothing is opened to the internet.</text>
+  <line x1="300" y1="250" x2="630" y2="250" stroke="#9fb0c3" stroke-width="2" marker-start="url(#arr)" marker-end="url(#arr)"/>
+  <text x="470" y="280" fill="#c9d6e4" font-size="13" text-anchor="middle">see the servers · install packs</text>
+  <text x="470" y="299" fill="#c9d6e4" font-size="13" text-anchor="middle">chat · ask for permission</text>
+  <text x="470" y="318" fill="#c9d6e4" font-size="13" text-anchor="middle">start the game</text>
+  <text x="470" y="370" fill="#9fb0c3" font-size="12.5" text-anchor="middle" font-style="italic">Every update is checked and signed.</text>
+
+  <!-- host -->
+  <text x="650" y="48" fill="#e6edf5" font-size="20" font-weight="700">The host's machine</text>
+  <text x="650" y="72" fill="#9fb0c3" font-size="14">Has Gatekeeper (Host)</text>
+  <rect x="650" y="92" width="270" height="200" rx="12" fill="#22324a" stroke="#34496a"/>
+  <rect x="670" y="110" width="110" height="28" rx="8" fill="#13304a" stroke="#5ab4f0"/>
+  <text x="725" y="129" fill="#8dd0ff" font-size="13" font-weight="700" text-anchor="middle">Gatekeeper</text>
+  <text x="670" y="164" fill="#e6edf5" font-size="14">Decides who may do what</text>
+  <text x="670" y="186" fill="#9fb0c3" font-size="13">Runs in the background</text>
+  <rect x="670" y="204" width="230" height="30" rx="7" fill="#1a2738"/>
+  <circle cx="686" cy="219" r="5" fill="#3fbf6f"/>
+  <text x="698" y="224" fill="#c9d6e4" font-size="13">Minecraft server</text>
+  <rect x="670" y="242" width="230" height="30" rx="7" fill="#1a2738"/>
+  <circle cx="686" cy="257" r="5" fill="#7c8899"/>
+  <text x="698" y="262" fill="#c9d6e4" font-size="13">Another server</text>
+
+  <!-- phone -->
+  <rect x="650" y="306" width="270" height="90" rx="12" fill="#22324a" stroke="#34496a"/>
+  <rect x="668" y="320" width="34" height="60" rx="7" fill="#1a2738" stroke="#5ab4f0"/>
+  <rect x="676" y="330" width="18" height="34" rx="2" fill="#2e4766"/>
+  <text x="716" y="340" fill="#e6edf5" font-size="15" font-weight="600">Your phone</text>
+  <text x="716" y="360" fill="#9fb0c3" font-size="13">Web panel and alerts,</text>
+  <text x="716" y="377" fill="#9fb0c3" font-size="13">also over Tailscale</text>
+
+  <text x="40" y="440" fill="#9fb0c3" font-size="13.5">A host who also plays has both halves on one machine. They link by themselves.</text>
+</svg>

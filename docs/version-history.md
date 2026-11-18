@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.36.0 - 2026-11-18
+
+- A user guide (R43): an easy, step-by-step guide with pictures of every screen, for playing, hosting, inviting a friend, your phone, updates, the Steam Deck and when something goes wrong. It is on GitHub (docs/user-guide.md).
+- Links to it and to the program's GitHub page (R44): User guide and GitHub page in the menu of Gatehouse, of Gatekeeper and of Gatekeeper's web panel. Where a system doesn't open a browser, the address is shown to copy.
+
 ## 3.35.6 - 2026-11-18
 
 - Update notifications: an update Gatekeeper was holding to gather into one message is no longer lost when Gatekeeper restarts for its own update. It is kept, and sent a minute after Gatekeeper starts again, together with Gatekeeper's own update (in the test of 3.35.5 the Deck's update went missing this way).

@@ -535,6 +535,11 @@ function start(who) {
   // the menu: its pages this account may see, and who is signed in
   const dr = $('drawer'); dr.replaceChildren(el('div', 'drawer-head', 'MENU'));
   inSection('MENU').forEach(k => { const b = button(views[k].name, () => show(k)); b.dataset.page = k; dr.appendChild(b); });
+  // help: the user guide and the program's GitHub page, in a new tab (R43, R44)
+  dr.appendChild(el('div', 'drawer-head', 'HELP'));
+  [['User guide', 'https://github.com/scholar-andrew/gatehouse/blob/main/docs/user-guide.md'], ['GitHub page', 'https://github.com/scholar-andrew/gatehouse']].forEach(([name, href]) => {
+    const a = el('a', 'drawer-link', name); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; dr.appendChild(a);
+  });
   dr.appendChild(el('div', 'drawer-foot', null, [el('span', '', 'Signed in as ' + me.user + (me.admin ? ' (admin)' : '')), el('span', 'dim', 'Gatekeeper ' + me.version + ' · ' + me.gatekeeper), button('Sign out', signOut, 'quiet')]));
   $('more').classList.remove('hidden');
   const first = SECTIONS.map(s => inSection(s)[0]).find(Boolean);

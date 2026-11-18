@@ -13,12 +13,13 @@ halves:
 Devices talk over the host's private [Tailscale](https://tailscale.com/) network, so nothing is opened to the
 internet. Every update is checked against its published checksum and release signature.
 
-Current version: **Gatehouse 3.35.6**, both halves.
+Current version: **Gatehouse 3.36.0**, both halves.
 
 ## Start here
 
 | | |
 | --- | --- |
+| **[User guide](docs/user-guide.md)** | The easy way in: playing, hosting and your phone, step by step with pictures |
 | **[Getting started](docs/getting-started.md)** | Installing, your first server, inviting friends |
 | **[Using Gatehouse](docs/gatehouse.md)** | Play: the window, a server's page, updates, controllers |
 | **[Using Gatekeeper](docs/gatekeeper.md)** | Host: every page and option |

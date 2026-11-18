@@ -1,5 +1,7 @@
 # Getting started
 
+> New here? The [user guide](user-guide.md) covers the same ground step by step, with pictures.
+
 Gatehouse gets a group of friends onto the same Minecraft server. It is one program with two halves:
 
 | | **Play**: the Gatehouse launcher | **Host**: Gatekeeper |

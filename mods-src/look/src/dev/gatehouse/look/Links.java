@@ -23,6 +23,9 @@ import javax.swing.JTextField;
 public final class Links {
 	private Links() {}
 	static final boolean WIN = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+	/** The program's home on GitHub, and the user guide there (R43, R44): both halves link to them from their menus. */
+	public static final String REPO = "https://github.com/scholar-andrew/gatehouse";
+	public static final String GUIDE = REPO + "/blob/main/docs/user-guide.md";
 
 	/** Opens a web address in the person's browser. False when nothing on this system took it. */
 	public static boolean open(String url) {

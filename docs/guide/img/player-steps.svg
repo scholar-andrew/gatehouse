@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 230" width="960" height="230" font-family="Segoe UI, -apple-system, Helvetica, Arial, sans-serif">
+  <title>A player's six steps from nothing to playing</title>
+  <rect x="0" y="0" width="960" height="230" rx="18" fill="#121b28"/>
+  <text x="32" y="44" fill="#e6edf5" font-size="20" font-weight="700">Playing: six steps, once</text>
+  <text x="32" y="68" fill="#9fb0c3" font-size="14">Gatehouse's setup guide walks you through them and ticks each one by itself.</text>
+  <g font-size="14">
+    <g transform="translate(32,92)">
+      <rect width="140" height="112" rx="12" fill="#22324a" stroke="#34496a"/>
+      <circle cx="26" cy="28" r="15" fill="#f2b705"/><text x="26" y="33" fill="#121b28" font-weight="800" text-anchor="middle">1</text>
+      <text x="14" y="70" fill="#e6edf5" font-weight="600">Install</text><text x="14" y="90" fill="#9fb0c3" font-size="12.5">Gatehouse</text>
+    </g>
+    <g transform="translate(184,92)">
+      <rect width="140" height="112" rx="12" fill="#22324a" stroke="#34496a"/>
+      <circle cx="26" cy="28" r="15" fill="#f2b705"/><text x="26" y="33" fill="#121b28" font-weight="800" text-anchor="middle">2</text>
+      <text x="14" y="70" fill="#e6edf5" font-weight="600">Prism</text><text x="14" y="90" fill="#9fb0c3" font-size="12.5">Launcher, found</text>
+    </g>
+    <g transform="translate(336,92)">
+      <rect width="140" height="112" rx="12" fill="#22324a" stroke="#34496a"/>
+      <circle cx="26" cy="28" r="15" fill="#f2b705"/><text x="26" y="33" fill="#121b28" font-weight="800" text-anchor="middle">3</text>
+      <text x="14" y="70" fill="#e6edf5" font-weight="600">Sign in</text><text x="14" y="90" fill="#9fb0c3" font-size="12.5">Minecraft, in Prism</text>
+    </g>
+    <g transform="translate(488,92)">
+      <rect width="140" height="112" rx="12" fill="#22324a" stroke="#34496a"/>
+      <circle cx="26" cy="28" r="15" fill="#f2b705"/><text x="26" y="33" fill="#121b28" font-weight="800" text-anchor="middle">4</text>
+      <text x="14" y="70" fill="#e6edf5" font-weight="600">Add</text><text x="14" y="90" fill="#9fb0c3" font-size="12.5">the host's link</text>
+    </g>
+    <g transform="translate(640,92)">
+      <rect width="140" height="112" rx="12" fill="#22324a" stroke="#34496a"/>
+      <circle cx="26" cy="28" r="15" fill="#f2b705"/><text x="26" y="33" fill="#121b28" font-weight="800" text-anchor="middle">5</text>
+      <text x="14" y="70" fill="#e6edf5" font-weight="600">Connect</text><text x="14" y="90" fill="#9fb0c3" font-size="12.5">Tailscale + allowed</text>
+    </g>
+    <g transform="translate(792,92)">
+      <rect width="136" height="112" rx="12" fill="#1d3a2a" stroke="#3fbf6f"/>
+      <circle cx="26" cy="28" r="15" fill="#3fbf6f"/><text x="26" y="33" fill="#121b28" font-weight="800" text-anchor="middle">6</text>
+      <text x="14" y="70" fill="#e6edf5" font-weight="600">Play</text><text x="14" y="90" fill="#9fb0c3" font-size="12.5">Install, Launch, Play</text>
+    </g>
+  </g>
+</svg>

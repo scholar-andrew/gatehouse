@@ -29,6 +29,7 @@ The **menu** (the three lines at the top left, a controller's View button, or **
 | **Options** | About this Gatehouse, and Uninstall. |
 | **Setup guide** | The steps from nothing to playing, each ticking by itself when done. |
 | **Play or Host** | Which halves this device has, opening either, and setting up the one it doesn't have yet. |
+| **User guide**, **GitHub page** | Open the [user guide](user-guide.md) or the program's GitHub page in your browser. |
 
 A strip along the bottom shows the version and update mode on the left, and what the buttons do on the right: **A**
 (Enter) presses what is selected, **B** (Esc) goes back, **X** Open Prism Launcher, **Y** Restart, **Start** Quit. It

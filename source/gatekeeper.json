@@ -1,8 +1,12 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.35.6",
+ "version": "3.36.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.36.0", "date": "2026-11-18", "notes": [
+   "A user guide (R43): an easy, step-by-step guide with pictures of every screen, for playing, hosting, inviting a friend, your phone, updates, the Steam Deck and when something goes wrong. It is on GitHub (docs/user-guide.md).",
+   "Links to it and to the program's GitHub page (R44): User guide and GitHub page in the menu of Gatehouse, of Gatekeeper and of Gatekeeper's web panel. Where a system doesn't open a browser, the address is shown to copy."
+  ]},
   {"version": "3.35.6", "date": "2026-11-18", "notes": [
    "Update notifications: an update Gatekeeper was holding to gather into one message is no longer lost when Gatekeeper restarts for its own update. It is kept, and sent a minute after Gatekeeper starts again, together with Gatekeeper's own update (in the test of 3.35.5 the Deck's update went missing this way)."
   ]},
