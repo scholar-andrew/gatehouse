@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.35.1",
+ "version": "3.35.2",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.35.2", "date": "2026-11-18", "notes": [
+   "Phone notifications can be set from the web panel (menu, Options), for admin accounts: turn them on, choose which kinds, see and copy the topic, open it straight in the ntfy app on your phone with Subscribe on this phone, make a new topic, send a test, and choose which servers start again after a crash."
+  ]},
   {"version": "3.35.1", "date": "2026-11-18", "notes": [
    "Systems (web panel): one card for each machine, marked with the halves of Gate System it has: Gatehouse, Gatekeeper, or both, with a line for each (where it is now, its version and update mode). A half on an older version than this Gatekeeper is marked update ready.",
    "A machine's battery now also comes from its Gatekeeper, so a Steam Deck with Gatekeeper shows it even when its Gatehouse is closed or not yet updated. A Gatekeeper that joined another passes on its own launchers' battery, ping and where they are too."

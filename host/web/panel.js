@@ -252,6 +252,7 @@ const views = {
     const line = el('div', 'card row', null, [el('div', 'grow', null, [el('h3', '', 'Gatekeeper ' + (u.own || me.version)), el('div', u.outdated ? 'amber' : 'grey', u.outdated ? u.newest + (u.blocking === false ? ' is out. This version still works with it: nothing is held up.' : ' is out. Until it is updated Gatekeeper starts no server.') : 'Up to date.')])]);
     if (u.outdated) line.appendChild(button('Update Gatekeeper', () => act('update', {}, '', 'Update Gatekeeper now? It restarts itself; this page answers again in under a minute.', 'Update'), 'primary'));
     v.appendChild(line);
+    v.appendChild(await notifyCard());
     if (me.host === 'builtin') {
       const n = await api('GET', 'tools/new');
       const name = el('input'), kind = el('select'), ver = el('select'), mem = el('input'), eula = el('input'), said = el('p', 'said');
@@ -271,6 +272,48 @@ const views = {
     $('view').replaceChildren(v);
   } }
 };
+// Phone notifications (ntfy), set from the panel as in Gatekeeper's Options: on or off, which kinds, the server, the
+// topic (shown, copied, or opened straight in the ntfy app on this phone), a new topic, a test, and which servers are
+// started again after a crash. Admin accounts only: the topic works like a password.
+async function notifyCard() {
+  const n = await api('GET', 'notify'), c = el('div', 'card notify');
+  c.appendChild(el('h3', '', 'Phone notifications'));
+  c.appendChild(el('p', 'note small', 'Through ntfy (free, no account): install the ntfy app on your phone, subscribe to the topic below, and press Send a test. Only names and a sentence are sent (for chat, who wrote and the start of the message). The topic works like a password: keep it to yourself.'));
+  if (n.message && !('on' in n)) { c.appendChild(el('p', 'red', n.message)); return c; }
+  const said = el('p', 'said');
+  const save = async patch => { say({ message: 'Saving…' }, said); const r = await api('POST', 'notify', patch); say({ result: r.message ? 'refused' : 'ok', message: r.message || 'Saved.' }, said); };
+  const sw = (label, key, on) => { const b = el('input'); b.type = 'checkbox'; b.checked = !!on; b.addEventListener('change', () => save({ [key]: b.checked })); return el('label', 'row switchrow', null, [b, el('span', '', label)]); };
+  const main = sw('Send notifications to my phone', 'on', n.on);
+  c.appendChild(main);
+  const kinds = el('div', 'kinds', null, [sw('When a friend joins a server', 'join', n.join), sw('When a server goes down', 'down', n.down),
+    sw('When an update needs me (or Gatekeeper restarted itself)', 'update', n.update), sw('When someone writes in chat (at most one a minute for each room)', 'chat', n.chat)]);
+  c.appendChild(kinds);
+  // the topic, and subscribing to it from this very phone
+  const host = (n.url || 'https://ntfy.sh').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  if (n.topic) {
+    const t = el('code', 'topic', n.topic), copy = button('Copy', async () => { try { await navigator.clipboard.writeText(n.topic); say({ result: 'ok', message: 'Topic copied.' }, said); } catch (e) { say({ result: 'refused', message: 'Copying isn’t allowed here: select the topic and copy it.' }, said); } }, 'quiet small');
+    const sub = el('a', 'btn-link', 'Subscribe on this phone'); sub.href = 'ntfy://' + host + '/' + encodeURIComponent(n.topic); sub.title = 'Opens the ntfy app on this phone with the topic filled in (the app has to be installed)';
+    c.appendChild(el('div', 'topicrow', null, [el('span', 'grey small', 'Topic'), t, copy, sub]));
+  } else c.appendChild(el('p', 'note small', 'No topic yet: turning notifications on makes one.'));
+  // the server, a new topic, a test
+  const url = el('input', 'grow'); url.value = n.url || 'https://ntfy.sh'; url.autocapitalize = 'none'; url.spellcheck = false; url.setAttribute('aria-label', 'ntfy server');
+  c.appendChild(el('div', 'row', null, [el('span', 'grey small', 'Server'), url, button('Save', () => save({ url: url.value.trim() }), 'quiet small')]));
+  c.appendChild(el('div', 'row', null, [
+    button('Send a test', async () => { say({ message: 'Sending…' }, said); const r = await api('POST', 'notify/test', {}); say(r, said); }, 'primary'),
+    button('New topic', async () => { if (!(await confirmSheet('Make a new topic? Phones subscribed to the old one stop getting notifications until they subscribe to the new one.', 'New topic', true))) return; await api('POST', 'notify/topic', {}); views.gatekeeper.draw(); }, 'quiet')]));
+  if (n.last) c.appendChild(el('p', 'note small', 'Last test: ' + n.last));
+  // crash watch: which servers are started again when they go down
+  if ((n.servers || []).length) {
+    c.appendChild(el('h3', 'sub2', 'Start again after a crash'));
+    n.servers.forEach(s => { const b = el('input'); b.type = 'checkbox'; b.checked = !!s.keep; b.addEventListener('change', async () => { say({ message: 'Saving…' }, said); await api('POST', 'notify/keep', { server: s.id, on: b.checked }); say({ result: 'ok', message: b.checked ? s.name + ' is started again when it goes down (at most three times in ten minutes).' : s.name + ' is left off when it goes down.' }, said); }); c.appendChild(el('label', 'row switchrow', null, [b, el('span', '', s.name)])); });
+  }
+  c.appendChild(said);
+  const dim = () => { kinds.classList.toggle('off', !main.querySelector('input').checked); };
+  main.querySelector('input').addEventListener('change', () => { dim(); if (main.querySelector('input').checked && !n.topic) setTimeout(() => views.gatekeeper.draw(), 600); });
+  dim();
+  return c;
+}
+
 // (in game first, then online, then offline)
 // (the newest version this Gatekeeper knows of: a half older than it is marked "update ready")
 let newestSeen = '';

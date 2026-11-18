@@ -66,6 +66,8 @@ final class WebPanel {
 		ALLOWED.put("GET glance", "updates");   // (R42: every Gate System at a glance, the Systems page)
 		ALLOWED.put("GET share/list", "access");   // (R42: the files offered in a chat room; fetched through /panel/file)
 		for (String c : new String[] {"GET update", "POST update", "GET tools/new", "POST tools/new", "POST tools/versions"}) ALLOWED.put(c, "admin");
+		// (phone notifications, set from the panel too; admin accounts only, since the topic works like a password)
+		for (String c : new String[] {"GET notify", "POST notify", "POST notify/topic", "POST notify/test", "POST notify/keep"}) ALLOWED.put(c, "admin");
 	}
 	/** Things in a call's body that only the machine's own window may set (they name a program or a place on its disk). */
 	static final List<String> MACHINE_ONLY = List.of("start", "java", "backup_dir", "file", "add", "remove");

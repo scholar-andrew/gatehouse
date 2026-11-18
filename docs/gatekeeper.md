@@ -170,7 +170,8 @@ no buttons, no addresses or folders. Off until you turn it on.
 Options shows. You choose which: a friend joins a server, a server goes down, an update needs you (or Gatekeeper froze
 and restarted itself), and someone writes in chat (at most one a minute for each room). What is sent is the server's
 and player's names and a sentence; for chat, who wrote, the room and the first 140 characters of the message. Off until
-you turn it on.
+you turn it on. An admin account can set all of this from the web panel too (menu, Options): turn it on, pick the
+kinds, see and copy the topic, open it straight in the ntfy app on that phone, make a new topic, and send a test.
 
 ## Updates and constellations
 

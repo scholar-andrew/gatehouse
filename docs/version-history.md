@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.35.2 - 2026-11-18
+
+- Phone notifications can be set from the web panel (menu, Options), for admin accounts: turn them on, choose which kinds, see and copy the topic, open it straight in the ntfy app on your phone with Subscribe on this phone, make a new topic, send a test, and choose which servers start again after a crash.
+
 ## 3.35.1 - 2026-11-18
 
 - Systems (web panel): one card for each machine, marked with the halves of Gate System it has: Gatehouse, Gatekeeper, or both, with a line for each (where it is now, its version and update mode). A half on an older version than this Gatekeeper is marked update ready.
