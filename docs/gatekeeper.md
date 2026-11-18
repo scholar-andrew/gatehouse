@@ -141,7 +141,7 @@ keep it on its home screen (Share, Add to Home Screen; or the browser's menu, In
 
 | Section | What is there |
 |---|---|
-| **Systems** | Every Gate System at a glance: this Gatekeeper (its servers and who is on each, whether an update is ready, requests waiting on you), then a card for each launcher and Gatekeeper in its constellation: in game and on which server, in the launcher, or offline; its version and update mode; its ping to this Gatekeeper; its battery (a laptop or a Steam Deck); whether it hands out pack updates; when it was last seen. Filters: All, Online, In game. Needs *See the constellation*. |
+| **Systems** | Every Gate System at a glance: this Gatekeeper (its servers and who is on each, whether an update is ready, requests waiting on you), then a card for each machine in its constellation, marked with the halves it has (Gatehouse, Gatekeeper, or both), with a line for each: in game and on which server, in the launcher, or offline; its version and update mode; its ping to this Gatekeeper; its battery (a laptop or a Steam Deck); whether it hands out pack updates; when it was last seen. Filters: All, Online, In game. Needs *See the constellation*. |
 | **Servers** | Start, stop and restart; a server's console, backups and tasks. |
 | **Players** | Players and the whitelist; launchers, their requests and permissions. |
 | **Chat** | Every room as a chip with a count of new messages, the messages as bubbles, pictures shown in the page and other files to save. You write as Host. |

@@ -47,6 +47,8 @@ final class Systems {
 	private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 	private static final Map<String, Map<String, Object>> told = new ConcurrentHashMap<>();   // (device id -> what it last reported, and when)
 	private static volatile List<Object> leadRows = new ArrayList<>();
+	/** R42: which system (machine) each device this Gatekeeper knows belongs to, as rows() last worked it out. */
+	static final Map<String, String> systemOf = new ConcurrentHashMap<>();
 	private static volatile long leadAsked = 0, leadHeard = 0;
 
 	static String me() { return History.me(); }
@@ -118,6 +120,7 @@ final class Systems {
 			if (ServerTools.yes(d.get("local"))
 					&& !keeper) {   // (this machine's own launcher: the other half of this system, and the systems it meets at other Gatekeepers are this system's neighbors too)
 				self.put("gatehouse", true);
+				systemOf.put(e.getKey(), mine);
 				if (t != null) subs(out, mine, mine, "this machine's launcher", t, same);
 				continue;
 			}
@@ -126,6 +129,7 @@ final class Systems {
 			if (sid.isEmpty()) sid = id(e.getKey());
 			if (!keeper) { if (same.containsKey(id(d.get("install")))) sid = same.get(id(d.get("install"))); else if (same.containsKey(id(e.getKey()))) sid = same.get(id(e.getKey())); else sid = same.getOrDefault(sid, sid); }
 			if (sid.isEmpty()) continue;
+			systemOf.put(e.getKey(), sid);
 			if (sid.equals(mine)) { if (!keeper) self.put("gatehouse", true); continue; }
 			boolean in = inside(d) && banOf(d)[0].isEmpty();
 			Map<String, Object> r = out.computeIfAbsent(sid, k -> row(k, "", ""));

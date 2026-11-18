@@ -111,28 +111,32 @@ const views = {
     const r = await api('GET', 'glance');
     if (current !== 'systems' || !r.gatekeeper) { if (r.message && current === 'systems') say(r); return; }
     const g = r.gatekeeper, v = el('div');
-    // this Gatekeeper, and what waits on its owner
+    newestSeen = g.newest && g.version && older(g.version, g.newest) ? g.newest : (g.version || g.newest || '');
+    // this machine: its Gatekeeper (and its own Gatehouse, when it has one), and what waits on its owner
     const hero = el('div', 'card hero', null, [el('div', 'top', null, [el('div', 'glyph', null, [icon(ICONS.keeper)]),
-      el('div', 'grow', null, [el('h3', '', g.name), el('div', 'note small', 'Gatekeeper ' + g.version + ' · ' + g.system + (modeWord(g.mode) ? ' · ' + modeWord(g.mode) + ' updates' : ''))])])]);
+      el('div', 'grow', null, [el('div', 'name', null, [el('h3', '', g.name), el('span', 'tag', 'This machine')]), halvesLine(true, !!g.gatehouse), el('div', 'note small', g.system + (modeWord(g.mode) ? ' · ' + modeWord(g.mode) + ' updates' : ''))])])]);
+    hero.appendChild(halfLine('Gatekeeper', { now: 'Online', version: g.version }));
+    if (g.gatehouse) hero.appendChild(halfLine('Gatehouse', g.gatehouse));
     const f = el('div', 'facts');
     f.appendChild(g.update_ready ? fact(g.newest + ' is out', 'warn', ICONS.updates) : fact('Up to date', 'good'));
     if (g.requests) { const q = fact(g.requests + (g.requests === 1 ? ' request' : ' requests') + ' waiting', 'bad'); if (can('access')) { q.classList.add('tap'); q.addEventListener('click', () => show('access')); } f.appendChild(q); }
+    if (g.battery) f.appendChild(batteryFact(g.battery));
     if (g.hands_out) f.appendChild(fact(g.hands_out, 'info', ICONS.share));
     hero.appendChild(f);
     (g.servers || []).forEach(s => hero.appendChild(el('div', 'serverline', null, [el('span', phaseClass(s) + ' state', s.name), el('span', 'who', s.running ? (s.players.length ? s.players.join(', ') : 'Nobody playing') : phaseWord(s))])));
     v.appendChild(hero);
-    // every client of the constellation, as cards; the filter chips count them
-    const all = (r.systems || []).slice().sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
-    const inGame = all.filter(s => s.now === 'In game'), up = all.filter(s => s.now !== 'Offline');
+    // every other machine of the constellation, as cards; the filter chips count them
+    const all = (r.machines || []).slice().sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+    const inGame = all.filter(m => m.gatehouse && m.gatehouse.now === 'In game'), up = all.filter(m => !offline(m));
     const st = views.systems, chips = el('div', 'chips');
     [['all', 'All', all.length], ['up', 'Online', up.length], ['game', 'In game', inGame.length]].forEach(([k, label, n]) => {
       const b = button(label + '  ' + n, () => { st.filter = k; st.draw(); }, st.filter === k ? 'on' : ''); chips.appendChild(b);
     });
     v.appendChild(chips);
     const list = st.filter === 'game' ? inGame : st.filter === 'up' ? up : all, grid = el('div', 'grid');
-    list.forEach(s => grid.appendChild(systemCard(s)));
-    v.appendChild(list.length ? grid : el('div', 'card empty', st.filter === 'all' ? 'No launchers or Gatekeepers have connected yet.' : 'None right now.'));
-    v.appendChild(el('p', 'note small center', 'Asked again every few seconds. Ping is how long each one\'s last word to this Gatekeeper took; the battery is told by laptops and Steam Decks.'));
+    list.forEach(m => grid.appendChild(machineCard(m)));
+    v.appendChild(list.length ? grid : el('div', 'card empty', st.filter === 'all' ? 'No other machines have connected yet.' : 'None right now.'));
+    v.appendChild(el('p', 'note small center', 'One card for each machine, with the halves of Gate System it has: Gatehouse (to play), Gatekeeper (to host), or both. Asked again every few seconds. Ping is how long its last word to this Gatekeeper took; laptops and Steam Decks tell their battery.'));
     stable($('view'), v);
   } },
   servers: { name: 'Servers', section: 'SERVERS', needs: 'view', every: 4000, async draw() {
@@ -267,27 +271,47 @@ const views = {
     $('view').replaceChildren(v);
   } }
 };
-// (in game first, then open, then offline; a Gatekeeper before its launchers)
-function rank(s) { return (s.now === 'In game' ? 0 : s.now === 'Offline' ? 2 : 1) * 2 + (s.type === 'Gatekeeper' ? 0 : 1); }
-function systemCard(s) {
-  const keeper = s.type === 'Gatekeeper', where = s.now || 'Offline';
-  const cls = where === 'In game' ? 'ingame' : where === 'Offline' ? 'off' : 'open';
+// (in game first, then online, then offline)
+// (the newest version this Gatekeeper knows of: a half older than it is marked "update ready")
+let newestSeen = '';
+const older = (a, b) => { const x = a.split('.').map(n => parseInt(n, 10) || 0), y = b.split('.').map(n => parseInt(n, 10) || 0); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); } return false; };
+const offline = m => (!m.gatehouse || m.gatehouse.now === 'Offline') && (!m.gatekeeper || m.gatekeeper.now === 'Offline');
+function rank(m) { return m.gatehouse && m.gatehouse.now === 'In game' ? 0 : offline(m) ? 2 : 1; }
+// Which halves a machine has, as badges: Gatehouse, Gatekeeper, or both.
+function halvesLine(keeper, house) {
+  const l = el('div', 'halves');
+  if (house) l.appendChild(el('span', 'half house', null, [icon(ICONS.launcher), el('span', '', 'Gatehouse')]));
+  if (keeper) l.appendChild(el('span', 'half keeper', null, [icon(ICONS.keeper), el('span', '', 'Gatekeeper')]));
+  return l;
+}
+// One half's line: where it is now (in game on which server, in the launcher, online, offline), its version and update mode.
+function halfLine(which, h) {
+  const where = h.now || 'Offline', cls = where === 'In game' ? 'green' : where === 'Offline' ? 'grey' : 'blue';
+  const line = el('div', 'halfline', null, [el('span', 'which', which), el('span', cls + ' state', where + (h.server ? ' on ' + h.server : ''))]);
+  const behind = h.version && newestSeen && older(h.version, newestSeen);
+  const meta = [h.version ? 'v' + h.version + (behind ? ', update ready' : '') : '', modeWord(h.mode), h.player].filter(Boolean).join(' · ');
+  if (meta) line.appendChild(el('span', (behind ? 'amber' : 'dim') + ' small', meta));
+  return line;
+}
+function batteryFact(b) { const pct = parseInt(b, 10); return fact(b, /charging|full|plugged/.test(b) ? 'good' : pct <= 20 ? 'bad' : pct <= 40 ? 'warn' : '', ICONS.battery); }
+function machineCard(m) {
+  const house = m.gatehouse || null, keeper = m.gatekeeper || null;
+  const cls = house && house.now === 'In game' ? 'ingame' : offline(m) ? 'off' : 'open';
   const c = el('div', 'card sys ' + cls);
-  const name = el('div', 'name', s.name);
-  if (s.here) name.appendChild(el('span', 'tag', 'This machine'));
-  if (s.via) name.appendChild(el('span', 'tag', 'via ' + s.via));
-  if (s.membership === 'asked') name.appendChild(el('span', 'tag', 'Asked to join'));
+  const name = el('div', 'name', m.name);
+  if (m.via) name.appendChild(el('span', 'tag', 'via ' + m.via));
+  if (m.membership === 'asked') name.appendChild(el('span', 'tag', 'Asked to join'));
   c.appendChild(el('div', 'glyph', null, [icon(keeper ? ICONS.keeper : ICONS.launcher)]));
-  c.appendChild(el('div', '', null, [name, el('div', 'sub', [keeper ? 'Gatekeeper' : 'Gatehouse', s.player, s.system].filter(Boolean).join(' · '))]));
-  const nowCls = where === 'In game' ? 'green' : where === 'Offline' ? 'grey' : 'blue';
-  c.appendChild(el('div', 'nowline', null, [el('span', nowCls + ' state', where + (s.server ? ' on ' + s.server : ''))]));
-  const f = el('div', 'facts');
-  if (s.version) f.appendChild(fact('v' + s.version));
-  if (modeWord(s.mode)) f.appendChild(fact(modeWord(s.mode)));
-  if (s.ping > 0 && where !== 'Offline') f.appendChild(pingFact(s.ping));
-  if (s.battery) { const pct = parseInt(s.battery, 10); f.appendChild(fact(s.battery, /charging|full|plugged/.test(s.battery) ? 'good' : pct <= 20 ? 'bad' : pct <= 40 ? 'warn' : '', ICONS.battery)); }
-  if (s.hands_out) f.appendChild(fact(s.hands_out, 'info', ICONS.share));
-  if (where === 'Offline' && s.last_seen) f.appendChild(fact('Last seen ' + s.last_seen, '', ICONS.clock));
+  c.appendChild(el('div', '', null, [name, halvesLine(!!keeper, !!house), el('div', 'sub', m.system || '')]));
+  const lines = el('div', 'lines');
+  if (keeper) lines.appendChild(halfLine('Gatekeeper', keeper));
+  if (house) lines.appendChild(halfLine('Gatehouse', house));
+  c.appendChild(lines);
+  const f = el('div', 'facts'), ping = house && house.ping > 0 ? house.ping : 0;
+  if (ping) f.appendChild(pingFact(ping));
+  if (m.battery) f.appendChild(batteryFact(m.battery));
+  if (m.hands_out) f.appendChild(fact(m.hands_out, 'info', ICONS.share));
+  if (offline(m) && m.last_seen) f.appendChild(fact('Last seen ' + m.last_seen, '', ICONS.clock));
   if (f.children.length) c.appendChild(f);
   return c;
 }

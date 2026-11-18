@@ -1,4 +1,7 @@
 [
+ {"version": "1.68.1", "date": "2026-11-18", "notes": [
+  "Gatehouse 3.35.1: the Systems page shows each machine with its Gatehouse and Gatekeeper, and every battery. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.68.0", "date": "2026-11-18", "notes": [
   "Gatehouse 3.35.0: the web panel is made for a phone, with a Systems page and chat. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

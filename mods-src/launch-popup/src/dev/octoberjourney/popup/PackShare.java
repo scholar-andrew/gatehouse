@@ -279,7 +279,7 @@ public final class PackShare {
 
 	private static volatile java.util.function.Supplier<String> powerWin;
 	/** R42: this machine's battery in words ("82%, charging", "45%"), or "" with none. */
-	static String battery() {
+	public static String battery() {
 		if (System.getProperty("os.name", "").startsWith("Windows")) {
 			// (a laptop: Windows' own power status, through PowerWin, which needs Java 22; on an older Java nothing is said)
 			if (powerWin == null) try {

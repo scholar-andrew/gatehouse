@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.35.1 - 2026-11-18
+
+- Systems (web panel): one card for each machine, marked with the halves of Gate System it has: Gatehouse, Gatekeeper, or both, with a line for each (where it is now, its version and update mode). A half on an older version than this Gatekeeper is marked update ready.
+- A machine's battery now also comes from its Gatekeeper, so a Steam Deck with Gatekeeper shows it even when its Gatehouse is closed or not yet updated. A Gatekeeper that joined another passes on its own launchers' battery, ping and where they are too.
+
 ## 3.35.0 - 2026-11-18
 
 - Your Gate Systems from your phone (R42): the web panel has a new first page, Systems. It shows this Gatekeeper (its servers and who is on each, whether an update is ready, requests waiting on you), then a card for every launcher and Gatekeeper in its constellation: in game and on which server, in the launcher or offline, its version and update mode, its ping, a laptop's or Steam Deck's battery, whether it hands out updates, and when it was last seen.

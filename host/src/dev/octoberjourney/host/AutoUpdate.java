@@ -126,7 +126,11 @@ final class AutoUpdate {
 			Map<String, Object> c = Json.map(o);
 			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player",
 					clean(Json.str(c.get("player")), 16).replaceAll("\\W", ""), "system", clean(Json.str(c.get("system")), 20).replace("<", ""),
-					"version", Json.str(c.get("version")).replaceAll("[^\\w.\\-]", ""), "mode", modeOf(c), "open", ServerTools.yes(c.get("open")), "install", installOf(c)));
+					"version", Json.str(c.get("version")).replaceAll("[^\\w.\\-]", ""), "mode", modeOf(c), "open", ServerTools.yes(c.get("open")), "install", installOf(c),
+					// (R42: for the web panel's Systems page: where it is, its ping and battery, and whether it is that Gatekeeper's own machine's launcher)
+					"now", List.of("In game", "In the launcher", "Offline").contains(Json.str(c.get("now"))) ? Json.str(c.get("now")) : "",
+					"ping", Math.max(0, Math.min(60_000, (int) Double.parseDouble(Json.str(c.get("ping")).matches("\\d+(\\.\\d+)?") ? Json.str(c.get("ping")) : "0"))),
+					"battery", clean(Json.str(c.get("battery")), 24).replaceAll("[^\\w%,. ]", ""), "local", ServerTools.yes(c.get("local"))));
 		}
 		seen.put(id, r);
 		// (word of an update travels up: a client that has seen a newer version than this Gatekeeper knows of has it
@@ -269,11 +273,15 @@ final class AutoUpdate {
 			Map<String, Object> d = Json.map(e.getValue());
 			if (Json.str(d.get("kind")).equals("gatekeeper")) continue;
 			Rep r = seen.get(e.getKey());
+			boolean fresh = r != null && now - r.at < 25_000;
 			out.add(m("name", Json.str(d.get("name")), "player", Json.str(d.get("player")), "system", Json.str(d.get("os")), "version",
 					r == null ? Json.str(d.get("version")) : r.own,
-					"mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", (r != null && now - r.at < 25_000)
+					"mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", fresh
 							|| now - contact.getOrDefault(e.getKey(), 0L) < 20_000,
-					"install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
+					"install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install")),
+					// (R42: what the lead's web panel shows on this machine's card)
+					"now", presence(e.getKey(), d, onlineNow()), "ping", fresh ? r.ping : 0, "battery", fresh ? r.battery : "",
+					"local", ServerTools.yes(d.get("local"))));
 		}
 		return out;
 	}
@@ -283,7 +291,8 @@ final class AutoUpdate {
 		List<Object> handing = UpdateLog.unsent();
 		String say = Json.write(m("kind", "gatekeeper", "events", handing, "info", UpdateLog.info(), "install", setting("constellation_id",
 				""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting",
-				launchersWaiting, "system", systemName(), "clients", ownClients(), "manage", Manage.offer(), "share", dev.octoberjourney.popup.PackShare.status()));
+				launchersWaiting, "system", systemName(), "clients", ownClients(), "manage", Manage.offer(), "share", dev.octoberjourney.popup.PackShare.status(),
+				"battery", dev.octoberjourney.popup.PackShare.battery()));   // (R42: this machine's own battery: a Steam Deck's, a laptop's)
 		try {
 			Map<String, Object> r;
 			try { r = Json.map(Json.parse(leadCall("/v1/update/state", say))); }
@@ -409,7 +418,8 @@ final class AutoUpdate {
 				Map<String, Object> c = Json.map(o);
 				clients.add(m("id", "", "type", "Gatehouse (launcher)", "name", Json.str(c.get("name")), "player",
 						Json.str(c.get("player")), "system", Json.str(c.get("system")), "version", Json.str(c.get("version")), "mode", Json.str(c.get("mode")),
-						"open", ServerTools.yes(c.get("open")), "last_seen", "", "here", false, "via", nm, "membership", "", "install", Json.str(c.get("install"))));
+						"open", ServerTools.yes(c.get("open")), "last_seen", "", "here", false, "via", nm, "membership", "", "install", Json.str(c.get("install")),
+						"now", Json.str(c.get("now")), "ping", c.get("ping"), "battery", Json.str(c.get("battery")), "local_of", ServerTools.yes(c.get("local")) ? e.getKey() : ""));
 			}
 		}
 		int merged = clients.size();
