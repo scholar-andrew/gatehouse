@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Always up to date</title>
+  <rect width="64" height="64" rx="14" fill="#1c2a3a"/>
+  <g fill="none" stroke="#4fd1c5" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M46 26 A15 15 0 0 0 19 22"/><path d="M18 38 A15 15 0 0 0 45 42"/><path d="M19 14 V22 H27"/><path d="M45 50 V42 H37"/></g>
+</svg>

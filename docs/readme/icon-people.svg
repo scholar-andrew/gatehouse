@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Who may join</title>
+  <rect width="64" height="64" rx="14" fill="#1c2a3a"/>
+  <g fill="none" stroke="#b18cf2" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle cx="25" cy="23" r="7"/><path d="M12 48 C12 39 18 34 25 34 C32 34 38 39 38 48"/><circle cx="43" cy="25" r="5.5"/><path d="M41 35 C47 35 52 39 52 46"/></g>
+</svg>

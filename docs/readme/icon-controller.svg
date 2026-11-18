@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Controllers and Steam Deck</title>
+  <rect width="64" height="64" rx="14" fill="#1c2a3a"/>
+  <g fill="none" stroke="#5BB8F0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 22 H44 C50 22 53 30 53 38 C53 46 47 48 43 42 L40 38 H24 L21 42 C17 48 11 46 11 38 C11 30 14 22 20 22 Z"/><path d="M21 30 V36 M18 33 H24"/><circle cx="41" cy="31" r="1.2" fill="#5BB8F0"/><circle cx="45" cy="35" r="1.2" fill="#5BB8F0"/></g>
+</svg>

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Backups</title>
+  <rect width="64" height="64" rx="14" fill="#1c2a3a"/>
+  <g fill="none" stroke="#f59a4a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="32" cy="18" rx="15" ry="6"/><path d="M17 18 V44 C17 48 24 50 32 50 C40 50 47 48 47 44 V18"/><path d="M17 31 C17 35 24 37 32 37 C40 37 47 35 47 31"/></g>
+</svg>

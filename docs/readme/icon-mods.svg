@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>Mods and packs</title>
+  <rect width="64" height="64" rx="14" fill="#1c2a3a"/>
+  <g fill="none" stroke="#f06f9a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M32 12 L50 22 V42 L32 52 L14 42 V22 Z"/><path d="M14 22 L32 32 L50 22 M32 32 V52"/></g>
+</svg>
