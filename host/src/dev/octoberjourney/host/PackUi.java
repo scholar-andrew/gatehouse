@@ -70,6 +70,9 @@ final class PackUi {
 		JLabel stands = new JLabel(" "), said = new JLabel(" "), artSaid = new JLabel(" "), preview = new JLabel();
 		JButton make = new JButton("Make a pack for this server"), build = new JButton("Build again"),
 				release = new JButton("New version…"), bring = new JButton("Bring in a pack from a folder…"), modsB = new JButton("Mods players get…");
+		JButton findB = new JButton("Find mods on Modrinth\u2026");
+		findB.setToolTipText("Search Modrinth for Fabric mods that fit this server's Minecraft version, and add one to its mods folder (with the mods it requires)");
+		findB.addActionListener(e -> browse(p, q));
 		modsB.setToolTipText("<html>The server's own mods, each with a switch: which ones players are sent. Gatekeeper guesses; you decide.<br>A mod comes from its own page on the mod site when that exact file is published there, and from this Gatekeeper otherwise.</html>");
 		String[] nextNotes = {""};
 		String[][] modes = {{"private", "Private: only launchers you let in"}, {"shareable", "Shareable: those, and anyone they invite"},
@@ -244,7 +247,7 @@ final class PackUi {
 		row(form, y++, "Who it is for", line(whoBox, inviteB, takeBackB));
 		row(form, y++, "", invitedSaid);
 		row(form, y++, null, stands);
-		row(form, y++, null, line(make, modsB, release, build, bring));
+		row(form, y++, null, line(make, modsB, findB, release, build, bring));
 		row(form, y++, null, said);
 		row(form, y++, null,
 				ServerToolsUi.note(ServerToolsUi.wrap("Pictures for Steam. Each is one you choose (brought to the right size here) or one Gatekeeper makes. A change goes out with the next build.", 560)));
@@ -258,6 +261,56 @@ final class PackUi {
 	}
 
 	/** The list of the server's mods with a switch for each. saved: told what changed (a start for the next version's notes). */
+	/** R57: Modrinth's Fabric mods for this server's Minecraft version: search, read, add one to its mods folder. */
+	static void browse(java.awt.Component over, String q) {
+		javax.swing.JTextField words = new javax.swing.JTextField(28);
+		JButton search = new JButton("Search"), add = new JButton("Add to the server");
+		javax.swing.DefaultListModel<String> model = new javax.swing.DefaultListModel<>();
+		javax.swing.JList<String> list = new javax.swing.JList<>(model);
+		list.setVisibleRowCount(12);
+		java.util.List<String> ids = new java.util.ArrayList<>();
+		JLabel said = ServerToolsUi.note(" ");
+		add.setEnabled(false);
+		list.addListSelectionListener(e -> add.setEnabled(list.getSelectedIndex() >= 0));
+		Runnable doSearch = () -> {
+			said.setText("Asking Modrinth\u2026"); search.setEnabled(false);
+			String w = words.getText().strip();
+			ServerToolsUi.later(() -> {
+				Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/modsite/search" + q, m("words", w));
+				javax.swing.SwingUtilities.invokeLater(() -> {
+					search.setEnabled(true); model.clear(); ids.clear();
+					if (!"ok".equals(Json.str(r.get("result")))) { said.setText(ServerToolsUi.wrap(Json.str(r.get("message")), 560)); return; }
+					for (Object o : Json.list(r.get("mods"))) {
+						Map<String, Object> mod = Json.map(o);
+						long dl = 0; try { dl = (long) Double.parseDouble(Json.str(mod.get("downloads"))); } catch (RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); }
+						ids.add(Json.str(mod.get("id")));
+						model.addElement("<html><b>" + esc(Json.str(mod.get("title"))) + "</b> \u00b7 " + (dl >= 1_000_000 ? dl / 1_000_000 + "M" : dl >= 1000 ? dl / 1000 + "k" : String.valueOf(dl))
+								+ " downloads" + (Boolean.TRUE.equals(mod.get("players")) ? "" : " \u00b7 server only") + "<br><span style='color:#A9B5C1'>" + esc(Json.str(mod.get("summary"))) + "</span></html>");
+					}
+					said.setText(ids.isEmpty() ? "Nothing on Modrinth fits that for Minecraft " + Json.str(r.get("version")) + " with Fabric." : ids.size() + " mods for Minecraft " + Json.str(r.get("version")) + " with Fabric. Choose one, then Add to the server.");
+				});
+			});
+		};
+		search.addActionListener(e -> doSearch.run());
+		words.addActionListener(e -> doSearch.run());
+		add.addActionListener(e -> {
+			int i = list.getSelectedIndex(); if (i < 0) return;
+			said.setText("Fetching it from Modrinth\u2026"); add.setEnabled(false);
+			String id = ids.get(i);
+			ServerToolsUi.later(() -> {
+				Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/modsite/add" + q, m("project", id));
+				javax.swing.SwingUtilities.invokeLater(() -> { add.setEnabled(true); said.setText(ServerToolsUi.wrap(Json.str(r.get("message")), 560)); });
+			});
+		});
+		JPanel top = line(words, search);
+		JPanel p = new JPanel(new BorderLayout(0, 8));
+		p.add(top, BorderLayout.NORTH);
+		p.add(new javax.swing.JScrollPane(list), BorderLayout.CENTER);
+		JPanel bottom = new JPanel(new BorderLayout(0, 6)); bottom.add(said, BorderLayout.NORTH); bottom.add(line(add), BorderLayout.SOUTH); p.add(bottom, BorderLayout.SOUTH);
+		p.setPreferredSize(new java.awt.Dimension(640, 460));
+		javax.swing.JOptionPane.showMessageDialog(over, p, "Find mods on Modrinth", javax.swing.JOptionPane.PLAIN_MESSAGE);
+	}
+
 	static void mods(java.awt.Component over, String q, java.util.function.Consumer<String> saved) {
 		DefaultTableModel tm = new DefaultTableModel(new Object[] {"Send", "Mod", "Version", "MB", "Players get it from", "In the pack now", "Why"}, 0) {
 			@Override public Class<?> getColumnClass(int c) { return c == 0 ? Boolean.class : String.class; }

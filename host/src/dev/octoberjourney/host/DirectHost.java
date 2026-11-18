@@ -177,6 +177,7 @@ final class DirectHost implements ServerHost {
 		if (!r.stopping) { met(awaitedAs); phaseSeen.clear(); }   // (it is off, whatever was being waited for)
 		String said;
 		synchronized (r.last) { said = String.join(" / ", r.last); }
+		if (!r.stopping && !r.restart) { List<String> tail; synchronized (r.lines) { tail = new ArrayList<>(r.lines); } Ai.explainCrash(name, tail, code); }   // (R60)
 		if (!r.stopping && !r.restart) Notify.down(name, name + (r.ready ? " ended without being asked to"
 				: " ended before it had finished starting") + " (exit code " + code + ")."
 				+ (Json.str(server().get("keep_online")).equals("crash") ? " It's set to be kept on: Gatekeeper starts it again (up to three times in ten minutes)." : ""));

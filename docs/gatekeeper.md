@@ -111,6 +111,26 @@ and the server's picture, unless you choose your own. **New version** takes the 
 and update it from this Gatekeeper like any other pack. These packs aren't signed, so they are never handed out
 between machines.
 
+**Find mods on Modrinth…** (3.41.0) searches Modrinth for Fabric mods that fit the server's Minecraft version, shows
+how many people use each and whether players need it too, and **Add to the server** puts the chosen one in the
+server's `mods` folder, with the mods it says it requires. Each file comes from Modrinth's own file server and is kept
+only if it matches the checksum Modrinth publishes. It works for Fabric servers Gatekeeper runs itself (for an MCSS
+server, add mods in MCSS). Nothing reaches players until the server has restarted and you use **Mods players get…** and
+**New version…**. Only the search words and the Minecraft version are sent to Modrinth.
+
+## The AI helper
+
+If [Ollama](https://ollama.com) runs on the Gatekeeper machine with the model `qwen2.5:3b` (or another, set as
+`ollama_model` in host.json), Gatekeeper can use it (3.41.0; Notifications section, **AI helper**). Nothing leaves the
+machine: the model runs locally, and Gatekeeper talks to it only on 127.0.0.1.
+
+- **In chat**, a message starting with `@ai` gets an answer from "Gatekeeper AI" in the same room, about the servers
+  (which are on, who is on them, who may join, how to join). One question at a time per room.
+- **When a server Gatekeeper runs stops by itself**, the error lines at the end of its log are explained in plain words,
+  in the log and in the "server went down" notification. If the log shows no error, it says so instead of guessing.
+
+The answers are a small model's guesses: useful as a pointer, not a diagnosis.
+
 ## Palworld
 
 **New server** can make a Palworld server (3.40.0): choose Palworld as its game, give it a name and a password

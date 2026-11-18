@@ -56,6 +56,18 @@ final class NotifyUi {
 		javax.swing.JCheckBox stOn = new javax.swing.JCheckBox("Share the status page");
 		JLabel stUrl = new JLabel(" "); stUrl.setForeground(new Color(0xA9B5C1));
 		for (javax.swing.JComponent c : new javax.swing.JComponent[] {stOn, stUrl}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
+		optLine.accept("AI helper", true);
+		optLine.accept("A small AI on this machine (Ollama, the model Jarvis uses) answers players who write @ai in a chat room, from what Gatekeeper knows (its servers, who is on, how to join), and explains in plain words why a server stopped unexpectedly (activity log, and your phone). It can't start, stop or allow anything, everything it says is marked as the AI's, and nothing leaves this machine. It can be wrong.", false);
+		javax.swing.JCheckBox aiOn = new javax.swing.JCheckBox("Turn the AI helper on");
+		JLabel aiSaid = new JLabel(" "); aiSaid.setForeground(new Color(0xA9B5C1));
+		for (javax.swing.JComponent c : new javax.swing.JComponent[] {aiOn, aiSaid}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
+		java.util.function.Consumer<Map<String, Object>> aiShow = a -> SwingUtilities.invokeLater(() -> {
+			aiOn.setSelected(Boolean.TRUE.equals(a.get("on")));
+			String problem = Json.str(a.get("problem"));
+			aiSaid.setText(problem.isEmpty() ? "Ready: " + Json.str(a.get("model")) + " answers on this machine." : problem);
+		});
+		new Thread(() -> { try { aiShow.accept(Json.map(Json.parse(call("GET", "/admin/ai", null)))); } catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "ai-read").start();
+		aiOn.addActionListener(e -> { boolean want = aiOn.isSelected(); new Thread(() -> { try { aiShow.accept(Json.map(Json.parse(call("POST", "/admin/ai", Json.write(m("on", want)))))); } catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "ai-set").start(); });
 		optLine.accept("Crash watch", true);
 		optLine.accept("Gatekeeper notices when a server goes down without being asked to, and tells you (above). Tick a server to have it started again too: up to three times in ten minutes. For an MCSS server this needs Gatekeeper's MCSS key; MCSS also has a restart-on-crash setting of its own.", false);
 		JPanel keepList = new JPanel();

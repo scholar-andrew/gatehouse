@@ -2448,7 +2448,7 @@ public final class HostHelper {
 			} else if (!Notify.admin(x, path) && !StatusPage.admin(x, path) && !ServerTools.admin(x, path) && !WebPanel.admin(x, path)
 					&& !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path)
 					&& !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x,
-					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path)) reply(x, 404, m("error", "no such call"));
+					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path) && !Ai.admin(x, path) && !ModBrowser.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}

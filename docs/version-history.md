@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.41.0 - 2026-11-18
+
+- Find mods on Modrinth (R57): a Fabric server's Pack tab can search Modrinth for mods that fit its Minecraft version and add one to its mods folder, with the mods it requires. Each file comes from Modrinth's own file server and is kept only if it matches Modrinth's checksum. Players get it after a restart and a new pack version, as before.
+- AI helper (R60), when Ollama runs on the Gatekeeper machine: @ai in chat answers questions about the servers, and when a server stops by itself the error lines in its log are explained in plain words in the notification. Everything stays on the machine.
+
 ## 3.40.0 - 2026-11-18
 
 - Palworld servers (R34): New server can make one. Gatekeeper installs Palworld's dedicated server with SteamCMD (fetched from Valve the first time; about 5 GB) and sets it up with its name, password and port. Through Palworld's own admin interface, which Gatekeeper turns on for itself with a random password, it knows when the server is up and who is on, saves before a backup, and stops it cleanly with a warning to players. In Gatehouse, Play starts Palworld through Steam and copies the address to paste in its Join Multiplayer Game.
