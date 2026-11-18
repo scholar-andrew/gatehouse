@@ -204,6 +204,12 @@ final class Notes {
 		try {
 			byte[] jar = LaunchPopup.fetchBytes(found[0] + "/extras/launch-popup.jar", FETCHING);
 			if (!found[1].equals(LaunchPopup.sha256(jar))) return false;
+			// (R24: the release signature, from this launcher's Gatekeepers, else GitHub. One that doesn't fit: not taken)
+			List<String> sigAt = new ArrayList<>();
+			for (String[] p : peers) sigAt.add(p[0].replaceAll("/+$", "") + "/v1/program/sig/");
+			String signed = dev.gatehouse.Signed.check(jar, found[1], sigAt, null);
+			if (System.getenv("OJ_DEBUG") != null) System.out.println("self-update: " + dev.gatehouse.Signed.words(signed));
+			if (signed.equals("bad")) return false;
 			Path dst = Path.of(found[2]).resolve("extras/launch-popup.jar"), tmp = Path.of(found[2]).resolve("extras/launch-popup.jar.part");
 			Files.write(tmp, jar);
 			try { Files.move(tmp, dst, java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(tmp); }   // (in use, as when run straight from there on Windows: left as it was)

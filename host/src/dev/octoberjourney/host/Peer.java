@@ -86,6 +86,10 @@ final class Peer {
 		if (b.length == 0 || b.length > MAX) return new String[] {"refused", "That isn't a program file."};
 		String sha = sha256(b);
 		if (!saysSha.isEmpty() && !saysSha.equalsIgnoreCase(sha)) return new String[] {"refused", "What arrived doesn't match its checksum."};
+		// (R24: a program file whose release signature doesn't fit is never kept or handed on)
+		String signed = signature(b, sha);
+		if (signed.equals("bad")) { log("program: refused a file from " + from + ": " + dev.gatehouse.Signed.words(signed)); return new String[] {"refused", "Its release signature doesn't fit: it isn't a published Gatekeeper."}; }
+		if (signed.equals("unsigned") && setting("require_signed", "false").equals("true")) return new String[] {"refused", "It has no release signature, and this Gatekeeper takes only signed ones."};
 		Path part = dir.resolve("program-held.jar.part");
 		try {
 			Files.write(part, b);
@@ -185,8 +189,28 @@ final class Peer {
 		x.sendResponseHeaders(200, b.length);
 		try (OutputStream o = x.getResponseBody()) { o.write(b); }
 	}
+	/** The signatures this Gatekeeper has checked, kept to hand on. */
+	static Path signatures() { return dir.resolve("signatures"); }
+	/** R24: "signed", "bad" or "unsigned" for a program file, looking for its signature here, then at the Gatekeeper
+	 *  this one joined, then on GitHub. */
+	static String signature(byte[] b, String sha) {
+		java.util.List<String> places = new java.util.ArrayList<>();
+		if (!lead().isEmpty()) places.add(lead().replaceAll("/+$", "") + "/v1/program/sig/");
+		return dev.gatehouse.Signed.check(b, sha, places, signatures());
+	}
 	/** GET /v1/program/...: what is held, or else the file this Gatekeeper is running. */
 	static void serve(HttpExchange x, String path) throws IOException {
+		// (a release signature, by the file's SHA-256: one checked here, else fetched from GitHub for whoever asks, who
+		// checks it against the file themself)
+		if (path.startsWith("/v1/program/sig/")) {
+			String want = path.substring("/v1/program/sig/".length()).replaceAll("\\.sig$", "").toLowerCase(java.util.Locale.ROOT);
+			if (!want.matches("[0-9a-f]{64}")) { reply(x, 404, m("error", "no such file")); return; }
+			Path kept = signatures().resolve(want + ".sig");
+			byte[] s = Files.isRegularFile(kept) ? Files.readAllBytes(kept) : dev.gatehouse.Signed.fetch(want, java.util.List.of());
+			if (s == null) { reply(x, 404, m("error", "no signature for that file (yet)")); return; }
+			send(x, s, "application/octet-stream");
+			return;
+		}
 		String v = heldVersion(), sha, needs;
 		Path f;
 		if (!v.isEmpty()) { f = file(); sha = Json.str(held().get("sha256")); needs = Json.str(held().get("needs")); }

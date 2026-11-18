@@ -1,8 +1,13 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.22.0",
+ "version": "3.23.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.23.0", "date": "2026-11-17", "notes": [
+   "Updates are checked against the release signature: each published version is signed on GitHub with the owner's release key, and Gatehouse and Gatekeeper check that signature before taking an update, whether it came from GitHub, the pack server or another Gatekeeper. One whose signature doesn't fit is refused and nothing changes. One with no signature yet (GitHub signs a minute or two after each publish) is still taken, as before, and the log says so.",
+   "Gatekeepers keep the signatures they've checked and hand them on with the program file, so peer-to-peer updates are checked too, even with no way to reach GitHub.",
+   "Gatekeeper: host.json \"require_signed\": \"true\" makes it take only signed updates. It is off unless set."
+  ]},
   {"version": "3.22.0", "date": "2026-11-17", "notes": [
    "Controller: the right stick scrolls, faster the further it is pushed: the list or panel the selection is in, or else the biggest one on the page. Lists and panels with nothing to press in them (notes, the panel beside the servers, chat) are places the left stick can stop on now, outlined in blue, so the right stick can be pointed at them.",
    "Gatekeeper: Check for updates is on the Updates page now, beside its pages; Play or Host left the Servers page, as it is in the menu.",

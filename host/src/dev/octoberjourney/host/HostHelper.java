@@ -809,6 +809,11 @@ public final class HostHelper {
 			String cameFrom = b == null ? newestKeeperAt : Peer.heldFrom();
 			if (b == null) b = fetchProgram(newestKeeperAt + "/oj-host.jar", newestKeeper);
 			if (!sha256(b).equalsIgnoreCase(newestKeeperSha)) return new String[] {"failed", "What was fetched doesn't match what was published (its checksum differs). Nothing was changed."};
+			// (R24: the release signature, from the Gatekeeper this one joined, else GitHub; one that doesn't fit stops it)
+			String signed = Peer.signature(b, newestKeeperSha);
+			log("update: Gatekeeper " + newestKeeper + ": " + dev.gatehouse.Signed.words(signed));
+			if (signed.equals("bad")) return new String[] {"failed", "The update's release signature doesn't fit: it isn't the file that was published. Nothing was changed."};
+			if (signed.equals("unsigned") && setting("require_signed", "false").equals("true")) return new String[] {"refused", "The update has no release signature yet, and this Gatekeeper is set to take only signed ones. GitHub signs each one a minute or two after it is published: try again shortly."};
 			Path fresh = jar.resolveSibling("oj-host.jar.new");
 			Files.write(fresh, b);
 			// (the checksum says it is what was published; this says what was published is a Gatekeeper that can start)

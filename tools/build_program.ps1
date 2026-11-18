@@ -30,6 +30,8 @@ if ($LASTEXITCODE) { throw 'javac (Java 22 part) failed' }
 # Each half's version and notes go inside (the Gatekeeper updates and Gatehouse updates tabs).
 Copy-Item (Join-Path $root 'source\gatekeeper.json') (Join-Path $classes 'gatekeeper-notes.json')
 Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $classes 'gatehouse-notes.json')
+# (the release key's public half: updates are checked against it; see dev.gatehouse.Signed)
+if (Test-Path (Join-Path $root 'source\release-key.pub.pem')) { Copy-Item (Join-Path $root 'source\release-key.pub.pem') $classes }
 # The install scripts go inside too: for setting a half up from the first screen, and for Options > Uninstall.
 Copy-Item (Join-Path $root 'installer\gatehouse-install.ps1'), (Join-Path $root 'installer\gatehouse-install.sh') $classes
 Copy-Item (Join-Path $root 'installer\keeper\install-keeper.ps1'), (Join-Path $root 'installer\keeper\install-keeper.sh') $classes
