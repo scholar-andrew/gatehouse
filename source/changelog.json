@@ -1,4 +1,7 @@
 [
+ {"version": "1.72.0", "date": "2026-11-18", "notes": [
+  "Gatehouse 3.39.0: more groundwork for other games. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.71.0", "date": "2026-11-18", "notes": [
   "Gatehouse 3.38.0: links that say why they do not work, and the Steam Deck left trackpad scrolls. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

@@ -88,9 +88,9 @@ final class ServerSetupUi {
 			java.util.function.Function<String,
 					JLabel> subHead = hs -> { JLabel l = new JLabel(hs); l.setFont(l.getFont().deriveFont(Font.BOLD)); l.setBorder(BorderFactory.createEmptyBorder(8, 0, 2, 0)); return l; };
 			for (javax.swing.JComponent c : new javax.swing.JComponent[] {subHead.apply(builtin()
-					? "The folder your Minecraft servers are in (one folder each)" : "MCSS on this machine (" + mcssFile() + ")"), exeRow,
+					? "The folder your servers are in (one folder each)" : "MCSS on this machine (" + mcssFile() + ")"), exeRow,
 					subHead.apply("This machine's Tailscale address (launchers reach Gatekeeper on it)"), addrRow,
-					subHead.apply(builtin() ? "Minecraft servers in that folder (tick the ones Gatekeeper looks after)"
+					subHead.apply(builtin() ? "servers in that folder (tick the ones Gatekeeper looks after)"
 							: "Minecraft servers in MCSS (tick the ones Gatekeeper looks after)"), list,
 							problem}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); }
 			scan.run();

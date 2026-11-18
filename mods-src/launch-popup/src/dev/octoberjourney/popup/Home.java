@@ -1225,9 +1225,25 @@ final class Home {
 								boolean on = "true".equals(str(s.get("online")));
 								String game = Games.of(s);
 								if (!Games.playable(game)) {
-									set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + ". A " + Games.name(game)
-											+ " server: this " + LaunchPopup.TOOL + " can't install or play " + Games.name(game) + " yet."});
-									((JButton) r[5]).setVisible(false);
+									// (R34: a Steam game's server: Play starts the game in Steam, connected to it; or Get it in Steam)
+									String gname = str(s.get("game_name")).isEmpty() ? Games.name(game) : str(s.get("game_name"));
+									int app = 0;
+									try { app = (int) Double.parseDouble(str(s.get("steam_app"))); } catch (RuntimeException ignored) { Quiet.seen(ignored); }
+									JButton gb = (JButton) r[5];
+									if (app > 0) {
+										boolean have = SteamGames.installed(app);
+										set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + ". A " + gname + " server: "
+												+ (have ? "Play starts " + gname + " in Steam, connected to it." : gname + " isn't installed on this device: Get it in Steam first.")});
+										String link = have ? SteamGames.joinLink(str(s.get("join")), app, str(s.get("address"))) : SteamGames.installLink(app);
+										gb.setText(have ? "Play" : "Get it in Steam"); gb.setVisible(true); ((JLabel) r[4]).setVisible(false);
+										gb.setToolTipText(have ? "Starts " + gname + " through Steam, joining " + str(s.get("address")) : "Opens Steam's page to install " + gname);
+										for (java.awt.event.ActionListener al : gb.getActionListeners()) gb.removeActionListener(al);
+										gb.addActionListener(ev -> dev.gatehouse.look.Links.openOrShow(f, link));
+									} else {
+										set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + ". A " + gname
+												+ " server: this " + LaunchPopup.TOOL + " can't install or play " + gname + " yet."});
+										gb.setVisible(false);
+									}
 									continue;
 								}
 								String profile = str(s.get("profile"));
@@ -1332,7 +1348,7 @@ final class Home {
 							// the machine
 							JButton wakeB = new JButton("Wake"), sleepB = new JButton("Sleep");
 							wakeB.setToolTipText("Wakes the server machine (Wake on LAN: works from the owner's home network)");
-							sleepB.setToolTipText("Puts the server machine to sleep. Only while no Minecraft server is running.");
+							sleepB.setToolTipText("Puts the server machine to sleep. Only while no server is running.");
 							Object[] mr = row.apply("Server machine", new Component[] {wakeB, sleepB});
 							set.accept((JLabel) mr[2], answering ? new String[] {"ok", "Awake"} : new String[] {"off", "Not answering: asleep or off"});
 							String[] wakePack = null;
@@ -2059,7 +2075,7 @@ final class Home {
 							String[] found = offered[0];
 							long askedAt = System.nanoTime();
 							Map<String, Object> r = sc.helper("POST", "/v1/update/state", "{\"ping\":" + pings.getOrDefault(k[0], 0L)
-									+ ",\"battery\":\"" + ServerControl.jsonEsc(PackShare.battery()) + "\",\"mode\":\"" + mode + "\",\"source\":\""
+									+ ",\"battery\":\"" + ServerControl.jsonEsc(PackShare.battery()) + "\"" + SteamGames.reportJson() + ",\"mode\":\"" + mode + "\",\"source\":\""
 									+ ServerControl.jsonEsc(cameFrom) + "\",\"install\":\"" + installId(home) + "\",\"info\":\""
 									+ ServerControl.jsonEsc(System.getProperty("os.name", "") + " " + System.getProperty("os.version", "")
 									+ " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", ""))

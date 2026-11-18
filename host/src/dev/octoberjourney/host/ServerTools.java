@@ -55,7 +55,7 @@ final class ServerTools {
 	static HttpURLConnection open(String url) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
 		c.setConnectTimeout(8000); c.setReadTimeout(30000);
-		c.setRequestProperty("User-Agent", "Gatekeeper/" + ownVersion() + " (Minecraft server setup)");
+		c.setRequestProperty("User-Agent", "Gatekeeper/" + ownVersion() + " (server setup)");
 		if (c.getResponseCode() != 200) throw new IOException(new URL(url).getHost() + " answered " + c.getResponseCode());
 		return c;
 	}
@@ -164,7 +164,7 @@ final class ServerTools {
 		// (R34: no game is assumed; Minecraft is the only one Gatekeeper can make a server for so far)
 		Game game = Game.named(Json.str(b.get("game")));
 		if (game == null) return new String[] {"refused", "Choose the game the server is for."};
-		if (!game.id().equals("minecraft")) return new String[] {"refused", "Gatekeeper can't make " + game.name() + " servers yet."};
+		if (!game.id().equals("minecraft")) return createOther(game, b, name);
 		if (!List.of("vanilla", "fabric", "paper", "forge", "file").contains(kind)) return new String[] {"refused", "Choose what kind of server to make."};
 		if (!yes(b.get("eula"))) return new String[] {"refused",
 				"A Minecraft server can't be run without agreeing to Minecraft's EULA (aka.ms/MinecraftEULA). Read it and tick the box; Gatekeeper doesn't agree to it for you."};
@@ -202,6 +202,58 @@ final class ServerTools {
 		}, "make-server");
 		t.setDaemon(true);
 		t.start();
+		return new String[] {"ok", "Making " + name};
+	}
+
+	/** A server of a game described by a file (GameFile): its folder, its program installed by SteamCMD where the game
+	 *  has a Steam server app (fetched from Valve now, since the owner pressed Make the server), its port, its world
+	 *  name and password, and its terms ticked where it has terms. In the background, like a Minecraft one. */
+	private static String[] createOther(Game game, Map<String, Object> b, String name) {
+		if (game.steamServerApp() <= 0) return new String[] {"refused", "Gatekeeper can't install " + game.name()
+				+ " servers itself: put its server in a folder of its own in " + serversDir() + ", then add it in Server setup."};
+		if (!game.termsUrl().isEmpty() && !yes(b.get("eula"))) return new String[] {"refused", "A " + game.name() + " server can't be run without agreeing to "
+				+ (game.termsName().isEmpty() ? "its terms" : game.termsName()) + " (" + game.termsUrl() + "). Read them and tick the box; Gatekeeper doesn't agree for you."};
+		String port = Json.str(b.get("port")).trim().replaceAll("\\.0$", ""), password = Json.str(b.get("password")).trim(), world = clean(Json.str(b.get("world")), 40).replaceAll("[^\\w \\-]", "").trim();
+		if (port.isEmpty()) port = game.defaultPort();
+		if (!port.matches("\\d{4,5}") || Integer.parseInt(port) > 65535 || Integer.parseInt(port) < 1024) return new String[] {"refused", "The port should be a number from 1024 to 65535."};
+		for (Object o : servers()) if (port.equals(Json.str(Json.map(o).get("minecraft")).replaceAll(".*:", ""))) return new String[] {"refused", "Port " + port + " is " + Json.str(Json.map(o).get("name")) + "'s already: two servers can't share one."};
+		if (game.allowKind().equals("password") && password.length() < 5) return new String[] {"refused", "Give it a password of at least 5 characters: whoever has it can join."};
+		String folder = name.replaceAll("[^A-Za-z0-9 ._-]", "").trim().replaceAll("\\.+$", "");
+		if (folder.isEmpty()) folder = "server";
+		Path d = Path.of(serversDir(), folder);
+		if (Files.exists(d)) return new String[] {"refused", "There's already a folder called " + folder + " in " + serversDir() + ": choose another name."};
+		String p2 = port, w2 = world.isEmpty() ? name.replaceAll("[^\\w]", "") : world;
+		making.putAll(Map.of("state", "working", "step", "Starting", "message", "", "id", ""));
+		Thread th = new Thread(() -> {
+			try {
+				SteamCmd.install(game.steamServerApp(), d, ServerTools::step);
+				if (!game.termsUrl().isEmpty()) Files.writeString(d.resolve("gatekeeper-terms.txt"), "Accepted by the owner in Gatekeeper's New server: " + game.termsUrl() + "\n", StandardCharsets.UTF_8);
+				String id;
+				synchronized (HostHelper.class) {
+					java.util.Set<String> used = new java.util.HashSet<>();
+					for (Object o : servers()) used.add(Json.str(Json.map(o).get("id")));
+					String base = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+					id = base.isEmpty() ? "server" : base;
+					for (int n = 2; used.contains(id); n++) id = (base.isEmpty() ? "server" : base) + "-" + n;
+					List<Object> all = new ArrayList<>(servers());
+					Map<String, Object> set = new LinkedHashMap<>();
+					set.put("world", w2); if (!password.isEmpty()) set.put("password", password);
+					all.add(m("id", id, "name", name, "game", game.id(), "dir", d.toString(), "minecraft", "127.0.0.1:" + p2, "mcss_server", "", "native", true, "settings", set));
+					cfg.put("servers", all);
+					if (setting("servers_dir", "").isEmpty()) cfg.put("servers_dir", serversDir());
+					saveCfg();
+				}
+				making.putAll(Map.of("state", "done", "step", "", "id", id, "message", name + " is made, in " + d + ". It's off: start it from its card on Servers."));
+				log("new " + game.name() + " server " + name + " (port " + p2 + ") made in " + d);
+			} catch (Exception e) {
+				String why = e.getMessage() == null ? e.toString() : e.getMessage();
+				try { wipe(d); } catch (IOException ignored) { Quiet.seen(ignored); }
+				making.putAll(Map.of("state", "failed", "step", "", "id", "", "message", "The server wasn't made: " + why + ". Nothing was left behind."));
+				log("new " + game.name() + " server " + name + " not made: " + why);
+			}
+		}, "make-server");
+		th.setDaemon(true);
+		th.start();
 		return new String[] {"ok", "Making " + name};
 	}
 
@@ -456,7 +508,7 @@ final class ServerTools {
 					&& Path.of(Json.str(Json.map(o).get("dir"))).toAbsolutePath().normalize().startsWith(d)) return new String[] {"refused", "Another server's folder is inside " + d + ", so Gatekeeper won't delete it."};
 			if (Files.isDirectory(d) && !DirectHost.looksLikeServer(d)
 					&& !Files.exists(d.resolve("eula.txt"))) return new String[] {"refused", d
-					+ " doesn't look like a Minecraft server's folder, so Gatekeeper won't delete it."};
+					+ " doesn't look like a server's folder, so Gatekeeper won't delete it."};
 		}
 		// Server control for the first server is kept under "server", for any other under "server:<id>": when the
 		// first goes, the next one becomes the first, and what it was allowed moves to "server" with it.
@@ -699,7 +751,8 @@ final class ServerTools {
 			else {
 				List<String> free = freePorts(1);
 				List<Object> games = new ArrayList<>();
-				for (Game g : Game.ALL.values()) games.add(m("id", g.id(), "name", g.name()));
+				for (Game g : Game.all().values()) games.add(m("id", g.id(), "name", g.name(), "steam", g.steamServerApp() > 0, "port", g.defaultPort(),
+						"password", g.allowKind().equals("password"), "terms", g.termsUrl(), "terms_name", g.termsName(), "steamcmd_here", SteamCmd.here()));
 				reply(x, 200, m("host", "builtin", "folder", serversDir(), "port", free.isEmpty() ? "25565" : free.get(0), "javas",
 						javas(), "making", new LinkedHashMap<>(making), "games", games,
 						"kinds", List.of(m("id", "vanilla", "name", "Vanilla (the plain game, from Mojang)"), m("id", "paper", "name",

@@ -339,7 +339,7 @@ public final class HostHelper {
 	 *  folder looks like (a folder found by Server setup, not looked after yet), else null. */
 	static Game gameAt(Path d) {
 		for (Object o : servers()) if (samePath(Json.str(Json.map(o).get("dir")), d)) return Game.of(Json.map(o));
-		for (Game g : Game.ALL.values()) if (g.looksLikeServer(d)) return g;
+		for (Game g : Game.all().values()) if (g.looksLikeServer(d)) return g;
 		return null;
 	}
 	/** Servers set up before Gatekeeper knew more than one game were all Minecraft servers: each without a "game" is
@@ -384,7 +384,7 @@ public final class HostHelper {
 		// ---- Gatekeeper itself
 		if (outdated()) add.accept(new String[] {"Gatekeeper is up to date", "todo", "This is " + ownVersion() + "; " + newestKeeper
 				+ " is out. Until it's updated Gatekeeper starts no server, and launchers aren't offered Play.",
-				"Press Update Gatekeeper at the top of Servers. It restarts by itself in a few seconds; running Minecraft servers aren't touched."});
+				"Press Update Gatekeeper at the top of Servers. It restarts by itself in a few seconds; running servers aren't touched."});
 		else add.accept(new String[] {"Gatekeeper is up to date", "ok", ownVersion() + (newestKeeper.isEmpty()
 				? " (nowhere to compare with could be reached)" : "")});
 		// ---- Tailscale on this machine
@@ -445,7 +445,7 @@ public final class HostHelper {
 		// ---- the servers' host: MCSS, or Gatekeeper itself
 		String exe = setting("mcss_exe", "");
 		if (builtin()) {
-			if (!WIN) add.accept(new String[] {"MC Server Soft", "na", "MCSS is Windows only, so Gatekeeper runs the Minecraft servers itself here."});
+			if (!WIN) add.accept(new String[] {"MC Server Soft", "na", "MCSS is Windows only, so Gatekeeper runs the servers itself here."});
 			Path all = Path.of(serversDir());
 			if (Files.isDirectory(all)) add.accept(new String[] {"The servers folder is found", "ok", all.toString()});
 			else add.accept(new String[] {"The servers folder is found", "todo", "There's no folder at " + all + ".",
@@ -889,7 +889,7 @@ public final class HostHelper {
 			// (asked for, so it is done as soon as it can be: when no server Gatekeeper runs itself is on)
 			updateWaiting = true;
 			return new String[] {"refused",
-					"A Minecraft server that this Gatekeeper runs is on. Updating restarts Gatekeeper, and the server's console would be lost with it, so the update waits: Gatekeeper updates by itself as soon as that server is off (or stop the server and press Update)."};
+					"A server that this Gatekeeper runs is on. Updating restarts Gatekeeper, and the server's console would be lost with it, so the update waits: Gatekeeper updates by itself as soon as that server is off (or stop the server and press Update)."};
 		}
 		updateWaiting = false;
 		try {
@@ -1446,7 +1446,8 @@ public final class HostHelper {
 						String port = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 						String[] facts = serverFacts(Path.of(Json.str(s.get("dir"))));
 						Game sg = Game.of(s);
-						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "game", sg == null ? "" : sg.id(), "address",
+						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "game", sg == null ? "" : sg.id(), "game_name", sg == null ? "" : sg.name(),
+								"steam_app", sg == null ? 0 : sg.steamGameApp(), "join", sg == null ? "" : sg.join(), "address",
 								(x.getLocalAddress().getAddress().isLoopbackAddress() || setting("bind", "").isEmpty() ? "127.0.0.1"
 								: setting("bind", "")) + ":" + (port.isEmpty() ? "25565" : port),
 								"online", serverPhase().equals("online"), "phase", serverPhase(), "profile",
@@ -1737,6 +1738,14 @@ public final class HostHelper {
 		try {
 			Game g = Game.here();
 			if (g == null) return;
+			// (R34: a game that answers Steam's server query says who is on itself; its log still ties players to devices)
+			int qp = g.queryPort(serverDir());
+			List<String> asked = qp > 0 && minecraftRunning() ? SteamQuery.players("127.0.0.1", qp) : null;
+			if (asked != null) {
+				Map<String, String> was = onlineBy.getOrDefault(serverKey(), Map.of()), now = new LinkedHashMap<>();
+				for (String n : asked) now.put(n, was.getOrDefault(n, ""));
+				onlineBy.put(serverKey(), now);
+			}
 			Path lg = g.log(serverDir());
 			if (!Files.isRegularFile(lg)) return;
 			long stamp = Files.getLastModifiedTime(lg).toMillis() * 31 + Files.size(lg);
@@ -1774,7 +1783,8 @@ public final class HostHelper {
 				else if (gone != null) on.remove(gone);
 				else if (g.stoppingLine(line)) on.clear();
 			}
-			onlineBy.put(serverKey(), on);
+			if (asked == null) onlineBy.put(serverKey(), on);
+			else { Map<String, String> now = new LinkedHashMap<>(); for (String n : asked) now.put(n, on.getOrDefault(n, "")); onlineBy.put(serverKey(), now); }
 		} catch (Exception e) {
 			log("couldn't read the server log for players: " + e);
 		}
@@ -2273,7 +2283,8 @@ public final class HostHelper {
 				log("whitelist " + (on ? "add " : "remove ") + Json.str(b.get("player")).replaceAll("[^\\w]", "") + ": " + r[1]);
 				reply(x, 200, m("result", r[0], "message", r[1]));
 			} else if (path.equals("/admin/players")) {
-				reply(x, 200, m("players", playerList()));
+				Game pg = Game.here();
+				reply(x, 200, m("players", playerList(), "allow_word", pg == null ? "whitelist" : pg.allowWord(), "allow_kind", pg == null ? "names" : pg.allowKind()));
 			} else if (path.equals("/admin/player/perm")) {
 				Map<String, Object> b = body(x);
 				String[] r = playerPerm(Json.str(b.get("player")), Json.str(b.get("perm")), stateOf(b));
@@ -2804,7 +2815,8 @@ public final class HostHelper {
 			mid.add(south, BorderLayout.SOUTH);
 			// Players: the same permissions, per player. A player is tied to a launcher when the server's log shows them
 			// joining from it; allowing a player something sets it on all their launchers, and on ones they join from later.
-			String[] pcols = {"Player", "Whitelisted", "Launchers", "Last joined", "Server control", "MCSS control", "Machine wake/sleep",
+			Game pcg = Game.here();
+			String[] pcols = {"Player", pcg == null || pcg.allowWord().equals("whitelist") ? "Whitelisted" : "Allowed to join", "Launchers", "Last joined", "Server control", "MCSS control", "Machine wake/sleep",
 					"Gatekeeper control", "Status", "Now"};
 			// The Whitelisted column is a tick-box: ticking or unticking a player changes the server's whitelist.
 			boolean[] filling = {false};
@@ -2934,7 +2946,7 @@ public final class HostHelper {
 					BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(new Color(0x3D6FD6)), BorderFactory.createEmptyBorder(8, 12, 8, 8))));
 			JLabel ownUpdateText = new JLabel(" ");
 			JButton ownUpdateGo = new JButton("Update Gatekeeper");
-			ownUpdateGo.setToolTipText("Fetches the newer Gatekeeper, checks it, and restarts Gatekeeper as it (a few seconds). Running Minecraft servers aren't touched.");
+			ownUpdateGo.setToolTipText("Fetches the newer Gatekeeper, checks it, and restarts Gatekeeper as it (a few seconds). Running servers aren't touched.");
 			ownUpdate.add(ownUpdateText, BorderLayout.CENTER); ownUpdate.add(ownUpdateGo, BorderLayout.EAST);
 			dev.gatehouse.look.Download.Bar ownUpdateBar = new dev.gatehouse.look.Download.Bar();   // (R14: a newer Gatekeeper downloading)
 			ownUpdate.add(ownUpdateBar, BorderLayout.SOUTH);

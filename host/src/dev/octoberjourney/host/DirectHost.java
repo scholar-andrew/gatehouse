@@ -137,7 +137,7 @@ final class DirectHost implements ServerHost {
 		}
 		if (have != null && have.process.isAlive()) {
 			have.stopping = true;
-			String[] r = type(have, stopCommand());
+			String[] r = stopCommand().isEmpty() ? askToEnd(have) : type(have, stopCommand());
 			return r[0].equals("ok") ? new String[] {"ok", "Stop requested: the server saves the world and shuts down"} : r;
 		}
 		ProcessHandle h = adopted(d);
@@ -152,13 +152,18 @@ final class DirectHost implements ServerHost {
 
 	/** Reads what a server prints until it ends: when it has finished starting, and, at the end, how it went. */
 	private static void watch(String id, String name, Path d, Run r, String awaitedAs, Game game) {
+		// (a game whose own log is what it prints: kept in its folder, a new one each start, for who joined and left)
+		java.io.Writer consoleKeep = null;
+		if (game != null && game.keepsConsole()) try { consoleKeep = Files.newBufferedWriter(d.resolve(Game.CONSOLE_LOG), StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }
 		try (BufferedReader in = new BufferedReader(new InputStreamReader(r.process.getInputStream(), StandardCharsets.UTF_8))) {
 			for (String line; (line = in.readLine()) != null; ) {
+				if (consoleKeep != null) try { consoleKeep.write(line); consoleKeep.write('\n'); consoleKeep.flush(); } catch (IOException ignored) { Quiet.seen(ignored); }
 				if (game != null && game.readyLine(line)) r.ready = true;
 				synchronized (r.last) { r.last.addLast(line); if (r.last.size() > 6) r.last.removeFirst(); }
 				synchronized (r.lines) { r.lines.addLast(line); r.printed++; if (r.lines.size() > 2000) r.lines.removeFirst(); }
 			}
 		} catch (IOException ignored) { Quiet.seen(ignored); }
+		if (consoleKeep != null) try { consoleKeep.close(); } catch (IOException ignored) { Quiet.seen(ignored); }
 		int code = -1;
 		try { code = r.process.waitFor(); } catch (InterruptedException ignored) { Quiet.seen(ignored); }
 		runs.remove(id, r);
@@ -203,7 +208,7 @@ final class DirectHost implements ServerHost {
 		if (r == null) return adopted(serverDir()) != null ? new String[] {"refused", serverName()
 				+ " was started before Gatekeeper last restarted, so Gatekeeper can't restart it: stop it from inside the game first"} : startServerFully("the owner");
 		r.restart = true; r.stopping = true;
-		String[] t = type(r, stopCommand());
+		String[] t = stopCommand().isEmpty() ? askToEnd(r) : type(r, stopCommand());
 		return t[0].equals("ok") ? new String[] {"ok", "Restart requested: the server saves the world, shuts down and starts again"} : t;
 	}
 	/** Ends it at once, without saving: for a server that no longer answers. */
@@ -219,6 +224,20 @@ final class DirectHost implements ServerHost {
 
 	/** What stops the current server, typed into its console. */
 	static String stopCommand() { Game g = Game.here(); return g == null ? "stop" : g.stopCommand(); }
+
+	/** A game with no stop command: asked to end as closing its window would (it saves on that), and ended outright if
+	 *  it is still running a minute later. */
+	static String[] askToEnd(Run r) {
+		ProcessHandle h = r.process.toHandle();
+		h.descendants().forEach(ProcessHandle::destroy);
+		h.destroy();
+		Thread later = new Thread(() -> {
+			try { if (!r.process.waitFor(60, java.util.concurrent.TimeUnit.SECONDS)) { h.descendants().forEach(ProcessHandle::destroyForcibly); h.destroyForcibly(); } }
+			catch (InterruptedException ignored) { Quiet.seen(ignored); }
+		}, "end-server");
+		later.setDaemon(true); later.start();
+		return new String[] {"ok", "sent"};
+	}
 
 	static String[] type(Run r, String line) {
 		try { r.console.write((line + "\n").getBytes(StandardCharsets.UTF_8)); r.console.flush(); return new String[] {"ok", "sent"}; }

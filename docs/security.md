@@ -118,7 +118,9 @@ Both are off until the host turns them on, and both listen only on the machine's
 | Pack files and the program | Fetched from the owner's PC over Tailscale, GitHub, or another Gate System | Updates |
 | Mods | Fetched from Modrinth | Updates |
 | Modrinth lookups (file hashes only, no sign-in) | Modrinth | When a Gatekeeper builds a pack's mod list |
-| Server programs | Mojang, PaperMC, Fabric | Only when you press Make the server |
+| Server programs | Mojang, PaperMC, Fabric; for other games SteamCMD, from Valve (signing in anonymously) | Only when you press Make the server |
+| The Steam account signed in on a launcher's device (its Steam ID and name) | That launcher's own Gatekeepers, over Tailscale | With each report, when Steam is signed in there; used only for games whose list of who may join holds Steam IDs |
+| Whether a link works (the link only) | The site it goes to; for the web panel's links, from the Gatekeeper machine | When you press a link |
 | Phone notifications: the server's and player's names and a sentence; for chat, who wrote, the room and the start of the message | [ntfy](https://ntfy.sh) (or your own ntfy server); on Android delivered through Google's Firebase | Only when turned on (chat has its own switch). A topic has no password: its long random name is the secret |
 | Nothing else | | Neither half reports anything about you anywhere |
 

@@ -33,7 +33,7 @@ final class StuckBar {
 		stuckBar.setBackground(new Color(0x4A1F22));
 		stuckBar.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0xE5484D)),
 				BorderFactory.createEmptyBorder(8, 14, 8, 14)));
-		JLabel stuckText = new JLabel("<html><b>Gatekeeper isn't answering.</b> If it has frozen it restarts itself within a few minutes; or restart it now. Minecraft servers keep running.</html>");
+		JLabel stuckText = new JLabel("<html><b>Gatekeeper isn't answering.</b> If it has frozen it restarts itself within a few minutes; or restart it now. Servers keep running.</html>");
 		stuckText.setForeground(new Color(0xFFD7D9));
 		JButton stuckGo = new JButton("Restart Gatekeeper");
 		stuckBar.add(stuckText, BorderLayout.CENTER); stuckBar.add(stuckGo, BorderLayout.EAST);

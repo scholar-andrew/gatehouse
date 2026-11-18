@@ -184,7 +184,9 @@ const views = {
     const names = Object.keys(r.players).sort((a, b) => (r.players[a].now === 'In game' ? 0 : 1) - (r.players[b].now === 'In game' ? 0 : 1) || a.localeCompare(b));
     const rows = names.map(n => {
       const p = r.players[n], cell = el('div', 'row');
-      if (can('access')) cell.appendChild(button(p.whitelisted ? 'Take off whitelist' : 'Whitelist', () => act('whitelist', { player: n, value: !p.whitelisted }, '', p.whitelisted ? 'Take ' + n + ' off the whitelist?' : null, 'Take off'), 'quiet small'));
+      // (R34: each game's own word for its list of who may join; a game with a password has no list to change)
+      const w = r.allow_word || 'whitelist', listed = r.allow_kind === 'names' || r.allow_kind === 'steam_ids' || !r.allow_kind;
+      if (can('access') && listed) cell.appendChild(button(p.whitelisted ? 'Take off ' + (w === 'whitelist' ? 'whitelist' : 'the list') : w === 'whitelist' ? 'Whitelist' : 'Allow to join', () => act('whitelist', { player: n, value: !p.whitelisted }, '', p.whitelisted ? 'Take ' + n + ' off the ' + w + '?' : null, 'Take off'), 'quiet small'));
       if (can('console') && p.now === 'In game') cell.appendChild(button('Kick', () => act('kick', { player: n, reason: 'Kicked from the web panel' }, '', 'Kick ' + n + ' off the server now?', 'Kick'), 'quiet small'));
       return [n + (p.ban ? '  (' + p.ban + ')' : ''), el('span', (p.now === 'In game' ? 'green' : p.now === 'In the launcher' ? 'blue' : 'grey') + ' state', p.now), p.whitelisted ? 'Yes' : 'No', cell];
     });
@@ -278,15 +280,30 @@ const views = {
       const fill = async () => { ver.replaceChildren(); const r = await api('POST', 'tools/versions', { kind: kind.value }); (r.versions || []).forEach(x => ver.appendChild(el('option', '', x))); if (r.message) say(r, said); };
       kind.addEventListener('change', fill); fill();
       const make = button('Make the server', async () => {
-        say(await api('POST', 'tools/new', { name: name.value, game: game.value, kind: kind.value, version: ver.value, memory: mem.value, eula: eula.checked }), said);
+        const body = game.value === 'minecraft' ? { name: name.value, game: game.value, kind: kind.value, version: ver.value, memory: mem.value, eula: eula.checked }
+          : { name: name.value, game: game.value, port: oPort.value, world: oWorld.value, password: oPass.value, eula: oTerms.checked };
+        say(await api('POST', 'tools/new', body), said);
         const poll = setInterval(async () => { const m = (await api('GET', 'tools/new')).making || {}; if (m.state === 'working') say({ message: m.step }, said); else { clearInterval(poll); say({ result: m.state === 'done' ? 'ok' : 'failed', message: m.message }, said); } }, 1000);
       }, 'primary');
       const link = el('a', '', "Minecraft's EULA"); link.href = 'https://aka.ms/MinecraftEULA'; link.target = '_blank'; link.rel = 'noopener noreferrer';
       const mcRow = el('div', 'row', null, [kind, ver, mem]), mcEula = el('label', 'row', null, [eula, el('span', '', 'I have read '), link, el('span', '', ' and I agree to it')]);
-      const gameShown = () => { const mc = game.value === 'minecraft'; mcRow.hidden = mcEula.hidden = !mc; make.disabled = !mc; };
+      // (R34 stage 2: a game described by a file: port, world, password, its terms; SteamCMD installs it)
+      const oPort = el('input'), oWorld = el('input'), oPass = el('input'), oTerms = el('input'), oLink = el('a', '', 'its terms'), oNote = el('p', 'note small');
+      oPort.placeholder = 'Port'; oWorld.placeholder = 'World name'; oPass.placeholder = 'Password (5+ characters)'; oTerms.type = 'checkbox';
+      oLink.target = '_blank'; oLink.rel = 'noopener noreferrer';
+      const oRow = el('div', 'row', null, [oPort, oWorld, oPass]), oTermsRow = el('label', 'row', null, [oTerms, el('span', '', 'I have read '), oLink, el('span', '', ' and I agree to them')]);
+      const info = () => (n.games || []).find(g => g.id === game.value) || {};
+      const gameShown = () => {
+        const g = info(), mc = game.value === 'minecraft', other = !!game.value && !mc;
+        mcRow.hidden = mcEula.hidden = !mc; oRow.hidden = oNote.hidden = !other; oTermsRow.hidden = !other || !g.terms; oPass.hidden = !g.password;
+        if (other && !oPort.value) oPort.value = g.port || '';
+        if (g.terms) oLink.href = g.terms;
+        oNote.textContent = other ? (g.steam ? 'Gatekeeper installs the server with SteamCMD, Valve\'s tool for game servers' + (g.steamcmd_here ? '.' : ', which it fetches from Valve first (a few MB). Nothing is fetched until you press Make the server.') : 'Gatekeeper can\'t install this game\'s server: put it in a folder of its own on the machine, then add it in Server setup there.') : '';
+        make.disabled = !(mc || (other && g.steam));
+      };
       game.addEventListener('change', gameShown); gameShown();
       v.appendChild(el('div', 'card', null, [el('h3', '', 'New server'), el('div', 'row', null, [name, game]), mcRow,
-        mcEula, el('div', 'row', null, [make]), said,
+        mcEula, oRow, oTermsRow, oNote, el('div', 'row', null, [make]), said,
         el('p', 'note small', 'Gatekeeper fetches the server\'s program from its makers and sets it up on the server machine. A server from a Forge installer or your own jar is made in Gatekeeper\'s own window.')]));
     }
     $('view').replaceChildren(v);

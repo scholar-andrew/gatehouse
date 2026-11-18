@@ -1,6 +1,6 @@
 # Other games: the plan (R34)
 
-Status: stage 1 built (3.37.0, 2026-11-18); the first other game is not chosen yet. Where Gatehouse goes beyond
+Status: stages 1 and 2 built (3.37.0 and 3.39.0, 2026-11-18); the first other game is not chosen yet. Where Gatehouse goes beyond
 Minecraft, and in what order.
 
 **Neutral by default** (the owner, 2026-11-18): neither program assumes Minecraft. Every server records its game; a
@@ -61,9 +61,13 @@ connected to the server.
    (`Minecraft.java` the only one), and Gatehouse's `Games.java`. Proved by a scenario run against 3.36.0 and the new
    build (who is on from the log, a device tied to its player, the whitelist off and on, settings, start, backup
    with the save commands, stop): every answer identical, apart from the server now saying `game: minecraft`.
-2. **The generic pieces.** SteamCMD (fetched once, only after you say yes; it checks its own downloads), the A2S
-   player query, a "who may join" list that can hold Steam IDs or a password as well as Minecraft names, and
-   Gatehouse finding a Steam game on the device and starting it connected.
+2. **The generic pieces (built, 3.39.0).** Games described by a file ([Game definitions](game-definitions.md)),
+   read by one shared adapter; Steam's server query (who is on); SteamCMD installing a game's server (fetched from
+   Valve only when the owner presses Make the server); who may join as Steam IDs, names, a password or nothing, with
+   each game's own word for it; Gatehouse finding Steam, the games installed, the Steam account signed in, and Play
+   through Steam; neutral wording where a server isn't Minecraft. Proved with a stand-in game end to end (made with a
+   stand-in SteamCMD, started, up, who is on by the query, a Steam ID allowed, what launchers are told, stopped), and
+   Minecraft still behaves as in 3.36.0.
 3. **The first other game, end to end:** make its server from Gatekeeper, start, stop, crash watch, who is on,
    who may join, backups, and Play from Gatehouse on the PC, the laptop and the Deck. Stand-ins first, then your
    own machines.

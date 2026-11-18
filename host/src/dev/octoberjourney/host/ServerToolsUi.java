@@ -138,10 +138,20 @@ final class ServerToolsUi {
 				"jar")); if (fc.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) fileF.setText(fc.getSelectedFile().getPath()); });
 		eulaB.addActionListener(e -> dev.gatehouse.look.Links.openChecked(owner, "https://aka.ms/MinecraftEULA"));
 		Timer[] poll = {null};
+		// (R34 stage 2: a game described by a file: its port, world name, password, terms, and SteamCMD installing it)
+		JTextField oPort = new JTextField(6), oWorld = new JTextField(16), oPass = new JTextField(16);
+		JCheckBox oTerms = new JCheckBox("I have read its terms and I agree to them");
+		JButton oTermsB = new JButton("Open its terms");
+		JLabel oNote = note(" ");
+		java.util.function.Supplier<Map<String, Object>> gameInfo = () -> gameF.getSelectedIndex() <= 0 ? Map.of() : Json.map(games.get(gameF.getSelectedIndex() - 1));
+		oTermsB.addActionListener(e -> dev.gatehouse.look.Links.openChecked(owner, Json.str(gameInfo.get().get("terms"))));
 		make.addActionListener(e -> {
-			Map<String, Object> r = ask("POST", "/admin/tools/new", m("name", nameF.getText(), "game", game.get(), "kind", kind.get(), "version",
+			boolean mcNow = game.get().equals("minecraft");
+			Map<String, Object> r = mcNow ? ask("POST", "/admin/tools/new", m("name", nameF.getText(), "game", game.get(), "kind", kind.get(), "version",
 					verF.isEnabled() ? Json.str(verF.getSelectedItem()) : "", "file", fileF.isEnabled() ? fileF.getText() : "", "memory",
-					memF.getText(), "port", portF.getText(), "java", javaOf(javaF), "eula", eula.isSelected()));
+					memF.getText(), "port", portF.getText(), "java", javaOf(javaF), "eula", eula.isSelected()))
+					: ask("POST", "/admin/tools/new", m("name", nameF.getText(), "game", game.get(), "port", oPort.getText(), "world", oWorld.getText(),
+					"password", oPass.getText(), "eula", oTerms.isSelected()));
 			if (!Json.str(r.get("result")).equals("ok")) { say(said, r); return; }
 			make.setEnabled(false);
 			said.setForeground(AMBER); said.setText("Starting…");
@@ -182,10 +192,28 @@ final class ServerToolsUi {
 		row(form, y++, null,
 				note(wrap("A Minecraft server can't be run without agreeing to Mojang's EULA. That is yours to do: Gatekeeper records it in the server's eula.txt only when this box is ticked.", 520)));
 		int gameRowsTo = form.getComponentCount();
+		row(form, y++, "Port", line(oPort, note("its own; empty for the game's usual one")));
+		row(form, y++, "World name", oWorld);
+		row(form, y++, "Password", line(oPass, note("whoever has it can join; at least 5 characters")));
+		int passRow = form.getComponentCount() - 2;
+		row(form, y++, null, line(oTerms, oTermsB));
+		row(form, y++, null, oNote);
+		int otherRowsTo = form.getComponentCount();
 		Runnable gameChanged = () -> {
-			boolean mc = game.get().equals("minecraft");
+			boolean mc = game.get().equals("minecraft"), other = !game.get().isEmpty() && !mc;
+			Map<String, Object> gi = gameInfo.get();
 			for (int i = gameRowsFrom; i < gameRowsTo; i++) form.getComponent(i).setVisible(mc);
-			make.setEnabled(mc);
+			for (int i = gameRowsTo; i < otherRowsTo; i++) form.getComponent(i).setVisible(other);
+			if (other) {
+				boolean pw = Boolean.TRUE.equals(gi.get("password")), terms = !Json.str(gi.get("terms")).isEmpty();
+				form.getComponent(passRow).setVisible(pw); form.getComponent(passRow + 1).setVisible(pw);
+				oTerms.getParent().setVisible(terms);
+				if (oPort.getText().isBlank()) oPort.setText(Json.str(gi.get("port")));
+				oNote.setText(wrap(Boolean.TRUE.equals(gi.get("steam")) ? "Gatekeeper installs the server with SteamCMD, Valve's tool for game servers"
+						+ (Boolean.TRUE.equals(gi.get("steamcmd_here")) ? "." : ", which it fetches from Valve first (a few MB). Nothing is fetched until you press Make the server.")
+						: "Gatekeeper can't install this game's server: put it in a folder of its own, then add it in Server setup.", 520));
+			}
+			make.setEnabled(mc || (other && Boolean.TRUE.equals(gi.get("steam"))));
 			form.revalidate(); form.repaint();
 		};
 		gameF.addActionListener(e -> gameChanged.run());
@@ -263,7 +291,7 @@ final class ServerToolsUi {
 				"Stop the Minecraft server? Anyone playing is disconnected (the world is saved first).", "Minecraft server",
 				JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return; act.accept(up[0] ? "/admin/server/stop" : "/admin/server/start", m()); });
 		restartB.addActionListener(e -> { if (JOptionPane.showConfirmDialog(owner,
-				"Restart the Minecraft server? Anyone playing is disconnected until it is back.", "Minecraft server",
+				"Restart the server? Anyone playing is disconnected until it is back.", "Minecraft server",
 				JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) act.accept("/admin/tools/action", m("action", "restart")); });
 		killB.addActionListener(e -> { if (JOptionPane.showConfirmDialog(owner,
 				"End the server at once, without saving? Whatever it hadn't saved yet is lost. Use Stop unless it no longer answers.",

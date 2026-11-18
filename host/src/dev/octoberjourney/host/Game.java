@@ -19,18 +19,29 @@ import java.util.Map;
  * Minecraft is the only game so far.
  */
 interface Game {
-	/** Every game Gatekeeper knows, by id, in the order they are offered. */
-	Map<String, Game> ALL = all();
-	private static Map<String, Game> all() {
-		Map<String, Game> m = new LinkedHashMap<>();
-		Game mc = new Minecraft();
-		m.put(mc.id(), mc);
-		return java.util.Collections.unmodifiableMap(m);
+	/** What a server prints, kept in its folder, for games whose own log is just that (GameFile). */
+	String CONSOLE_LOG = "gatekeeper-console.log";
+	/** The games Gatekeeper knows (filled the first time it is asked, see all()). */
+	Map<String, Game> KNOWN = new LinkedHashMap<>();
+	/** Every game Gatekeeper knows, by id, in the order they are offered: Minecraft, then each definition in
+	 *  Gatekeeper's folder (games/<id>.json, R34 stage 2), read once. */
+	static Map<String, Game> all() {
+		synchronized (KNOWN) {
+			if (KNOWN.isEmpty()) {
+				Game mc = new Minecraft();
+				KNOWN.put(mc.id(), mc);
+				Path dir = HostHelper.dir == null ? null : HostHelper.dir.resolve("games");
+				if (dir != null && java.nio.file.Files.isDirectory(dir)) try (java.util.stream.Stream<Path> s = java.nio.file.Files.list(dir)) {
+					s.filter(f -> f.getFileName().toString().endsWith(".json")).sorted().forEach(f -> { GameFile g = GameFile.load(f); if (g != null) KNOWN.putIfAbsent(g.id(), g); });
+				} catch (IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); }
+			}
+			return java.util.Collections.unmodifiableMap(new LinkedHashMap<>(KNOWN));
+		}
 	}
 	/** The game a server (an entry of host.json's servers) is for, or null when it names none Gatekeeper knows. */
 	static Game of(Map<String, Object> server) { return server == null ? null : named(Json.str(server.get("game"))); }
 	/** A game by its id ("minecraft"), or null. */
-	static Game named(String id) { return id == null ? null : ALL.get(id); }
+	static Game named(String id) { return id == null ? null : all().get(id); }
 	/** The current server's game, or null. */
 	static Game here() { return of(HostHelper.server()); }
 	/** A game's name for people ("Minecraft"); "no game" when there is none. */
@@ -40,6 +51,28 @@ interface Game {
 	String id();
 	/** Its name for people ("Minecraft"). */
 	String name();
+
+	// ------------------------------------------------------------------ R34 stage 2: what a game may have (Minecraft has none of these)
+
+	/** Its dedicated server's Steam app id, for SteamCMD to install and update it; 0 for none. */
+	default int steamServerApp() { return 0; }
+	/** The game's own Steam app id, which players have; 0 for none. */
+	default int steamGameApp() { return 0; }
+	/** How a player joins from Gatehouse: a link with {app} and {address} ("steam://run/{app}//+connect {address}"), or "". */
+	default String join() { return ""; }
+	/** The port a new server of it gets unless another is free or chosen. */
+	default String defaultPort() { return ""; }
+	/** Steam's server query port for the server in that folder (it says whether it is up and who is on), or 0. */
+	default int queryPort(Path d) { return 0; }
+	/** Is what it prints its log (kept in CONSOLE_LOG in its folder)? */
+	default boolean keepsConsole() { return false; }
+	/** What its list of who may join is called ("whitelist"). */
+	default String allowWord() { return "whitelist"; }
+	/** What that list holds: "names" (Minecraft names), "steam_ids", "password" (no list: a password), or "none". */
+	default String allowKind() { return "names"; }
+	/** Its terms for running a server (a page), or "" when there are none to accept. */
+	default String termsUrl() { return ""; }
+	default String termsName() { return ""; }
 
 	// ------------------------------------------------------------------ its server's folder and program
 

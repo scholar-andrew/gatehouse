@@ -122,6 +122,15 @@ final class AutoUpdate {
 		r.source = clean(Json.str(b.get("source")), 200).replace("<", "");
 		try { r.ping = Math.max(0, Math.min(60_000, (int) Double.parseDouble(Json.str(b.get("ping")).isEmpty() ? "0" : Json.str(b.get("ping"))))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 		r.battery = clean(Json.str(b.get("battery")), 24).replaceAll("[^\\w%,. ]", "");
+		// (R34: the Steam account signed in on a launcher's device, for games whose list of who may join holds Steam IDs)
+		String sid = Json.str(b.get("steam_id")), sname = clean(Json.str(b.get("steam_name")), 32).replaceAll("[^\\w \\-.]", "");
+		if (!keeper && sid.matches("\\d{17}")) synchronized (HostHelper.class) {
+			Map<String, Object> devs = HostHelper.devices(), dv = Json.map(devs.get(id));
+			if (!dv.isEmpty() && (!sid.equals(Json.str(dv.get("steam_id"))) || !sname.equals(Json.str(dv.get("steam_name"))))) {
+				dv.put("steam_id", sid); dv.put("steam_name", sname);
+				try { HostHelper.saveDevices(devs); } catch (java.io.IOException ignored) { Quiet.seen(ignored); }
+			}
+		}
 		if (keeper) for (Object o : Json.list(b.get("clients"))) {   // (its own launchers, for the lead's list: kept as plain words)
 			Map<String, Object> c = Json.map(o);
 			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player",

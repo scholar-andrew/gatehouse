@@ -7,6 +7,13 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.39.0 - 2026-11-18
+
+- Ready for other games, step 2 (R34): a game can now be described by a small file instead of code, read by one shared adapter, so adding most games with a dedicated server becomes a file. No such game is offered yet: the first comes when you choose it.
+- For those games: New server installs the server with SteamCMD, Valve's own tool (fetched from Valve only when you press Make the server); Gatekeeper asks the server who is on with Steam's server query; who may join can be a list of Steam IDs, a list of names, or a password, and each game's own word for it is used.
+- Gatehouse knows Steam: which games are installed on the device, and which Steam account is signed in (sent to your own Gatekeepers only, so players can be let on by Steam ID). A Steam game's server shows Play, which starts the game in Steam connected to it, or Get it in Steam.
+- Words that said Minecraft server where any server is meant now say server.
+
 ## 3.38.0 - 2026-11-18
 
 - Links that don't work say why (R54): every link in Gatehouse, Gatekeeper and the web panel is tried before it opens. One that isn't working says what is wrong (no internet, the site's name not found, the site not answering, the page gone, the site failing, or for your own machines Tailscale not connected or the machine asleep), with Try again and Open anyway.

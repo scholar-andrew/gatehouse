@@ -386,7 +386,7 @@ final class ServerControl {
 					case "online": return new String[] {"ok", "Online", "online", ping, players};
 					case "starting": return new String[] {"warn", "Starting\u2026", "starting", "", ""};
 					case "stopping": return new String[] {"warn", "Shutting down\u2026", "stopping", "", ""};
-					case "off": return new String[] {"off", "The server machine is awake, but the Minecraft server is off"
+					case "off": return new String[] {"off", "The server machine is awake, but the server is off"
 							+ (canControlServer() ? ": press Start server" : ""), "off", "", ""};
 					case "nomcss": return new String[] {"off", mcssPhase.equals("starting") ? "MCSS is starting\u2026"
 							: "The server machine is awake, but MCSS isn't running" + (viaHelper() ? ": Start server starts it too" : ""), "nomcss", "", ""};
@@ -408,7 +408,7 @@ final class ServerControl {
 					case 3: return new String[] {"warn", "Starting\u2026", "starting", ping, players};
 					case 2: return new String[] {"warn", "Restarting\u2026", "starting", ping, players};
 					case 4: return new String[] {"warn", "Stopping\u2026", "stopping", ping, players};
-					case 0: return new String[] {"off", "The server machine is awake, but the Minecraft server is off: press Start server", "off", "", ""};
+					case 0: return new String[] {"off", "The server machine is awake, but the server is off: press Start server", "off", "", ""};
 					default: break;
 				}
 			} catch (HttpError e) {
@@ -418,7 +418,7 @@ final class ServerControl {
 			} catch (IOException ignored) { Quiet.seen(ignored); }
 		}
 		if (game) return new String[] {"ok", "Online", "online", ping, players};
-		if (panel) return new String[] {"off", "The server machine is awake, but the Minecraft server isn't answering"
+		if (panel) return new String[] {"off", "The server machine is awake, but the server isn't answering"
 				+ (canControlServer() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
 		if (pc) return new String[] {"off", "The server machine is awake, but MCSS isn't running: start it with Start MCSS below, then the server", "nomcss", "", ""};
 		return new String[] {"off", "Not answering: the server machine is asleep or off" + (canWake()
@@ -431,7 +431,7 @@ final class ServerControl {
 			case 3: return new String[] {"warn", "Starting\u2026", "starting", ping, players};
 			case 2: return new String[] {"warn", "Restarting\u2026", "starting", ping, players};
 			case 4: return new String[] {"warn", "Stopping\u2026", "stopping", ping, players};
-			case 0: return new String[] {"off", "The server machine is awake, but the Minecraft server is off: press Start server", "off", "", ""};
+			case 0: return new String[] {"off", "The server machine is awake, but the server is off: press Start server", "off", "", ""};
 			default: return null;
 		}
 	}

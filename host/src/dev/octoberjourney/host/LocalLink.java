@@ -49,7 +49,7 @@ final class LocalLink {
 		}
 		if (path.equals("/admin/quit") && x.getRequestMethod().equals("POST")) {   // (ended from its own window)
 			if (DirectHost.anyTracked()) { reply(x, 200, m("result", "refused", "message",
-					"A Minecraft server that this Gatekeeper runs is on. Stop it first: ending Gatekeeper would leave it running with nobody able to reach its console.")); return true; }
+					"A server that this Gatekeeper runs is on. Stop it first: ending Gatekeeper would leave it running with nobody able to reach its console.")); return true; }
 			log("Gatekeeper was ended from its window. It starts again when you next sign in, or from Start Gatekeeper.");
 			reply(x, 200, m("result", "ok", "message", "Gatekeeper has ended."));
 			Thread end = new Thread(() -> { try { Thread.sleep(600); } catch (InterruptedException ignored) { Quiet.seen(ignored); } System.exit(0); }, "quit");
