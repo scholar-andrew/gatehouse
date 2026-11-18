@@ -705,7 +705,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   function drawDrafts() { var box = $("r-atts"); box.textContent = ""; drafts.forEach(function (a, i) { box.appendChild(attView(a, function () { drafts.splice(i, 1); drawDrafts(); if (assets) assets.delete(a.id).catch(function () {}); })); }); if (!drafts.length) box.appendChild(el("span", "meta", "None yet.")); }
   function saveReq(r) {
     if (!db) { say("Not saved: sign in to claude.ai to keep requests", true); return Promise.resolve(); }
-    var doc = {}; ["n", "ref", "category", "title", "description", "attachments", "status", "created", "updated", "reply", "added_in", "answer", "answer_at", "thread", "draft"].forEach(function (k) { if (r[k] !== undefined) doc[k] = r[k]; });
+    var doc = {}; ["n", "ref", "category", "title", "description", "attachments", "status", "created", "updated", "reply", "added_in", "built_in", "answer", "answer_at", "thread", "draft"].forEach(function (k) { if (r[k] !== undefined) doc[k] = r[k]; });
     doc.updated = new Date().toISOString();
     reqs[r.id] = Object.assign({}, r, doc);
     say("Saving…");
@@ -898,6 +898,24 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     }, function () { have(local || allRead()); });
   }
 
+  // ---- R26: a request Claude built into a version ("built_in") moves to Requests added by itself once that version
+  // is the one published (meta/current, which Claude sets with each publish); it is saved that way, so it stays.
+  function vAtLeast(a, b) {
+    var x = String(a).split(/[^0-9]+/), y = String(b).split(/[^0-9]+/);
+    for (var i = 0; i < Math.max(x.length, y.length); i++) { var p = +(x[i] || 0), q = +(y[i] || 0); if (p !== q) return p > q; }
+    return true;
+  }
+  function liveNow() {
+    if (!current) return;
+    Object.keys(reqs).forEach(function (k) {
+      var r = reqs[k];
+      if (!r.built_in || r.status === "added" || r.status === "done" || r.status === "wont" || !vAtLeast(current, r.built_in)) return;
+      var now = Object.assign({}, r, { status: "added", added_in: r.built_in });
+      reqs[k] = now;
+      if (db) saveReq(now);
+    });
+  }
+
   function rrender() {
     var all = Object.keys(reqs).map(function (k) { return reqs[k]; });
     var open = all.filter(function (r) { return !closed(r); });
@@ -974,7 +992,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     db = d;
     if (!db) { loaded = true; $("empty").textContent = "The workshop keeps its checks and your answers in your claude.ai account. Open it signed in to see them."; counts(); return; }
     var timer = setTimeout(function () { if (!loaded) $("empty").textContent = "The checks are taking a while to load. Check your connection; they will appear here when they arrive."; }, 10000);
-    db.doc("meta/current").onSnapshot(function (snap) { var v = (snap.exists && snap.data() || {}).version || ""; if (v !== current) { current = String(v); render(); } }, function () {});
+    db.doc("meta/current").onSnapshot(function (snap) { var v = (snap.exists && snap.data() || {}).version || ""; if (v !== current) { current = String(v); render(); liveNow(); rrender(); } }, function () {});
     db.collection("items").onSnapshot(function (snap) {
       clearTimeout(timer); loaded = true;
       var next = {};
@@ -990,6 +1008,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       // (copies: what the store hands back can't be written on)
       snap.docs.forEach(function (doc) { next[doc.id] = Object.assign({}, doc.data() || {}, { id: doc.id }); });
       reqs = next;
+      liveNow();
       checkUnread();
       if (mode() === "requests" && document.activeElement && /^re-|^ra-|^rd-|^rt-|^r-title$|^r-desc$/.test(document.activeElement.id || "")) { rcounts(); var mn = $("m-req-n"); return; }   // (not redrawn under the words being typed)
       rrender();
