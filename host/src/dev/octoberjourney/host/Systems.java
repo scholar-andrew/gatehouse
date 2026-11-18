@@ -51,7 +51,8 @@ final class Systems {
 
 	static String me() { return History.me(); }
 	private static String id(Object o) { String s = Json.str(o).toLowerCase(java.util.Locale.ROOT); return s.matches("[0-9a-f\\-]{16,64}") ? s : ""; }
-	private static String word(Object o, int most) { String s = Json.str(o).replaceAll("[\\p{Cntrl}<>]", " ").trim(); return s.length() > most ? s.substring(0, most) : s; }
+	private static String word(Object o, int most) { String s = Json.str(o).replaceAll("[\\p{Cntrl}<>]",
+			" ").trim(); return s.length() > most ? s.substring(0, most) : s; }
 	private static String ownAddress() { String b = setting("bind", ""); return b.isEmpty() ? "" : b + ":" + port(); }
 
 	// ------------------------------------------------------------------ what is kept
@@ -64,7 +65,8 @@ final class Systems {
 		if (!(s.get("remembered_by") instanceof Map<?, ?>)) s.put("remembered_by", new LinkedHashMap<String, Object>());
 		return s;
 	}
-	private static void save(Map<String, Object> s) { try { Files.writeString(file(), Json.write(s), StandardCharsets.UTF_8); } catch (IOException e) { log("systems: couldn't be saved: " + e.getMessage()); } }
+	private static void save(Map<String, Object> s) { try { Files.writeString(file(), Json.write(s),
+			StandardCharsets.UTF_8); } catch (IOException e) { log("systems: couldn't be saved: " + e.getMessage()); } }
 	static List<Object> remembers() { return new ArrayList<>(Json.map(store().get("remembered")).keySet()); }
 
 	// ------------------------------------------------------------------ who is here
@@ -77,9 +79,12 @@ final class Systems {
 		return false;
 	}
 	private static Map<String, Object> row(String sid, String name, String device) {
-		return m("id", sid, "name", name, "device", device, "gatehouse", false, "gatekeeper", false, "address", "", "neighbor", false, "unknown", false, "this", false, "via", "", "remembers", new ArrayList<>(), "open", false, "last_seen", "", "halves", new ArrayList<>());
+		return m("id", sid, "name", name, "device", device, "gatehouse", false, "gatekeeper", false, "address", "", "neighbor", false,
+				"unknown", false, "this", false, "via", "", "remembers", new ArrayList<>(), "open", false, "last_seen", "", "halves", new ArrayList<>());
 	}
-	@SuppressWarnings("unchecked") private static void addAll(Map<String, Object> row, Object remembers) { for (Object o : Json.list(remembers)) if (!id(o).isEmpty() && !((List<Object>) row.get("remembers")).contains(id(o)) && ((List<Object>) row.get("remembers")).size() < 300) ((List<Object>) row.get("remembers")).add(id(o)); }
+	@SuppressWarnings("unchecked") private static void addAll(Map<String, Object> row, Object remembers) { for (Object o
+			: Json.list(remembers)) if (!id(o).isEmpty() && !((List<Object>) row.get("remembers")).contains(id(o))
+			&& ((List<Object>) row.get("remembers")).size() < 300) ((List<Object>) row.get("remembers")).add(id(o)); }
 
 	/** Every system this Gatekeeper knows of, by id, as it stands to this one. */
 	static Map<String, Map<String, Object>> rows() {
@@ -98,7 +103,9 @@ final class Systems {
 		Map<String, String> same = new LinkedHashMap<>();
 		for (String h : halves(devs)) same.put(h, mine);
 		// (and the Gatekeeper this one joined says the same of itself and of the others that joined it)
-		if (AutoUpdate.leadMember && now - leadHeard < 180_000) for (Object o : leadRows) { Map<String, Object> c = Json.map(o); if (!id(c.get("id")).isEmpty()) for (Object h : Json.list(c.get("halves"))) if (!id(h).isEmpty() && !same.containsKey(id(h))) same.put(id(h), id(c.get("id"))); }
+		if (AutoUpdate.leadMember && now - leadHeard < 180_000) for (Object o : leadRows) { Map<String,
+				Object> c = Json.map(o); if (!id(c.get("id")).isEmpty()) for (Object h : Json.list(c.get("halves"))) if (!id(h).isEmpty()
+				&& !same.containsKey(id(h))) same.put(id(h), id(c.get("id"))); }
 		for (Map.Entry<String, Object> e : devs.entrySet()) {
 			Map<String, Object> d = Json.map(e.getValue()), t = told.get(e.getKey());
 			if (!Json.str(d.get("kind")).equals("gatekeeper") || t == null) continue;
@@ -108,7 +115,8 @@ final class Systems {
 		for (Map.Entry<String, Object> e : devs.entrySet()) {
 			Map<String, Object> d = Json.map(e.getValue()), t = told.get(e.getKey());
 			boolean keeper = Json.str(d.get("kind")).equals("gatekeeper");
-			if (ServerTools.yes(d.get("local")) && !keeper) {   // (this machine's own launcher: the other half of this system, and the systems it meets at other Gatekeepers are this system's neighbors too)
+			if (ServerTools.yes(d.get("local"))
+					&& !keeper) {   // (this machine's own launcher: the other half of this system, and the systems it meets at other Gatekeepers are this system's neighbors too)
 				self.put("gatehouse", true);
 				if (t != null) subs(out, mine, mine, "this machine's launcher", t, same);
 				continue;
@@ -124,7 +132,8 @@ final class Systems {
 			String nm = word(Json.str(d.get("name")).replace(" (Gatekeeper)", ""), 60);
 			if (Json.str(r.get("name")).isEmpty() || keeper) r.put("name", nm);
 			if (keeper && t != null) r.put("halves", Json.list(t.get("halves")));
-			if (keeper) { r.put("gatekeeper", true); if (t != null && !Json.str(t.get("address")).isEmpty()) r.put("address", Json.str(t.get("address"))); if (t != null && ServerTools.yes(t.get("gatehouse"))) r.put("gatehouse", true); }
+			if (keeper) { r.put("gatekeeper", true); if (t != null && !Json.str(t.get("address")).isEmpty()) r.put("address",
+					Json.str(t.get("address"))); if (t != null && ServerTools.yes(t.get("gatehouse"))) r.put("gatehouse", true); }
 			else r.put("gatehouse", true);
 			if (t != null && !Json.str(t.get("device")).isEmpty()) r.put("device", Json.str(t.get("device")));
 			if (Json.str(r.get("device")).isEmpty()) r.put("device", word(d.get("os"), 20));
@@ -145,7 +154,9 @@ final class Systems {
 			if (Json.str(cr.get("name")).isEmpty()) cr.put("name", word(c.get("name"), 60));
 			if (ServerTools.yes(c.get("gatehouse"))) cr.put("gatehouse", true);
 			// (a system with a Gatekeeper goes by the name its owner gave that Gatekeeper, not its launcher's machine name)
-			if (ServerTools.yes(c.get("gatekeeper"))) { if (!ServerTools.yes(cr.get("gatekeeper")) && !word(c.get("name"), 60).isEmpty()) cr.put("name", word(c.get("name"), 60)); cr.put("gatekeeper", true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
+			if (ServerTools.yes(c.get("gatekeeper"))) { if (!ServerTools.yes(cr.get("gatekeeper")) && !word(c.get("name"),
+					60).isEmpty()) cr.put("name", word(c.get("name"), 60)); cr.put("gatekeeper",
+					true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
 			cr.put("neighbor", true);
 			if (ServerTools.yes(c.get("open"))) cr.put("open", true);
 			addAll(cr, c.get("remembers"));
@@ -161,15 +172,22 @@ final class Systems {
 			if (neighbor) {   // (seen now: what is kept about it is brought up to date)
 				if (theyDo && !by.containsKey(sid)) { by.put(sid, m("name", r.get("name"), "since", LocalDateTime.now().format(TIME))); changed = true; }
 				if (!theyDo && by.containsKey(sid)) { by.remove(sid); changed = true; }
-				if (kept.containsKey(sid)) { Map<String, Object> k = Json.map(kept.get(sid)); String sig = Json.str(k.get("name")) + "|" + Json.str(k.get("address")) + "|" + Json.str(k.get("device")); fill(k, r); if (!sig.equals(Json.str(k.get("name")) + "|" + Json.str(k.get("address")) + "|" + Json.str(k.get("device")))) changed = true; }
+				if (kept.containsKey(sid)) { Map<String, Object> k = Json.map(kept.get(sid)); String sig = Json.str(k.get("name")) + "|"
+						+ Json.str(k.get("address")) + "|" + Json.str(k.get("device")); fill(k, r); if (!sig.equals(Json.str(k.get("name"))
+						+ "|" + Json.str(k.get("address")) + "|" + Json.str(k.get("device")))) changed = true; }
 			}
 			r.put("remembered", kept.containsKey(sid));
 			r.put("remembers_you", by.containsKey(sid));
 		}
 		for (Map.Entry<String, Object> e : kept.entrySet()) if (!out.containsKey(e.getKey())) {
 			Map<String, Object> k = Json.map(e.getValue()), r = row(e.getKey(), Json.str(k.get("name")), Json.str(k.get("device")));
-			r.put("gatehouse", ServerTools.yes(k.get("gatehouse"))); r.put("gatekeeper", ServerTools.yes(k.get("gatekeeper"))); r.put("address", Json.str(k.get("address")));
-			r.put("remembered", true); r.put("remembers_you", by.containsKey(e.getKey())); r.put("since", Json.str(k.get("since"))); r.put("last_seen", Json.str(k.get("last_seen")));
+			r.put("gatehouse", ServerTools.yes(k.get("gatehouse")));
+			r.put("gatekeeper", ServerTools.yes(k.get("gatekeeper")));
+			r.put("address", Json.str(k.get("address")));
+			r.put("remembered", true);
+			r.put("remembers_you", by.containsKey(e.getKey()));
+			r.put("since", Json.str(k.get("since")));
+			r.put("last_seen", Json.str(k.get("last_seen")));
 			out.put(e.getKey(), r);
 		}
 		if (changed) save(store);
@@ -194,7 +212,9 @@ final class Systems {
 			if (Json.str(cr.get("name")).isEmpty()) cr.put("name", word(c.get("name"), 60));
 			if (ServerTools.yes(c.get("gatehouse"))) cr.put("gatehouse", true);
 			// (a system with a Gatekeeper goes by the name its owner gave that Gatekeeper, not its launcher's machine name)
-			if (ServerTools.yes(c.get("gatekeeper"))) { if (!ServerTools.yes(cr.get("gatekeeper")) && !word(c.get("name"), 60).isEmpty()) cr.put("name", word(c.get("name"), 60)); cr.put("gatekeeper", true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
+			if (ServerTools.yes(c.get("gatekeeper"))) { if (!ServerTools.yes(cr.get("gatekeeper")) && !word(c.get("name"),
+					60).isEmpty()) cr.put("name", word(c.get("name"), 60)); cr.put("gatekeeper",
+					true); if (Json.str(cr.get("address")).isEmpty()) cr.put("address", word(c.get("address"), 60)); }
 			if (!ServerTools.yes(cr.get("neighbor")) && Json.str(cr.get("via")).isEmpty()) cr.put("via", through);
 			cr.put("neighbor", true);
 			addAll(cr, c.get("remembers"));
@@ -208,7 +228,8 @@ final class Systems {
 	static String status(Map<String, Object> r) {
 		if (ServerTools.yes(r.get("this"))) return "This system";
 		boolean n = ServerTools.yes(r.get("neighbor")), k = ServerTools.yes(r.get("remembered"));
-		return (n && k ? "Neighbor, remembered" : n ? "Neighbor" : k ? "Remembered" : "Unknown") + (ServerTools.yes(r.get("remembers_you")) ? " (remembers this system)" : "");
+		return (n && k ? "Neighbor, remembered" : n ? "Neighbor" : k ? "Remembered" : "Unknown") + (ServerTools.yes(r.get("remembers_you"))
+				? " (remembers this system)" : "");
 	}
 
 	/** Remembers a system (only one that is a neighbor right now), or forgets one. */
@@ -224,7 +245,8 @@ final class Systems {
 		}
 		Map<String, Object> r = rows().get(sid);
 		if (r == null || ServerTools.yes(r.get("this"))) return new String[] {"refused", "No such system."};
-		if (!ServerTools.yes(r.get("neighbor"))) return new String[] {"refused", "A system can be remembered while it is in a constellation with this one. " + Json.str(r.get("name")) + " isn't right now."};
+		if (!ServerTools.yes(r.get("neighbor"))) return new String[] {"refused",
+				"A system can be remembered while it is in a constellation with this one. " + Json.str(r.get("name")) + " isn't right now."};
 		if (kept.containsKey(sid)) return new String[] {"ok", Json.str(r.get("name")) + " is already remembered."};
 		if (kept.size() >= 300) return new String[] {"refused", "There are already 300 remembered systems: forget one first."};
 		Map<String, Object> k = m("since", LocalDateTime.now().format(TIME));
@@ -232,7 +254,8 @@ final class Systems {
 		kept.put(sid, k);
 		save(store);
 		log("systems: " + Json.str(r.get("name")) + " is now remembered");
-		return new String[] {"ok", Json.str(r.get("name")) + " is remembered. It stays in this list after the constellation is left. It gives that system nothing: no permission, no whitelist, no pack."};
+		return new String[] {"ok", Json.str(r.get("name"))
+				+ " is remembered. It stays in this list after the constellation is left. It gives that system nothing: no permission, no whitelist, no pack."};
 	}
 
 	// ------------------------------------------------------------------ told and telling
@@ -243,7 +266,8 @@ final class Systems {
 		for (Map<String, Object> r : rows().values()) {
 			if (Json.str(r.get("id")).equals(asking)) continue;
 			if (!ServerTools.yes(r.get("this")) && !ServerTools.yes(r.get("neighbor"))) continue;
-			out.add(m("id", r.get("id"), "name", r.get("name"), "device", r.get("device"), "gatehouse", r.get("gatehouse"), "gatekeeper", r.get("gatekeeper"), "address", r.get("address"), "open", r.get("open"), "remembers", r.get("remembers"), "halves", r.get("halves")));
+			out.add(m("id", r.get("id"), "name", r.get("name"), "device", r.get("device"), "gatehouse", r.get("gatehouse"), "gatekeeper",
+					r.get("gatekeeper"), "address", r.get("address"), "open", r.get("open"), "remembers", r.get("remembers"), "halves", r.get("halves")));
 		}
 		return out;
 	}
@@ -260,15 +284,24 @@ final class Systems {
 		// what it says of itself. This machine's own launcher goes by this system's id whatever it says.
 		String machine = local ? me() : id(b.get("machine"));
 		List<Object> theirs = new ArrayList<>();
-		for (Object o : Json.list(b.get("systems"))) { if (theirs.size() >= 60) break; Map<String, Object> c = Json.map(o); if (!id(c.get("id")).isEmpty()) theirs.add(m("id", id(c.get("id")), "name", word(c.get("name"), 60), "device", word(c.get("device"), 20), "gatehouse", ServerTools.yes(c.get("gatehouse")), "gatekeeper", ServerTools.yes(c.get("gatekeeper")), "address", word(c.get("address"), 60), "remembers", idList(c.get("remembers")))); }
-		told.put(devId, m("device", word(b.get("device"), 20), "address", word(b.get("address"), 60).replaceAll("[^0-9A-Za-z.:\\-\\[\\]]", ""), "gatehouse", ServerTools.yes(b.get("gatehouse")), "remembers", local ? new ArrayList<>() : idList(b.get("remembers")), "systems", theirs, "halves", idList(b.get("halves"))));
+		for (Object o : Json.list(b.get("systems"))) { if (theirs.size() >= 60) break; Map<String,
+				Object> c = Json.map(o); if (!id(c.get("id")).isEmpty()) theirs.add(m("id", id(c.get("id")), "name", word(c.get("name"),
+				60), "device", word(c.get("device"), 20), "gatehouse", ServerTools.yes(c.get("gatehouse")), "gatekeeper",
+				ServerTools.yes(c.get("gatekeeper")), "address", word(c.get("address"), 60), "remembers", idList(c.get("remembers")))); }
+		told.put(devId, m("device", word(b.get("device"), 20), "address", word(b.get("address"), 60).replaceAll("[^0-9A-Za-z.:\\-\\[\\]]",
+				""), "gatehouse", ServerTools.yes(b.get("gatehouse")), "remembers", local ? new ArrayList<>() : idList(b.get("remembers")),
+				"systems", theirs, "halves", idList(b.get("halves"))));
 		if (!machine.isEmpty() && !machine.equals(Json.str(d.get("machine")))) { d.put("machine", machine); devs.put(devId, d); saveDevices(devs); }
-		if (!banOf(d)[0].isEmpty() || !inside(d)) { reply(x, 200, m("result", "refused", "systems", new ArrayList<>(), "message", "This launcher isn't part of this Gatekeeper's constellation: its owner hasn't let it in anywhere.")); return; }
+		if (!banOf(d)[0].isEmpty() || !inside(d)) { reply(x, 200, m("result", "refused", "systems", new ArrayList<>(), "message",
+				"This launcher isn't part of this Gatekeeper's constellation: its owner hasn't let it in anywhere.")); return; }
 		Map<String, Object> out = m("result", "ok", "me", m("id", me(), "name", AutoUpdate.myName()), "you_are_local", local, "systems", forOthers(machine));
-		if (local) { List<Object> all = new ArrayList<>(); for (Map<String, Object> r : rows().values()) if (!ServerTools.yes(r.get("this"))) { r.put("status", status(r)); all.add(r); } out.put("standing", all); }   // (the same system: how each stands to it, remembered ones that aren't here included)
+		if (local) { List<Object> all = new ArrayList<>(); for (Map<String, Object> r
+				: rows().values()) if (!ServerTools.yes(r.get("this"))) { r.put("status", status(r)); all.add(r); } out.put("standing",
+				all); }   // (the same system: how each stands to it, remembered ones that aren't here included)
 		reply(x, 200, out);
 	}
-	private static List<Object> idList(Object o) { List<Object> out = new ArrayList<>(); for (Object v : Json.list(o)) if (!id(v).isEmpty() && out.size() < 300) out.add(id(v)); return out; }
+	private static List<Object> idList(Object o) { List<Object> out = new ArrayList<>(); for (Object v : Json.list(o)) if (!id(v).isEmpty()
+			&& out.size() < 300) out.add(id(v)); return out; }
 
 	/** With the Gatekeeper this one joined: says what this system is and remembers, and hears who else is there. */
 	static void sync() {
@@ -285,9 +318,12 @@ final class Systems {
 				if (!ServerTools.yes(r.get("neighbor")) || !Json.str(r.get("via")).isEmpty()) continue;
 				boolean fromLead = false;
 				for (Object o : leadRows) if (Json.str(r.get("id")).equals(Json.str(Json.map(o).get("id")))) fromLead = true;
-				if (!fromLead && mine.size() < 60) mine.add(m("id", r.get("id"), "name", r.get("name"), "device", r.get("device"), "gatehouse", r.get("gatehouse"), "gatekeeper", r.get("gatekeeper"), "address", r.get("address"), "remembers", r.get("remembers")));
+				if (!fromLead && mine.size() < 60) mine.add(m("id", r.get("id"), "name", r.get("name"), "device", r.get("device"),
+						"gatehouse", r.get("gatehouse"), "gatekeeper", r.get("gatekeeper"), "address", r.get("address"), "remembers", r.get("remembers")));
 			}
-			Map<String, Object> r = Json.map(Json.parse(AutoUpdate.leadCall("/v1/systems", Json.write(m("machine", self, "name", AutoUpdate.myName(), "device", Device.kind(), "address", ownAddress(), "gatehouse", launcherHere, "remembers", remembers(), "systems", mine, "halves", new ArrayList<Object>(halves(devices())))))));
+			Map<String, Object> r = Json.map(Json.parse(AutoUpdate.leadCall("/v1/systems", Json.write(m("machine", self, "name",
+					AutoUpdate.myName(), "device", Device.kind(), "address", ownAddress(), "gatehouse", launcherHere, "remembers",
+					remembers(), "systems", mine, "halves", new ArrayList<Object>(halves(devices())))))));
 			if (Json.str(r.get("result")).equals("ok")) { leadRows = Json.list(r.get("systems")); leadHeard = now; }
 			else leadRows = new ArrayList<>();
 		} catch (IOException | RuntimeException ignored) { /* (not answering, or from before systems: next time) */ }

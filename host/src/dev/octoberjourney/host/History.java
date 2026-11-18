@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The history of servers: a line for each server a Gatekeeper has made, found it was looking after, built a pack for,
@@ -35,13 +36,15 @@ final class History {
 	private History() {}
 	static final int MOST = 5000;
 	private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
-	private static final String[] FIELDS = {"key", "at", "when", "what", "server", "name", "kind", "version", "port", "pack", "gatekeeper", "install", "address", "system"};
+	private static final String[] FIELDS = {"key", "at", "when", "what", "server", "name", "kind", "version", "port", "pack", "gatekeeper",
+			"install", "address", "system"};
 	private static List<Object> lines;
 	private static volatile boolean changed = true;   // (something the Gatekeeper this one joined hasn't been handed yet)
 	private static volatile long synced = 0, swept = 0;
 
 	private static Path file() { return dir.resolve("history.json"); }
-	private static String word(Object o, int most) { String s = Json.str(o).replaceAll("[\\p{Cntrl}]", " ").trim(); return s.length() > most ? s.substring(0, most) : s; }
+	private static String word(Object o, int most) { String s = Json.str(o).replaceAll("[\\p{Cntrl}]",
+			" ").trim(); return s.length() > most ? s.substring(0, most) : s; }
 
 	/** The id this Gatekeeper's install keeps in the history (made the first time it is needed). */
 	static synchronized String me() {
@@ -49,7 +52,7 @@ final class History {
 		if (!id.matches("[0-9a-f\\-]{16,64}")) {
 			id = java.util.UUID.randomUUID().toString();
 			cfg.put("history_id", id);
-			try { ServerTools.saveCfg(); } catch (IOException ignored) {}
+			try { ServerTools.saveCfg(); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
 		return id;
 	}
@@ -57,12 +60,14 @@ final class History {
 		if (lines == null) {
 			lines = new ArrayList<>();
 			try { if (Files.isRegularFile(file())) for (Object o : Json.list(Json.parse(Files.readString(file(), StandardCharsets.UTF_8)))) lines.add(Json.map(o)); }
-			catch (IOException | RuntimeException e) { log("history: the file couldn't be read (" + e.getMessage() + "); it is left as it is, and nothing is written over it"); lines = null; return new ArrayList<>(); }
+			catch (IOException | RuntimeException e) { log("history: the file couldn't be read (" + e.getMessage()
+					+ "); it is left as it is, and nothing is written over it"); lines = null; return new ArrayList<>(); }
 		}
 		return lines;
 	}
 	private static void save() {
-		try { Path tmp = file().resolveSibling("history.json.new"); Files.writeString(tmp, Json.write(lines), StandardCharsets.UTF_8); Files.move(tmp, file(), java.nio.file.StandardCopyOption.REPLACE_EXISTING); }
+		try { Path tmp = file().resolveSibling("history.json.new"); Files.writeString(tmp, Json.write(lines),
+				StandardCharsets.UTF_8); Files.move(tmp, file(), java.nio.file.StandardCopyOption.REPLACE_EXISTING); }
 		catch (IOException e) { log("history: couldn't be saved: " + e.getMessage()); }
 	}
 	private static boolean holds(String key) { for (Object o : lines) if (key.equals(Json.str(Json.map(o).get("key")))) return true; return false; }
@@ -74,9 +79,11 @@ final class History {
 		if (lines == null) return;
 		long now = System.currentTimeMillis();
 		String id = Json.str(s.get("id")), kind = "", version = "";
-		try { String[] f = serverFacts(Path.of(Json.str(s.get("dir")))); kind = Packs.fabricLoader(Path.of(Json.str(s.get("dir")))).isEmpty() ? f[0] : "fabric"; version = f[1]; } catch (RuntimeException ignored) {}
-		lines.add(m("key", me() + ":" + Long.toString(now, 36) + ":" + Integer.toString(lines.size(), 36), "at", String.valueOf(now), "when", LocalDateTime.now().format(TIME), "what", what,
-				"server", word(id, 64), "name", word(s.get("name"), 60), "kind", kind, "version", word(version, 32), "port", word(Json.str(s.get("minecraft")).replaceAll(".*:", ""), 5), "pack", word(pack, 24),
+		try { String[] f = serverFacts(Path.of(Json.str(s.get("dir")))); kind = Packs.fabricLoader(Path.of(Json.str(s.get("dir")))).isEmpty() ? f[0] : "fabric"; version = f[1]; } catch (RuntimeException ignored) { Quiet.seen(ignored); }
+		lines.add(m("key", me() + ":" + Long.toString(now, 36) + ":" + Integer.toString(lines.size(), 36), "at", String.valueOf(now),
+				"when", LocalDateTime.now().format(TIME), "what", what,
+				"server", word(id, 64), "name", word(s.get("name"), 60), "kind", kind, "version", word(version, 32), "port",
+						word(Json.str(s.get("minecraft")).replaceAll(".*:", ""), 5), "pack", word(pack, 24),
 				"gatekeeper", word(AutoUpdate.myName(), 60), "install", me(), "address", ownAddress(), "system", word(systemName(), 40)));
 		save();
 		changed = true;
@@ -92,7 +99,8 @@ final class History {
 		if (lines == null) return;
 		String mine = me();
 		Map<String, Map<String, Object>> last = new LinkedHashMap<>();   // (server id -> this Gatekeeper's newest made / found / removed line for it)
-		for (Object o : lines) { Map<String, Object> e = Json.map(o); if (mine.equals(Json.str(e.get("install"))) && !Json.str(e.get("what")).equals("pack")) last.put(Json.str(e.get("server")), e); }
+		for (Object o : lines) { Map<String, Object> e = Json.map(o); if (mine.equals(Json.str(e.get("install")))
+				&& !Json.str(e.get("what")).equals("pack")) last.put(Json.str(e.get("server")), e); }
 		List<String> here = new ArrayList<>();
 		for (Object o : new ArrayList<>(servers())) {
 			Map<String, Object> s = Json.map(o);
@@ -103,7 +111,8 @@ final class History {
 			if (e == null || Json.str(e.get("what")).equals("removed")) record("found", s, "");
 		}
 		for (Map.Entry<String, Map<String, Object>> e : last.entrySet())
-			if (!here.contains(e.getKey()) && !Json.str(e.getValue().get("what")).equals("removed")) record("removed", m("id", e.getKey(), "name", e.getValue().get("name"), "minecraft", e.getValue().get("port"), "dir", ""), "");
+			if (!here.contains(e.getKey()) && !Json.str(e.getValue().get("what")).equals("removed")) record("removed", m("id", e.getKey(),
+					"name", e.getValue().get("name"), "minecraft", e.getValue().get("port"), "dir", ""), "");
 	}
 
 	/** Takes lines another Gatekeeper holds: the ones not held yet, with only the fields a line has. */
@@ -151,7 +160,8 @@ final class History {
 	/** POST /v1/history from a Gatekeeper of this constellation (d: its record here). */
 	static void take(HttpExchange x, String who, Map<String, Object> d) throws IOException {
 		boolean trusted = ServerTools.yes(d.get("local")) || ServerTools.yes(d.get("admin")) || ServerTools.yes(d.get("constellation"));
-		if (!trusted) { reply(x, 200, m("result", "refused", "message", "Only this machine, a launcher with Gatekeeper control, or a Gatekeeper allowed into this constellation is given the history of servers.")); return; }
+		if (!trusted) { reply(x, 200, m("result", "refused", "message",
+				"Only this machine, a launcher with Gatekeeper control, or a Gatekeeper allowed into this constellation is given the history of servers.")); return; }
 		int took = merge(Json.list(body(x).get("entries")));
 		if (took > 0) log("history: " + took + " line(s) about servers taken from " + who);
 		List<Object> out;
@@ -172,7 +182,8 @@ final class History {
 			Map<String, Object> e = Json.map(o);
 			String in = Json.str(e.get("install"));
 			had.computeIfAbsent(in, k -> new java.util.TreeSet<>()).add(Json.str(e.get("server")));
-			if (!keepers.containsKey(in)) keepers.put(in, m("install", in, "name", e.get("gatekeeper"), "address", e.get("address"), "system", e.get("system"), "last", e.get("when"), "this", in.equals(me())));
+			if (!keepers.containsKey(in)) keepers.put(in, m("install", in, "name", e.get("gatekeeper"), "address", e.get("address"),
+					"system", e.get("system"), "last", e.get("when"), "this", in.equals(me())));
 		}
 		List<Object> list = new ArrayList<>();
 		for (Map<String, Object> k : keepers.values()) { k.put("servers", String.valueOf(had.get(Json.str(k.get("install"))).size())); list.add(k); }

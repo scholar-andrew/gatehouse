@@ -27,6 +27,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The launcher's Connection tab: works out, step by step, whether this device can reach the server machine, and says
@@ -52,17 +53,19 @@ final class Connection {
 	static List<Check> run(Path dir, ServerControl c) {
 		List<Check> out = new ArrayList<>();
 		// (What Gatekeeper says about this launcher right now, so one blacklisted a moment ago is treated as such.)
-		if (c.hasHelper() && !c.ban.equals("blacklist")) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) {}
+		if (c.hasHelper() && !c.ban.equals("blacklist")) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		if (c.ban.equals("blacklist")) {
 			// Blacklisted: nothing about the server machine, its addresses or the pack's source is checked or shown.
 			boolean net = ServerControl.answers("github.com:443", 4000);
-			out.add(net ? new Check("ok", "Internet", "Working", "") : new Check("failed", "Internet", "This device isn't reaching the internet", "Connect this device to the internet (Wi-Fi or cable), then press Check again."));
+			out.add(net ? new Check("ok", "Internet", "Working", "") : new Check("failed", "Internet",
+					"This device isn't reaching the internet", "Connect this device to the internet (Wi-Fi or cable), then press Check again."));
 			out.add(new Check("warn", "Server", "Not shown: this launcher is blacklisted", "The Play button can ask the owner to let you back."));
 			return out;
 		}
 		List<String> sources = new ArrayList<>();
-		try { for (String l : Files.readAllLines(dir.resolve("pack-sources.txt"), StandardCharsets.UTF_8)) { l = l.strip(); if (!l.isEmpty() && !l.startsWith("#")) sources.add(l.replaceAll("/+$", "")); } }
-		catch (IOException ignored) {}
+		try { for (String l : Files.readAllLines(dir.resolve("pack-sources.txt"),
+				StandardCharsets.UTF_8)) { l = l.strip(); if (!l.isEmpty() && !l.startsWith("#")) sources.add(l.replaceAll("/+$", "")); } }
+		catch (IOException ignored) { Quiet.seen(ignored); }
 		String owner = null, github = null;
 		for (String s : sources) { if (s.contains("githubusercontent")) { if (github == null) github = s; } else if (owner == null) owner = s; }
 		String variant = Files.isDirectory(dir.resolve("extras")) && System.getProperty("os.name", "").startsWith("Windows") ? "main" : "main";
@@ -73,7 +76,8 @@ final class Connection {
 		// 1. The internet at all (GitHub, which the pack falls back to).
 		boolean internet = github != null ? httpOk(github + "/" + variant + "/pack.toml") : ServerControl.answers("github.com:443", 4000);
 		out.add(internet ? new Check("ok", "Internet", "Working", "")
-				: new Check("failed", "Internet", "This device isn't reaching the internet", "Connect this device to the internet (Wi-Fi or cable), then press Check again."));
+				: new Check("failed", "Internet", "This device isn't reaching the internet",
+						"Connect this device to the internet (Wi-Fi or cable), then press Check again."));
 
 		// 2. Tailscale on this device.
 		String mine = tailscaleAddress();
@@ -102,7 +106,8 @@ final class Connection {
 						peerState = "true".equals(str(pm.get("Online"))) ? "online" : "offline";
 						name = str(pm.get("HostName"));
 					}
-			if (status.get("Self") instanceof Map<?, ?> self && self.get("TailscaleIPs") instanceof List<?> ips && ips.contains(machine)) { peerState = "online"; name = "this device"; }
+			if (status.get("Self") instanceof Map<?, ?> self && self.get("TailscaleIPs") instanceof List<?> ips
+					&& ips.contains(machine)) { peerState = "online"; name = "this device"; }
 			String what = name.isEmpty() ? "The server machine" : "The server machine (" + name + ")";
 			out.add(switch (peerState) {
 				case "online" -> new Check("ok", "Server machine in your Tailscale network", what + " is there and online", "");
@@ -133,9 +138,11 @@ final class Connection {
 				: internet ? new Check("warn", "Updates", "The owner's PC isn't answering, so updates come from GitHub", "")
 				: new Check("failed", "Updates", "No source for updates can be reached", ""));
 		if (c.hasHelper()) out.add(keeper ? new Check("ok", "Gatekeeper", "Answering", "")
-				: new Check(answering.isEmpty() ? "off" : "warn", "Gatekeeper", "Not answering", answering.isEmpty() ? "" : "It runs while the owner is signed in to the server machine: ask the owner."));
+				: new Check(answering.isEmpty() ? "off" : "warn", "Gatekeeper", "Not answering", answering.isEmpty() ? ""
+						: "It runs while the owner is signed in to the server machine: ask the owner."));
 		if (!c.minecraft.isEmpty()) out.add(ping != null ? new Check("ok", "Minecraft server", "Online, " + ping[0] + " ms", "")
-				: new Check("off", "Minecraft server", "Not running" + (answering.isEmpty() ? " (or not reachable)" : ""), answering.isEmpty() ? "" : "Request server on the Play button asks the owner to turn it on."));
+				: new Check("off", "Minecraft server", "Not running" + (answering.isEmpty() ? " (or not reachable)" : ""),
+						answering.isEmpty() ? "" : "Request server on the Play button asks the owner to turn it on."));
 		return out;
 	}
 
@@ -149,7 +156,7 @@ final class Connection {
 					if (a instanceof Inet4Address && (b[0] & 0xFF) == 100 && (b[1] & 0xC0) == 64) return a.getHostAddress();
 				}
 			}
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		return null;
 	}
 
@@ -157,9 +164,11 @@ final class Connection {
 	static String tailscaleCommand() {
 		List<String> tries = new ArrayList<>();
 		if (System.getProperty("os.name", "").startsWith("Windows")) {
-			for (String base : new String[] {System.getenv("ProgramFiles"), System.getenv("ProgramFiles(x86)")}) if (base != null) tries.add(base + "\\Tailscale\\tailscale.exe");
+			for (String base : new String[] {System.getenv("ProgramFiles"),
+					System.getenv("ProgramFiles(x86)")}) if (base != null) tries.add(base + "\\Tailscale\\tailscale.exe");
 		} else {
-			tries.addAll(List.of("/usr/bin/tailscale", "/usr/sbin/tailscale", "/usr/local/bin/tailscale", "/opt/tailscale/tailscale", "/Applications/Tailscale.app/Contents/MacOS/Tailscale"));
+			tries.addAll(List.of("/usr/bin/tailscale", "/usr/sbin/tailscale", "/usr/local/bin/tailscale", "/opt/tailscale/tailscale",
+					"/Applications/Tailscale.app/Contents/MacOS/Tailscale"));
 			String path = System.getenv("PATH");
 			if (path != null) for (String d : path.split(":")) if (!d.isEmpty()) tries.add(d + "/tailscale");
 		}
@@ -193,7 +202,8 @@ final class Connection {
 
 	static String text(List<Check> checks) {
 		StringBuilder sb = new StringBuilder();
-		for (Check k : checks) sb.append(k.state()).append(": ").append(k.label()).append(": ").append(k.detail()).append(k.fix().isEmpty() ? "" : "\n    -> " + k.fix()).append('\n');
+		for (Check k : checks) sb.append(k.state()).append(": ").append(k.label()).append(": ").append(k.detail()).append(k.fix().isEmpty()
+				? "" : "\n    -> " + k.fix()).append('\n');
 		return sb.toString();
 	}
 
@@ -230,7 +240,8 @@ final class Connection {
 			Check first = null;
 			for (Check k : checks) {
 				if (first == null && !k.fix().isEmpty() && (k.state().equals("failed") || k.state().equals("warn"))) first = k;
-				JLabel row = new JLabel("<html><b>" + esc(k.label()) + "</b>&nbsp;&nbsp;<font color='#8f98a0'>" + esc(k.detail()) + "</font></html>", LaunchPopup.mark(k.state()), JLabel.LEFT);
+				JLabel row = new JLabel("<html><b>" + esc(k.label()) + "</b>&nbsp;&nbsp;<font color='#8f98a0'>" + esc(k.detail())
+						+ "</font></html>", LaunchPopup.mark(k.state()), JLabel.LEFT);
 				row.setFont(row.getFont().deriveFont(Font.PLAIN, 13f));
 				row.setIconTextGap(10);
 				row.setBorder(BorderFactory.createEmptyBorder(3, 0, 3, 0));
@@ -266,7 +277,8 @@ final class Connection {
 			try { new ProcessBuilder(ipn).start(); note.setText("Tailscale opened: look for its icon by the clock, sign in or connect there, then press Check again."); }
 			catch (IOException ex) { note.setText("Couldn't open Tailscale: open it from the Start menu."); }
 		});
-		getTs.addActionListener(e -> note.setText(open("https://tailscale.com/download") ? "Opened Tailscale's download page in your browser." : "Go to tailscale.com/download in a browser."));
+		getTs.addActionListener(e -> note.setText(open("https://tailscale.com/download")
+				? "Opened Tailscale's download page in your browser." : "Go to tailscale.com/download in a browser."));
 		copy.addActionListener(e -> {
 			try {
 				java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection("Gatehouse connection check\n" + last[0]), null);
@@ -276,7 +288,8 @@ final class Connection {
 		// Checked when the tab is first opened (and for a picture of the window, straight away).
 		boolean[] done = {false};
 		if (!live) show.accept(run(dir, c));
-		else p.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && p.isShowing() && !done[0]) { done[0] = true; check.run(); } });
+		else p.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && p.isShowing()
+				&& !done[0]) { done[0] = true; check.run(); } });
 		return p;
 	}
 

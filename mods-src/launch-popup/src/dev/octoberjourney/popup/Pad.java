@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import dev.gatehouse.look.Quiet;
 
 /** Reads a game controller for the launcher's windows, so they can be driven without a mouse: the Steam Deck's own
  *  controls, a Steam Controller, or any pad Steam (or Windows) presents as an Xbox-style controller. The Steam layout
@@ -101,7 +102,7 @@ final class Pad {
 					List<Path> devs = new ArrayList<>();
 					String only = System.getenv("OJ_PAD_DEV");   // (testing: a file of recorded events)
 					if (only != null) devs.add(Path.of(only));
-					else try (java.util.stream.Stream<Path> s = Files.list(Path.of("/dev/input"))) { s.filter(p -> p.getFileName().toString().matches("js\\d+")).forEach(devs::add); } catch (IOException ignored) {}
+					else try (java.util.stream.Stream<Path> s = Files.list(Path.of("/dev/input"))) { s.filter(p -> p.getFileName().toString().matches("js\\d+")).forEach(devs::add); } catch (IOException ignored) { Quiet.seen(ignored); }
 					for (Path d : devs) {
 						synchronized (open) { if (open.contains(d.toString())) continue; open.add(d.toString()); }
 						source = "joystick devices (" + String.join(", ", open) + ")";
@@ -127,7 +128,7 @@ final class Pad {
 										}
 									}
 								}
-							} catch (IOException | RuntimeException ignored) {}
+							} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 							synchronized (held) { java.util.Arrays.fill(held, false); }
 							rightY = 0;
 							synchronized (open) { open.remove(d.toString()); }

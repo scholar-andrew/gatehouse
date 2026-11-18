@@ -17,6 +17,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The Server tab's controls: whether the server answers, waking its PC (Wake on LAN), starting the Minecraft server
@@ -106,7 +107,7 @@ final class ServerControl {
 		serverKey = str(c.get("server")).replaceAll("[^\\w.-]", "");
 		if (w.get("broadcasts") instanceof List<?> l) for (Object o : l) broadcasts.add(str(o));
 		int port = 9;
-		try { port = Integer.parseInt(str(w.get("port"))); } catch (NumberFormatException ignored) {}
+		try { port = Integer.parseInt(str(w.get("port"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 		wakePort = port;
 		Map<String, Object> a = asMap(LaunchPopup.parseJson(LaunchPopup.readFile(access())));
 		apiKey = str(a.get("api_key"));
@@ -115,12 +116,17 @@ final class ServerControl {
 		deviceId = str(a.get("device_id"));
 		deviceToken = str(a.get("device_token"));
 		ban = str(a.get("ban")); banScope = str(a.get("ban_scope")); banReason = str(a.get("ban_reason"));
-		permMcss = "true".equals(str(a.get("perm_mcss"))); permSleep = "true".equals(str(a.get("perm_sleep"))); permServer = "true".equals(str(a.get("perm_server"))); permAdmin = "true".equals(str(a.get("perm_admin")));
+		permMcss = "true".equals(str(a.get("perm_mcss")));
+		permSleep = "true".equals(str(a.get("perm_sleep")));
+		permServer = "true".equals(str(a.get("perm_server")));
+		permAdmin = "true".equals(str(a.get("perm_admin")));
 		keeperUrl = str(a.get("keeper_url"));
 		helperUrl = keeperUrl.isEmpty() ? packHelperUrl : keeperUrl;
-		for (Map.Entry<String, Object> e : asMap(a.get("identities")).entrySet()) identities.put(e.getKey(), new String[] {str(asMap(e.getValue()).get("id")), str(asMap(e.getValue()).get("token"))});
+		for (Map.Entry<String, Object> e : asMap(a.get("identities")).entrySet()) identities.put(e.getKey(),
+				new String[] {str(asMap(e.getValue()).get("id")), str(asMap(e.getValue()).get("token"))});
 		// (An id and secret saved before pairing existed belong to the pack's Gatekeeper.)
-		if (!deviceId.isEmpty() && deviceToken.length() >= 32 && !packHelperUrl.isEmpty() && !identities.containsKey(packHelperUrl)) identities.put(packHelperUrl, new String[] {deviceId, deviceToken});
+		if (!deviceId.isEmpty() && deviceToken.length() >= 32 && !packHelperUrl.isEmpty()
+				&& !identities.containsKey(packHelperUrl)) identities.put(packHelperUrl, new String[] {deviceId, deviceToken});
 		identity();
 	}
 
@@ -137,7 +143,7 @@ final class ServerControl {
 		}
 		boolean changed = !have[0].equals(deviceId) || !have[1].equals(deviceToken);
 		deviceId = have[0]; deviceToken = have[1];
-		if (changed) try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
+		if (changed) try { save(apiKey, wakeAddress); } catch (IOException ignored) { Quiet.seen(ignored); }
 	}
 
 	/** Pairs this launcher with a Gatekeeper by its address (the owner copies it from Gatekeeper: Status,
@@ -158,9 +164,12 @@ final class ServerControl {
 				c.setConnectTimeout(4000); c.setReadTimeout(5000);
 				int code = c.getResponseCode();
 				String body;
-				try (java.io.InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream()) { body = in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
-				if (!(body.trim().startsWith("{") && (code == 200 || code == 401 || code == 403))) return new String[] {"failed", "Something answers at " + url + ", but it isn't Gatekeeper."};
-			} catch (IOException | RuntimeException e) { return new String[] {"failed", "Nothing answers at " + url + ". Is the server machine awake, and is this device in its Tailscale network? (Connection, Network diagnosis)"}; }
+				try (java.io.InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream()) { body = in == null ? ""
+						: new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+				if (!(body.trim().startsWith("{") && (code == 200 || code == 401 || code == 403))) return new String[] {"failed",
+						"Something answers at " + url + ", but it isn't Gatekeeper."};
+			} catch (IOException | RuntimeException e) { return new String[] {"failed", "Nothing answers at " + url
+					+ ". Is the server machine awake, and is this device in its Tailscale network? (Connection, Network diagnosis)"}; }
 		} else if (packHelperUrl.isEmpty() && keeperUrl.isEmpty()) return new String[] {"failed", "Type Gatekeeper's address first."};
 		String before = helperUrl;
 		keeperUrl = url.equals(packHelperUrl) ? "" : url;
@@ -173,8 +182,9 @@ final class ServerControl {
 		identity();
 		try { save(apiKey, wakeAddress); } catch (IOException e) { return new String[] {"failed", "Couldn't save: " + e.getMessage()}; }
 		if (helperUrl.isEmpty()) return new String[] {"ok", "Not paired with a Gatekeeper now."};
-		try { hello(); } catch (IOException | RuntimeException ignored) {}
-		return new String[] {"ok", (keeperUrl.isEmpty() ? "Back with the pack's Gatekeeper, " : "Paired with Gatekeeper at ") + helperLabel() + ". Its owner decides what this device may do. Press Restart to carry on with it."};
+		try { hello(); } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+		return new String[] {"ok", (keeperUrl.isEmpty() ? "Back with the pack's Gatekeeper, " : "Paired with Gatekeeper at ")
+				+ helperLabel() + ". Its owner decides what this device may do. Press Restart to carry on with it."};
 	}
 	/** Gatekeeper's address as shown: host and port. */
 	String helperLabel() { return helperUrl.replaceFirst("(?i)^https?://", "").replaceAll("/+$", ""); }
@@ -217,8 +227,10 @@ final class ServerControl {
 			case "key" -> "an API key saved on this device";
 			default -> "";
 		};
-		if (viaHelper()) return "through Gatekeeper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " (" + has + " is also saved, but not used)");
-		if (!has.isEmpty() && accessRejected) return "none right now: the server panel no longer accepts " + has + " (sign in again under Server config, or ask the owner)";
+		if (viaHelper()) return "through Gatekeeper, allowed by the owner" + (has.isEmpty() ? " (nothing saved on this device)" : " ("
+				+ has + " is also saved, but not used)");
+		if (!has.isEmpty() && accessRejected) return "none right now: the server panel no longer accepts " + has
+				+ " (sign in again under Server config, or ask the owner)";
 		return has.isEmpty() ? "none (ask the owner, or sign in under Server config)" : "with " + has;
 	}
 
@@ -228,7 +240,8 @@ final class ServerControl {
 		apiKey = key.trim(); wakeAddress = wake.trim();
 		StringBuilder ids = new StringBuilder();
 		for (Map.Entry<String, String[]> e : identities.entrySet())
-			ids.append(ids.length() == 0 ? "" : ", ").append('"').append(jsonEsc(e.getKey())).append("\": {\"id\": \"").append(jsonEsc(e.getValue()[0])).append("\", \"token\": \"").append(jsonEsc(e.getValue()[1])).append("\"}");
+			ids.append(ids.length() == 0 ? ""
+					: ", ").append('"').append(jsonEsc(e.getKey())).append("\": {\"id\": \"").append(jsonEsc(e.getValue()[0])).append("\", \"token\": \"").append(jsonEsc(e.getValue()[1])).append("\"}");
 		Files.writeString(access(), "{\"api_key\": \"" + jsonEsc(apiKey) + "\", \"wake_address\": \"" + jsonEsc(wakeAddress)
 				+ "\", \"username\": \"" + jsonEsc(username) + "\", \"device_id\": \"" + jsonEsc(str(deviceId))
 				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\", \"perm_mcss\": " + permMcss + ", \"perm_sleep\": " + permSleep
@@ -373,12 +386,14 @@ final class ServerControl {
 					case "online": return new String[] {"ok", "Online", "online", ping, players};
 					case "starting": return new String[] {"warn", "Starting\u2026", "starting", "", ""};
 					case "stopping": return new String[] {"warn", "Shutting down\u2026", "stopping", "", ""};
-					case "off": return new String[] {"off", "The server machine is awake, but the Minecraft server is off" + (canControlServer() ? ": press Start server" : ""), "off", "", ""};
-					case "nomcss": return new String[] {"off", mcssPhase.equals("starting") ? "MCSS is starting\u2026" : "The server machine is awake, but MCSS isn't running" + (viaHelper() ? ": Start server starts it too" : ""), "nomcss", "", ""};
+					case "off": return new String[] {"off", "The server machine is awake, but the Minecraft server is off"
+							+ (canControlServer() ? ": press Start server" : ""), "off", "", ""};
+					case "nomcss": return new String[] {"off", mcssPhase.equals("starting") ? "MCSS is starting\u2026"
+							: "The server machine is awake, but MCSS isn't running" + (viaHelper() ? ": Start server starts it too" : ""), "nomcss", "", ""};
 					default: break;
 				}
 			}
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		if (viaHelper() && pc) {
 			String[] r = phase(statusCode(), ping, players);
 			if (r != null) return r;
@@ -387,7 +402,7 @@ final class ServerControl {
 				Map<String, Object> srv = asMap(LaunchPopup.parseJson(api("GET", "/api/v2/servers/" + serverId, null)));
 				accessRejected = false;
 				int st = -1;
-				try { st = (int) Double.parseDouble(str(srv.get("status"))); } catch (NumberFormatException ignored) {}
+				try { st = (int) Double.parseDouble(str(srv.get("status"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 				switch (st) {
 					case 1: return new String[] {"ok", "Online", "online", ping, players};
 					case 3: return new String[] {"warn", "Starting\u2026", "starting", ping, players};
@@ -400,12 +415,14 @@ final class ServerControl {
 				// The panel turned this device's saved sign-in or key down. That's about this device's access, not the
 				// server: what the server is doing is still told from the game port below, and the access line says so.
 				if (e.code == 401 || e.code == 403) accessRejected = true;
-			} catch (IOException ignored) { }
+			} catch (IOException ignored) { Quiet.seen(ignored); }
 		}
 		if (game) return new String[] {"ok", "Online", "online", ping, players};
-		if (panel) return new String[] {"off", "The server machine is awake, but the Minecraft server isn't answering" + (canControlServer() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
+		if (panel) return new String[] {"off", "The server machine is awake, but the Minecraft server isn't answering"
+				+ (canControlServer() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
 		if (pc) return new String[] {"off", "The server machine is awake, but MCSS isn't running: start it with Start MCSS below, then the server", "nomcss", "", ""};
-		return new String[] {"off", "Not answering: the server machine is asleep or off" + (canWake() ? " (Wake server machine works from the home network)" : ""), "asleep", "", ""};
+		return new String[] {"off", "Not answering: the server machine is asleep or off" + (canWake()
+				? " (Wake server machine works from the home network)" : ""), "asleep", "", ""};
 	}
 
 	private static String[] phase(int st, String ping, String players) {
@@ -473,7 +490,8 @@ final class ServerControl {
 		c.setRequestProperty("X-Token", deviceToken);
 		if (!serverKey.isEmpty()) c.setRequestProperty("X-Server", serverKey);   // (which of the machine's servers this pack is for)
 		c.setRequestProperty("X-Access", kind());
-		if (!OWN_VERSION.isEmpty()) c.setRequestProperty("X-Gatehouse", OWN_VERSION);   // (which Gatehouse this is: a Gatekeeper holds launchers to the published one)
+		if (!OWN_VERSION.isEmpty()) c.setRequestProperty("X-Gatehouse",
+				OWN_VERSION);   // (which Gatehouse this is: a Gatekeeper holds launchers to the published one)
 		c.setRequestProperty("X-Saved", saved());
 		if (saved().equals("signin")) c.setRequestProperty("X-Access-User", username.replaceAll("[^\\x20-\\x7E]", "?"));
 		if (!player().isEmpty()) c.setRequestProperty("X-Player", player());
@@ -502,7 +520,7 @@ final class ServerControl {
 					String n = l.substring(5).trim().replaceAll("^\"|\"$", "");
 					if (!n.isEmpty()) return n.toLowerCase(java.util.Locale.ROOT).contains("linux") ? n : n + " (linux)";
 				}
-			} catch (IOException | RuntimeException ignored) {}
+			} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		}
 		return os.isEmpty() ? "Unknown" : os.equalsIgnoreCase("Linux") ? "Linux" : os + " (linux)";
 	}
@@ -510,7 +528,7 @@ final class ServerControl {
 	/** Introduces this launcher (it then shows in the owner's Gatekeeper, waiting until allowed). Returns its state. */
 	String hello() throws IOException {
 		String name = "", os = systemName();
-		try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) {}
+		try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) { Quiet.seen(ignored); }
 		return str(helper("POST", "/v1/hello", "{\"id\":\"" + jsonEsc(deviceId) + "\",\"token\":\"" + jsonEsc(deviceToken)
 				+ "\",\"name\":\"" + jsonEsc(name) + "\",\"os\":\"" + jsonEsc(os) + "\"}").get("state"));
 	}
@@ -520,17 +538,18 @@ final class ServerControl {
 		Map<String, Object> r = helper("GET", "/v1/mcss", null);
 		if (str(r.get("_code")).equals("401")) { hello(); r = helper("GET", "/v1/mcss", null); }
 		if (str(r.get("_code")).equals("200")) {
-			boolean m = "granted".equals(str(r.get("state"))), sl = "true".equals(str(r.get("sleep"))), sv = "true".equals(str(r.get("server"))), ad = "true".equals(str(r.get("admin")));
+			boolean m = "granted".equals(str(r.get("state"))), sl = "true".equals(str(r.get("sleep"))),
+					sv = "true".equals(str(r.get("server"))), ad = "true".equals(str(r.get("admin")));
 			if (m != permMcss || sl != permSleep || sv != permServer || ad != permAdmin) {
 				permMcss = m; permSleep = sl; permServer = sv; permAdmin = ad;
-				try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
+				try { save(apiKey, wakeAddress); } catch (IOException ignored) { Quiet.seen(ignored); }
 			}
 			requestStatus = str(r.get("request"));
 			// Shut out or not, the whitelist, each permission's state, and what became of this launcher's requests.
 			String nb = str(r.get("ban")), ns = str(r.get("ban_scope")), nr = str(r.get("ban_reason"));
 			boolean banChanged = !nb.equals(ban) || !ns.equals(banScope) || !nr.equals(banReason);
 			ban = nb; banScope = ns; banReason = nr;
-			if (banChanged) try { save(apiKey, wakeAddress); } catch (IOException ignored) {}
+			if (banChanged) try { save(apiKey, wakeAddress); } catch (IOException ignored) { Quiet.seen(ignored); }
 			whitelisted = r.containsKey("whitelisted") ? str(r.get("whitelisted")) : "unknown";
 			for (Object[] pair : new Object[][] {{permStates, r.get("perm")}, {reqStates, r.get("requests")}, {reqReasons, r.get("request_reasons")}}) {
 				@SuppressWarnings("unchecked") Map<String, String> into = (Map<String, String>) pair[0];
@@ -539,7 +558,7 @@ final class ServerControl {
 			}
 			// From the owner, through Gatekeeper: the order to forget whatever sign-in or key is saved here.
 			if ("true".equals(str(r.get("clear_access"))) && !apiKey.isEmpty()) {
-				try { username = ""; save("", wakeAddress); } catch (IOException ignored) {}
+				try { username = ""; save("", wakeAddress); } catch (IOException ignored) { Quiet.seen(ignored); }
 			}
 		}
 		return r;
@@ -590,12 +609,13 @@ final class ServerControl {
 
 				return true;
 			}
-		} catch (RuntimeException ignored) {}
-		for (String[] cmd : new String[][] {{"xdg-open", panelUrl}, {"flatpak-spawn", "--host", "xdg-open", panelUrl}, {"rundll32", "url.dll,FileProtocolHandler", panelUrl}}) {
+		} catch (RuntimeException ignored) { Quiet.seen(ignored); }
+		for (String[] cmd : new String[][] {{"xdg-open", panelUrl}, {"flatpak-spawn", "--host", "xdg-open", panelUrl}, {"rundll32",
+				"url.dll,FileProtocolHandler", panelUrl}}) {
 			try {
 				Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
 				if (!p.waitFor(5, java.util.concurrent.TimeUnit.SECONDS) || p.exitValue() == 0) return true;
-			} catch (IOException | RuntimeException | InterruptedException ignored) {}
+			} catch (IOException | RuntimeException | InterruptedException ignored) { Quiet.seen(ignored); }
 		}
 		return false;
 	}

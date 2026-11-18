@@ -67,7 +67,8 @@ public final class Download {
 				g.setColor(new Color(0x23384D)); g.fill(new RoundRectangle2D.Double(0, 0, w, h, h, h));
 				g.setColor(GameShell.ACC);
 				if (part >= 0) g.fill(new RoundRectangle2D.Double(0, 0, Math.max(h, w * Math.min(1, part)), h, h, h));
-				else { long t = System.currentTimeMillis() % 1400; double x = (w + w / 3.0) * t / 1400.0 - w / 3.0; g.fill(new RoundRectangle2D.Double(x, 0, w / 3.0, h, h, h)); }   // (no size known: a moving piece)
+				else { long t = System.currentTimeMillis() % 1400; double x = (w
+						+ w / 3.0) * t / 1400.0 - w / 3.0; g.fill(new RoundRectangle2D.Double(x, 0, w / 3.0, h, h, h)); }   // (no size known: a moving piece)
 				g.dispose();
 			}
 		};

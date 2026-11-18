@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Who a server and its pack are for, and invites.
@@ -48,34 +49,34 @@ final class Invites {
 	private static final Map<String, long[]> wrong = new ConcurrentHashMap<>();   // (launcher id -> {wrong codes handed in, since when})
 
 	static String mode(Map<String, Object> s) { String v = Json.str(s.get("visibility")); return v.equals("public") || v.equals("shareable") ? v : "private"; }
-	static String says(String mode) { return mode.equals("public") ? "Public: every launcher that connects to this Gatekeeper" : mode.equals("shareable") ? "Shareable: launchers you let in, and anyone they invite" : "Private: only launchers you let in"; }
-	private static Map<String, Object> serverById(String id) { for (Object o : servers()) if (id.equals(Json.str(Json.map(o).get("id")))) return Json.map(o); return null; }
+	static String says(String mode) { return mode.equals("public") ? "Public: every launcher that connects to this Gatekeeper"
+			: mode.equals("shareable") ? "Shareable: launchers you let in, and anyone they invite" : "Private: only launchers you let in"; }
+	private static Map<String, Object> serverById(String id) { for (Object o
+			: servers()) if (id.equals(Json.str(Json.map(o).get("id")))) return Json.map(o); return null; }
 
 	/** Did the owner let this launcher onto the server (apart from invites)? */
 	private static boolean letIn(Map<String, Object> d, Map<String, Object> s) {
 		if (ServerTools.yes(d.get("local")) || ServerTools.yes(d.get("admin")) || Boolean.TRUE.equals(d.get("granted"))) return true;
-		String keep = SERVER.get();
 		try {
-			SERVER.set(Json.str(s.get("id")));
-			String player = Json.str(d.get("player"));
-			return Boolean.TRUE.equals(d.get(serverKey())) || (!player.isEmpty() && whitelisted(player));
+			return onServer(Json.str(s.get("id")), () -> {
+				String player = Json.str(d.get("player"));
+				return Boolean.TRUE.equals(d.get(serverKey())) || (!player.isEmpty() && whitelisted(player));
+			});
 		} catch (RuntimeException e) { return false; }
-		finally { SERVER.set(keep); }
 	}
 	/** By what the owner let this launcher onto the server, in a few words; empty when they didn't. */
 	static String whyIn(Map<String, Object> d, Map<String, Object> s) {
 		if (ServerTools.yes(d.get("local"))) return "this machine's own launcher";
 		if (ServerTools.yes(d.get("admin"))) return "has Gatekeeper control";
 		if (Boolean.TRUE.equals(d.get("granted"))) return "has MCSS control";
-		String keep = SERVER.get();
 		try {
-			SERVER.set(Json.str(s.get("id")));
-			if (Boolean.TRUE.equals(d.get(serverKey()))) return "may start and stop this server";
-			String player = Json.str(d.get("player"));
-			if (!player.isEmpty() && whitelisted(player)) return "plays as " + player + ", who is on its whitelist";
-		} catch (RuntimeException ignored) {}
-		finally { SERVER.set(keep); }
-		return "";
+			return onServer(Json.str(s.get("id")), () -> {
+				if (Boolean.TRUE.equals(d.get(serverKey()))) return "may start and stop this server";
+				String player = Json.str(d.get("player"));
+				if (!player.isEmpty() && whitelisted(player)) return "plays as " + player + ", who is on its whitelist";
+				return "";
+			});
+		} catch (RuntimeException ignored) { Quiet.seen(ignored); return ""; }
 	}
 	/** Is the server (and its pack) for this launcher? */
 	static boolean mayHave(Map<String, Object> d, Map<String, Object> s) {
@@ -103,7 +104,8 @@ final class Invites {
 		if (s == null) return false;
 		java.net.InetAddress from = x.getRemoteAddress().getAddress();
 		// (this machine itself. Testing: OJ_TEST_NO_LOCAL makes this machine's own addresses count as any other, so several stand-in launchers can be told apart)
-		try { if (System.getenv("OJ_TEST_NO_LOCAL") == null && (from.isLoopbackAddress() || java.net.NetworkInterface.getByInetAddress(from) != null)) return true; } catch (IOException ignored) {}
+		try { if (System.getenv("OJ_TEST_NO_LOCAL") == null && (from.isLoopbackAddress()
+				|| java.net.NetworkInterface.getByInetAddress(from) != null)) return true; } catch (IOException ignored) { Quiet.seen(ignored); }
 		// (a pack is many files asked for one after another: the answer for an address is kept for three seconds)
 		String ip = from.getHostAddress(), key = ip + "|" + serverId + "|" + mode(s);
 		long now = System.currentTimeMillis();
@@ -111,7 +113,8 @@ final class Invites {
 		if (had != null && now - had[0] < 3_000) return had[1] == 1;
 		boolean ok = false;
 		// (public too: only a launcher this Gatekeeper knows, so one that was blacklisted isn't handed it as a stranger)
-		for (Object o : devices().values()) { Map<String, Object> d = Json.map(o); if (ip.equals(Json.str(d.get("ip"))) && !Json.str(d.get("token_sha256")).isEmpty() && mayHave(d, s)) ok = true; }
+		for (Object o : devices().values()) { Map<String, Object> d = Json.map(o); if (ip.equals(Json.str(d.get("ip")))
+				&& !Json.str(d.get("token_sha256")).isEmpty() && mayHave(d, s)) ok = true; }
 		asked.put(key, new long[] {now, ok ? 1 : 0});
 		return ok;
 	}
@@ -122,11 +125,13 @@ final class Invites {
 	private static synchronized List<Object> live() {
 		List<Object> out = new ArrayList<>();
 		long now = System.currentTimeMillis();
-		try { if (Files.isRegularFile(file())) for (Object o : Json.list(Json.parse(Files.readString(file(), StandardCharsets.UTF_8)))) { try { if (Long.parseLong(Json.str(Json.map(o).get("until"))) > now) out.add(Json.map(o)); } catch (NumberFormatException ignored) {} } }
-		catch (IOException | RuntimeException ignored) {}
+		try { if (Files.isRegularFile(file())) for (Object o : Json.list(Json.parse(Files.readString(file(),
+				StandardCharsets.UTF_8)))) { try { if (Long.parseLong(Json.str(Json.map(o).get("until"))) > now) out.add(Json.map(o)); } catch (NumberFormatException ignored) { Quiet.seen(ignored); } } }
+		catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		return out;
 	}
-	private static void save(List<Object> l) { try { Files.writeString(file(), Json.write(l), StandardCharsets.UTF_8); } catch (IOException e) { log("invites: couldn't be saved: " + e.getMessage()); } }
+	private static void save(List<Object> l) { try { Files.writeString(file(), Json.write(l),
+			StandardCharsets.UTF_8); } catch (IOException e) { log("invites: couldn't be saved: " + e.getMessage()); } }
 	private static String tidy(String code) { return code == null ? "" : code.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", ""); }
 	private static String shown(String code) { return code.substring(0, 5) + "-" + code.substring(5); }
 	private static String address() { String b = setting("bind", ""); return (b.isEmpty() ? "127.0.0.1" : b) + ":" + port(); }
@@ -136,17 +141,21 @@ final class Invites {
 		List<Object> l = live();
 		int mine = 0;
 		for (Object o : l) if (by.equals(Json.str(Json.map(o).get("by")))) mine++;
-		if (l.size() >= 400 || (!by.equals("host") && mine >= 20)) return m("result", "refused", "message", "There are already many invites that haven't run out. Use one of those, or wait for them to run out (an invite lasts seven days).");
+		if (l.size() >= 400 || (!by.equals("host") && mine >= 20)) return m("result", "refused", "message",
+				"There are already many invites that haven't run out. Use one of those, or wait for them to run out (an invite lasts seven days).");
 		java.security.SecureRandom r = new java.security.SecureRandom();
 		StringBuilder code = new StringBuilder();
 		for (int i = 0; i < 10; i++) code.append(LETTERS.charAt(r.nextInt(LETTERS.length())));
 		long until = System.currentTimeMillis() + LASTS;
-		l.add(m("code", code.toString(), "server", Json.str(s.get("id")), "by", by, "by_name", byName, "made", LocalDateTime.now().format(TIME), "until", String.valueOf(until)));
+		l.add(m("code", code.toString(), "server", Json.str(s.get("id")), "by", by, "by_name", byName, "made",
+				LocalDateTime.now().format(TIME), "until", String.valueOf(until)));
 		save(l);
 		String name = setting("name", "");
-		String link = "gatehouse://invite/" + address() + "?code=" + shown(code.toString()) + (name.isEmpty() ? "" : "&name=" + java.net.URLEncoder.encode(name, StandardCharsets.UTF_8)) + "&server=" + java.net.URLEncoder.encode(Json.str(s.get("name")), StandardCharsets.UTF_8);
+		String link = "gatehouse://invite/" + address() + "?code=" + shown(code.toString()) + (name.isEmpty() ? "" : "&name="
+				+ java.net.URLEncoder.encode(name, StandardCharsets.UTF_8)) + "&server=" + java.net.URLEncoder.encode(Json.str(s.get("name")), StandardCharsets.UTF_8);
 		log("invites: " + byName + " made an invite to " + Json.str(s.get("name")));
-		return m("result", "ok", "code", shown(code.toString()), "link", link, "server", Json.str(s.get("name")), "until", LocalDateTime.now().plusDays(7).format(TIME),
+		return m("result", "ok", "code", shown(code.toString()), "link", link, "server", Json.str(s.get("name")), "until",
+				LocalDateTime.now().plusDays(7).format(TIME),
 				"message", "Send this to the other person. In their Gatehouse: Add Gatekeeper, paste it. It lasts seven days, and they have to be able to reach this Gatekeeper (on its Tailscale network, or shared into it). It doesn't put them on the whitelist or give them any control.");
 	}
 
@@ -160,20 +169,24 @@ final class Invites {
 		String code = tidy(given);
 		Map<String, Object> inv = null;
 		for (Object o : live()) if (code.length() == 10 && code.equals(Json.str(Json.map(o).get("code")))) inv = Json.map(o);
-		if (inv == null) { w[0]++; return m("result", "refused", "message", "That invite isn't known here: it may have run out (an invite lasts seven days), been taken back, or been mistyped."); }
+		if (inv == null) { w[0]++; return m("result", "refused", "message",
+				"That invite isn't known here: it may have run out (an invite lasts seven days), been taken back, or been mistyped."); }
 		Map<String, Object> s = serverById(Json.str(inv.get("server")));
 		if (s == null) return m("result", "refused", "message", "The server that invite was for is no longer on this Gatekeeper.");
 		boolean host = Json.str(inv.get("by")).equals("host");
-		if (!host && mode(s).equals("private")) return m("result", "refused", "message", "The owner has since made " + Json.str(s.get("name")) + " private, so a player's invite to it no longer works. Ask the owner.");
+		if (!host && mode(s).equals("private")) return m("result", "refused", "message", "The owner has since made "
+				+ Json.str(s.get("name")) + " private, so a player's invite to it no longer works. Ask the owner.");
 		String key = "invited:" + Json.str(s.get("id"));
-		if (!host && Json.str(d.get(key)).equals("host")) return m("result", "ok", "server", Json.str(s.get("name")), "id", Json.str(s.get("id")), "message", Json.str(s.get("name")) + " is already for this launcher.");
+		if (!host && Json.str(d.get(key)).equals("host")) return m("result", "ok", "server", Json.str(s.get("name")), "id",
+				Json.str(s.get("id")), "message", Json.str(s.get("name")) + " is already for this launcher.");
 		d.put(key, host ? "host" : "player");
 		d.put("invited_by:" + Json.str(s.get("id")), Json.str(inv.get("by_name")));
 		devs.put(id, d);
 		try { saveDevices(devs); } catch (IOException e) { return m("result", "failed", "message", "The Gatekeeper couldn't save that: " + e.getMessage()); }
 		asked.clear();
 		log("invites: " + who(d) + " used an invite to " + Json.str(s.get("name")) + " made by " + Json.str(inv.get("by_name")));
-		return m("result", "ok", "server", Json.str(s.get("name")), "id", Json.str(s.get("id")), "message", Json.str(s.get("name")) + " is now listed for this launcher, with Install. The invite doesn't put you on the server's whitelist: that is the owner's to do.");
+		return m("result", "ok", "server", Json.str(s.get("name")), "id", Json.str(s.get("id")), "message", Json.str(s.get("name"))
+				+ " is now listed for this launcher, with Install. The invite doesn't put you on the server's whitelist: that is the owner's to do.");
 	}
 
 	/** Launchers: POST /v1/invite {server}, POST /v1/invite/accept {code}. */
@@ -182,7 +195,8 @@ final class Invites {
 		if (path.equals("/v1/invite/accept")) { reply(x, 200, accept(id, d, devs, Json.str(b.get("code")))); return; }
 		Map<String, Object> s = serverById(Json.str(b.get("server")));
 		if (s == null || !mayHave(d, s)) { reply(x, 200, m("result", "refused", "message", "No such server.")); return; }
-		if (!mayInvite(d, s)) { reply(x, 200, m("result", "refused", "message", Json.str(s.get("name")) + " is private: only its owner invites people to it.")); return; }
+		if (!mayInvite(d, s)) { reply(x, 200, m("result", "refused", "message", Json.str(s.get("name"))
+				+ " is private: only its owner invites people to it.")); return; }
 		reply(x, 200, make(s, id, who(d)));
 	}
 
@@ -190,7 +204,9 @@ final class Invites {
 	static Map<String, Object> state(Map<String, Object> s) {
 		String sid = Json.str(s.get("id"));
 		List<Object> came = new ArrayList<>();
-		for (Object o : devices().values()) { Map<String, Object> d = Json.map(o); String how = Json.str(d.get("invited:" + sid)); if (!how.isEmpty()) came.add(m("name", who(d), "by", Json.str(d.get("invited_by:" + sid)), "counts", how.equals("host") || mode(s).equals("shareable") || mode(s).equals("public"))); }
+		for (Object o : devices().values()) { Map<String, Object> d = Json.map(o); String how = Json.str(d.get("invited:"
+				+ sid)); if (!how.isEmpty()) came.add(m("name", who(d), "by", Json.str(d.get("invited_by:" + sid)), "counts",
+				how.equals("host") || mode(s).equals("shareable") || mode(s).equals("public"))); }
 		int codes = 0;
 		for (Object o : live()) if (sid.equals(Json.str(Json.map(o).get("server")))) codes++;
 		// who the owner let in, and by what: these have the server whatever it is set to, which is why switching it to private doesn't take it from them
@@ -213,7 +229,8 @@ final class Invites {
 		ServerTools.saveCfg();
 		asked.clear();
 		if (!was.equals(mode)) log("invites: " + Json.str(s.get("name")) + " is now " + mode + " (was " + was + ")");
-		return new String[] {"ok", says(mode) + "." + (mode.equals("private") && !was.equals("private") ? " Launchers that only came in by a player's invite, or because it was public, no longer get its pack or see it listed; what they already installed stays on their device." : "")};
+		return new String[] {"ok", says(mode) + "." + (mode.equals("private") && !was.equals("private")
+				? " Launchers that only came in by a player's invite, or because it was public, no longer get its pack or see it listed; what they already installed stays on their device." : "")};
 	}
 	/** Takes back every invite to a server: the codes that haven't run out, and the launchers that came in by one. */
 	static synchronized String[] takeBack(Map<String, Object> s) {
@@ -227,6 +244,7 @@ final class Invites {
 		try { saveDevices(devs); } catch (IOException e) { return new String[] {"failed", "Couldn't be saved: " + e.getMessage()}; }
 		asked.clear();
 		log("invites: every invite to " + Json.str(s.get("name")) + " was taken back (" + n + " launcher(s))");
-		return new String[] {"ok", "Taken back: " + n + " launcher(s) that came in by invite, and every invite that hadn't run out. Launchers you let in another way are untouched."};
+		return new String[] {"ok", "Taken back: " + n
+				+ " launcher(s) that came in by invite, and every invite that hadn't run out. Launchers you let in another way are untouched."};
 	}
 }

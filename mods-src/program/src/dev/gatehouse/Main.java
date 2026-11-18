@@ -30,6 +30,7 @@ import javax.swing.WindowConstants;
 import dev.gatehouse.look.AppIcon;
 import dev.octoberjourney.host.HostHelper;
 import dev.octoberjourney.popup.LaunchPopup;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Gatehouse is one program with two halves: Play (the launcher players use, "Gatehouse") and Host (the part that
@@ -73,7 +74,8 @@ public final class Main {
 			return;
 		}
 		if (first.equals("--build-pack")) { dev.octoberjourney.host.PackBuilder.main(args); return; }   // (building a pack from its definition: see PackBuilder)
-		if (List.of("--serve", "--panel", "--minimized", "--uninstall-command").contains(first) || (args.length == 0 && isKeeperFile())) { HostHelper.main(args); return; }
+		if (List.of("--serve", "--panel", "--minimized", "--uninstall-command").contains(first) || (args.length == 0
+				&& isKeeperFile())) { HostHelper.main(args); return; }
 		if (args.length == 0) { choose(null); return; }
 		LaunchPopup.main(args);
 	}
@@ -84,7 +86,8 @@ public final class Main {
 	/** Is this file a Gatekeeper's own copy (so that opening it with nothing asked means its window, as before)? */
 	static boolean isKeeperFile() {
 		Path me = own();
-		return System.getenv("OJ_HOST_DIR") != null || (me.getFileName() != null && me.getFileName().toString().equalsIgnoreCase("oj-host.jar")) || (me.getParent() != null && Files.isRegularFile(me.getParent().resolve("host.json")));
+		return System.getenv("OJ_HOST_DIR") != null || (me.getFileName() != null
+				&& me.getFileName().toString().equalsIgnoreCase("oj-host.jar")) || (me.getParent() != null && Files.isRegularFile(me.getParent().resolve("host.json")));
 	}
 
 	// ------------------------------------------------------------------ where each half is on this device
@@ -129,12 +132,13 @@ public final class Main {
 		try {
 			java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"port\"\\s*:\\s*\"?(\\d+)").matcher(Files.readString(dir.resolve("host.json"), StandardCharsets.UTF_8));
 			if (m.find()) return Integer.parseInt(m.group(1));
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		return 25570;
 	}
 	/** Is that Gatekeeper's background part answering on this machine right now? */
 	public static boolean keeperRunning(Path dir) {
-		try (java.net.Socket s = new java.net.Socket()) { s.connect(new java.net.InetSocketAddress("127.0.0.1", keeperPort(dir)), 500); return true; } catch (IOException e) { return false; }
+		try (java.net.Socket s = new java.net.Socket()) { s.connect(new java.net.InetSocketAddress("127.0.0.1", keeperPort(dir)),
+				500); return true; } catch (IOException e) { return false; }
 	}
 
 	/** The port a Gatekeeper on this machine answers its window on right now, or 0. It is asked for, at the port its
@@ -168,13 +172,15 @@ public final class Main {
 	/** Opens Gatekeeper's window: by asking the running Gatekeeper to open it itself (which works from inside a
 	 *  sandbox too), else by starting it from its folder. "" when it went, else why not. */
 	public static String openGatekeeper() {
-		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would open Gatekeeper's window (door " + keeperDoor() + ", folder " + keeperDir() + ")"); return ""; }
+		if (System.getenv("OJ_HOME_DRY") != null) { System.out.println("would open Gatekeeper's window (door " + keeperDoor() + ", folder "
+				+ keeperDir() + ")"); return ""; }
 		int door = keeperDoor();
 		// Inside a sandbox on Linux (Prism Launcher's Flatpak: the Steam Deck), the window is shown from here, as a
 		// part of this launcher: Gatekeeper is a background service there, and in a game session (the Deck's Game
 		// Mode) a window it opens itself is never put on the screen. A window that is open already is switched to.
 		if (door > 0 && !WIN && Files.exists(Path.of("/.flatpak-info"))) {
-			if (askKeeper(door, "GET", "/admin/window?peek", null).matches("(?s).*\"open\"\\s*:\\s*true.*")) { askKeeper(door, "POST", "/admin/local/open", "{}"); return ""; }
+			if (askKeeper(door, "GET", "/admin/window?peek", null).matches("(?s).*\"open\"\\s*:\\s*true.*")) { askKeeper(door, "POST",
+					"/admin/local/open", "{}"); return ""; }
 			try {
 				ProcessBuilder pb = new ProcessBuilder(java(), "-jar", own().toString(), "--panel");
 				pb.environment().put("OJ_PANEL_DOOR", String.valueOf(door));
@@ -195,7 +201,8 @@ public final class Main {
 	 *  The launcher runs from a copy of its file, so these are never in use. Returns how many were replaced. */
 	public static int updatePlayCopies(Path fresh, String source) {
 		int done = 0;
-		try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(fresh.toFile())) { if (z.getEntry("dev/gatehouse/Main.class") == null || z.getEntry("gatehouse-notes.json") == null) return 0; }
+		try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(fresh.toFile())) { if (z.getEntry("dev/gatehouse/Main.class") == null
+				|| z.getEntry("gatehouse-notes.json") == null) return 0; }
 		catch (IOException | RuntimeException e) { return 0; }
 		List<Path> copies = new ArrayList<>();
 		for (Path root : prismRoots()) {
@@ -212,8 +219,9 @@ public final class Main {
 			try {
 				StringBuilder sum = new StringBuilder();
 				for (byte b : java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(fresh))) sum.append(String.format("%02x", b));
-				Files.writeString(c.resolveSibling("launch-popup.source.txt"), sum + "|the Gatekeeper on this machine, which fetched it from " + source, StandardCharsets.UTF_8);
-			} catch (IOException | java.security.NoSuchAlgorithmException ignored) {}
+				Files.writeString(c.resolveSibling("launch-popup.source.txt"), sum
+						+ "|the Gatekeeper on this machine, which fetched it from " + source, StandardCharsets.UTF_8);
+			} catch (IOException | java.security.NoSuchAlgorithmException ignored) { Quiet.seen(ignored); }
 		} catch (IOException | RuntimeException left) { /* that copy is left as it was; its own update gets it */ }
 		return done;
 	}
@@ -260,7 +268,8 @@ public final class Main {
 			Path part = dir.resolve("oj-host.jar.part");
 			Files.copy(jar, part, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 			Files.copy(target, dir.resolve("oj-host.jar.old"), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			try { Files.move(part, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(part); }   // (in use after all: left as it was)
+			try { Files.move(part, target,
+					java.nio.file.StandardCopyOption.REPLACE_EXISTING); } finally { Files.deleteIfExists(part); }   // (in use after all: left as it was)
 			return "the Gatekeeper on this machine, which isn't running, was updated with it";
 		} catch (IOException | RuntimeException e) { return ""; }
 	}
@@ -271,7 +280,8 @@ public final class Main {
 
 	/** What starts each half, or sets it up. Nothing here is run when OJ_HOME_DRY is set (testing): it is printed. */
 	public static List<String> openPlay(Path script) {
-		return WIN ? List.of("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script.toString()) : List.of("bash", script.toString());
+		return WIN ? List.of("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File",
+				script.toString()) : List.of("bash", script.toString());
 	}
 	public static List<String> openHost(Path dir) { return List.of(java(), "-jar", dir.resolve("oj-host.jar").toString(), "--panel"); }
 	/** Setting a half up runs Gatehouse's own install script, which this program carries, in a window of its own
@@ -284,7 +294,8 @@ public final class Main {
 			if (in == null) throw new IOException("this program doesn't carry its install script");
 			Files.write(to, in.readAllBytes());
 		}
-		if (WIN) return List.of("cmd.exe", "/c", "start", "Setting up " + (host ? "Gatekeeper" : "Gatehouse"), "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-File", to.toString(), host ? "-Gatekeeper" : "-Gatehouse");
+		if (WIN) return List.of("cmd.exe", "/c", "start", "Setting up " + (host ? "Gatekeeper" : "Gatehouse"), "powershell.exe",
+				"-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-File", to.toString(), host ? "-Gatekeeper" : "-Gatehouse");
 		String cmd = "bash '" + to + "' " + (host ? "--gatekeeper" : "") + "; echo; echo 'Done. You can close this window.'; read -r _";
 		for (String[] term : new String[][] {{"konsole", "-e"}, {"gnome-terminal", "--"}, {"xfce4-terminal", "-x"}, {"xterm", "-e"}})
 			for (String dir : System.getenv().getOrDefault("PATH", "").split(java.io.File.pathSeparator))
@@ -313,7 +324,8 @@ public final class Main {
 				return "";
 			}
 			boolean boxed = Files.exists(Path.of("/.flatpak-info"));
-			List<String> cmd = boxed ? List.of("flatpak-spawn", "--host", "systemctl", "--user", "start", "gatehouse-keeper") : List.of("systemctl", "--user", "start", "gatehouse-keeper");
+			List<String> cmd = boxed ? List.of("flatpak-spawn", "--host", "systemctl", "--user", "start", "gatehouse-keeper")
+					: List.of("systemctl", "--user", "start", "gatehouse-keeper");
 			Process p = new ProcessBuilder(cmd).redirectErrorStream(true).start();
 			p.getOutputStream().close();
 			String said = new String(p.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
@@ -343,7 +355,8 @@ public final class Main {
 		s.setForeground(colour);
 		JPanel text = new JPanel();
 		text.setLayout(new BoxLayout(text, BoxLayout.Y_AXIS));
-		for (Component c : new Component[] {t, javax.swing.Box.createVerticalStrut(6), w, javax.swing.Box.createVerticalStrut(10), s}) { if (c instanceof JLabel l) l.setAlignmentX(Component.LEFT_ALIGNMENT); text.add(c); }
+		for (Component c : new Component[] {t, javax.swing.Box.createVerticalStrut(6), w, javax.swing.Box.createVerticalStrut(10),
+				s}) { if (c instanceof JLabel l) l.setAlignmentX(Component.LEFT_ALIGNMENT); text.add(c); }
 		JButton b = new JButton(button);
 		b.setFont(b.getFont().deriveFont(Font.BOLD, 15f));
 		b.addActionListener(e -> press.run());
@@ -357,18 +370,28 @@ public final class Main {
 		boolean up = keeperDoor() > 0, hasHost = keeper != null || up;
 		JPanel both = new JPanel(new GridLayout(1, 2, 12, 0));
 		java.util.function.BiConsumer<Boolean, String> setUpIt = (host, name) -> {
-			if (JOptionPane.showConfirmDialog(owner, "<html><div style='width:400px'>Set up " + name + " on this device? Its setup opens in a window of its own, says what it will do, and asks before it fetches anything.</div></html>", "Set up " + name, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+			if (JOptionPane.showConfirmDialog(owner, "<html><div style='width:400px'>Set up " + name
+					+ " on this device? Its setup opens in a window of its own, says what it will do, and asks before it fetches anything.</div></html>", "Set up " + name, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			String trouble;
 			try { trouble = run(setUp(host)); } catch (IOException e) { trouble = e.getMessage(); }
 			said.setForeground(trouble.isEmpty() ? GREY : AMBER);
-			said.setText("<html><div style='width:600px'>" + (trouble.isEmpty() ? name + "'s setup is open in its own window. When it has finished, this screen shows it as set up." : "Couldn't start the setup: " + trouble) + "</div></html>");
+			said.setText("<html><div style='width:600px'>" + (trouble.isEmpty() ? name
+					+ "'s setup is open in its own window. When it has finished, this screen shows it as set up." : "Couldn't start the setup: " + trouble) + "</div></html>");
 		};
 		both.add(card("Play", "<b>Gatehouse.</b> Pick a server, keep its mods up to date, and start the game. For anyone who plays.",
-				script != null ? "Set up on this device" : "Not set up on this device yet", script != null ? GREEN : GREY, script != null ? "Open Gatehouse" : "Set up Gatehouse\u2026",
-				() -> { if (script == null) { setUpIt.accept(false, "Gatehouse"); return; } String t = run(openPlay(script)); said.setForeground(t.isEmpty() ? GREY : AMBER); said.setText(t.isEmpty() ? "Opening Gatehouse\u2026" : "Couldn't open Gatehouse: " + t); }));
-		both.add(card("Host", "<b>Gatekeeper.</b> Looks after the Minecraft servers on this machine: who may join and control them, starting and stopping, backups. For whoever runs the servers.",
-				!hasHost ? "Not set up on this device yet" : up ? "Set up here, and running" : "Set up here, but its background part isn't running", !hasHost ? GREY : up ? GREEN : AMBER, hasHost ? "Open Gatekeeper" : "Set up Gatekeeper\u2026",
-				() -> { if (!hasHost) { setUpIt.accept(true, "Gatekeeper"); return; } String t = openGatekeeper(); said.setForeground(t.isEmpty() ? GREY : AMBER); said.setText("<html><div style='width:600px'>" + (t.isEmpty() ? "Opening Gatekeeper\u2026" : "Couldn't open Gatekeeper: " + t) + "</div></html>"); }));
+				script != null ? "Set up on this device" : "Not set up on this device yet", script != null ? GREEN : GREY, script != null
+						? "Open Gatehouse" : "Set up Gatehouse\u2026",
+				() -> { if (script == null) { setUpIt.accept(false,
+						"Gatehouse"); return; } String t = run(openPlay(script)); said.setForeground(t.isEmpty() ? GREY
+						: AMBER); said.setText(t.isEmpty() ? "Opening Gatehouse\u2026" : "Couldn't open Gatehouse: " + t); }));
+		both.add(card("Host",
+				"<b>Gatekeeper.</b> Looks after the Minecraft servers on this machine: who may join and control them, starting and stopping, backups. For whoever runs the servers.",
+				!hasHost ? "Not set up on this device yet" : up ? "Set up here, and running"
+						: "Set up here, but its background part isn't running", !hasHost ? GREY : up ? GREEN : AMBER, hasHost ? "Open Gatekeeper" : "Set up Gatekeeper\u2026",
+				() -> { if (!hasHost) { setUpIt.accept(true,
+						"Gatekeeper"); return; } String t = openGatekeeper(); said.setForeground(t.isEmpty() ? GREY
+						: AMBER); said.setText("<html><div style='width:600px'>" + (t.isEmpty() ? "Opening Gatekeeper\u2026"
+						: "Couldn't open Gatekeeper: " + t) + "</div></html>"); }));
 		return both;
 	}
 
@@ -378,7 +401,8 @@ public final class Main {
 			Path s = playScript(), k = keeperDir();
 			System.out.println("Play (Gatehouse): " + (s == null ? "not set up" : "set up, " + s));
 			int door = keeperDoor();
-			System.out.println("Host (Gatekeeper): " + (k == null && door <= 0 ? "not set up" : (k == null ? "answering on this machine (its folder isn't visible from here)" : "set up in " + k) + (door > 0 ? ", running" : ", not running")));
+			System.out.println("Host (Gatekeeper): " + (k == null && door <= 0 ? "not set up" : (k == null
+					? "answering on this machine (its folder isn't visible from here)" : "set up in " + k) + (door > 0 ? ", running" : ", not running")));
 			return;
 		}
 		Runnable ui = () -> {

@@ -89,7 +89,8 @@ public class DefaultBrewingDisplay implements Display {
     }
     
     public DefaultBrewingDisplay(RecipeHolder<net.minecraft.world.item.crafting.BrewingRecipe> holder) {
-        this(toEntryIngredient(holder.value().getInput()), toEntryIngredient(holder.value().getReagent()), EntryIngredients.of(holder.value().getOutput().create()));
+        this(toEntryIngredient(holder.value().getInput()), toEntryIngredient(holder.value().getReagent()),
+        		EntryIngredients.of(holder.value().getOutput().create()));
     }
     
     private static EntryIngredient toEntryIngredient(PotionIngredient ingredient) {

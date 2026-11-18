@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Once a minute, for each server (R34):
@@ -45,7 +46,7 @@ final class ServerWatch {
 		Thread t = new Thread(() -> {
 			try { Thread.sleep(20_000); } catch (InterruptedException e) { return; }
 			while (true) {
-				try { look(); } catch (RuntimeException | Error ignored) {}
+				try { look(); } catch (RuntimeException | Error ignored) { Quiet.seen(ignored); }
 				try { Thread.sleep(60_000); } catch (InterruptedException e) { return; }
 			}
 		}, "server-watch");
@@ -54,24 +55,20 @@ final class ServerWatch {
 	}
 
 	static void look() {
-		String keep = SERVER.get();
-		try {
-			for (Object o : servers()) {
-				Map<String, Object> s = Json.map(o);
-				String id = Json.str(s.get("id")), name = Json.str(s.get("name"));
-				SERVER.set(id);
+		eachServer((id, s) -> {
+				String name = Json.str(s.get("name"));
 				String phase = serverPhase(), was = phaseWas.put(id, phase);
 				boolean on = phase.equals("online");
 				// crash watch (a server Gatekeeper runs itself is watched where it ends: DirectHost)
-				if ("online".equals(was) && (phase.equals("off") || phase.equals("nomcss")) && !isNative() && System.currentTimeMillis() - askedAt.getOrDefault(id, 0L) > 180_000) wentDown(id, name, s);
+				if ("online".equals(was) && (phase.equals("off") || phase.equals("nomcss")) && !isNative()
+						&& System.currentTimeMillis() - askedAt.getOrDefault(id, 0L) > 180_000) wentDown(id, name, s);
 				// friends joining
 				Set<String> now = on ? new java.util.TreeSet<>(onlineBy.getOrDefault(serverKey(), Map.of()).keySet()) : Set.of();
 				Set<String> before = playersWas.put(id, now);
 				if (before != null) for (String p : now) if (!before.contains(p)) Notify.joined(p, name);
 				// performance
 				sample(id, s, on, now.size());
-			}
-		} finally { SERVER.set(keep); }
+		});
 	}
 
 	private static void wentDown(String id, String name, Map<String, Object> s) {
@@ -82,7 +79,8 @@ final class ServerWatch {
 			when.removeIf(t -> t < System.currentTimeMillis() - 600_000);
 			if (when.size() >= 3) again = " It has gone down three times in ten minutes, so Gatekeeper leaves it off.";
 			else if (!sh().hasAccess()) again = " It's set to be kept on, but Gatekeeper has no MCSS key to start it.";
-			else { when.add(System.currentTimeMillis()); asked(id); String[] r = sh().serverAction(true); again = r[0].equals("ok") ? " Gatekeeper is starting it again." : " Gatekeeper couldn't start it again: " + r[1]; }
+			else { when.add(System.currentTimeMillis()); asked(id); String[] r = sh().serverAction(true); again = r[0].equals("ok")
+					? " Gatekeeper is starting it again." : " Gatekeeper couldn't start it again: " + r[1]; }
 		}
 		log(name + " went down without Gatekeeper being asked (stopped outside Gatekeeper, or crashed)." + again);
 		Notify.down(name, name + " stopped without Gatekeeper being asked: it was stopped outside Gatekeeper, or it crashed." + again);
@@ -96,7 +94,8 @@ final class ServerWatch {
 				mem = ServerTools.memoryMb(h);
 				long c = h.info().totalCpuDuration().map(java.time.Duration::toNanos).orElse(-1L), t = System.nanoTime();
 				long[] w = cpuWas.get(id);
-				if (c >= 0 && w != null && w[2] == h.pid() && t > w[1]) cpu = (int) Math.max(0, Math.min(100, Math.round(100.0 * (c - w[0]) / (t - w[1]) / Runtime.getRuntime().availableProcessors())));
+				if (c >= 0 && w != null && w[2] == h.pid() && t > w[1]) cpu = (int) Math.max(0, Math.min(100,
+						Math.round(100.0 * (c - w[0]) / (t - w[1]) / Runtime.getRuntime().availableProcessors())));
 				if (c >= 0) cpuWas.put(id, new long[] {c, t, h.pid()});
 			}
 		}
@@ -118,7 +117,8 @@ final class ServerWatch {
 		if (WIN) {
 			for (String l : commandSays("netstat", "-ano", "-p", "TCP").split("\\R")) {
 				String[] f = l.trim().split("\\s+");
-				if (f.length >= 5 && f[3].equals("LISTENING") && f[1].endsWith(":" + port)) { try { pid = Long.parseLong(f[4]); } catch (NumberFormatException ignored) {} break; }
+				if (f.length >= 5 && f[3].equals("LISTENING") && f[1].endsWith(":"
+						+ port)) { try { pid = Long.parseLong(f[4]); } catch (NumberFormatException ignored) { Quiet.seen(ignored); } break; }
 			}
 		} else {
 			java.util.regex.Matcher m = java.util.regex.Pattern.compile(":" + port + "\\s.*pid=(\\d+)").matcher(commandSays("ss", "-ltnpH"));
@@ -156,7 +156,8 @@ final class ServerWatch {
 			if (q.isEmpty()) return out;
 			Sample last = q.peekLast();
 			int cpuPeak = -1, playersPeak = 0, lag = 0; long memPeak = -1;
-			for (Sample x : q) { cpuPeak = Math.max(cpuPeak, x.cpu()); memPeak = Math.max(memPeak, x.mem()); playersPeak = Math.max(playersPeak, x.players()); lag += x.lag(); }
+			for (Sample x : q) { cpuPeak = Math.max(cpuPeak, x.cpu()); memPeak = Math.max(memPeak,
+					x.mem()); playersPeak = Math.max(playersPeak, x.players()); lag += x.lag(); }
 			out.put("cpu", last.cpu()); out.put("mem", last.mem()); out.put("cpu_peak", cpuPeak); out.put("mem_peak", memPeak);
 			out.put("players_peak", playersPeak); out.put("lag", lag); out.put("minutes", q.size());
 			List<Object> mems = new java.util.ArrayList<>(); for (Sample x : q) mems.add(x.mem());

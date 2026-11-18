@@ -75,7 +75,8 @@ final class Icons {
 		int cut = Math.min(in.getWidth(), in.getHeight()), sx = (in.getWidth() - cut) / 2, sy = (in.getHeight() - cut) / 2;
 		BufferedImage out = new BufferedImage(SIDE, SIDE, BufferedImage.TYPE_INT_ARGB);
 		Graphics2D g = out.createGraphics();
-		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, cut < SIDE ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR : RenderingHints.VALUE_INTERPOLATION_BICUBIC);   // (a small pixel-art icon stays sharp)
+		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, cut < SIDE ? RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+				: RenderingHints.VALUE_INTERPOLATION_BICUBIC);   // (a small pixel-art icon stays sharp)
 		g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
 		g.drawImage(in, 0, 0, SIDE, SIDE, sx, sy, sx + cut, sy + cut, null);
 		g.dispose();
@@ -95,7 +96,8 @@ final class Icons {
 		try (InputStream in = x.getRequestBody()) { b = in.readNBytes(MAX + 1); }
 		if (b.length > MAX) { reply(x, 200, m("result", "refused", "message", "That file is too big for a picture.")); return true; }
 		try {
-			if (b.length == 0) { Files.deleteIfExists(file(what)); log("pictures: the chosen picture for " + what + " was removed"); reply(x, 200, m("result", "ok", "message", "Removed.", "icon", tag(what))); return true; }
+			if (b.length == 0) { Files.deleteIfExists(file(what)); log("pictures: the chosen picture for " + what
+					+ " was removed"); reply(x, 200, m("result", "ok", "message", "Removed.", "icon", tag(what))); return true; }
 			byte[] png = square(b);
 			Files.createDirectories(file(what).getParent());
 			Files.write(file(what), png);

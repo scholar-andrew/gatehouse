@@ -23,27 +23,25 @@ final class StatusPage {
 	static void page(HttpExchange x) throws IOException {
 		try {
 			if (!x.getRequestMethod().equals("GET")) { x.sendResponseHeaders(405, -1); return; }
-			if (!on()) { send(x, 404, html("Not shared", "<p class=dim>This Gatekeeper's status page is turned off. Its owner can turn it on in Gatekeeper's Options.</p>")); return; }
+			if (!on()) { send(x, 404, html("Not shared",
+					"<p class=dim>This Gatekeeper's status page is turned off. Its owner can turn it on in Gatekeeper's Options.</p>")); return; }
 			StringBuilder b = new StringBuilder();
-			String keep = SERVER.get();
-			try {
-				for (Object o : servers()) {
-					Map<String, Object> s = Json.map(o);
-					String id = Json.str(s.get("id"));
-					SERVER.set(id);
-					if (goneFromMcss(s)) continue;
+			eachServer((id, s) -> {
+					if (goneFromMcss(s)) return;
 					String ph = serverPhase();
 					boolean up = ph.equals("online");
 					java.util.Set<String> who = up ? new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER) : java.util.Set.of();
 					if (up) who.addAll(onlineBy.getOrDefault(serverKey(), Map.of()).keySet());
 					String state = up ? "Up" : ph.equals("starting") ? "Starting" : ph.equals("stopping") ? "Stopping" : "Down";
-					b.append("<section><div class=row><b>").append(esc(Json.str(s.get("name")))).append("</b><span class='st ").append(up ? "up" : ph.equals("starting") || ph.equals("stopping") ? "mid" : "down").append("'>").append(state).append("</span></div>");
-					if (up) b.append("<p>").append(who.isEmpty() ? "<span class=dim>Nobody playing right now</span>" : who.size() + " playing: " + esc(String.join(", ", who))).append("</p>");
+					b.append("<section><div class=row><b>").append(esc(Json.str(s.get("name")))).append("</b><span class='st ").append(up
+							? "up" : ph.equals("starting") || ph.equals("stopping") ? "mid" : "down").append("'>").append(state).append("</span></div>");
+					if (up) b.append("<p>").append(who.isEmpty() ? "<span class=dim>Nobody playing right now</span>" : who.size()
+							+ " playing: " + esc(String.join(", ", who))).append("</p>");
 					b.append("</section>");
-				}
-			} finally { SERVER.set(keep); }
+			});
 			String when = java.time.LocalTime.now().withNano(0).toString();
-			send(x, 200, html(AutoUpdate.myName(), (b.length() == 0 ? "<p class=dim>No servers here.</p>" : b.toString()) + "<p class=dim>As of " + when + ". This page looks again every 30 seconds.</p>"));
+			send(x, 200, html(AutoUpdate.myName(), (b.length() == 0 ? "<p class=dim>No servers here.</p>" : b.toString())
+					+ "<p class=dim>As of " + when + ". This page looks again every 30 seconds.</p>"));
 		} catch (RuntimeException e) { send(x, 500, html("Not available", "<p class=dim>The status couldn't be read just now.</p>")); }
 	}
 

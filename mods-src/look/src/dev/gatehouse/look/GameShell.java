@@ -42,7 +42,8 @@ import javax.swing.JPanel;
 public final class GameShell extends JPanel {
 	/** Gatehouse's own colour (its castle); Gatekeeper's is the blue accent. */
 	public static final Color GATEHOUSE = new Color(0xF5BE1E);
-	public static final Color BG0 = new Color(0x0D141D), BG1 = SteamLook.BACK, TEXT = new Color(0xE6EEF5), DIM = SteamLook.DIM, ACC = SteamLook.ACCENT, RED = new Color(0xE5484D);
+	public static final Color BG0 = new Color(0x0D141D), BG1 = SteamLook.BACK, TEXT = new Color(0xE6EEF5), DIM = SteamLook.DIM,
+			ACC = SteamLook.ACCENT, RED = new Color(0xE5484D);
 	private static volatile boolean pad;
 
 	/** Whether the prompts show a controller's buttons (true) or the keyboard's keys. It follows whichever was used last. */
@@ -53,7 +54,8 @@ public final class GameShell extends JPanel {
 		javax.swing.SwingUtilities.invokeLater(() -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) { again(w); w.repaint(); } });
 	}
 	private static void again(java.awt.Container c) {
-		for (java.awt.Component x : c.getComponents()) { if (x instanceof Glyph || x instanceof Hint) ((JComponent) x).revalidate(); if (x instanceof java.awt.Container k) again(k); }
+		for (java.awt.Component x : c.getComponents()) { if (x instanceof Glyph
+				|| x instanceof Hint) ((JComponent) x).revalidate(); if (x instanceof java.awt.Container k) again(k); }
 	}
 
 	static Color a(Color c, int alpha) { return new Color(c.getRed(), c.getGreen(), c.getBlue(), alpha); }
@@ -102,8 +104,10 @@ public final class GameShell extends JPanel {
 			return this;
 		}
 		private boolean nothing() { return (!pad && key.isEmpty()) || (of != null && !of.isVisible()); }
-		@Override public Dimension getPreferredSize() { if (nothing()) return new Dimension(0, 26); return new Dimension(Math.max(26, getFontMetrics(font(11.5f, true)).stringWidth(pad ? padName : key) + 16), 26); }
-		@Override protected void paintComponent(Graphics g0) { if (nothing()) return; Graphics2D g = smooth(g0); int w = glyphWidth(g, padName, key); glyph(g, padName, key, (getWidth() - w) / 2, getHeight() / 2); g.dispose(); }
+		@Override public Dimension getPreferredSize() { if (nothing()) return new Dimension(0, 26); return new Dimension(Math.max(26,
+				getFontMetrics(font(11.5f, true)).stringWidth(pad ? padName : key) + 16), 26); }
+		@Override protected void paintComponent(Graphics g0) { if (nothing()) return; Graphics2D g = smooth(g0); int w = glyphWidth(g,
+				padName, key); glyph(g, padName, key, (getWidth() - w) / 2, getHeight() / 2); g.dispose(); }
 	}
 
 	/** A button's picture with what it does here, in words ("A Select"): something to read, not to press. */
@@ -111,7 +115,8 @@ public final class GameShell extends JPanel {
 		private final String padName, key; private String label;
 		public Hint(String padName, String key, String label) { this.padName = padName; this.key = key; this.label = label; }
 		public void label(String l) { label = l; revalidate(); repaint(); }
-		@Override public Dimension getPreferredSize() { return new Dimension(Math.max(26, getFontMetrics(font(11.5f, true)).stringWidth(padName.length() > key.length() ? padName : key) + 14) + 8 + getFontMetrics(font(13.5f, false)).stringWidth(label) + 4, 30); }
+		@Override public Dimension getPreferredSize() { return new Dimension(Math.max(26, getFontMetrics(font(11.5f,
+				true)).stringWidth(padName.length() > key.length() ? padName : key) + 14) + 8 + getFontMetrics(font(13.5f, false)).stringWidth(label) + 4, 30); }
 		@Override protected void paintComponent(Graphics g0) {
 			Graphics2D g = smooth(g0);
 			int x = glyph(g, padName, key, 0, getHeight() / 2) + 8;
@@ -138,7 +143,8 @@ public final class GameShell extends JPanel {
 			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(4, 12, getWidth() - 8, 38, 12, 12)); }
 			g.setColor(sel ? TEXT : over ? a(TEXT, 210) : DIM); g.drawString(label, x, 38);
 			if (badge < 0) { g.setColor(RED); g.fill(new Ellipse2D.Double(x + tw + 4, 19, 9, 9)); }   // (something new there)
-			if (sel) { g.setColor(a(ACC, 60)); g.fill(new RoundRectangle2D.Double(x - 6, 55, tw + 12, 9, 8, 8)); g.setColor(ACC); g.fill(new RoundRectangle2D.Double(x - 2, 58, tw + 4, 3.5, 3, 3)); }
+			if (sel) { g.setColor(a(ACC, 60)); g.fill(new RoundRectangle2D.Double(x - 6, 55, tw + 12, 9, 8,
+					8)); g.setColor(ACC); g.fill(new RoundRectangle2D.Double(x - 2, 58, tw + 4, 3.5, 3, 3)); }
 			if (badge > 0) {
 				String n = badge > 99 ? "99" : String.valueOf(badge);
 				g.setColor(RED); g.fill(new Ellipse2D.Double(x + tw + 3, 15, 18, 18));
@@ -170,8 +176,10 @@ public final class GameShell extends JPanel {
 		@Override protected void paintComponent(Graphics g0) {
 			Graphics2D g = smooth(g0);
 			boolean sel = id.equals(litItem), over = getModel().isRollover();
-			if (sel || over || isFocusOwner()) { g.setColor(a(sel ? ACC : TEXT, sel ? 34 : 16)); g.fill(new RoundRectangle2D.Double(6, 2, getWidth() - 12, getHeight() - 4, 10, 10)); }
-			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(6, 2, getWidth() - 12, getHeight() - 4, 10, 10)); }
+			if (sel || over || isFocusOwner()) { g.setColor(a(sel ? ACC : TEXT, sel ? 34 : 16)); g.fill(new RoundRectangle2D.Double(6, 2,
+					getWidth() - 12, getHeight() - 4, 10, 10)); }
+			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(6, 2,
+					getWidth() - 12, getHeight() - 4, 10, 10)); }
 			if (sel) { g.setColor(ACC); g.fill(new RoundRectangle2D.Double(6, 10, 4, getHeight() - 20, 3, 3)); }
 			g.setFont(font(14.5f, sel)); g.setColor(sel ? TEXT : over ? a(TEXT, 225) : a(TEXT, 190));
 			g.drawString(label, 22, getHeight() / 2 + 5);
@@ -179,7 +187,8 @@ public final class GameShell extends JPanel {
 				String n = badge < 0 ? "" : badge > 99 ? "99" : String.valueOf(badge);
 				int d = badge < 0 ? 9 : 18, x = getWidth() - 18 - d;
 				g.setColor(RED); g.fill(new Ellipse2D.Double(x, getHeight() / 2.0 - d / 2.0, d, d));
-				if (!n.isEmpty()) { g.setFont(font(11.5f, true)); g.setColor(Color.WHITE); g.drawString(n, x + d / 2f - g.getFontMetrics().stringWidth(n) / 2f, getHeight() / 2f + 4.5f); }
+				if (!n.isEmpty()) { g.setFont(font(11.5f, true)); g.setColor(Color.WHITE); g.drawString(n, x
+						+ d / 2f - g.getFontMetrics().stringWidth(n) / 2f, getHeight() / 2f + 4.5f); }
 			}
 			g.dispose();
 		}
@@ -197,8 +206,10 @@ public final class GameShell extends JPanel {
 		@Override protected void paintComponent(Graphics g0) {
 			Graphics2D g = smooth(g0);
 			boolean open = drawer.isVisible(), over = getModel().isRollover();
-			if (open || over || isFocusOwner()) { g.setColor(a(open ? ACC : TEXT, open ? 40 : 18)); g.fill(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, 12, 12)); }
-			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(1, 1, getWidth() - 2, getHeight() - 2, 12, 12)); }
+			if (open || over || isFocusOwner()) { g.setColor(a(open ? ACC : TEXT, open ? 40 : 18)); g.fill(new RoundRectangle2D.Double(1,
+					1, getWidth() - 2, getHeight() - 2, 12, 12)); }
+			if (isFocusOwner()) { g.setColor(a(ACC, 190)); g.setStroke(new BasicStroke(1.6f)); g.draw(new RoundRectangle2D.Double(1, 1,
+					getWidth() - 2, getHeight() - 2, 12, 12)); }
 			g.setColor(open ? ACC : TEXT);
 			int cx = getWidth() / 2, cy = getHeight() / 2;
 			for (int i = -1; i <= 1; i++) g.fill(new RoundRectangle2D.Double(cx - 10, cy + i * 7 - 1.5, 20, 3, 3, 3));
@@ -228,9 +239,11 @@ public final class GameShell extends JPanel {
 		drawerList.revalidate();
 	}
 	/** A count beside a menu page (0 for none, -1 for a dot). */
-	public void menuBadge(String id, int count) { Item it = items.get(id); if (it != null && it.badge != count) { it.badge = count; it.repaint(); burger.repaint(); } }
+	public void menuBadge(String id, int count) { Item it = items.get(id); if (it != null
+			&& it.badge != count) { it.badge = count; it.repaint(); burger.repaint(); } }
 	/** Which menu page is showing ("" for none). Lighting one puts out the sections, and the other way round. */
-	public void menuLight(String id) { litItem = id == null ? "" : id; if (!litItem.isEmpty()) { lit = ""; for (Tab t : tabs.values()) t.repaint(); } for (Item it : items.values()) it.repaint(); }
+	public void menuLight(String id) { litItem = id == null ? "" : id; if (!litItem.isEmpty()) { lit = ""; for (Tab t
+			: tabs.values()) t.repaint(); } for (Item it : items.values()) it.repaint(); }
 	public String menuLit() { return litItem; }
 	public boolean menuOpen() { return drawer.isVisible(); }
 	public boolean hasMenu() { return !items.isEmpty(); }
@@ -261,7 +274,8 @@ public final class GameShell extends JPanel {
 	private static final class Row implements java.awt.LayoutManager {
 		@Override public void addLayoutComponent(String n, java.awt.Component c) {}
 		@Override public void removeLayoutComponent(java.awt.Component c) {}
-		@Override public Dimension preferredLayoutSize(java.awt.Container p) { int w = 0; for (java.awt.Component c : p.getComponents()) w += c.getPreferredSize().width; return new Dimension(w, 64); }
+		@Override public Dimension preferredLayoutSize(java.awt.Container p) { int w = 0; for (java.awt.Component c
+				: p.getComponents()) w += c.getPreferredSize().width; return new Dimension(w, 64); }
 		@Override public Dimension minimumLayoutSize(java.awt.Container p) { return new Dimension(40, 64); }
 		@Override public void layoutContainer(java.awt.Container p) {
 			java.awt.Component[] cs = p.getComponents();
@@ -269,7 +283,8 @@ public final class GameShell extends JPanel {
 			for (int i = 0; i < cs.length; i++) { w[i] = cs[i].getPreferredSize().width; total += w[i]; if (cs[i] instanceof Tab) tabsN++; }
 			int room = p.getWidth();
 			if (total > room) for (int i = 0; i < cs.length; i++) if (!(cs[i] instanceof Tab)) { total -= w[i]; w[i] = 0; }
-			if (total > room && tabsN > 0) { int cutEach = Math.min(34, (total - room + tabsN - 1) / tabsN); for (int i = 0; i < cs.length; i++) if (cs[i] instanceof Tab) { w[i] -= cutEach; total -= cutEach; } }
+			if (total > room && tabsN > 0) { int cutEach = Math.min(34, (total - room
+					+ tabsN - 1) / tabsN); for (int i = 0; i < cs.length; i++) if (cs[i] instanceof Tab) { w[i] -= cutEach; total -= cutEach; } }
 			int x = Math.max(0, (room - total) / 2);
 			for (int i = 0; i < cs.length; i++) { cs[i].setBounds(x, 0, w[i], p.getHeight()); x += w[i]; }
 		}
@@ -304,7 +319,8 @@ public final class GameShell extends JPanel {
 	 *  title is called in the bar. */
 	public static GameShell mirror(String title, javax.swing.JTabbedPane pane, java.util.function.UnaryOperator<String> shown) {
 		GameShell[] s = {null};
-		s[0] = new GameShell(title, new String[0], name -> { for (int i = 0; i < pane.getTabCount(); i++) if (key(pane.getTitleAt(i)).equals(name)) { pane.setSelectedIndex(i); return; } });
+		s[0] = new GameShell(title, new String[0],
+				name -> { for (int i = 0; i < pane.getTabCount(); i++) if (key(pane.getTitleAt(i)).equals(name)) { pane.setSelectedIndex(i); return; } });
 		pane.setUI(new NoStrip());
 		pane.setFocusable(false);
 		String[] last = {null};
@@ -349,8 +365,22 @@ public final class GameShell extends JPanel {
 				g.setColor(a(BG0, 150)); g.fillRect(0, 0, getWidth(), 64); g.setColor(a(TEXT, 20)); g.fillRect(0, 64, getWidth(), 1);
 				Path2D gate = new Path2D.Double();   // (a small gatehouse: two towers and an arch)
 				g.translate(items.isEmpty() ? 0 : 50, 0);
-				gate.moveTo(24, 48); gate.lineTo(24, 18); gate.lineTo(29, 18); gate.lineTo(29, 22); gate.lineTo(33, 22); gate.lineTo(33, 18); gate.lineTo(38, 18); gate.lineTo(38, 27);
-				gate.lineTo(46, 27); gate.lineTo(46, 18); gate.lineTo(51, 18); gate.lineTo(51, 22); gate.lineTo(55, 22); gate.lineTo(55, 18); gate.lineTo(60, 18); gate.lineTo(60, 48);
+				gate.moveTo(24, 48);
+				gate.lineTo(24, 18);
+				gate.lineTo(29, 18);
+				gate.lineTo(29, 22);
+				gate.lineTo(33, 22);
+				gate.lineTo(33, 18);
+				gate.lineTo(38, 18);
+				gate.lineTo(38, 27);
+				gate.lineTo(46, 27);
+				gate.lineTo(46, 18);
+				gate.lineTo(51, 18);
+				gate.lineTo(51, 22);
+				gate.lineTo(55, 22);
+				gate.lineTo(55, 18);
+				gate.lineTo(60, 18);
+				gate.lineTo(60, 48);
 				gate.lineTo(48, 48); gate.lineTo(48, 40); gate.curveTo(48, 32, 36, 32, 36, 40); gate.lineTo(36, 48); gate.closePath();
 				g.setColor(shown.equals("GATEKEEPER") ? ACC : GATEHOUSE); g.fill(gate);
 				g.setFont(spaced(17f, 0.12f)); g.setColor(TEXT); g.drawString(shown, 72, 40);
@@ -364,12 +394,18 @@ public final class GameShell extends JPanel {
 		// (the same room on both sides, so the sections sit in the middle of the window)
 		JPanel west = new JPanel(null) { @Override public Dimension getPreferredSize() { return new Dimension(side(), 64); } }; west.setOpaque(false);
 		burger.setBounds(14, 10, 44, 44); burger.setVisible(false); west.add(burger);
-		JPanel east = new JPanel(new BorderLayout()) { @Override public Dimension getPreferredSize() { return new Dimension(Math.max(24, Math.min(230, GameShell.this.getWidth() - side() - bar.getPreferredSize().width)), 64); } }; east.setOpaque(false);
-		corner.setForeground(DIM); corner.setFont(font(12.5f, false)); corner.setHorizontalAlignment(JLabel.RIGHT); corner.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 24));
+		JPanel east = new JPanel(new BorderLayout()) { @Override public Dimension getPreferredSize() { return new Dimension(Math.max(24,
+				Math.min(230, GameShell.this.getWidth() - side() - bar.getPreferredSize().width)), 64); } };
+		east.setOpaque(false);
+		corner.setForeground(DIM);
+		corner.setFont(font(12.5f, false));
+		corner.setHorizontalAlignment(JLabel.RIGHT);
+		corner.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 24));
 		east.add(corner, BorderLayout.CENTER);
 		top.add(west, BorderLayout.WEST); top.add(bar, BorderLayout.CENTER); top.add(east, BorderLayout.EAST);
 		JPanel bottom = new JPanel(new BorderLayout()) {
-			@Override protected void paintComponent(Graphics g0) { Graphics2D g = smooth(g0); g.setColor(a(BG0, 215)); g.fillRect(0, 0, getWidth(), getHeight()); g.setColor(a(TEXT, 20)); g.fillRect(0, 0, getWidth(), 1); g.dispose(); }
+			@Override protected void paintComponent(Graphics g0) { Graphics2D g = smooth(g0); g.setColor(a(BG0, 215)); g.fillRect(0, 0,
+					getWidth(), getHeight()); g.setColor(a(TEXT, 20)); g.fillRect(0, 0, getWidth(), 1); g.dispose(); }
 		};
 		bottom.setOpaque(false);
 		bottom.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
@@ -381,7 +417,8 @@ public final class GameShell extends JPanel {
 		drawerList.setLayout(new javax.swing.BoxLayout(drawerList, javax.swing.BoxLayout.Y_AXIS));
 		drawerList.setBorder(BorderFactory.createEmptyBorder(8, 6, 8, 6));
 		JPanel drawerTop = new JPanel(new BorderLayout()); drawerTop.setOpaque(false); drawerTop.add(drawerList, BorderLayout.NORTH);
-		javax.swing.JScrollPane drawerScroll = new javax.swing.JScrollPane(drawerTop, javax.swing.JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		javax.swing.JScrollPane drawerScroll = new javax.swing.JScrollPane(drawerTop, javax.swing.JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+				javax.swing.JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 		drawerScroll.getVerticalScrollBar().setUnitIncrement(16);
 		clear(drawerScroll);
 		drawer.setLayout(new BorderLayout());
@@ -408,7 +445,8 @@ public final class GameShell extends JPanel {
 		Graphics2D g = (Graphics2D) g0.create();
 		int w = getWidth(), h = getHeight();
 		g.setPaint(new GradientPaint(0, 0, BG1, 0, h, BG0)); g.fillRect(0, 0, w, h);
-		g.setPaint(new RadialGradientPaint(new Point2D.Double(w * 0.25, 0), Math.max(1f, w * 0.6f), new float[] {0f, 1f}, new Color[] {a(ACC, 34), a(ACC, 0)})); g.fillRect(0, 0, w, h);
+		g.setPaint(new RadialGradientPaint(new Point2D.Double(w * 0.25, 0), Math.max(1f, w * 0.6f), new float[] {0f, 1f}, new Color[] {a(ACC, 34), a(ACC, 0)}));
+		g.fillRect(0, 0, w, h);
 		g.dispose();
 	}
 
@@ -422,8 +460,22 @@ public final class GameShell extends JPanel {
 		Graphics2D g = (Graphics2D) g0.create();
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 		Path2D gate = new Path2D.Double();
-		gate.moveTo(24, 48); gate.lineTo(24, 18); gate.lineTo(29, 18); gate.lineTo(29, 22); gate.lineTo(33, 22); gate.lineTo(33, 18); gate.lineTo(38, 18); gate.lineTo(38, 27);
-		gate.lineTo(46, 27); gate.lineTo(46, 18); gate.lineTo(51, 18); gate.lineTo(51, 22); gate.lineTo(55, 22); gate.lineTo(55, 18); gate.lineTo(60, 18); gate.lineTo(60, 48);
+		gate.moveTo(24, 48);
+		gate.lineTo(24, 18);
+		gate.lineTo(29, 18);
+		gate.lineTo(29, 22);
+		gate.lineTo(33, 22);
+		gate.lineTo(33, 18);
+		gate.lineTo(38, 18);
+		gate.lineTo(38, 27);
+		gate.lineTo(46, 27);
+		gate.lineTo(46, 18);
+		gate.lineTo(51, 18);
+		gate.lineTo(51, 22);
+		gate.lineTo(55, 22);
+		gate.lineTo(55, 18);
+		gate.lineTo(60, 18);
+		gate.lineTo(60, 48);
 		gate.lineTo(48, 48); gate.lineTo(48, 40); gate.curveTo(48, 32, 36, 32, 36, 40); gate.lineTo(36, 48); gate.closePath();
 		g.translate(x, y); g.scale(w / 36.0, w / 36.0); g.translate(-24, -18);
 		g.setColor(new Color(0, 0, 0, 170)); g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)); g.draw(gate);
@@ -448,7 +500,8 @@ public final class GameShell extends JPanel {
 		pick.accept(names.get(i < 0 ? 0 : Math.floorMod(i + by, names.size())));
 	}
 	/** A red count on a section's name (0 for none). */
-	public void badge(String section, int count) { Tab t = tabs.get(section); if (t != null && t.badge != count) { t.badge = count; t.revalidate(); t.repaint(); } }
+	public void badge(String section, int count) { Tab t = tabs.get(section); if (t != null
+			&& t.badge != count) { t.badge = count; t.revalidate(); t.repaint(); } }
 	/** The few words at the top right. */
 	public void corner(String text) { corner.setText(text); }
 	/** The bottom strip's two ends: where the program stands (left), and what the buttons do (right). */
@@ -474,6 +527,7 @@ public final class GameShell extends JPanel {
 	/** Makes a scroll pane and what it holds see-through, so the background shows behind a grid of cards. */
 	public static void clear(javax.swing.JScrollPane sc) {
 		sc.setOpaque(false); sc.getViewport().setOpaque(false); sc.setBorder(null);
-		if (sc.getViewport().getView() instanceof JComponent v) { v.setOpaque(false); for (java.awt.Component c : v.getComponents()) if (c instanceof JComponent j) j.setOpaque(false); }
+		if (sc.getViewport().getView() instanceof JComponent v) { v.setOpaque(false); for (java.awt.Component c
+				: v.getComponents()) if (c instanceof JComponent j) j.setOpaque(false); }
 	}
 }

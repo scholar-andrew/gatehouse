@@ -34,9 +34,11 @@ public final class Wizard extends JPanel {
 	public static final class Step {
 		public final String key, title, text, state, detail;
 		public final List<String[]> actions = new ArrayList<>();
-		public Step(String key, String title, String state, String text, String detail) { this.key = key; this.title = title; this.state = state; this.text = text; this.detail = detail == null ? "" : detail; }
+		public Step(String key, String title, String state, String text,
+				String detail) { this.key = key; this.title = title; this.state = state; this.text = text; this.detail = detail == null ? "" : detail; }
 		public Step action(String label, String id) { actions.add(new String[] {label, id}); return this; }
-		String signature() { StringBuilder s = new StringBuilder(key + "|" + title + "|" + state + "|" + text + "|" + detail); for (String[] a : actions) s.append('|').append(a[0]).append('>').append(a[1]); return s.toString(); }
+		String signature() { StringBuilder s = new StringBuilder(key + "|" + title + "|" + state + "|" + text + "|"
+				+ detail); for (String[] a : actions) s.append('|').append(a[0]).append('>').append(a[1]); return s.toString(); }
 	}
 
 	private final Supplier<List<Step>> load;
@@ -68,7 +70,10 @@ public final class Wizard extends JPanel {
 		ls.getVerticalScrollBar().setUnitIncrement(16);
 		add(ls, BorderLayout.WEST);
 		JPanel right = new JPanel(new BorderLayout(0, 8));
-		JScrollPane ps = new JScrollPane(page); ps.setBorder(null); ps.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER); ps.getVerticalScrollBar().setUnitIncrement(16);
+		JScrollPane ps = new JScrollPane(page);
+		ps.setBorder(null);
+		ps.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		ps.getVerticalScrollBar().setUnitIncrement(16);
 		right.add(ps, BorderLayout.CENTER);
 		looked.setForeground(SteamLook.DIM);
 		JPanel nav = new JPanel(new BorderLayout());
@@ -91,7 +96,8 @@ public final class Wizard extends JPanel {
 	public void open() { placed = false; at = null; drawn = ""; refresh(); timer.start(); }
 	public void stop() { timer.stop(); }
 	/** For a picture of it (testing): the steps are loaded on this thread, and it stands at the given step (or the first not done). */
-	public void openNow(String key) { steps = load.get(); placed = true; at = key; if (key == null || index() < 0) at = firstOpen(); java.awt.Window w = SwingUtilities.getWindowAncestor(this); if (w != null) w.validate(); fit(); drawn = ""; draw(); }
+	public void openNow(String key) { steps = load.get(); placed = true; at = key; if (key == null
+			|| index() < 0) at = firstOpen(); java.awt.Window w = SwingUtilities.getWindowAncestor(this); if (w != null) w.validate(); fit(); drawn = ""; draw(); }
 
 	private boolean fit() {
 		// (in Swing's HTML a "px" is 1.3 screen pixels, so the room is divided by that)
@@ -125,8 +131,10 @@ public final class Wizard extends JPanel {
 		}, "wizard").start();
 	}
 
-	private static String colour(String state) { return state.equals("ok") ? "#3FB950" : state.equals("warn") ? "#E3B341" : state.equals("todo") ? "#F85149" : "#8F98A0"; }
-	private static String word(String state) { return state.equals("ok") ? "Done" : state.equals("warn") ? "Works, but worth changing" : state.equals("todo") ? "Not done yet" : state.equals("wait") ? "An earlier step comes first" : ""; }
+	private static String colour(String state) { return state.equals("ok") ? "#3FB950" : state.equals("warn") ? "#E3B341"
+			: state.equals("todo") ? "#F85149" : "#8F98A0"; }
+	private static String word(String state) { return state.equals("ok") ? "Done" : state.equals("warn") ? "Works, but worth changing"
+			: state.equals("todo") ? "Not done yet" : state.equals("wait") ? "An earlier step comes first" : ""; }
 	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;").replace("\n", "<br>"); }
 
 	private void draw() {
@@ -138,7 +146,8 @@ public final class Wizard extends JPanel {
 		list.removeAll();
 		for (int n = 0; n < steps.size(); n++) {
 			Step s = steps.get(n);
-			JButton b = new JButton("<html><span style='color:" + colour(s.state) + "'>●</span>&nbsp; " + (n == i ? "<b>" + esc(s.title) + "</b>" : esc(s.title)) + "</html>");
+			JButton b = new JButton("<html><span style='color:" + colour(s.state) + "'>●</span>&nbsp; " + (n == i ? "<b>" + esc(s.title)
+					+ "</b>" : esc(s.title)) + "</html>");
 			b.setHorizontalAlignment(JButton.LEFT);
 			b.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
 			b.setContentAreaFilled(n == i); b.setFocusPainted(false);
@@ -161,8 +170,10 @@ public final class Wizard extends JPanel {
 			JLabel mark = new JLabel(says.isEmpty() ? " " : "<html><span style='color:" + colour(s.state) + "'>● &nbsp;<b>" + says + "</b></span>" + "</html>");
 			mark.setBorder(BorderFactory.createEmptyBorder(6, 0, 6, 0));
 			body.add(title); body.add(mark);
-			if (!s.detail.isEmpty() && !na) { JLabel d = new JLabel("<html><div style='width:" + textWidth + "px; color:#8F98A0'>" + esc(s.detail) + "</div></html>"); d.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0)); body.add(d); }
-			java.net.URL art = artFrom == null ? null : artFrom.getResource("/wizard/" + (artFrom.getPackageName().endsWith(".host") ? "gatekeeper" : "gatehouse") + "/" + s.key + ".png");
+			if (!s.detail.isEmpty() && !na) { JLabel d = new JLabel("<html><div style='width:" + textWidth + "px; color:#8F98A0'>"
+					+ esc(s.detail) + "</div></html>"); d.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0)); body.add(d); }
+			java.net.URL art = artFrom == null ? null : artFrom.getResource("/wizard/" + (artFrom.getPackageName().endsWith(".host")
+					? "gatekeeper" : "gatehouse") + "/" + s.key + ".png");
 			if (art != null) { JLabel pic = new JLabel(new ImageIcon(art)); pic.setBorder(BorderFactory.createEmptyBorder(0, 0, 10, 0)); body.add(pic); }
 			JLabel text = new JLabel("<html><div style='width:" + textWidth + "px'>" + esc(s.text) + "</div></html>");
 			body.add(text);

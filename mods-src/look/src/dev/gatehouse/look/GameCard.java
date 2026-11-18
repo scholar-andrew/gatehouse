@@ -36,7 +36,9 @@ public final class GameCard extends JPanel {
 	private final JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
 	private Color c1, c2;
 	private boolean hot, over, dim;
-	private final PropertyChangeListener focus = e -> { boolean h = e.getNewValue() instanceof Component c && SwingUtilities.isDescendingFrom(c, this); if (h != hot) { hot = h; repaint(); java.util.function.Consumer<GameCard> to = onHot; if (h && to != null) to.accept(this); } };
+	private final PropertyChangeListener focus = e -> { boolean h = e.getNewValue() instanceof Component c
+			&& SwingUtilities.isDescendingFrom(c,
+			this); if (h != hot) { hot = h; repaint(); java.util.function.Consumer<GameCard> to = onHot; if (h && to != null) to.accept(this); } };
 
 	/** Beside a grid of cards: more about the one in focus. Its name, then each heading with what goes under it. */
 	public static final class Side extends JPanel {
@@ -79,7 +81,8 @@ public final class GameCard extends JPanel {
 			l.setAlignmentX(Component.LEFT_ALIGNMENT);
 			return l;
 		}
-		public void clear() { showing = null; rows.removeAll(); rows.add(line("Move to a server to see more about it here.", 13f, false, GameShell.DIM, 0)); rows.revalidate(); repaint(); }
+		public void clear() { showing = null; rows.removeAll(); rows.add(line("Move to a server to see more about it here.", 13f, false,
+				GameShell.DIM, 0)); rows.revalidate(); repaint(); }
 		public void show(GameCard card) {
 			javax.swing.SwingUtilities.invokeLater(() -> { rows.revalidate(); rows.repaint(); });   // (measured again once it has its width)
 			showing = card;
@@ -112,7 +115,8 @@ public final class GameCard extends JPanel {
 	}
 	/** A label whose words wrap inside whatever width the card gives it. */
 	private static final class Wrapped extends JLabel {
-		@Override public void setText(String t) { String s = t == null ? "" : t; super.setText(s.startsWith("<html>") ? s : "<html>" + s.replace("&", "&amp;").replace("<", "&lt;") + "</html>"); }
+		@Override public void setText(String t) { String s = t == null ? "" : t; super.setText(s.startsWith("<html>") ? s : "<html>"
+				+ s.replace("&", "&amp;").replace("<", "&lt;") + "</html>"); }
 	}
 
 	public GameCard(String title, Component[] right) {
@@ -142,7 +146,8 @@ public final class GameCard extends JPanel {
 	/** A picture to show in the art, over anything else (null for none). */
 	public void picture(java.awt.Image img) { if (picture != img) { picture = img; repaint(); } }
 	/** More about the thing this card is for, as headings and what goes under them. */
-	public void facts(java.util.List<String[]> rows) { facts = rows == null ? java.util.List.of() : rows; java.util.function.Consumer<GameCard> h = onHot; if (h != null && (hot || over)) h.accept(this); }
+	public void facts(java.util.List<String[]> rows) { facts = rows == null ? java.util.List.of()
+			: rows; java.util.function.Consumer<GameCard> h = onHot; if (h != null && (hot || over)) h.accept(this); }
 	public java.util.List<String[]> facts() { return facts; }
 	private String device = "";
 	/** A kind of machine (see DeviceIcon) to draw in the art in place of the initials; "" or an unknown kind: the initials. */
@@ -153,7 +158,8 @@ public final class GameCard extends JPanel {
 	public void dim(boolean on) { dim = on; name.setForeground(on ? GameShell.DIM : GameShell.TEXT); repaint(); }
 
 	@Override public void addNotify() { super.addNotify(); KeyboardFocusManager.getCurrentKeyboardFocusManager().addPropertyChangeListener("focusOwner", focus); }
-	@Override public void removeNotify() { KeyboardFocusManager.getCurrentKeyboardFocusManager().removePropertyChangeListener("focusOwner", focus); super.removeNotify(); }
+	@Override public void removeNotify() { KeyboardFocusManager.getCurrentKeyboardFocusManager().removePropertyChangeListener("focusOwner",
+			focus); super.removeNotify(); }
 
 	@Override public Dimension getPreferredSize() { return new Dimension(MIN_WIDTH, HEIGHT); }
 	@Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, HEIGHT); }
@@ -166,7 +172,8 @@ public final class GameCard extends JPanel {
 
 	private static String initials(String s) {
 		StringBuilder b = new StringBuilder();
-		for (String word : s.replaceAll("\\(.*?\\)", " ").trim().split("[^\\p{L}\\p{N}]+")) if (!word.isEmpty() && b.length() < 2) b.append(Character.toUpperCase(word.charAt(0)));
+		for (String word : s.replaceAll("\\(.*?\\)", " ").trim().split("[^\\p{L}\\p{N}]+")) if (!word.isEmpty()
+				&& b.length() < 2) b.append(Character.toUpperCase(word.charAt(0)));
 		return b.length() == 0 ? "?" : b.toString();
 	}
 
@@ -174,21 +181,27 @@ public final class GameCard extends JPanel {
 		Graphics2D g = GameShell.smooth(g0);
 		int w = getWidth(), h = getHeight();
 		boolean lit = hot || over;
-		if (hot) for (int k = 4; k >= 1; k--) { g.setColor(GameShell.a(GameShell.ACC, 16 + (4 - k) * 12)); g.setStroke(new BasicStroke(k * 2.4f)); g.draw(new RoundRectangle2D.Double(4, 4, w - 9, h - 9, 16, 16)); }
+		if (hot) for (int k = 4; k >= 1; k--) { g.setColor(GameShell.a(GameShell.ACC, 16
+				+ (4 - k) * 12)); g.setStroke(new BasicStroke(k * 2.4f)); g.draw(new RoundRectangle2D.Double(4, 4, w - 9, h - 9, 16, 16)); }
 		g.setColor(lit ? CARD_HI : CARD); g.fill(new RoundRectangle2D.Double(4, 4, w - 9, h - 9, 16, 16));
-		g.setColor(hot ? GameShell.ACC : GameShell.a(GameShell.TEXT, over ? 70 : 24)); g.setStroke(new BasicStroke(hot ? 2.2f : 1f)); g.draw(new RoundRectangle2D.Double(4, 4, w - 9, h - 9, 16, 16));
+		g.setColor(hot ? GameShell.ACC : GameShell.a(GameShell.TEXT, over ? 70 : 24));
+		g.setStroke(new BasicStroke(hot ? 2.2f : 1f));
+		g.draw(new RoundRectangle2D.Double(4, 4, w - 9, h - 9, 16, 16));
 		// the art
 		String n = name.getText() == null ? "" : name.getText();
 		Color a = c1, b = c2;
-		if (a == null || b == null) { float hue = (n.hashCode() & 0xFFFF) / 65535f; a = Color.getHSBColor(hue, 0.62f, 0.74f); b = Color.getHSBColor(hue + 0.11f, 0.58f, 0.36f); }
+		if (a == null || b == null) { float hue = (n.hashCode() & 0xFFFF) / 65535f; a = Color.getHSBColor(hue, 0.62f,
+				0.74f); b = Color.getHSBColor(hue + 0.11f, 0.58f, 0.36f); }
 		if (dim) { a = new Color(0x5A5F68); b = new Color(0x33373D); }
 		double ax = 14, ay = 14, as = 92;
 		Shape old = g.getClip();
 		g.clip(new RoundRectangle2D.Double(ax, ay, as, as, 12, 12));
 		g.setPaint(new GradientPaint((float) ax, (float) ay, a, (float) (ax + as), (float) (ay + as), b)); g.fill(new Rectangle2D.Double(ax, ay, as, as));
 		java.util.Random r = new java.util.Random(n.hashCode()); double cell = as / 5;   // (a blocky pattern, like terrain seen from above)
-		for (int cy = 0; cy < 5; cy++) for (int cx = 0; cx < 5; cx++) { int v = r.nextInt(100); if (v < 38) { g.setColor(v < 19 ? new Color(255, 255, 255, 10 + v) : new Color(0, 0, 0, v)); g.fill(new Rectangle2D.Double(ax + cx * cell, ay + cy * cell, cell, cell)); } }
-		g.setPaint(new GradientPaint(0, (float) (ay + as * 0.45), new Color(0, 0, 0, 0), 0, (float) (ay + as), new Color(0, 0, 0, 110))); g.fill(new Rectangle2D.Double(ax, ay, as, as));
+		for (int cy = 0; cy < 5; cy++) for (int cx = 0; cx < 5; cx++) { int v = r.nextInt(100); if (v < 38) { g.setColor(v < 19
+				? new Color(255, 255, 255, 10 + v) : new Color(0, 0, 0, v)); g.fill(new Rectangle2D.Double(ax + cx * cell, ay + cy * cell, cell, cell)); } }
+		g.setPaint(new GradientPaint(0, (float) (ay + as * 0.45), new Color(0, 0, 0, 0), 0, (float) (ay + as), new Color(0, 0, 0, 110)));
+		g.fill(new Rectangle2D.Double(ax, ay, as, as));
 		g.setClip(old);
 		if (picture != null) {
 			Shape before = g.getClip();
@@ -211,16 +224,20 @@ public final class GameCard extends JPanel {
 	 *  whatever it is given, laid out however it is told. */
 	public static final class Strip extends JPanel {
 		private boolean hot;
-		private final PropertyChangeListener focus = e -> { boolean h = e.getNewValue() instanceof Component c && SwingUtilities.isDescendingFrom(c, this); if (h != hot) { hot = h; repaint(); } };
+		private final PropertyChangeListener focus = e -> { boolean h = e.getNewValue() instanceof Component c
+				&& SwingUtilities.isDescendingFrom(c, this); if (h != hot) { hot = h; repaint(); } };
 		public Strip(LayoutManager layout) { super(layout); setOpaque(false); }
 		@Override public void addNotify() { super.addNotify(); KeyboardFocusManager.getCurrentKeyboardFocusManager().addPropertyChangeListener("focusOwner", focus); }
 		@Override public void removeNotify() { KeyboardFocusManager.getCurrentKeyboardFocusManager().removePropertyChangeListener("focusOwner", focus); super.removeNotify(); }
 		@Override protected void paintComponent(Graphics g0) {
 			Graphics2D g = GameShell.smooth(g0);
 			int w = getWidth(), h = getHeight();
-			if (hot) for (int k = 3; k >= 1; k--) { g.setColor(GameShell.a(GameShell.ACC, 18 + (3 - k) * 14)); g.setStroke(new BasicStroke(k * 2.2f)); g.draw(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14)); }
+			if (hot) for (int k = 3; k >= 1; k--) { g.setColor(GameShell.a(GameShell.ACC, 18
+					+ (3 - k) * 14)); g.setStroke(new BasicStroke(k * 2.2f)); g.draw(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14)); }
 			g.setColor(hot ? CARD_HI : CARD); g.fill(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14));
-			g.setColor(hot ? GameShell.ACC : GameShell.a(GameShell.TEXT, 26)); g.setStroke(new BasicStroke(hot ? 2f : 1f)); g.draw(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14));
+			g.setColor(hot ? GameShell.ACC : GameShell.a(GameShell.TEXT, 26));
+			g.setStroke(new BasicStroke(hot ? 2f : 1f));
+			g.draw(new RoundRectangle2D.Double(3, 3, w - 7, h - 7, 14, 14));
 			g.dispose();
 		}
 	}

@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The packs this Gatekeeper keeps, builds and hands to launchers: one for a server, under packs/<server id>/ beside
@@ -63,11 +64,15 @@ final class Packs {
 	static String base(String id) { String b = setting("bind", ""); return "http://" + (b.isEmpty() ? "127.0.0.1" : b) + ":" + port() + "/v1/pack/" + id; }
 	private static String[] no(String why) { return new String[] {"refused", why}; }
 	private static Map<String, Object> info(String id) {
-		try { return Json.map(Json.parse(Files.readString(home(id).resolve("pack.json"), StandardCharsets.UTF_8))); } catch (IOException | RuntimeException e) { return new LinkedHashMap<>(); }
+		try { return Json.map(Json.parse(Files.readString(home(id).resolve("pack.json"),
+				StandardCharsets.UTF_8))); } catch (IOException | RuntimeException e) { return new LinkedHashMap<>(); }
 	}
-	@SuppressWarnings("unchecked") private static Map<String, Object> obj(Path f) throws IOException { Object o = PackBuilder.parse(f); if (o instanceof Map<?, ?> mm) return (Map<String, Object>) mm; throw new IOException(f.getFileName() + " isn't what was expected"); }
+	@SuppressWarnings("unchecked") private static Map<String,
+			Object> obj(Path f) throws IOException { Object o = PackBuilder.parse(f); if (o instanceof Map<?, ?> mm) return (Map<String,
+			Object>) mm; throw new IOException(f.getFileName() + " isn't what was expected"); }
 	@SuppressWarnings("unchecked") private static List<Object> arr(Path f) throws IOException { Object o = PackBuilder.parse(f); if (o instanceof List<?> l) return (List<Object>) l; throw new IOException(f.getFileName() + " isn't what was expected"); }
-	private static void write(Path f, Object o) throws IOException { Files.createDirectories(f.getParent()); Files.writeString(f, PackBuilder.dumps(o, false) + "\n", StandardCharsets.UTF_8); }
+	private static void write(Path f, Object o) throws IOException { Files.createDirectories(f.getParent()); Files.writeString(f,
+			PackBuilder.dumps(o, false) + "\n", StandardCharsets.UTF_8); }
 
 	/** The Fabric loader a server's folder runs ("" when it isn't a Fabric server): the client's has to be the same. */
 	static String fabricLoader(Path serverDir) {
@@ -93,8 +98,10 @@ final class Packs {
 		if (version.isEmpty()) return no("Gatekeeper doesn't know this server's Minecraft version yet: start the server once, then try again.");
 		try {
 			Path d = def(id);
-			write(d.resolve("source/mods.json"), m("pack", m("name", name, "author", AutoUpdate.myName(), "version", "1.0.0", "minecraft", version, "fabric", loader), "mods", new ArrayList<>()));
-			write(d.resolve("source/changelog.json"), new ArrayList<>(List.of(m("version", "1.0.0", "date", LocalDate.now().toString(), "notes", new ArrayList<>(List.of("The first version of this pack."))))));
+			write(d.resolve("source/mods.json"), m("pack", m("name", name, "author", AutoUpdate.myName(), "version", "1.0.0", "minecraft",
+					version, "fabric", loader), "mods", new ArrayList<>()));
+			write(d.resolve("source/changelog.json"), new ArrayList<>(List.of(m("version", "1.0.0", "date", LocalDate.now().toString(),
+					"notes", new ArrayList<>(List.of("The first version of this pack."))))));
 			write(d.resolve("config.json"), m("pack_name", name, "instance_id", id, "instance_name", name + " " + version + " (Fabric)"));
 		} catch (IOException e) { return new String[] {"failed", "The pack couldn't be made: " + e.getMessage()}; }
 		log("packs: a pack was made for " + name + " (Minecraft " + version + ", Fabric loader " + loader + ")");
@@ -121,7 +128,8 @@ final class Packs {
 		if (!okId(id)) return no("No such server.");
 		Path f;
 		try { f = Path.of(folder).toAbsolutePath().normalize(); } catch (RuntimeException e) { return no("That isn't a folder."); }
-		if (!Files.isRegularFile(f.resolve("source/mods.json")) || !Files.isRegularFile(f.resolve("source/changelog.json"))) return no("That folder doesn't hold a pack's definition (no source/mods.json and source/changelog.json in it).");
+		if (!Files.isRegularFile(f.resolve("source/mods.json"))
+				|| !Files.isRegularFile(f.resolve("source/changelog.json"))) return no("That folder doesn't hold a pack's definition (no source/mods.json and source/changelog.json in it).");
 		boolean repo = Files.isRegularFile(f.resolve("installer/config.json"));
 		if (!repo && !Files.isRegularFile(f.resolve("config.json"))) return no("That folder has no config.json for the pack.");
 		try {
@@ -136,7 +144,9 @@ final class Packs {
 			copyDir(f.resolve("server"), fresh.resolve("server"), "");
 			Path mmc = f.resolve(repo ? "clients/mmc-pack.json" : "mmc-pack.json");
 			if (Files.isRegularFile(mmc)) Files.copy(mmc, fresh.resolve("mmc-pack.json"));
-			obj(fresh.resolve("source/mods.json")); arr(fresh.resolve("source/changelog.json")); obj(fresh.resolve("config.json"));   // (readable, or nothing is replaced)
+			obj(fresh.resolve("source/mods.json"));
+			arr(fresh.resolve("source/changelog.json"));
+			obj(fresh.resolve("config.json"));   // (readable, or nothing is replaced)
 			PackBuilder.wipe(before);
 			if (Files.exists(d)) Files.move(d, before);
 			Files.move(fresh, d);
@@ -157,10 +167,12 @@ final class Packs {
 			Map<String, Object> pack = Json.map(obj(d.resolve("source/mods.json")).get("pack"));
 			if (Json.str(config.get("pack_name")).isEmpty()) config.put("pack_name", name);
 			if (!Json.str(config.get("instance_id")).matches("[A-Za-z0-9._-]{1,64}")) config.put("instance_id", id);
-			if (Json.str(config.get("instance_name")).isEmpty()) config.put("instance_name", Json.str(config.get("pack_name")) + " " + Json.str(pack.get("minecraft")) + " (Fabric)");
+			if (Json.str(config.get("instance_name")).isEmpty()) config.put("instance_name", Json.str(config.get("pack_name")) + " "
+					+ Json.str(pack.get("minecraft")) + " (Fabric)");
 			config.put("repo_raw", base(id));
 			config.put("pack_sources", new ArrayList<>(List.of(base(id))));
-			if (Json.list(config.get("servers")).isEmpty()) config.put("servers", new ArrayList<>(List.of(m("name", Json.str(config.get("pack_name")), "address", gameAddress(s)))));
+			if (Json.list(config.get("servers")).isEmpty()) config.put("servers", new ArrayList<>(List.of(m("name",
+					Json.str(config.get("pack_name")), "address", gameAddress(s)))));
 			Map<String, Object> control = config.get("server_control") instanceof Map<?, ?> ? Json.map(config.get("server_control")) : new LinkedHashMap<>();
 			control.put("server", id);
 			control.put("helper_url", "http://" + (setting("bind", "").isEmpty() ? "127.0.0.1" : setting("bind", "")) + ":" + port());
@@ -179,12 +191,14 @@ final class Packs {
 				catch (IOException e) { last = e; try { Thread.sleep(300); } catch (InterruptedException ie) { break; } }
 			}
 			if (last != null) throw last;
-			try { PackBuilder.wipe(old); } catch (IOException ignored) {}
+			try { PackBuilder.wipe(old); } catch (IOException ignored) { Quiet.seen(ignored); }
 			String version = Json.str(pack.get("version")), was = Json.str(info(id).get("version"));
-			Files.writeString(h.resolve("pack.json"), Json.write(m("version", version, "gatehouse", gatehouse, "built_at", LocalDateTime.now().format(TIME), "said", String.join("; ", said), "why", why)), StandardCharsets.UTF_8);
+			Files.writeString(h.resolve("pack.json"), Json.write(m("version", version, "gatehouse", gatehouse, "built_at",
+					LocalDateTime.now().format(TIME), "said", String.join("; ", said), "why", why)), StandardCharsets.UTF_8);
 			if (!version.equals(was)) History.record("pack", s, version);
 			log("packs: " + name + "'s pack " + version + " was built (" + why + "): " + String.join("; ", said));
-			return new String[] {"ok", "Built " + Json.str(config.get("pack_name")) + " " + version + ": " + String.join("; ", said) + ". Players get it the next time they press Play."};
+			return new String[] {"ok", "Built " + Json.str(config.get("pack_name")) + " " + version + ": " + String.join("; ", said)
+					+ ". Players get it the next time they press Play."};
 		} catch (IOException | RuntimeException e) {
 			log("packs: " + name + "'s pack wasn't built: " + e.getMessage());
 			return new String[] {"failed", "The pack wasn't built: " + e.getMessage() + ". Players keep the one they have."};
@@ -196,7 +210,8 @@ final class Packs {
 		String id = Json.str(s.get("id"));
 		if (!defined(id)) return no(Json.str(s.get("name")) + " has no pack yet.");
 		List<Object> notes = new ArrayList<>();
-		for (String line : notesText.split("\\R")) { String t = line.replaceFirst("^\\s*[-*]\\s*", "").trim(); if (!t.isEmpty()) notes.add(t.length() > 400 ? t.substring(0, 400) : t); }
+		for (String line : notesText.split("\\R")) { String t = line.replaceFirst("^\\s*[-*]\\s*",
+				"").trim(); if (!t.isEmpty()) notes.add(t.length() > 400 ? t.substring(0, 400) : t); }
 		if (notes.isEmpty()) return no("Write what changed, a line for each thing: players read it before they update.");
 		try {
 			Path mods = def(id).resolve("source/mods.json"), log = def(id).resolve("source/changelog.json");
@@ -218,7 +233,8 @@ final class Packs {
 		for (Object o : new ArrayList<>(servers())) {
 			Map<String, Object> s = Json.map(o);
 			String id = Json.str(s.get("id"));
-			if (defined(id) && (!has(id) || !gatehouse.equals(Json.str(info(id).get("gatehouse"))) || !Json.str(obj0(def(id).resolve("config.json")).get("repo_raw")).equals(base(id)))) build(s, "this Gatekeeper changed");
+			if (defined(id) && (!has(id) || !gatehouse.equals(Json.str(info(id).get("gatehouse")))
+					|| !Json.str(obj0(def(id).resolve("config.json")).get("repo_raw")).equals(base(id)))) build(s, "this Gatekeeper changed");
 		}
 	}
 	private static Map<String, Object> obj0(Path f) { try { return obj(f); } catch (IOException e) { return new LinkedHashMap<>(); } }
@@ -232,7 +248,9 @@ final class Packs {
 	}
 	private static String type(String file) {
 		String f = file.toLowerCase(java.util.Locale.ROOT);
-		return f.endsWith(".json") ? "application/json" : f.endsWith(".toml") || f.endsWith(".txt") || f.endsWith(".ps1") || f.endsWith(".sh") || f.endsWith(".vdf") ? "text/plain; charset=utf-8" : f.endsWith(".png") ? "image/png" : f.endsWith(".jar") ? "application/java-archive" : "application/octet-stream";
+		return f.endsWith(".json") ? "application/json" : f.endsWith(".toml") || f.endsWith(".txt") || f.endsWith(".ps1")
+				|| f.endsWith(".sh") || f.endsWith(".vdf") ? "text/plain; charset=utf-8" : f.endsWith(".png") ? "image/png"
+				: f.endsWith(".jar") ? "application/java-archive" : "application/octet-stream";
 	}
 	/** The profile Install reads: this Gatekeeper as the pack's repository and its one source. */
 	static byte[] profile(String id) throws IOException {
@@ -253,16 +271,20 @@ final class Packs {
 		if (Files.isRegularFile(own)) return Files.readAllBytes(own);
 		Map<String, Object> pack = Json.map(obj(def(id).resolve("source/mods.json")).get("pack"));
 		String mc = Json.str(pack.get("minecraft")), loader = Json.str(pack.get("fabric"));
-		return ("{\n    \"components\": [\n        { \"uid\": \"net.minecraft\", \"version\": \"" + mc + "\", \"important\": true },\n        { \"uid\": \"net.fabricmc.intermediary\", \"version\": \"" + mc
-				+ "\", \"dependencyOnly\": true },\n        { \"uid\": \"net.fabricmc.fabric-loader\", \"version\": \"" + loader + "\" }\n    ],\n    \"formatVersion\": 1\n}\n").getBytes(StandardCharsets.UTF_8);
+		return ("{\n    \"components\": [\n        { \"uid\": \"net.minecraft\", \"version\": \"" + mc
+				+ "\", \"important\": true },\n        { \"uid\": \"net.fabricmc.intermediary\", \"version\": \"" + mc
+				+ "\", \"dependencyOnly\": true },\n        { \"uid\": \"net.fabricmc.fabric-loader\", \"version\": \"" + loader
+						+ "\" }\n    ],\n    \"formatVersion\": 1\n}\n").getBytes(StandardCharsets.UTF_8);
 	}
 	/** GET /v1/pack/<server id>/... */
 	static void serve(HttpExchange x, String path) throws IOException {
 		String rest = path.substring("/v1/pack/".length());
 		int cut = rest.indexOf('/');
 		String id = cut < 0 ? rest : rest.substring(0, cut), file = cut < 0 ? "" : rest.substring(cut + 1);
-		if (!has(id) || file.isEmpty() || file.contains("..") || file.contains("\\") || file.contains(":") || file.startsWith("/")) { reply(x, 404, m("error", "no such file")); return; }
-		if (!Invites.packFor(x, id)) { reply(x, 403, m("error", "this pack isn't for this device: its owner hasn't let this launcher in, and it has used no invite")); return; }
+		if (!has(id) || file.isEmpty() || file.contains("..") || file.contains("\\") || file.contains(":")
+				|| file.startsWith("/")) { reply(x, 404, m("error", "no such file")); return; }
+		if (!Invites.packFor(x, id)) { reply(x, 403, m("error",
+				"this pack isn't for this device: its owner hasn't let this launcher in, and it has used no invite")); return; }
 		try {
 			if (file.equals("profile.json")) { send(x, profile(id), "application/json"); return; }
 			if (file.equals("clients/mmc-pack.json")) { send(x, mmcPack(id), "application/json"); return; }
@@ -284,18 +306,21 @@ final class Packs {
 
 	private static String q(HttpExchange x, String key) {
 		String query = x.getRequestURI().getQuery();
-		if (query != null) for (String part : query.split("&")) if (part.startsWith(key + "=")) return java.net.URLDecoder.decode(part.substring(key.length() + 1), StandardCharsets.UTF_8);
+		if (query != null) for (String part : query.split("&")) if (part.startsWith(key
+				+ "=")) return java.net.URLDecoder.decode(part.substring(key.length() + 1), StandardCharsets.UTF_8);
 		return "";
 	}
 	static Map<String, Object> state(Map<String, Object> s) {
 		String id = Json.str(s.get("id"));
 		Path sd = Path.of(Json.str(s.get("dir")));
 		String loader = fabricLoader(sd);
-		Map<String, Object> out = m("server", id, "name", Json.str(s.get("name")), "kind", loader.isEmpty() ? serverFacts(sd)[0] : "fabric", "minecraft", serverFacts(sd)[1], "loader", loader,
+		Map<String, Object> out = m("server", id, "name", Json.str(s.get("name")), "kind", loader.isEmpty() ? serverFacts(sd)[0]
+				: "fabric", "minecraft", serverFacts(sd)[1], "loader", loader,
 				"defined", defined(id), "built", has(id), "address", base(id), "slots", List.of(PackArt.SLOTS), "slot_says", List.of(PackArt.SAYS));
 		out.putAll(Invites.state(s));
 		if (!defined(id)) {
-			out.put("message", loader.isEmpty() ? "Not supported for this kind of server yet: Gatekeeper builds packs for Fabric servers. A plain server needs no pack. A pack made elsewhere can still be brought in from its folder."
+			out.put("message", loader.isEmpty()
+					? "Not supported for this kind of server yet: Gatekeeper builds packs for Fabric servers. A plain server needs no pack. A pack made elsewhere can still be brought in from its folder."
 					: "This server has no pack yet. Making one gives players an instance with its Minecraft and Fabric versions, set up and kept current from their launcher.");
 			return out;
 		}
@@ -303,15 +328,20 @@ final class Packs {
 		try {
 			Map<String, Object> src = obj(def(id).resolve("source/mods.json")), pack = Json.map(src.get("pack"));
 			int all = 0, deck = 0, own = 0, toggles = 0;
-			for (Object o : Json.list(src.get("mods"))) { Map<String, Object> md = Json.map(o); all++; if (ServerTools.yes(md.get("deck"))) deck++; if (!md.containsKey("url")) own++; if (md.containsKey("toggle")) toggles++; }
+			for (Object o : Json.list(src.get("mods"))) { Map<String,
+					Object> md = Json.map(o); all++; if (ServerTools.yes(md.get("deck"))) deck++; if (!md.containsKey("url")) own++; if (md.containsKey("toggle")) toggles++; }
 			List<Object> log = arr(def(id).resolve("source/changelog.json"));
-			out.putAll(m("pack_name", Json.str(pack.get("name")), "version", Json.str(pack.get("version")), "pack_minecraft", Json.str(pack.get("minecraft")), "pack_loader", Json.str(pack.get("fabric")),
-					"mods", all, "deck_mods", deck, "own_mods", own, "switchable", toggles, "notes", log.isEmpty() ? new ArrayList<>() : Json.list(Json.map(log.get(0)).get("notes"))));
+			out.putAll(m("pack_name", Json.str(pack.get("name")), "version", Json.str(pack.get("version")), "pack_minecraft",
+					Json.str(pack.get("minecraft")), "pack_loader", Json.str(pack.get("fabric")),
+					"mods", all, "deck_mods", deck, "own_mods", own, "switchable", toggles, "notes", log.isEmpty() ? new ArrayList<>()
+							: Json.list(Json.map(log.get(0)).get("notes"))));
 		} catch (IOException | RuntimeException e) { out.put("message", "The pack's definition can't be read: " + e.getMessage()); }
 		Map<String, Object> art = new LinkedHashMap<>();
 		// (chosen: one the owner picked here; pack: the picture the pack came with; made: one Gatekeeper makes)
-		for (String slot : PackArt.SLOTS) art.put(slot, Files.isRegularFile(def(id).resolve("art").resolve(slot + ".chosen")) ? "chosen" : Files.isRegularFile(def(id).resolve("art").resolve(slot + ".png")) ? "pack" : "made");
-		out.putAll(m("art", art, "built_version", Json.str(i.get("version")), "built_at", Json.str(i.get("built_at")), "built_with", Json.str(i.get("gatehouse")), "said", Json.str(i.get("said"))));
+		for (String slot : PackArt.SLOTS) art.put(slot, Files.isRegularFile(def(id).resolve("art").resolve(slot + ".chosen")) ? "chosen"
+				: Files.isRegularFile(def(id).resolve("art").resolve(slot + ".png")) ? "pack" : "made");
+		out.putAll(m("art", art, "built_version", Json.str(i.get("version")), "built_at", Json.str(i.get("built_at")), "built_with",
+				Json.str(i.get("gatehouse")), "said", Json.str(i.get("said"))));
 		return out;
 	}
 	private static void result(HttpExchange x, String[] r) throws IOException { reply(x, 200, m("result", r[0], "message", r[1])); }
@@ -333,10 +363,13 @@ final class Packs {
 		else if (path.equals("/admin/pack/import") && post) result(x, bringIn(s, Json.str(body(x).get("folder"))));
 		else if (path.equals("/admin/pack/art")) {
 			int slot = PackArt.slot(q(x, "slot"));
-			if (slot < 0 || !defined(id)) { reply(x, 200, m("result", "refused", "message", !defined(id) ? "This server has no pack yet." : "No such picture.")); return true; }
+			if (slot < 0 || !defined(id)) { reply(x, 200, m("result", "refused", "message", !defined(id) ? "This server has no pack yet."
+					: "No such picture.")); return true; }
 			Path own = def(id).resolve("art").resolve(PackArt.SLOTS[slot] + ".png");
 			if (!post) {
-				if (!Files.isRegularFile(own)) PackArt.fill(def(id), Json.str(obj0(def(id).resolve("config.json")).get("pack_name")).isEmpty() ? Json.str(s.get("name")) : Json.str(obj0(def(id).resolve("config.json")).get("pack_name")), Icons.png(id));
+				if (!Files.isRegularFile(own)) PackArt.fill(def(id),
+						Json.str(obj0(def(id).resolve("config.json")).get("pack_name")).isEmpty() ? Json.str(s.get("name"))
+						: Json.str(obj0(def(id).resolve("config.json")).get("pack_name")), Icons.png(id));
 				send(x, Files.readAllBytes(Files.isRegularFile(own) ? own : def(id).resolve("art-auto").resolve(PackArt.SLOTS[slot] + ".png")), "image/png");
 				return true;
 			}
@@ -347,18 +380,22 @@ final class Packs {
 			// time it is replaced (art-first), so undoing a choice gives back what was there, not a made one.
 			Path mark = own.resolveSibling(PackArt.SLOTS[slot] + ".chosen"), first = def(id).resolve("art-first").resolve(PackArt.SLOTS[slot] + ".png");
 			if (b.length == 0) {
-				if (!Files.isRegularFile(mark)) { reply(x, 200, m("result", "refused", "message", "This picture isn't one you chose, so there is no choice to undo.")); return true; }
+				if (!Files.isRegularFile(mark)) { reply(x, 200, m("result", "refused", "message",
+						"This picture isn't one you chose, so there is no choice to undo.")); return true; }
 				Files.delete(mark);
 				boolean had = Files.isRegularFile(first);
 				if (had) Files.copy(first, own, java.nio.file.StandardCopyOption.REPLACE_EXISTING); else Files.deleteIfExists(own);
-				log("packs: " + Json.str(s.get("name")) + "'s " + PackArt.SLOTS[slot] + " picture for Steam went back to " + (had ? "the one the pack came with" : "the made one"));
-				reply(x, 200, m("result", "ok", "message", (had ? "Back to the picture the pack came with." : "Back to the one Gatekeeper makes.") + " It goes out with the next build."));
+				log("packs: " + Json.str(s.get("name")) + "'s " + PackArt.SLOTS[slot] + " picture for Steam went back to " + (had
+						? "the one the pack came with" : "the made one"));
+				reply(x, 200, m("result", "ok", "message", (had ? "Back to the picture the pack came with."
+						: "Back to the one Gatekeeper makes.") + " It goes out with the next build."));
 				return true;
 			}
 			try {
 				byte[] png = PackArt.fit(b, slot);
 				Files.createDirectories(own.getParent());
-				if (Files.isRegularFile(own) && !Files.isRegularFile(mark) && !Files.isRegularFile(first)) { Files.createDirectories(first.getParent()); Files.copy(own, first); }
+				if (Files.isRegularFile(own) && !Files.isRegularFile(mark)
+						&& !Files.isRegularFile(first)) { Files.createDirectories(first.getParent()); Files.copy(own, first); }
 				Files.write(own, png);
 				Files.writeString(mark, "chosen here\n", StandardCharsets.UTF_8);
 				log("packs: a " + PackArt.SLOTS[slot] + " picture for Steam was chosen for " + Json.str(s.get("name")));

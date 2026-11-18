@@ -23,6 +23,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 import dev.gatehouse.look.ChatView;
+import dev.gatehouse.look.Quiet;
 
 /** The Chat page of Gatekeeper's window: its rooms (this Gatekeeper's, and one for each server) as cards, what was
  *  said in the one chosen, writing as "Host", files offered in a room, and emptying a room. See Chat and ChatView. */
@@ -34,13 +35,14 @@ final class ChatUi {
 	private static Path seenFile() { return HostHelper.dir.resolve("chat-seen.txt"); }
 	private static synchronized java.util.Properties seen() {
 		java.util.Properties p = new java.util.Properties();
-		try (InputStream in = Files.newInputStream(seenFile())) { p.load(in); } catch (IOException ignored) {}
+		try (InputStream in = Files.newInputStream(seenFile())) { p.load(in); } catch (IOException ignored) { Quiet.seen(ignored); }
 		return p;
 	}
 	private static synchronized void seen(String k, String v) {
 		java.util.Properties p = seen();
 		p.setProperty(k, v);
-		try (OutputStream o = Files.newOutputStream(seenFile())) { p.store(o, "where each chatroom has been read up to here"); } catch (IOException ignored) {}
+		try (OutputStream o = Files.newOutputStream(seenFile())) { p.store(o,
+				"where each chatroom has been read up to here"); } catch (IOException ignored) { Quiet.seen(ignored); }
 	}
 	private static String enc(String s) { return java.net.URLEncoder.encode(s, StandardCharsets.UTF_8); }
 
@@ -73,7 +75,8 @@ final class ChatUi {
 					Map<String, Object> e = Json.map(o), fl = Json.map(e.get("file"));
 					long n, size; try { n = (long) Double.parseDouble(Json.str(e.get("n"))); } catch (RuntimeException x) { n = 0; }
 					try { size = (long) Double.parseDouble(Json.str(fl.get("size"))); } catch (RuntimeException x) { size = 0; }
-					ms.add(new ChatView.Msg(n, Json.str(e.get("when")), Json.str(e.get("who")), Json.str(e.get("text")), Json.str(fl.get("id")), Json.str(fl.get("name")), size));
+					ms.add(new ChatView.Msg(n, Json.str(e.get("when")), Json.str(e.get("who")), Json.str(e.get("text")),
+							Json.str(fl.get("id")), Json.str(fl.get("name")), size));
 				}
 				long next; try { next = (long) Double.parseDouble(Json.str(r.get("next"))); } catch (RuntimeException x) { next = after; }
 				return new ChatView.Batch(ms, next, Json.str(r.get("message")));
@@ -87,10 +90,12 @@ final class ChatUi {
 			}
 			@Override public String offer(ChatView.Room room, String name, byte[] data) throws IOException {
 				if (far) throw new IOException("files are passed from that Gatekeeper's own window");
-				HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + HostHelper.port() + "/admin/share?room=" + enc(room.key()) + "&name=" + enc(name)).openConnection();
+				HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + HostHelper.port() + "/admin/share?room="
+						+ enc(room.key()) + "&name=" + enc(name)).openConnection();
 				c.setConnectTimeout(2000); c.setReadTimeout(120000); c.setRequestMethod("POST"); c.setDoOutput(true); c.setFixedLengthStreamingMode(data.length);
 				try (OutputStream o = c.getOutputStream()) { o.write(data); }
-				try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("message")); }
+				try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream()
+						: c.getErrorStream()) { return Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("message")); }
 			}
 		};
 		ChatView.Store store = new ChatView.Store() {
@@ -105,7 +110,9 @@ final class ChatUi {
 		clear.addActionListener(e -> {
 			String room = view[0].chosen();
 			if (room.isEmpty()) return;
-			if (JOptionPane.showConfirmDialog(f, "Empty this room? What was said in it is removed for everyone, and can't be brought back.", "Empty this room", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
+			if (JOptionPane.showConfirmDialog(f,
+					"Empty this room? What was said in it is removed for everyone, and can't be brought back.", "Empty this room",
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
 			ServerToolsUi.later(() -> { ServerToolsUi.ask("POST", "/admin/chat/clear", m("room", room)); view[0].reset(); });
 		});
 		if (far) clear.setEnabled(false);

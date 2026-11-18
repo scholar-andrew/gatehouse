@@ -12,6 +12,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The five pictures Steam shows for a pack's shortcut, which every pack carries (steam/art) and the sync scripts put
@@ -30,7 +31,8 @@ final class PackArt {
 	private PackArt() {}
 	static final String[] SLOTS = {"cover", "hero", "logo", "icon", "wide"};
 	static final int[][] SIZE = {{600, 900}, {1920, 620}, {636, 360}, {512, 512}, {920, 430}};
-	static final String[] SAYS = {"Cover (upright, 600 x 900)", "Hero (behind the page, 1920 x 620)", "Logo (the name over the hero, 636 x 360)", "Icon (square, 512 x 512)", "Wide (920 x 430)"};
+	static final String[] SAYS = {"Cover (upright, 600 x 900)", "Hero (behind the page, 1920 x 620)",
+			"Logo (the name over the hero, 636 x 360)", "Icon (square, 512 x 512)", "Wide (920 x 430)"};
 
 	static int slot(String name) { for (int i = 0; i < SLOTS.length; i++) if (SLOTS[i].equals(name)) return i; return -1; }
 
@@ -80,7 +82,8 @@ final class PackArt {
 				FontMetrics fm = g.getFontMetrics(f);
 				java.util.List<String> lines = new java.util.ArrayList<>();
 				String line = "";
-				for (String p : parts) { String t = line.isEmpty() ? p : line + " " + p; if (fm.stringWidth(t) <= w || line.isEmpty()) line = t; else { lines.add(line); line = p; } }
+				for (String p : parts) { String t = line.isEmpty() ? p : line + " " + p; if (fm.stringWidth(t) <= w
+						|| line.isEmpty()) line = t; else { lines.add(line); line = p; } }
 				if (!line.isEmpty()) lines.add(line);
 				boolean fits = lines.size() <= 3 && lines.size() * fm.getHeight() <= h;
 				for (String l : lines) if (fm.stringWidth(l) > w) fits = false;
@@ -107,7 +110,7 @@ final class PackArt {
 		int w = SIZE[slot][0], h = SIZE[slot][1];
 		String which = SLOTS[slot];
 		BufferedImage out = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB), pic = null;
-		if (picture != null) try { pic = javax.imageio.ImageIO.read(new ByteArrayInputStream(picture)); } catch (IOException ignored) {}
+		if (picture != null) try { pic = javax.imageio.ImageIO.read(new ByteArrayInputStream(picture)); } catch (IOException ignored) { Quiet.seen(ignored); }
 		Graphics2D g = pen(out);
 		Color[] c = colours(name);
 		if (which.equals("logo")) { words(g, name, 8, 8, w - 16, h - 16, Color.WHITE); g.dispose(); return png(out); }
@@ -117,16 +120,20 @@ final class PackArt {
 		g.setPaint(new GradientPaint(0, 0, new Color(255, 255, 255, 46), 0, h * 0.6f, new Color(255, 255, 255, 0)));
 		if (which.equals("icon")) g.fillRoundRect(0, 0, w, h, w / 5, w / 5); else g.fillRect(0, 0, w, h);
 		switch (which) {
-			case "icon" -> { if (pic != null) { int s = (int) (w * 0.72); g.drawImage(pic, (w - s) / 2, (h - s) / 2, s, s, null); } else words(g, initials(name), w / 8, h / 8, w * 3 / 4, h * 3 / 4, Color.WHITE); }
+			case "icon" -> { if (pic != null) { int s = (int) (w * 0.72); g.drawImage(pic, (w - s) / 2, (h - s) / 2, s, s,
+					null); } else words(g, initials(name), w / 8, h / 8, w * 3 / 4, h * 3 / 4, Color.WHITE); }
 			case "cover" -> {
-				if (pic != null) { int s = (int) (w * 0.56); g.drawImage(pic, (w - s) / 2, h / 6, s, s, null); words(g, name, 40, h / 6 + s + 30, w - 80, h - (h / 6 + s + 30) - 60, Color.WHITE); }
+				if (pic != null) { int s = (int) (w * 0.56); g.drawImage(pic, (w - s) / 2, h / 6, s, s, null); words(g, name, 40, h / 6 + s
+						+ 30, w - 80, h - (h / 6 + s + 30) - 60, Color.WHITE); }
 				else words(g, name, 40, 60, w - 80, h - 120, Color.WHITE);
 			}
 			case "wide" -> {
-				if (pic != null) { int s = (int) (h * 0.62); g.drawImage(pic, 50, (h - s) / 2, s, s, null); words(g, name, 50 + s + 36, 40, w - (50 + s + 36) - 40, h - 80, Color.WHITE); }
+				if (pic != null) { int s = (int) (h * 0.62); g.drawImage(pic, 50, (h - s) / 2, s, s, null); words(g, name, 50 + s + 36, 40,
+						w - (50 + s + 36) - 40, h - 80, Color.WHITE); }
 				else words(g, name, 50, 40, w - 100, h - 80, Color.WHITE);
 			}
-			default -> { if (pic != null) { int s = (int) (h * 0.5); g.drawImage(pic, w - s - 140, (h - s) / 2, s, s, null); } }   // (hero: Steam puts the logo over it, so no name here)
+			default -> { if (pic != null) { int s = (int) (h * 0.5); g.drawImage(pic, w - s - 140, (h - s) / 2, s, s,
+					null); } }   // (hero: Steam puts the logo over it, so no name here)
 		}
 		g.dispose();
 		return png(out);

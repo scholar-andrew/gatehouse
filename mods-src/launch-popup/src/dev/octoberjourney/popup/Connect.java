@@ -22,6 +22,7 @@ import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import dev.gatehouse.look.Quiet;
 
 /** "Connect to this Gatekeeper": the steps between having a pairing and the Gatekeeper answering, each with how it
  *  stands right now and what to do about it. It looks again every couple of seconds, so a step ticks by itself once
@@ -58,7 +59,7 @@ final class Connect {
 					if (b.length == 4 && (b[0] & 0xFF) == 100 && (b[1] & 0xC0) == 0x40) return true;
 				}
 			}
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		return false;
 	}
 
@@ -86,7 +87,7 @@ final class Connect {
 		boolean ts = tailscaleUp(), reach = reaches(url), paired = false;
 		String fake = System.getenv("OJ_CONNECT_FAKE");
 		if (fake != null && fake.length() > 2) paired = fake.charAt(2) == '1';
-		else if (reach) try { String st = hello.call(); paired = st != null && !st.isEmpty(); } catch (Exception ignored) {}
+		else if (reach) try { String st = hello.call(); paired = st != null && !st.isEmpty(); } catch (Exception ignored) { Quiet.seen(ignored); }
 		return new boolean[] {ts || reach, reach, paired};   // (reaching it over Tailscale proves Tailscale, however it's installed)
 	}
 
@@ -99,7 +100,8 @@ final class Connect {
 	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;"); }
 	private static String line(boolean done, boolean waiting, String title, String detail) {
 		String colour = done ? "#3FB950" : waiting ? "#8F98A0" : "#E3B341", word = done ? "Done" : waiting ? "Waiting for the step above" : "To do";
-		return "<html><div style='width:520px'><span style='color:" + colour + "'>\u25CF</span>&nbsp; <b>" + esc(title) + "</b> &nbsp;<span style='color:" + colour + "'>" + word + "</span>"
+		return "<html><div style='width:520px'><span style='color:" + colour + "'>\u25CF</span>&nbsp; <b>" + esc(title)
+				+ "</b> &nbsp;<span style='color:" + colour + "'>" + word + "</span>"
 				+ (detail.isEmpty() ? "" : "<br><span style='color:#8F98A0'>" + esc(detail) + "</span>") + "</div></html>";
 	}
 
@@ -109,7 +111,8 @@ final class Connect {
 		boolean windows = System.getProperty("os.name", "").startsWith("Windows");
 		JPanel list = new JPanel();
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-		JLabel intro = new JLabel("<html><div style='width:520px'>" + esc(who) + " is reached over Tailscale, a private network between its owner's machine and the devices they let in. "
+		JLabel intro = new JLabel("<html><div style='width:520px'>" + esc(who)
+				+ " is reached over Tailscale, a private network between its owner's machine and the devices they let in. "
 				+ "These are the steps; each one ticks by itself when it's done.</div></html>");
 		intro.setAlignmentX(Component.LEFT_ALIGNMENT);
 		list.add(intro);
@@ -122,7 +125,10 @@ final class Connect {
 		openTs.addActionListener(e -> {
 			Path app = tailscaleApp();
 			try { if (app == null) throw new IOException("Tailscale's program wasn't found"); new ProcessBuilder(app.toString()).start(); }
-			catch (IOException ex) { javax.swing.JOptionPane.showMessageDialog(openTs, "<html><div style='width:380px'>Tailscale couldn't be opened from here (" + ex.getMessage() + "). Open it yourself: it is in the Start menu, and by the clock when it is running.</div></html>", "Open Tailscale", javax.swing.JOptionPane.PLAIN_MESSAGE); }
+			catch (IOException ex) { javax.swing.JOptionPane.showMessageDialog(openTs,
+					"<html><div style='width:380px'>Tailscale couldn't be opened from here (" + ex.getMessage()
+					+ "). Open it yourself: it is in the Start menu, and by the clock when it is running.</div></html>", "Open Tailscale",
+					javax.swing.JOptionPane.PLAIN_MESSAGE); }
 		});
 		JPanel b1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
 		b1.add(get); b1.add(openTs);
@@ -141,19 +147,22 @@ final class Connect {
 		fillOut[0] = () -> {
 			boolean ts = state[0][0], reach = state[0][1], paired = state[0][2];
 			s1.setText(line(ts, false, "Tailscale is running on this device and connected",
-					ts ? "" : windows ? (tailscaleApp() != null ? "Tailscale is installed. Open it and sign in with your own Tailscale account (making one is free), then switch it on."
+					ts ? "" : windows ? (tailscaleApp() != null
+							? "Tailscale is installed. Open it and sign in with your own Tailscale account (making one is free), then switch it on."
 							: "Install Tailscale from its own site, then sign in with your own Tailscale account (making one is free).")
 							: "Install Tailscale and sign in with your own account. On a Steam Deck that's done in Desktop Mode, following Tailscale's own guide for the Steam Deck (it needs the system password)."));
 			get.setVisible(!ts && tailscaleApp() == null); openTs.setVisible(!ts && tailscaleApp() != null);
 			b1.setVisible(get.isVisible() || openTs.isVisible());
 			s2.setText(line(reach, !ts, "You've accepted the owner's invite",
-					reach ? "" : invite.isEmpty() ? "This pairing didn't come with an invite. Ask the owner for their Tailscale invite link (they keep it in Gatekeeper, under Host setup), or to share their machine with your Tailscale account."
+					reach ? "" : invite.isEmpty()
+							? "This pairing didn't come with an invite. Ask the owner for their Tailscale invite link (they keep it in Gatekeeper, under Host setup), or to share their machine with your Tailscale account."
 							: "Open the owner's invite, sign in with the same Tailscale account as on this device, and accept. It gives this device access to that one machine only."));
 			b2.setVisible(!reach && !invite.isEmpty());
 			s3.setText(line(reach, !ts, "This device can reach " + who,
 					reach ? shown : ts ? "Not yet. If the invite is accepted, its machine may be asleep or off: ask the owner." : ""));
 			s4.setText(line(paired, !reach, who + " knows this device",
-					paired ? "It's on the owner's list now. What this device may do there is up to them (Access Manager in Gatekeeper)." : reach ? "It answers, but didn't take this device's introduction. Try again in a moment." : ""));
+					paired ? "It's on the owner's list now. What this device may do there is up to them (Access Manager in Gatekeeper)."
+							: reach ? "It answers, but didn't take this device's introduction. Try again in a moment." : ""));
 			list.revalidate(); list.repaint();
 		};
 		JPanel p = new JPanel(new BorderLayout());

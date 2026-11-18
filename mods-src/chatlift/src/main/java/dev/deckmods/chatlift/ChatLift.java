@@ -87,7 +87,8 @@ public final class ChatLift {
 			w.write("close_keyboard_url=" + closeUrl + "\n");
 		} catch (IOException ignored) {
 		}
-		LOG.info("[chatlift] mode={}, lift_fraction={}, under Steam={}, Steam Deck={}, Big Picture={}", mode, fraction, underSteam(), isSteamDeck(), "1".equals(System.getenv("SteamTenfoot")));
+		LOG.info("[chatlift] mode={}, lift_fraction={}, under Steam={}, Steam Deck={}, Big Picture={}", mode, fraction, underSteam(),
+				isSteamDeck(), "1".equals(System.getenv("SteamTenfoot")));
 	}
 
 	static String mode() {

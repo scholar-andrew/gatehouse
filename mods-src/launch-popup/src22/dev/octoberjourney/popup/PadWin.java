@@ -21,7 +21,8 @@ public final class PadWin implements java.util.function.Supplier<int[]> {
 			try { lib = SymbolLookup.libraryLookup(n, Arena.global()); break; } catch (IllegalArgumentException e) { /* the next one */ }
 		}
 		if (lib == null) throw new IllegalStateException("no XInput on this computer");
-		getState = Linker.nativeLinker().downcallHandle(lib.find("XInputGetState").orElseThrow(), FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
+		getState = Linker.nativeLinker().downcallHandle(lib.find("XInputGetState").orElseThrow(),
+				FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
 		// XINPUT_STATE: packet number (4 bytes), then the pad: buttons (2), left trigger (1), right trigger (1), left stick x, y, right stick x, y (2 each).
 		state = Arena.global().allocate(16, 4);
 	}
@@ -32,7 +33,9 @@ public final class PadWin implements java.util.function.Supplier<int[]> {
 			for (int i = 0; i < 4; i++) {
 				int r = (int) getState.invokeExact(i, state);
 				if (r != 0) continue;
-				return new int[] {state.get(ValueLayout.JAVA_SHORT, 4) & 0xFFFF, state.get(ValueLayout.JAVA_BYTE, 7) & 0xFF, state.get(ValueLayout.JAVA_SHORT, 8), state.get(ValueLayout.JAVA_SHORT, 10), state.get(ValueLayout.JAVA_SHORT, 12), state.get(ValueLayout.JAVA_SHORT, 14)};
+				return new int[] {state.get(ValueLayout.JAVA_SHORT, 4) & 0xFFFF, state.get(ValueLayout.JAVA_BYTE, 7) & 0xFF,
+						state.get(ValueLayout.JAVA_SHORT, 8), state.get(ValueLayout.JAVA_SHORT, 10), state.get(ValueLayout.JAVA_SHORT, 12),
+						state.get(ValueLayout.JAVA_SHORT, 14)};
 			}
 		} catch (Throwable t) { /* no controller this time */ }
 		return null;

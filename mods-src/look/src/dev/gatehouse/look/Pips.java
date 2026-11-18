@@ -25,7 +25,8 @@ import javax.swing.JComponent;
  * "n": name or "", "me": true|false}, ...]}; nothing (or no pips) hides it.
  */
 public final class Pips extends JComponent {
-	static final Color READY = new Color(0x3FB950), WAITING = new Color(0xE9B949), BUSY = new Color(0xE5484D), GREY = new Color(0x8F98A0), TEXT = new Color(0xC7D5E0);
+	static final Color READY = new Color(0x3FB950), WAITING = new Color(0xE9B949), BUSY = new Color(0xE5484D), GREY = new Color(0x8F98A0),
+			TEXT = new Color(0xC7D5E0);
 	private final List<String[]> pips = new ArrayList<>();   // {state, kind, name, me}
 	private String line = "";
 
@@ -42,7 +43,8 @@ public final class Pips extends JComponent {
 		for (String[] p : pips) {
 			boolean me = p[3].equals("true");
 			if (!me) { others++; if (p[0].equals("waiting")) waiting++; if (p[0].equals("busy")) busy++; }
-			tip.append(me ? "<b>This one</b>" : esc(p[2].isEmpty() ? (p[1].equals("gatekeeper") ? "A Gatekeeper" : "A launcher") : p[2] + (p[1].equals("gatekeeper") ? " (Gatekeeper)" : "")))
+			tip.append(me ? "<b>This one</b>" : esc(p[2].isEmpty() ? (p[1].equals("gatekeeper") ? "A Gatekeeper" : "A launcher") : p[2]
+					+ (p[1].equals("gatekeeper") ? " (Gatekeeper)" : "")))
 					.append(": ").append(p[0].equals("ready") ? "ready" : p[0].equals("busy") ? "a server it runs is still on" : "hasn't seen the update yet").append("<br>");
 		}
 		int notReady = waiting + busy;

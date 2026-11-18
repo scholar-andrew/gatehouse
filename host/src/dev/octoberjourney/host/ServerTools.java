@@ -23,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * What a server program's own manager does for its servers, for the servers Gatekeeper runs itself (DirectHost):
@@ -92,7 +93,8 @@ final class ServerTools {
 		} else if (kind.equals("fabric")) {
 			for (Object o : Json.list(json(fabric() + "/game"))) if (yes(Json.map(o).get("stable"))) out.add(Json.str(Json.map(o).get("version")));
 		} else if (kind.equals("paper")) {
-			for (Object group : Json.map(Json.map(json(paper())).get("versions")).values()) for (Object v : Json.list(group)) if (!Json.str(v).contains("-")) out.add(Json.str(v));
+			for (Object group : Json.map(Json.map(json(paper())).get("versions")).values()) for (Object v
+					: Json.list(group)) if (!Json.str(v).contains("-")) out.add(Json.str(v));
 		}
 		return out;
 	}
@@ -101,7 +103,7 @@ final class ServerTools {
 		try {
 			for (Object o : Json.list(Json.map(json(mojang())).get("versions"))) if (Json.str(Json.map(o).get("id")).equals(version))
 				return (int) Double.parseDouble(Json.str(Json.map(Json.map(json(Json.str(Json.map(o).get("url")))).get("javaVersion")).get("majorVersion")));
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		return 0;
 	}
 
@@ -112,7 +114,7 @@ final class ServerTools {
 		try {
 			java.util.regex.Matcher m = java.util.regex.Pattern.compile("JAVA_VERSION=\"(\\d+)(?:\\.(\\d+))?").matcher(read(exe.toAbsolutePath().getParent().getParent().resolve("release")));
 			if (m.find()) return m.group(1).equals("1") && m.group(2) != null ? Integer.parseInt(m.group(2)) : Integer.parseInt(m.group(1));
-		} catch (RuntimeException ignored) {}
+		} catch (RuntimeException ignored) { Quiet.seen(ignored); }
 		return 0;
 	}
 	/** The Javas found in the usual places: each {path, version}. Gatekeeper's own is first. */
@@ -123,11 +125,15 @@ final class ServerTools {
 		String jh = System.getenv("JAVA_HOME");
 		if (jh != null && !jh.isEmpty()) found.add(Path.of(jh, "bin", name));
 		List<String> roots = new ArrayList<>();
-		if (WIN) for (String pf : new String[] {System.getenv("ProgramFiles"), System.getenv("ProgramFiles(x86)")}) { if (pf != null) for (String v : new String[] {"Eclipse Adoptium", "Java", "Microsoft", "Zulu", "BellSoft", "Amazon Corretto"}) roots.add(pf + "\\" + v); }
-		else { roots.add("/usr/lib/jvm"); roots.add("/usr/lib64/jvm"); roots.add(home + "/.local/share/PrismLauncher/java"); roots.add(home + "/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/java"); roots.add(home + "/.sdkman/candidates/java"); }
+		if (WIN) for (String pf : new String[] {System.getenv("ProgramFiles"),
+				System.getenv("ProgramFiles(x86)")}) { if (pf != null) for (String v : new String[] {"Eclipse Adoptium", "Java",
+				"Microsoft", "Zulu", "BellSoft", "Amazon Corretto"}) roots.add(pf + "\\" + v); }
+		else { roots.add("/usr/lib/jvm"); roots.add("/usr/lib64/jvm"); roots.add(home + "/.local/share/PrismLauncher/java"); roots.add(home
+				+ "/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/java"); roots.add(home + "/.sdkman/candidates/java"); }
 		for (String r : roots) if (Files.isDirectory(Path.of(r))) try (java.util.stream.Stream<Path> s = Files.walk(Path.of(r), 4)) {
-			s.filter(p -> p.getFileName() != null && p.getFileName().toString().equals(name) && p.getParent().getFileName().toString().equals("bin") && Files.isRegularFile(p)).sorted().forEach(found::add);
-		} catch (IOException | RuntimeException ignored) {}
+			s.filter(p -> p.getFileName() != null && p.getFileName().toString().equals(name)
+					&& p.getParent().getFileName().toString().equals("bin") && Files.isRegularFile(p)).sorted().forEach(found::add);
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		List<Object> out = new ArrayList<>();
 		java.util.Set<String> seen = new java.util.HashSet<>();
 		for (Path p : found) {
@@ -150,34 +156,42 @@ final class ServerTools {
 	static synchronized String[] create(Map<String, Object> b) {
 		if (!nativeOk()) return new String[] {"refused", HERE_MCSS};
 		if (making.get("state").equals("working")) return new String[] {"refused", "Gatekeeper is still making the last server"};
-		String name = clean(Json.str(b.get("name")), 40), kind = Json.str(b.get("kind")), version = Json.str(b.get("version")).trim(), file = Json.str(b.get("file")).trim();
-		String memory = memoryOk(Json.str(b.get("memory")).trim().isEmpty() ? "4G" : Json.str(b.get("memory")).trim()), port = Json.str(b.get("port")).trim().replaceAll("\\.0$", ""), java = Json.str(b.get("java")).trim();
+		String name = clean(Json.str(b.get("name")), 40), kind = Json.str(b.get("kind")), version = Json.str(b.get("version")).trim(),
+				file = Json.str(b.get("file")).trim();
+		String memory = memoryOk(Json.str(b.get("memory")).trim().isEmpty() ? "4G" : Json.str(b.get("memory")).trim()),
+				port = Json.str(b.get("port")).trim().replaceAll("\\.0$", ""), java = Json.str(b.get("java")).trim();
 		if (name.isEmpty()) return new String[] {"refused", "Give the server a name."};
 		if (!List.of("vanilla", "fabric", "paper", "forge", "file").contains(kind)) return new String[] {"refused", "Choose what kind of server to make."};
-		if (!yes(b.get("eula"))) return new String[] {"refused", "A Minecraft server can't be run without agreeing to Minecraft's EULA (aka.ms/MinecraftEULA). Read it and tick the box; Gatekeeper doesn't agree to it for you."};
+		if (!yes(b.get("eula"))) return new String[] {"refused",
+				"A Minecraft server can't be run without agreeing to Minecraft's EULA (aka.ms/MinecraftEULA). Read it and tick the box; Gatekeeper doesn't agree to it for you."};
 		boolean fetched = !kind.equals("forge") && !kind.equals("file");
 		if (fetched && version.isEmpty()) return new String[] {"refused", "Choose a Minecraft version."};
-		if (!fetched && !Files.isRegularFile(Path.of(file))) return new String[] {"refused", kind.equals("forge") ? "Choose the installer you downloaded from Forge or NeoForge (a .jar file)." : "Choose the server's jar file."};
+		if (!fetched && !Files.isRegularFile(Path.of(file))) return new String[] {"refused", kind.equals("forge")
+				? "Choose the installer you downloaded from Forge or NeoForge (a .jar file)." : "Choose the server's jar file."};
 		if (memory.isEmpty()) return new String[] {"refused", "Memory should look like 4G or 4096M."};
 		if (port.isEmpty()) { List<String> free = freePorts(1); port = free.isEmpty() ? "25565" : free.get(0); }
-		if (!port.matches("\\d{4,5}") || Integer.parseInt(port) > 65535 || Integer.parseInt(port) < 1024) return new String[] {"refused", "The port should be a number from 1024 to 65535 (Minecraft's usual one is 25565)."};
-		for (Object o : servers()) if (port.equals(Json.str(Json.map(o).get("minecraft")).replaceAll(".*:", ""))) return new String[] {"refused", "Port " + port + " is " + Json.str(Json.map(o).get("name")) + "'s already: two servers can't share one."};
+		if (!port.matches("\\d{4,5}") || Integer.parseInt(port) > 65535 || Integer.parseInt(port) < 1024) return new String[] {"refused",
+				"The port should be a number from 1024 to 65535 (Minecraft's usual one is 25565)."};
+		for (Object o : servers()) if (port.equals(Json.str(Json.map(o).get("minecraft")).replaceAll(".*:",
+				""))) return new String[] {"refused", "Port " + port + " is " + Json.str(Json.map(o).get("name")) + "'s already: two servers can't share one."};
 		if (!java.isEmpty() && !Files.isRegularFile(Path.of(java))) return new String[] {"refused", "There's no Java at " + java};
 		String folder = name.replaceAll("[^A-Za-z0-9 ._-]", "").trim().replaceAll("\\.+$", "");
 		if (folder.isEmpty()) folder = "server";
 		Path d = Path.of(serversDir(), folder);
-		if (Files.exists(d)) return new String[] {"refused", "There's already a folder called " + folder + " in " + serversDir() + ": choose another name (or add that one in Server setup, if it is a server)."};
+		if (Files.exists(d)) return new String[] {"refused", "There's already a folder called " + folder + " in " + serversDir()
+				+ ": choose another name (or add that one in Server setup, if it is a server)."};
 		String p2 = port, v2 = version;
 		making.putAll(Map.of("state", "working", "step", "Starting", "message", "", "id", ""));
 		Thread t = new Thread(() -> {
 			try {
 				String id = make(name, kind, v2, Path.of(file.isEmpty() ? "." : file), memory, p2, java, d);
-				making.putAll(Map.of("state", "done", "step", "", "id", id, "message", name + " is made, in " + d + ". It's off: start it from its Status tab, or Open it from the first screen. The first start makes the world, which takes a minute or two."));
+				making.putAll(Map.of("state", "done", "step", "", "id", id, "message", name + " is made, in " + d
+						+ ". It's off: start it from its Status tab, or Open it from the first screen. The first start makes the world, which takes a minute or two."));
 				log("new server " + name + " (" + kind + (v2.isEmpty() ? "" : " " + v2) + ", port " + p2 + ") made in " + d);
 				for (Object o : servers()) if (id.equals(Json.str(Json.map(o).get("id")))) History.record("made", Json.map(o), "");
 			} catch (Exception e) {
 				String why = e.getMessage() == null ? e.toString() : e.getMessage();
-				try { wipe(d); } catch (IOException ignored) {}
+				try { wipe(d); } catch (IOException ignored) { Quiet.seen(ignored); }
 				making.putAll(Map.of("state", "failed", "step", "", "id", "", "message", "The server wasn't made: " + why + ". Nothing was left behind."));
 				log("new server " + name + " (" + kind + ") not made: " + why);
 			}
@@ -193,9 +207,12 @@ final class ServerTools {
 		step("Checking Java");
 		if (java.isEmpty()) {
 			int best = Integer.MAX_VALUE;
-			for (Object o : javas()) { int v = (int) Double.parseDouble(Json.str(Json.map(o).get("version"))); if (v >= need && v < best) { best = v; java = Json.str(Json.map(o).get("path")); } }
-			if (java.isEmpty()) throw new IOException("Minecraft " + version + " needs Java " + need + " or newer, and none was found on this machine (found: " + found() + "). Install it (adoptium.net has it), then try again");
-		} else if (need > 0 && javaMajor(Path.of(java)) > 0 && javaMajor(Path.of(java)) < need) throw new IOException("Minecraft " + version + " needs Java " + need + " or newer, and the Java chosen is " + javaMajor(Path.of(java)));
+			for (Object o : javas()) { int v = (int) Double.parseDouble(Json.str(Json.map(o).get("version"))); if (v >= need
+					&& v < best) { best = v; java = Json.str(Json.map(o).get("path")); } }
+			if (java.isEmpty()) throw new IOException("Minecraft " + version + " needs Java " + need
+					+ " or newer, and none was found on this machine (found: " + found() + "). Install it (adoptium.net has it), then try again");
+		} else if (need > 0 && javaMajor(Path.of(java)) > 0 && javaMajor(Path.of(java)) < need) throw new IOException("Minecraft "
+				+ version + " needs Java " + need + " or newer, and the Java chosen is " + javaMajor(Path.of(java)));
 		Files.createDirectories(d);
 		if (kind.equals("vanilla")) {
 			step("Asking Mojang for Minecraft " + version);
@@ -218,9 +235,11 @@ final class ServerTools {
 			step("Asking Fabric for its newest loader");
 			String loader = "", installer = "";
 			for (Object o : Json.list(json(fabric() + "/loader"))) if (loader.isEmpty() && yes(Json.map(o).get("stable"))) loader = Json.str(Json.map(o).get("version"));
-			for (Object o : Json.list(json(fabric() + "/installer"))) if (installer.isEmpty() && yes(Json.map(o).get("stable"))) installer = Json.str(Json.map(o).get("version"));
+			for (Object o : Json.list(json(fabric() + "/installer"))) if (installer.isEmpty()
+					&& yes(Json.map(o).get("stable"))) installer = Json.str(Json.map(o).get("version"));
 			if (loader.isEmpty() || installer.isEmpty()) throw new IOException("Fabric's list has no stable loader or installer");
-			fetchTo(fabric() + "/loader/" + version + "/" + loader + "/" + installer + "/server/jar", d.resolve("fabric-server-mc." + version + "-loader." + loader + "-launcher." + installer + ".jar"), "SHA-256");
+			fetchTo(fabric() + "/loader/" + version + "/" + loader + "/" + installer + "/server/jar", d.resolve("fabric-server-mc."
+					+ version + "-loader." + loader + "-launcher." + installer + ".jar"), "SHA-256");
 			Files.createDirectories(d.resolve("mods"));
 		} else if (kind.equals("file")) {
 			step("Copying the server's jar");
@@ -245,7 +264,9 @@ final class ServerTools {
 			Files.createDirectories(d.resolve("mods"));
 		}
 		step("Writing its settings");
-		Files.writeString(d.resolve("eula.txt"), "# Minecraft's EULA (https://aka.ms/MinecraftEULA), agreed to by this machine's owner in Gatekeeper on " + LocalDateTime.now().format(TIME) + "\neula=true\n", StandardCharsets.UTF_8);
+		Files.writeString(d.resolve("eula.txt"),
+				"# Minecraft's EULA (https://aka.ms/MinecraftEULA), agreed to by this machine's owner in Gatekeeper on "
+				+ LocalDateTime.now().format(TIME) + "\neula=true\n", StandardCharsets.UTF_8);
 		Files.writeString(d.resolve("server.properties"), "server-port=" + port + "\n", StandardCharsets.UTF_8);
 		synchronized (HostHelper.class) {
 			java.util.Set<String> used = new java.util.HashSet<>();
@@ -253,7 +274,8 @@ final class ServerTools {
 			String base = name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", ""), id = base.isEmpty() ? "server" : base;
 			for (int n = 2; used.contains(id); n++) id = (base.isEmpty() ? "server" : base) + "-" + n;
 			List<Object> all = new ArrayList<>(servers());
-			all.add(m("id", id, "name", name, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", "", "native", true, "memory", memory, "java", java, "kind", kind, "version", version));
+			all.add(m("id", id, "name", name, "dir", d.toString(), "minecraft", "127.0.0.1:" + port, "mcss_server", "", "native", true,
+					"memory", memory, "java", java, "kind", kind, "version", version));
 			cfg.put("servers", all);
 			if (setting("servers_dir", "").isEmpty()) cfg.put("servers_dir", serversDir());
 			saveCfg();
@@ -268,14 +290,16 @@ final class ServerTools {
 	/** Removes a folder Gatekeeper has just made itself. */
 	static void wipe(Path d) throws IOException {
 		if (!Files.isDirectory(d)) return;
-		try (java.util.stream.Stream<Path> s = Files.walk(d)) { for (Path p : (Iterable<Path>) s.sorted(java.util.Comparator.reverseOrder())::iterator) Files.deleteIfExists(p); }
+		try (java.util.stream.Stream<Path> s = Files.walk(d)) { for (Path p
+				: (Iterable<Path>) s.sorted(java.util.Comparator.reverseOrder())::iterator) Files.deleteIfExists(p); }
 	}
 
 	// ------------------------------------------------------------------ one server: what it is set to, and how it is doing
 
 	static Map<String, String> properties(Path d) {
 		Map<String, String> out = new LinkedHashMap<>();
-		for (String l : read(d.resolve("server.properties")).split("\\R")) { int eq = l.indexOf('='); if (eq > 0 && !l.startsWith("#")) out.put(l.substring(0, eq).trim(), l.substring(eq + 1)); }
+		for (String l : read(d.resolve("server.properties")).split("\\R")) { int eq = l.indexOf('='); if (eq > 0
+				&& !l.startsWith("#")) out.put(l.substring(0, eq).trim(), l.substring(eq + 1)); }
 		return out;
 	}
 	/** Sets lines of server.properties (ones it doesn't have yet are added); everything else in it is left as it is. */
@@ -285,7 +309,8 @@ final class ServerTools {
 		List<String> lines = new ArrayList<>(t.isEmpty() ? List.of() : List.of(t.split("\\R")));
 		for (Map.Entry<String, String> e : set.entrySet()) {
 			boolean had = false;
-			for (int i = 0; i < lines.size(); i++) if (lines.get(i).replaceAll("\\s*=.*", "").trim().equals(e.getKey()) && !lines.get(i).startsWith("#")) { lines.set(i, e.getKey() + "=" + e.getValue()); had = true; }
+			for (int i = 0; i < lines.size(); i++) if (lines.get(i).replaceAll("\\s*=.*", "").trim().equals(e.getKey())
+					&& !lines.get(i).startsWith("#")) { lines.set(i, e.getKey() + "=" + e.getValue()); had = true; }
 			if (!had) lines.add(e.getKey() + "=" + e.getValue());
 		}
 		Files.writeString(f, String.join(nl, lines) + nl, StandardCharsets.UTF_8);
@@ -297,8 +322,11 @@ final class ServerTools {
 		List<ProcessHandle> all = new ArrayList<>(List.of(h));
 		h.descendants().forEach(all::add);
 		for (ProcessHandle p : all) {
-			if (!WIN) { for (String l : read(Path.of("/proc/" + p.pid() + "/status")).split("\\R")) if (l.startsWith("VmRSS:")) try { kb += Long.parseLong(l.replaceAll("\\D", "")); } catch (NumberFormatException ignored) {} }
-			else { String s = commandSays("tasklist", "/FI", "PID eq " + p.pid(), "/FO", "CSV", "/NH"); java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"([\\d.,\\s ]+) K\"").matcher(s); if (m.find()) try { kb += Long.parseLong(m.group(1).replaceAll("\\D", "")); } catch (NumberFormatException ignored) {} }
+			if (!WIN) { for (String l : read(Path.of("/proc/" + p.pid()
+					+ "/status")).split("\\R")) if (l.startsWith("VmRSS:")) try { kb += Long.parseLong(l.replaceAll("\\D",
+					"")); } catch (NumberFormatException ignored) { Quiet.seen(ignored); } }
+			else { String s = commandSays("tasklist", "/FI", "PID eq " + p.pid(), "/FO", "CSV",
+					"/NH"); java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"([\\d.,\\s ]+) K\"").matcher(s); if (m.find()) try { kb += Long.parseLong(m.group(1).replaceAll("\\D", "")); } catch (NumberFormatException ignored) { Quiet.seen(ignored); } }
 		}
 		return kb / 1024;
 	}
@@ -350,20 +378,26 @@ final class ServerTools {
 		Path d = serverDir();
 		boolean on = minecraftRunning();
 		List<String> notes = new ArrayList<>();
-		if (b.containsKey("name")) { String n = clean(Json.str(b.get("name")), 40); if (n.isEmpty()) return new String[] {"refused", "Give the server a name."}; s.put("name", n); }
+		if (b.containsKey("name")) { String n = clean(Json.str(b.get("name")), 40); if (n.isEmpty()) return new String[] {"refused",
+				"Give the server a name."}; s.put("name", n); }
 		if (b.containsKey("memory")) { String mem = memoryOk(Json.str(b.get("memory")).trim()); if (mem.isEmpty()) return new String[] {"refused", "Memory should look like 4G or 4096M."}; s.put("memory", mem); }
-		if (b.containsKey("java")) { String j = Json.str(b.get("java")).trim(); if (!j.isEmpty() && !Files.isRegularFile(Path.of(j))) return new String[] {"refused", "There's no Java at " + j}; s.put("java", j); }
+		if (b.containsKey("java")) { String j = Json.str(b.get("java")).trim(); if (!j.isEmpty()
+				&& !Files.isRegularFile(Path.of(j))) return new String[] {"refused", "There's no Java at " + j}; s.put("java", j); }
 		if (b.containsKey("start")) s.put("start", Json.str(b.get("start")).replaceAll("[\\r\\n]", " ").trim());
 		if (b.containsKey("autostart")) s.put("autostart", yes(b.get("autostart")));
 		if (b.containsKey("keep_online")) s.put("keep_online", Json.str(b.get("keep_online")).equals("crash") ? "crash" : "none");
 		if (b.containsKey("backup_what")) s.put("backup_what", Json.str(b.get("backup_what")).equals("all") ? "all" : "world");
-		if (b.containsKey("backup_keep")) { String k = Json.str(b.get("backup_keep")).replaceAll("\\.0$", "").trim(); if (!k.matches("\\d{1,3}") || k.equals("0")) return new String[] {"refused", "Keep at least 1 backup (a number up to 999)."}; s.put("backup_keep", k); }
+		if (b.containsKey("backup_keep")) { String k = Json.str(b.get("backup_keep")).replaceAll("\\.0$",
+				"").trim(); if (!k.matches("\\d{1,3}") || k.equals("0")) return new String[] {"refused",
+				"Keep at least 1 backup (a number up to 999)."}; s.put("backup_keep", k); }
 		if (b.containsKey("backup_dir")) { String bd = Json.str(b.get("backup_dir")).trim(); if (bd.isEmpty()) s.remove("backup_dir"); else s.put("backup_dir", bd); }
 		if (b.containsKey("port")) {
 			String port = Json.str(b.get("port")).replaceAll("\\.0$", "").trim();
-			if (!port.matches("\\d{4,5}") || Integer.parseInt(port) > 65535 || Integer.parseInt(port) < 1024) return new String[] {"refused", "The port should be a number from 1024 to 65535."};
+			if (!port.matches("\\d{4,5}") || Integer.parseInt(port) > 65535
+					|| Integer.parseInt(port) < 1024) return new String[] {"refused", "The port should be a number from 1024 to 65535."};
 			if (!port.equals(portNow(d.toString()))) {
-				for (Object o : servers()) if (Json.map(o) != s && port.equals(Json.str(Json.map(o).get("minecraft")).replaceAll(".*:", ""))) return new String[] {"refused", "Port " + port + " is " + Json.str(Json.map(o).get("name")) + "'s already."};
+				for (Object o : servers()) if (Json.map(o) != s && port.equals(Json.str(Json.map(o).get("minecraft")).replaceAll(".*:",
+						""))) return new String[] {"refused", "Port " + port + " is " + Json.str(Json.map(o).get("name")) + "'s already."};
 				if (on) return new String[] {"refused", "Stop the server before changing its port."};
 				setProperties(d, Map.of("server-port", port));
 				s.put("minecraft", "127.0.0.1:" + port);
@@ -371,29 +405,38 @@ final class ServerTools {
 			}
 		}
 		if (b.containsKey("eula") && yes(b.get("eula")) && !DirectHost.eulaAccepted(d)) {
-			Files.writeString(d.resolve("eula.txt"), "# Minecraft's EULA (https://aka.ms/MinecraftEULA), agreed to by this machine's owner in Gatekeeper on " + LocalDateTime.now().format(TIME) + "\neula=true\n", StandardCharsets.UTF_8);
+			Files.writeString(d.resolve("eula.txt"),
+					"# Minecraft's EULA (https://aka.ms/MinecraftEULA), agreed to by this machine's owner in Gatekeeper on "
+					+ LocalDateTime.now().format(TIME) + "\neula=true\n", StandardCharsets.UTF_8);
 			log(Json.str(s.get("name")) + ": the owner agreed to Minecraft's EULA in Gatekeeper");
 		}
 		if (b.containsKey("tasks")) {
 			List<Object> tasks = new ArrayList<>();
 			for (Object o : Json.list(b.get("tasks"))) {
 				Map<String, Object> t = Json.map(o);
-				String when = Json.str(t.get("when")), job = Json.str(t.get("job")), at = Json.str(t.get("at")).trim(), mins = Json.str(t.get("minutes")).replaceAll("\\.0$", "").trim(), who = Json.str(t.get("players"));
+				String when = Json.str(t.get("when")), job = Json.str(t.get("job")), at = Json.str(t.get("at")).trim(),
+						mins = Json.str(t.get("minutes")).replaceAll("\\.0$", "").trim(), who = Json.str(t.get("players"));
 				String tn = clean(Json.str(t.get("name")), 40);
-				if (!List.of("daily", "every", "manual").contains(when) || !List.of("start", "stop", "restart", "commands", "backup").contains(job)) return new String[] {"refused", "A task needs a time and something to do."};
-				if (when.equals("daily") && !at.matches("([01]?\\d|2[0-3]):[0-5]\\d")) return new String[] {"refused", "\"" + tn + "\": the time of day should look like 04:30 (24-hour clock)."};
-				if (when.equals("every") && (!mins.matches("\\d{1,5}") || Integer.parseInt(mins) < 1)) return new String[] {"refused", "\"" + tn + "\": say every how many minutes (1 or more)."};
+				if (!List.of("daily", "every", "manual").contains(when) || !List.of("start", "stop", "restart", "commands",
+						"backup").contains(job)) return new String[] {"refused", "A task needs a time and something to do."};
+				if (when.equals("daily") && !at.matches("([01]?\\d|2[0-3]):[0-5]\\d")) return new String[] {"refused", "\"" + tn
+						+ "\": the time of day should look like 04:30 (24-hour clock)."};
+				if (when.equals("every") && (!mins.matches("\\d{1,5}") || Integer.parseInt(mins) < 1)) return new String[] {"refused", "\""
+						+ tn + "\": say every how many minutes (1 or more)."};
 				List<Object> cmds = new ArrayList<>();
-				for (Object c : Json.list(t.get("commands"))) { String line = Json.str(c).replaceAll("[\\r\\n]", " ").trim().replaceAll("^/", ""); if (!line.isEmpty()) cmds.add(line); }
+				for (Object c : Json.list(t.get("commands"))) { String line = Json.str(c).replaceAll("[\\r\\n]",
+						" ").trim().replaceAll("^/", ""); if (!line.isEmpty()) cmds.add(line); }
 				if (job.equals("commands") && cmds.isEmpty()) return new String[] {"refused", "\"" + tn + "\": give it at least one command to type."};
-				tasks.add(m("name", tn.isEmpty() ? job : tn, "enabled", !t.containsKey("enabled") || yes(t.get("enabled")), "when", when, "at", at.length() == 4 ? "0" + at : at, "minutes", mins, "players", List.of("empty", "some").contains(who) ? who : "any", "job", job, "commands", cmds));
+				tasks.add(m("name", tn.isEmpty() ? job : tn, "enabled", !t.containsKey("enabled") || yes(t.get("enabled")), "when", when,
+						"at", at.length() == 4 ? "0" + at : at, "minutes", mins, "players", List.of("empty", "some").contains(who) ? who : "any", "job", job, "commands", cmds));
 			}
 			s.put("tasks", tasks);
 			lastRan.keySet().removeIf(k -> k.startsWith(Json.str(s.get("id")) + "|"));
 			for (int i = 0; i < tasks.size(); i++) if (Json.str(Json.map(tasks.get(i)).get("when")).equals("every")) lastRan.put(Json.str(s.get("id")) + "|" + i, System.currentTimeMillis());   // (counted from now)
 		}
 		saveCfg();
-		return new String[] {"ok", "Saved" + (on && (b.containsKey("memory") || b.containsKey("java") || b.containsKey("start")) ? ": it takes effect when the server next starts" : "") + (notes.isEmpty() ? "" : " (" + String.join("; ", notes) + ")") + "."};
+		return new String[] {"ok", "Saved" + (on && (b.containsKey("memory") || b.containsKey("java") || b.containsKey("start"))
+				? ": it takes effect when the server next starts" : "") + (notes.isEmpty() ? "" : " (" + String.join("; ", notes) + ")") + "."};
 	}
 
 	// ------------------------------------------------------------------ deleting a server
@@ -410,12 +453,17 @@ final class ServerTools {
 		if (minecraftRunning()) return new String[] {"refused", "Stop " + name + " first: a server that is on can't be removed."};
 		if (backing.getOrDefault(id, "").startsWith("Backing up")) return new String[] {"refused", "A backup of " + name + " is being made: wait for it to finish."};
 		if (files) {
-			if (!nat) return new String[] {"refused", "MC Server Soft runs " + name + ", so its files are MCSS's to delete (in MCSS: the server's menu, Delete). Gatekeeper can stop looking after it."};
+			if (!nat) return new String[] {"refused", "MC Server Soft runs " + name
+					+ ", so its files are MCSS's to delete (in MCSS: the server's menu, Delete). Gatekeeper can stop looking after it."};
 			if (!Json.str(b.get("name")).trim().equals(name)) return new String[] {"refused", "To delete its files, type the server's name exactly: " + name};
 			Path home = Path.of(System.getProperty("user.home", "")).toAbsolutePath().normalize(), all = Path.of(serversDir()).toAbsolutePath().normalize();
-			if (d.getNameCount() < 2 || d.equals(home) || d.equals(all) || home.startsWith(d) || all.startsWith(d)) return new String[] {"refused", "Gatekeeper won't delete " + d + ": that isn't a folder of one server."};
-			for (Object o : servers()) if (Json.map(o) != s && Path.of(Json.str(Json.map(o).get("dir"))).toAbsolutePath().normalize().startsWith(d)) return new String[] {"refused", "Another server's folder is inside " + d + ", so Gatekeeper won't delete it."};
-			if (Files.isDirectory(d) && !DirectHost.looksLikeServer(d) && !Files.exists(d.resolve("eula.txt"))) return new String[] {"refused", d + " doesn't look like a Minecraft server's folder, so Gatekeeper won't delete it."};
+			if (d.getNameCount() < 2 || d.equals(home) || d.equals(all) || home.startsWith(d)
+					|| all.startsWith(d)) return new String[] {"refused", "Gatekeeper won't delete " + d + ": that isn't a folder of one server."};
+			for (Object o : servers()) if (Json.map(o) != s
+					&& Path.of(Json.str(Json.map(o).get("dir"))).toAbsolutePath().normalize().startsWith(d)) return new String[] {"refused", "Another server's folder is inside " + d + ", so Gatekeeper won't delete it."};
+			if (Files.isDirectory(d) && !DirectHost.looksLikeServer(d)
+					&& !Files.exists(d.resolve("eula.txt"))) return new String[] {"refused", d
+					+ " doesn't look like a Minecraft server's folder, so Gatekeeper won't delete it."};
 		}
 		// Server control for the first server is kept under "server", for any other under "server:<id>": when the
 		// first goes, the next one becomes the first, and what it was allowed moves to "server" with it.
@@ -437,13 +485,18 @@ final class ServerTools {
 		String kept = Files.isDirectory(backupDir(s, d)) ? " Its backups are still in " + backupDir(s, d) + "." : "";
 		if (files) {
 			try { wipe(d); }
-			catch (IOException e) { log("server " + name + " removed from Gatekeeper; its folder " + d + " could not be deleted in full: " + e); return new String[] {"failed", name + " is out of Gatekeeper, but its folder couldn't be deleted in full (" + e.getMessage() + "). What is left is in " + d + "."}; }
+			catch (IOException e) { log("server " + name + " removed from Gatekeeper; its folder " + d + " could not be deleted in full: "
+					+ e); return new String[] {"failed", name + " is out of Gatekeeper, but its folder couldn't be deleted in full ("
+					+ e.getMessage() + "). What is left is in " + d + "."}; }
 			log("server " + name + " deleted by the owner: removed from Gatekeeper, and its folder " + d + " deleted");
 			return new String[] {"ok", name + " is deleted: it is out of Gatekeeper and its folder is gone." + kept};
 		}
-		if (wasGone) { log("server " + name + " removed from Gatekeeper by the owner (MC Server Soft had already deleted it)"); return new String[] {"ok", name + " is out of Gatekeeper. MC Server Soft had already deleted it." + kept}; }
+		if (wasGone) { log("server " + name
+				+ " removed from Gatekeeper by the owner (MC Server Soft had already deleted it)"); return new String[] {"ok", name
+				+ " is out of Gatekeeper. MC Server Soft had already deleted it." + kept}; }
 		log("server " + name + " removed from Gatekeeper by the owner (its files stay in " + d + ")");
-		return new String[] {"ok", name + " is out of Gatekeeper. Its files are still in " + d + (nat ? "; Server setup can add it again." : "; it is still MCSS's server.") + kept};
+		return new String[] {"ok", name + " is out of Gatekeeper. Its files are still in " + d + (nat ? "; Server setup can add it again."
+				: "; it is still MCSS's server.") + kept};
 	}
 	static Path backupDir(Map<String, Object> s, Path d) {
 		String set = Json.str(s.get("backup_dir"));
@@ -466,7 +519,7 @@ final class ServerTools {
 		if (Files.isDirectory(bd)) try (java.util.stream.Stream<Path> s = Files.list(bd)) {
 			for (Path p : (Iterable<Path>) s.filter(q -> q.getFileName().toString().matches("backup_.*\\.zip")).sorted(java.util.Comparator.reverseOrder())::iterator)
 				out.add(m("file", p.getFileName().toString(), "mb", Math.max(1, Files.size(p) / 1048576)));
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		return out;
 	}
 	/** Starts a backup of the current server (in the background). With the server on, it is told to save and to hold
@@ -479,9 +532,11 @@ final class ServerTools {
 		Path d = serverDir(), bd = backupDir();
 		if (backing.getOrDefault(id, "").startsWith("Backing up")) return new String[] {"refused", "A backup of " + name + " is already being made"};
 		DirectHost.Run r = DirectHost.run(id);
-		if (r == null && DirectHost.adopted(d) != null) return new String[] {"refused", name + " was started before Gatekeeper last restarted, so it can't be told to hold its saving still: stop it first, then back it up"};
+		if (r == null && DirectHost.adopted(d) != null) return new String[] {"refused", name
+				+ " was started before Gatekeeper last restarted, so it can't be told to hold its saving still: stop it first, then back it up"};
 		boolean all = Json.str(s.get("backup_what")).equals("all");
-		int keep = 10; try { keep = Integer.parseInt(Json.str(s.get("backup_keep")).replaceAll("\\.0$", "")); } catch (NumberFormatException ignored) {}
+		int keep = 10;
+		try { keep = Integer.parseInt(Json.str(s.get("backup_keep")).replaceAll("\\.0$", "")); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 		int keepN = Math.max(1, keep);
 		String level = properties(d).getOrDefault("level-name", "world").trim();
 		backing.put(id, "Backing up…");
@@ -511,17 +566,19 @@ final class ServerTools {
 						z.closeEntry();
 					}
 				}
-				if (files == 0) { Files.deleteIfExists(part); throw new IOException(all ? "the server's folder is empty" : "there is no world yet (the first start makes it)"); }
+				if (files == 0) { Files.deleteIfExists(part); throw new IOException(all ? "the server's folder is empty"
+						: "there is no world yet (the first start makes it)"); }
 				Files.move(part, zip, StandardCopyOption.REPLACE_EXISTING);
 				// (the oldest of Gatekeeper's own backups there go, beyond the number to keep)
 				List<Path> mine = new ArrayList<>();
 				try (java.util.stream.Stream<Path> l = Files.list(bd)) { l.filter(q -> q.getFileName().toString().matches("backup_.*\\.zip")).sorted(java.util.Comparator.reverseOrder()).forEach(mine::add); }
 				for (int i = keepN; i < mine.size(); i++) Files.deleteIfExists(mine.get(i));
-				String done = "Backed up " + LocalDateTime.now().format(TIME) + ": " + zip.getFileName() + " (" + Math.max(1, Files.size(zip) / 1048576) + " MB, " + files + " files)";
+				String done = "Backed up " + LocalDateTime.now().format(TIME) + ": " + zip.getFileName() + " (" + Math.max(1,
+						Files.size(zip) / 1048576) + " MB, " + files + " files)";
 				backing.put(id, done);
 				log("backup of " + name + " (asked by " + by + "): " + zip + (mine.size() > keepN ? "; " + (mine.size() - keepN) + " older removed" : ""));
 			} catch (Exception e) {
-				try { Files.deleteIfExists(part); } catch (IOException ignored) {}
+				try { Files.deleteIfExists(part); } catch (IOException ignored) { Quiet.seen(ignored); }
 				backing.put(id, "The last backup failed: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
 				log("backup of " + name + " (asked by " + by + ") failed: " + e);
 			} finally {
@@ -617,11 +674,15 @@ final class ServerTools {
 			// Windows with MCSS: whether Gatekeeper may also run servers of its own.
 			boolean want = yes(b.get("on"));
 			if (builtin()) { reply(x, 200, m("result", "refused", "message", "Gatekeeper already runs every server itself on this machine.")); return true; }
-			if (!want) for (Object o : servers()) if (yes(Json.map(o).get("native"))) { reply(x, 200, m("result", "refused", "message", "Gatekeeper still looks after " + Json.str(Json.map(o).get("name")) + ", which it runs itself. Untick it in Server setup first (its files stay where they are).")); return true; }
+			if (!want) for (Object o : servers()) if (yes(Json.map(o).get("native"))) { reply(x, 200, m("result", "refused", "message",
+					"Gatekeeper still looks after " + Json.str(Json.map(o).get("name"))
+					+ ", which it runs itself. Untick it in Server setup first (its files stay where they are).")); return true; }
 			cfg.put("native_servers", want ? "true" : "false");
 			saveCfg();
 			log("servers run by Gatekeeper itself, beside MCSS's: " + (want ? "allowed" : "not allowed"));
-			reply(x, 200, m("result", "ok", "message", want ? "Gatekeeper may now run servers itself as well. New server makes them in " + serversDir() + "; servers already in that folder show up in Server setup. MCSS's own servers stay MCSS's." : "Gatekeeper runs no servers itself now: MCSS runs them all."));
+			reply(x, 200, m("result", "ok", "message", want ? "Gatekeeper may now run servers itself as well. New server makes them in "
+					+ serversDir() + "; servers already in that folder show up in Server setup. MCSS's own servers stay MCSS's."
+					: "Gatekeeper runs no servers itself now: MCSS runs them all."));
 			return true;
 		}
 		if (what.equals("delete") && post) {   // (any server can be taken out of Gatekeeper; only its own can lose their files)
@@ -636,14 +697,17 @@ final class ServerTools {
 			if (post) r = create(b);
 			else {
 				List<String> free = freePorts(1);
-				reply(x, 200, m("host", "builtin", "folder", serversDir(), "port", free.isEmpty() ? "25565" : free.get(0), "javas", javas(), "making", new LinkedHashMap<>(making),
-						"kinds", List.of(m("id", "vanilla", "name", "Vanilla (the plain game, from Mojang)"), m("id", "paper", "name", "Paper (plugins, from PaperMC)"), m("id", "fabric", "name", "Fabric (mods, from Fabric)"),
+				reply(x, 200, m("host", "builtin", "folder", serversDir(), "port", free.isEmpty() ? "25565" : free.get(0), "javas",
+						javas(), "making", new LinkedHashMap<>(making),
+						"kinds", List.of(m("id", "vanilla", "name", "Vanilla (the plain game, from Mojang)"), m("id", "paper", "name",
+								"Paper (plugins, from PaperMC)"), m("id", "fabric", "name", "Fabric (mods, from Fabric)"),
 								m("id", "forge", "name", "Forge or NeoForge (mods): an installer I downloaded"), m("id", "file", "name", "A server jar I already have"))));
 				return true;
 			}
 		} else if (what.equals("versions")) {
 			try { reply(x, 200, m("result", "ok", "versions", versions(Json.str(b.get("kind"))))); }
-			catch (IOException e) { reply(x, 200, m("result", "failed", "message", "The list of versions couldn't be fetched (" + e.getMessage() + "). Is this machine online?", "versions", List.of())); }
+			catch (IOException e) { reply(x, 200, m("result", "failed", "message", "The list of versions couldn't be fetched ("
+					+ e.getMessage() + "). Is this machine online?", "versions", List.of())); }
 			return true;
 		} else if (server().isEmpty()) r = new String[] {"refused", "No such server"};
 		else if (what.equals("server")) {
@@ -651,12 +715,15 @@ final class ServerTools {
 			else { reply(x, 200, info()); return true; }
 		} else if (what.equals("properties")) {
 			Map<String, String> set = new LinkedHashMap<>();
-			for (Map.Entry<String, Object> e : Json.map(b.get("values")).entrySet()) if (e.getKey().matches("[A-Za-z0-9._-]+")) set.put(e.getKey(), Json.str(e.getValue()).replaceAll("[\\r\\n]", " "));
+			for (Map.Entry<String, Object> e
+					: Json.map(b.get("values")).entrySet()) if (e.getKey().matches("[A-Za-z0-9._-]+")) set.put(e.getKey(), Json.str(e.getValue()).replaceAll("[\\r\\n]", " "));
 			if (set.containsKey("server-port")) r = new String[] {"refused", "Change the port on the Settings tab (Gatekeeper and the launchers need to know it too)."};
-			else { setProperties(serverDir(), set); log("server.properties of " + serverName() + " changed from Gatekeeper: " + String.join(", ", set.keySet())); r = new String[] {"ok", minecraftRunning() ? "Saved. The server reads its settings when it starts: restart it for them to take effect." : "Saved."}; }
+			else { setProperties(serverDir(), set); log("server.properties of " + serverName() + " changed from Gatekeeper: "
+					+ String.join(", ", set.keySet())); r = new String[] {"ok", minecraftRunning()
+					? "Saved. The server reads its settings when it starts: restart it for them to take effect." : "Saved."}; }
 		} else if (what.equals("console")) {
 			// What it has printed since line number "after" (0: the newest 300).
-			long after = 0; try { after = (long) Double.parseDouble(Json.str(b.get("after"))); } catch (NumberFormatException ignored) {}
+			long after = 0; try { after = (long) Double.parseDouble(Json.str(b.get("after"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 			DirectHost.Run run = DirectHost.runs.get(id());
 			if (run == null) run = DirectHost.ended.get(id());
 			List<Object> lines = new ArrayList<>();
@@ -667,7 +734,8 @@ final class ServerTools {
 				long n = first;
 				for (String l : run.lines) { if (n >= from) lines.add(l); n++; }
 			}
-			reply(x, 200, m("lines", lines, "next", next, "live", run != null && run.process.isAlive(), "adopted", run == null && DirectHost.adopted(serverDir()) != null));
+			reply(x, 200, m("lines", lines, "next", next, "live", run != null && run.process.isAlive(), "adopted", run == null
+					&& DirectHost.adopted(serverDir()) != null));
 			return true;
 		} else if (what.equals("command")) {
 			String line = Json.str(b.get("command")).trim().replaceAll("^/", "");
@@ -681,9 +749,10 @@ final class ServerTools {
 		} else if (what.equals("backup")) r = backup("the owner");
 		else if (what.equals("task")) {
 			List<Object> tasks = Json.list(server().get("tasks"));
-			int i = -1; try { i = (int) Double.parseDouble(Json.str(b.get("index"))); } catch (NumberFormatException ignored) {}
+			int i = -1; try { i = (int) Double.parseDouble(Json.str(b.get("index"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 			if (i < 0 || i >= tasks.size()) r = new String[] {"refused", "No such task (save the list first)"};
-			else { r = runTask(Json.map(tasks.get(i)), "the owner"); log("task \"" + Json.str(Json.map(tasks.get(i)).get("name")) + "\" for " + serverName() + ", run now: " + r[1]); }
+			else { r = runTask(Json.map(tasks.get(i)), "the owner"); log("task \"" + Json.str(Json.map(tasks.get(i)).get("name"))
+					+ "\" for " + serverName() + ", run now: " + r[1]); }
 		} else return false;
 		reply(x, 200, m("result", r[0], "message", r[1]));
 		return true;

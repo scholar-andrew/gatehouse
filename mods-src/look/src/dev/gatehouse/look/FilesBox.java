@@ -33,9 +33,11 @@ import javax.swing.table.DefaultTableModel;
 public final class FilesBox {
 	private FilesBox() {}
 
-	public static void show(Component over, String room, String limit, Supplier<List<String[]>> list, Function<String, byte[]> fetch, BiFunction<String, byte[], String> send) {
+	public static void show(Component over, String room, String limit, Supplier<List<String[]>> list, Function<String, byte[]> fetch,
+			BiFunction<String, byte[], String> send) {
 		JDialog d = new JDialog(SwingUtilities.getWindowAncestor(over), "Files: " + room, JDialog.ModalityType.APPLICATION_MODAL);
-		DefaultTableModel model = new DefaultTableModel(new Object[] {"File", "Size", "From", "When"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+		DefaultTableModel model = new DefaultTableModel(new Object[] {"File", "Size", "From", "When"},
+				0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(model);
 		table.setRowHeight(26);
 		List<String[]>[] rows = new List[] {List.of()};
@@ -43,7 +45,8 @@ public final class FilesBox {
 		said.setForeground(new Color(0x8F98A0));
 		Runnable load = () -> new Thread(() -> {
 			List<String[]> got = list.get();
-			SwingUtilities.invokeLater(() -> { rows[0] = got; model.setRowCount(0); for (String[] r : got) model.addRow(new Object[] {r[1], r[2], r[3], r[4]}); if (got.isEmpty()) said.setText("Nothing is on offer in this room."); });
+			SwingUtilities.invokeLater(() -> { rows[0] = got; model.setRowCount(0); for (String[] r : got) model.addRow(new Object[] {r[1],
+					r[2], r[3], r[4]}); if (got.isEmpty()) said.setText("Nothing is on offer in this room."); });
 		}, "files").start();
 		JButton save = new JButton("Save a copy…"), offer = new JButton("Offer a file…"), close = new JButton("Close");
 		save.addActionListener(e -> {

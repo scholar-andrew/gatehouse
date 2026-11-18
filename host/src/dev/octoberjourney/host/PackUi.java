@@ -27,6 +27,7 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The window's side of Packs and History: a server's "Pack" tab in Manage (making, building and bringing in its pack,
@@ -35,7 +36,8 @@ import javax.swing.table.DefaultTableModel;
  */
 final class PackUi {
 	private PackUi() {}
-	private static JPanel line(JComponent... parts) { JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0)); for (JComponent c : parts) p.add(c); return p; }
+	private static JPanel line(JComponent... parts) { JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0)); for (JComponent c
+			: parts) p.add(c); return p; }
 	private static void row(JPanel form, int y, String label, JComponent field) {
 		GridBagConstraints c = new GridBagConstraints();
 		c.gridy = y; c.insets = new Insets(4, 4, 4, 8); c.anchor = GridBagConstraints.NORTHWEST;
@@ -66,10 +68,12 @@ final class PackUi {
 		p.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
 		if (farUrl != null) { p.add(ServerToolsUi.note(ServerToolsUi.wrap("A server's pack is made and built at its own Gatekeeper's window, not from another Gatekeeper.", 560)), BorderLayout.NORTH); return p; }
 		JLabel stands = new JLabel(" "), said = new JLabel(" "), artSaid = new JLabel(" "), preview = new JLabel();
-		JButton make = new JButton("Make a pack for this server"), build = new JButton("Build again"), release = new JButton("New version…"), bring = new JButton("Bring in a pack from a folder…"), modsB = new JButton("Mods players get…");
+		JButton make = new JButton("Make a pack for this server"), build = new JButton("Build again"),
+				release = new JButton("New version…"), bring = new JButton("Bring in a pack from a folder…"), modsB = new JButton("Mods players get…");
 		modsB.setToolTipText("<html>The server's own mods, each with a switch: which ones players are sent. Gatekeeper guesses; you decide.<br>A mod comes from its own page on the mod site when that exact file is published there, and from this Gatekeeper otherwise.</html>");
 		String[] nextNotes = {""};
-		String[][] modes = {{"private", "Private: only launchers you let in"}, {"shareable", "Shareable: those, and anyone they invite"}, {"public", "Public: every launcher that connects here"}};
+		String[][] modes = {{"private", "Private: only launchers you let in"}, {"shareable", "Shareable: those, and anyone they invite"},
+				{"public", "Public: every launcher that connects here"}};
 		JComboBox<String> whoBox = new JComboBox<>(new String[] {modes[0][1], modes[1][1], modes[2][1]});
 		whoBox.setToolTipText("<html>Who this server and its pack are for. Private unless you change it.<br>Private: this machine's launcher, launchers with control here or allowed to start this server, launchers playing as someone on its whitelist, and anyone you invite.<br>Shareable: those, and anyone one of them invites.<br>Public: every launcher that connects to this Gatekeeper.<br>An invite never puts anyone on the whitelist or gives any control.</html>");
 		JButton inviteB = new JButton("Invite…"), takeBackB = new JButton("Take back invites");
@@ -97,19 +101,21 @@ final class PackUi {
 			if (!defined) { preview.setIcon(null); artSaid.setText(" "); return; }
 			artSaid.setForeground(ServerToolsUi.GREY);
 			String how = Json.str(Json.map(now[0].get("art")).get(slot));
-			artSaid.setText(how.equals("chosen") ? "A picture you chose. Undo my choice goes back to what was here before." : how.equals("pack") ? "The picture this pack came with." : "Made by Gatekeeper from the pack's name and the server's picture.");
+			artSaid.setText(how.equals("chosen") ? "A picture you chose. Undo my choice goes back to what was here before."
+					: how.equals("pack") ? "The picture this pack came with." : "Made by Gatekeeper from the pack's name and the server's picture.");
 			Runnable fetch = () -> {
 				try {
 					java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(artCall(q, slot, null)));
 					if (img == null) return;
 					double k = Math.min(296.0 / img.getWidth(), 166.0 / img.getHeight());
-					java.awt.image.BufferedImage small = new java.awt.image.BufferedImage(Math.max(1, (int) (img.getWidth() * k)), Math.max(1, (int) (img.getHeight() * k)), java.awt.image.BufferedImage.TYPE_INT_ARGB);
+					java.awt.image.BufferedImage small = new java.awt.image.BufferedImage(Math.max(1, (int) (img.getWidth() * k)),
+							Math.max(1, (int) (img.getHeight() * k)), java.awt.image.BufferedImage.TYPE_INT_ARGB);
 					java.awt.Graphics2D g = small.createGraphics();
 					g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 					g.drawImage(img, 0, 0, small.getWidth(), small.getHeight(), null); g.dispose();
 					Runnable put = () -> { if (slotBox.getSelectedIndex() == i) preview.setIcon(new javax.swing.ImageIcon(small)); };
 					if (SwingUtilities.isEventDispatchThread()) put.run(); else SwingUtilities.invokeLater(put);
-				} catch (IOException | RuntimeException ignored) {}
+				} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 			};
 			if (opening[0]) fetch.run(); else ServerToolsUi.later(fetch);
 		};
@@ -120,13 +126,18 @@ final class PackUi {
 				make.setVisible(!defined); build.setVisible(defined); release.setVisible(defined); modsB.setVisible(defined);
 				make.setEnabled(!Json.str(s.get("loader")).isEmpty());
 				String text;
-				if (Json.str(s.get("server")).isEmpty()) text = Json.str(s.get("message")).isEmpty() ? "Couldn't ask Gatekeeper: is it running?" : esc(Json.str(s.get("message")));
+				if (Json.str(s.get("server")).isEmpty()) text = Json.str(s.get("message")).isEmpty()
+						? "Couldn't ask Gatekeeper: is it running?" : esc(Json.str(s.get("message")));
 				else if (!defined) text = esc(Json.str(s.get("message")));
 				else {
-					String n = ServerToolsUi.num(s.get("mods")), dk = ServerToolsUi.num(s.get("deck_mods")), own = ServerToolsUi.num(s.get("own_mods")), sw = ServerToolsUi.num(s.get("switchable"));
-					text = "<b>" + esc(Json.str(s.get("pack_name"))) + " " + esc(Json.str(s.get("version"))) + "</b>: " + n + " mod(s)" + (n.equals("0") ? "" : " (" + dk + " only for the Steam Deck, " + own + " that are files of this pack's own, " + sw + " players can switch off)")
+					String n = ServerToolsUi.num(s.get("mods")), dk = ServerToolsUi.num(s.get("deck_mods")),
+							own = ServerToolsUi.num(s.get("own_mods")), sw = ServerToolsUi.num(s.get("switchable"));
+					text = "<b>" + esc(Json.str(s.get("pack_name"))) + " " + esc(Json.str(s.get("version"))) + "</b>: " + n + " mod(s)"
+							+ (n.equals("0") ? "" : " (" + dk + " only for the Steam Deck, " + own + " that are files of this pack's own, " + sw + " players can switch off)")
 							+ ". Minecraft " + esc(Json.str(s.get("pack_minecraft"))) + ", Fabric loader " + esc(Json.str(s.get("pack_loader"))) + ".<br>"
-							+ (ServerTools.yes(s.get("built")) ? "Built " + esc(Json.str(s.get("built_at"))) + " as " + esc(Json.str(s.get("built_version"))) + ", with Gatehouse " + esc(Json.str(s.get("built_with"))) + ". Launchers fetch it from this Gatekeeper: " + esc(Json.str(s.get("address"))) + "."
+							+ (ServerTools.yes(s.get("built")) ? "Built " + esc(Json.str(s.get("built_at"))) + " as "
+									+ esc(Json.str(s.get("built_version"))) + ", with Gatehouse " + esc(Json.str(s.get("built_with")))
+									+ ". Launchers fetch it from this Gatekeeper: " + esc(Json.str(s.get("address"))) + "."
 									: "Not built yet: launchers can't fetch it.")
 							+ (Json.str(s.get("message")).isEmpty() ? "" : "<br>" + esc(Json.str(s.get("message"))));
 					StringBuilder notes = new StringBuilder();
@@ -138,19 +149,25 @@ final class PackUi {
 				for (int i = 0; i < modes.length; i++) if (modes[i][0].equals(Json.str(s.get("visibility")))) whoBox.setSelectedIndex(i);
 				filling[0] = false;
 				StringBuilder came = new StringBuilder();
-				for (Object o : Json.list(s.get("invited"))) { Map<String, Object> c = Json.map(o); came.append(came.length() == 0 ? "" : "; ").append(Json.str(c.get("name"))).append(" (invited by ").append(Json.str(c.get("by"))).append(ServerTools.yes(c.get("counts")) ? ")" : ", not counting while this is private)"); }
+				for (Object o : Json.list(s.get("invited"))) { Map<String, Object> c = Json.map(o); came.append(came.length() == 0 ? ""
+						: "; ").append(Json.str(c.get("name"))).append(" (invited by ").append(Json.str(c.get("by"))).append(ServerTools.yes(c.get("counts")) ? ")" : ", not counting while this is private)"); }
 				StringBuilder in = new StringBuilder();
-				for (Object o : Json.list(s.get("let_in"))) { Map<String, Object> c = Json.map(o); in.append(in.length() == 0 ? "" : "; ").append(Json.str(c.get("name"))).append(" (").append(Json.str(c.get("why"))).append(")"); }
+				for (Object o : Json.list(s.get("let_in"))) { Map<String, Object> c = Json.map(o); in.append(in.length() == 0 ? ""
+						: "; ").append(Json.str(c.get("name"))).append(" (").append(Json.str(c.get("why"))).append(")"); }
 				String others = ServerToolsUi.num(s.get("others"));
-				invitedSaid.setText(ServerToolsUi.wrap("Let in by you, so they have this server at every setting: " + (in.length() == 0 ? "nobody yet" : in.toString()) + ". "
-						+ (others.equals("0") || others.isEmpty() ? "No other launcher is known here." : others + " other launcher(s) known here " + (Json.str(s.get("visibility")).equals("public") ? "have it because it is public." : "don't have it."))
-						+ " " + (came.length() == 0 ? "Nobody has come in by invite." : "Came in by invite: " + came + ".") + " Invites that haven't run out: " + ServerToolsUi.num(s.get("invites_live")) + ".", 560));
+				invitedSaid.setText(ServerToolsUi.wrap("Let in by you, so they have this server at every setting: " + (in.length() == 0
+						? "nobody yet" : in.toString()) + ". "
+						+ (others.equals("0") || others.isEmpty() ? "No other launcher is known here." : others
+								+ " other launcher(s) known here " + (Json.str(s.get("visibility")).equals("public") ? "have it because it is public." : "don't have it."))
+						+ " " + (came.length() == 0 ? "Nobody has come in by invite." : "Came in by invite: " + came + ".")
+								+ " Invites that haven't run out: " + ServerToolsUi.num(s.get("invites_live")) + ".", 560));
 				takeBackB.setEnabled(came.length() > 0 || !ServerToolsUi.num(s.get("invites_live")).equals("0"));
 				p.revalidate();
 				showArt.run();
 			}
 		};
-		Runnable load = () -> ServerToolsUi.later(() -> { Map<String, Object> s = ServerToolsUi.ask("GET", "/admin/pack" + q, null); SwingUtilities.invokeLater(() -> show.accept(s)); });
+		Runnable load = () -> ServerToolsUi.later(() -> { Map<String, Object> s = ServerToolsUi.ask("GET", "/admin/pack" + q,
+				null); SwingUtilities.invokeLater(() -> show.accept(s)); });
 		slotBox.addActionListener(e -> showArt.run());
 		java.util.function.BiConsumer<String, Object> post = (path, body) -> ServerToolsUi.later(() -> {
 			SwingUtilities.invokeLater(() -> { said.setForeground(ServerToolsUi.AMBER); said.setText("Working…"); });
@@ -159,7 +176,8 @@ final class PackUi {
 		});
 		make.addActionListener(e -> post.accept("/admin/pack/start", m()));
 		whoBox.addActionListener(e -> { if (!filling[0]) post.accept("/admin/pack/visibility", m("mode", modes[Math.max(0, whoBox.getSelectedIndex())][0])); });
-		takeBackB.addActionListener(e -> { if (javax.swing.JOptionPane.showConfirmDialog(p, ServerToolsUi.wrap("Take back every invite to this server? Launchers that only came in by invite are no longer given it or its pack. What they already installed stays on their device.", 420), "Take back invites", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) post.accept("/admin/pack/invites/takeback", m()); });
+		takeBackB.addActionListener(e -> { if (javax.swing.JOptionPane.showConfirmDialog(p,
+				ServerToolsUi.wrap("Take back every invite to this server? Launchers that only came in by invite are no longer given it or its pack. What they already installed stays on their device.", 420), "Take back invites", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) post.accept("/admin/pack/invites/takeback", m()); });
 		inviteB.addActionListener(e -> ServerToolsUi.later(() -> {
 			Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/pack/invite" + q, m());
 			SwingUtilities.invokeLater(() -> {
@@ -167,9 +185,10 @@ final class PackUi {
 				javax.swing.JTextField link = new javax.swing.JTextField(Json.str(r.get("link")), 44);
 				link.setEditable(false);
 				JButton copy = new JButton("Copy");
-				copy.addActionListener(ev -> { try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(link.getText()), null); copy.setText("Copied"); } catch (RuntimeException ignored) {} });
+				copy.addActionListener(ev -> { try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(link.getText()), null); copy.setText("Copied"); } catch (RuntimeException ignored) { Quiet.seen(ignored); } });
 				JPanel box = new JPanel(new BorderLayout(0, 8));
-				box.add(new JLabel(ServerToolsUi.wrap("An invite to " + Json.str(r.get("server")) + ", good until " + Json.str(r.get("until")) + ". " + Json.str(r.get("message")), 480)), BorderLayout.NORTH);
+				box.add(new JLabel(ServerToolsUi.wrap("An invite to " + Json.str(r.get("server")) + ", good until "
+						+ Json.str(r.get("until")) + ". " + Json.str(r.get("message")), 480)), BorderLayout.NORTH);
 				box.add(line(link, copy), BorderLayout.CENTER);
 				javax.swing.JOptionPane.showMessageDialog(p, box, "Invite", javax.swing.JOptionPane.PLAIN_MESSAGE);
 				load.run();
@@ -182,24 +201,28 @@ final class PackUi {
 			JPanel ask = new JPanel(new BorderLayout(0, 6));
 			ask.add(new JLabel(ServerToolsUi.wrap("What changed, a line for each thing. Players read this before they update.", 420)), BorderLayout.NORTH);
 			ask.add(new JScrollPane(notes), BorderLayout.CENTER);
-			if (javax.swing.JOptionPane.showConfirmDialog(p, ask, "New version of the pack", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
+			if (javax.swing.JOptionPane.showConfirmDialog(p, ask, "New version of the pack", javax.swing.JOptionPane.OK_CANCEL_OPTION,
+					javax.swing.JOptionPane.PLAIN_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
 			nextNotes[0] = "";
 			post.accept("/admin/pack/release", m("notes", notes.getText()));
 		});
-		modsB.addActionListener(e -> mods(p, q, text -> { if (!text.isEmpty()) nextNotes[0] = nextNotes[0].isEmpty() ? text : nextNotes[0] + "\n" + text; load.run(); }));
+		modsB.addActionListener(e -> mods(p, q, text -> { if (!text.isEmpty()) nextNotes[0] = nextNotes[0].isEmpty() ? text : nextNotes[0]
+				+ "\n" + text; load.run(); }));
 		bring.addActionListener(e -> {
 			javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 			fc.setDialogTitle("The folder the pack is defined in");
 			fc.setFileSelectionMode(javax.swing.JFileChooser.DIRECTORIES_ONLY);
 			if (fc.showOpenDialog(p) != javax.swing.JFileChooser.APPROVE_OPTION) return;
-			if (ServerTools.yes(now[0].get("defined")) && javax.swing.JOptionPane.showConfirmDialog(p, ServerToolsUi.wrap("This server already has a pack. Bringing one in replaces it (the one it has now is kept beside it until the next time), and players get the new one the next time they press Play. Go on?", 420),
+			if (ServerTools.yes(now[0].get("defined")) && javax.swing.JOptionPane.showConfirmDialog(p,
+					ServerToolsUi.wrap("This server already has a pack. Bringing one in replaces it (the one it has now is kept beside it until the next time), and players get the new one the next time they press Play. Go on?", 420),
 					"Bring in a pack", javax.swing.JOptionPane.OK_CANCEL_OPTION) != javax.swing.JOptionPane.OK_OPTION) return;
 			post.accept("/admin/pack/import", m("folder", fc.getSelectedFile().getAbsolutePath()));
 		});
 		java.util.function.Consumer<byte[]> sendArt = bytes -> ServerToolsUi.later(() -> {
 			String slot = PackArt.SLOTS[Math.max(0, slotBox.getSelectedIndex())];
 			Map<String, Object> r;
-			try { r = Json.map(Json.parse(new String(artCall(q, slot, bytes), StandardCharsets.UTF_8))); } catch (IOException | RuntimeException ex) { r = m("result", "failed", "message", "Gatekeeper didn't answer."); }
+			try { r = Json.map(Json.parse(new String(artCall(q, slot, bytes),
+					StandardCharsets.UTF_8))); } catch (IOException | RuntimeException ex) { r = m("result", "failed", "message", "Gatekeeper didn't answer."); }
 			Map<String, Object> rr = r;
 			SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said, rr); load.run(); });
 		});
@@ -216,13 +239,15 @@ final class PackUi {
 		back.addActionListener(e -> sendArt.accept(new byte[0]));
 		JPanel form = new JPanel(new GridBagLayout());
 		int y = 0;
-		row(form, y++, null, ServerToolsUi.note(ServerToolsUi.wrap("A pack is what players' launchers install and keep current for this server: its mods, their settings, and the pictures Steam shows for its shortcut. Gatekeeper builds it and hands it to launchers itself.", 560)));
+		row(form, y++, null,
+				ServerToolsUi.note(ServerToolsUi.wrap("A pack is what players' launchers install and keep current for this server: its mods, their settings, and the pictures Steam shows for its shortcut. Gatekeeper builds it and hands it to launchers itself.", 560)));
 		row(form, y++, "Who it is for", line(whoBox, inviteB, takeBackB));
 		row(form, y++, "", invitedSaid);
 		row(form, y++, null, stands);
 		row(form, y++, null, line(make, modsB, release, build, bring));
 		row(form, y++, null, said);
-		row(form, y++, null, ServerToolsUi.note(ServerToolsUi.wrap("Pictures for Steam. Each is one you choose (brought to the right size here) or one Gatekeeper makes. A change goes out with the next build.", 560)));
+		row(form, y++, null,
+				ServerToolsUi.note(ServerToolsUi.wrap("Pictures for Steam. Each is one you choose (brought to the right size here) or one Gatekeeper makes. A change goes out with the next build.", 560)));
 		row(form, y++, "Picture", line(slotBox, choose, back));
 		row(form, y++, "", preview);
 		row(form, y++, "", artSaid);
@@ -250,20 +275,26 @@ final class PackUi {
 		again.setToolTipText("Reads the server's mods folder again and asks the mod site afresh about every file");
 		java.util.function.Consumer<Map<String, Object>> show = r -> {
 			tm.setRowCount(0); keys.clear(); hands.clear();
-			if (!Json.str(r.get("result")).equals("ok")) { head.setText(ServerToolsUi.wrap(Json.str(r.get("message")).isEmpty() ? "Couldn't ask Gatekeeper: is it running?" : Json.str(r.get("message")), 1000)); save.setEnabled(false); return; }
+			if (!Json.str(r.get("result")).equals("ok")) { head.setText(ServerToolsUi.wrap(Json.str(r.get("message")).isEmpty()
+					? "Couldn't ask Gatekeeper: is it running?" : Json.str(r.get("message")), 1000)); save.setEnabled(false); return; }
 			save.setEnabled(true);
 			for (Object o : Json.list(r.get("mods"))) {
 				Map<String, Object> e = Json.map(o);
 				String from = Json.str(e.get("from")), in = Json.str(e.get("in_pack"));
 				keys.add(Json.str(e.get("key"))); hands.add(ServerTools.yes(e.get("hand")) ? "hand" : "");
 				tm.addRow(new Object[] {ServerTools.yes(e.get("send")), Json.str(e.get("name")), Json.str(e.get("version")), Json.str(e.get("mb")),
-						from.equals("site") ? "Its own page (" + Json.str(r.get("site")) + ")" : from.equals("gatekeeper") ? "This Gatekeeper" : from.equals("unknown") ? "Not known yet" : "",
-						in.equals("yes") ? "Yes" : in.equals("older") ? "An older file of it" : in.equals("hand") ? "Yes, put there by hand" : "No", Json.str(e.get("why")) + (ServerTools.yes(e.get("chosen")) ? " (Your choice.)" : "")});
+						from.equals("site") ? "Its own page (" + Json.str(r.get("site")) + ")" : from.equals("gatekeeper")
+								? "This Gatekeeper" : from.equals("unknown") ? "Not known yet" : "",
+						in.equals("yes") ? "Yes" : in.equals("older") ? "An older file of it" : in.equals("hand")
+								? "Yes, put there by hand" : "No", Json.str(e.get("why")) + (ServerTools.yes(e.get("chosen")) ? " (Your choice.)" : "")});
 			}
 			List<Object> gone = Json.list(r.get("gone"));
-			String text = tm.getRowCount() == 0 ? "The server's mods folder has no mods in it." : "The server's own mods (" + tm.getRowCount() + "). Tick the ones players are sent; Gatekeeper's guess is ticked already. A mod comes from its own page when that exact file is published there, and from this Gatekeeper otherwise. Saving changes the pack's list; players get it with the pack's next version.";
-			if (!ServerToolsUi.num(r.get("by_hand")).equals("0")) text += " The pack also has " + ServerToolsUi.num(r.get("by_hand")) + " mod(s) put there by hand, which this list leaves alone.";
-			if (!gone.isEmpty()) { StringBuilder g = new StringBuilder(); for (Object o : gone) g.append(g.length() == 0 ? "" : ", ").append(Json.str(o)); text += " No longer on the server, and taken out of the pack when you save: " + g + "."; }
+			String text = tm.getRowCount() == 0 ? "The server's mods folder has no mods in it." : "The server's own mods ("
+					+ tm.getRowCount() + "). Tick the ones players are sent; Gatekeeper's guess is ticked already. A mod comes from its own page when that exact file is published there, and from this Gatekeeper otherwise. Saving changes the pack's list; players get it with the pack's next version.";
+			if (!ServerToolsUi.num(r.get("by_hand")).equals("0")) text += " The pack also has " + ServerToolsUi.num(r.get("by_hand"))
+					+ " mod(s) put there by hand, which this list leaves alone.";
+			if (!gone.isEmpty()) { StringBuilder g = new StringBuilder(); for (Object o : gone) g.append(g.length() == 0 ? ""
+					: ", ").append(Json.str(o)); text += " No longer on the server, and taken out of the pack when you save: " + g + "."; }
 			if (!Json.str(r.get("trouble")).isEmpty()) text += " " + Json.str(r.get("trouble"));
 			head.setText(ServerToolsUi.wrap(text, 1000));
 		};
@@ -273,7 +304,9 @@ final class PackUi {
 			Map<String, Object> send = new java.util.LinkedHashMap<>();
 			for (int i = 0; i < tm.getRowCount(); i++) if (!hands.get(i).equals("hand")) send.put(keys.get(i), Boolean.TRUE.equals(tm.getValueAt(i, 0)));
 			said.setForeground(ServerToolsUi.AMBER); said.setText("Saving…");
-			ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/pack/mods" + q, m("send", send)); SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said, r); if (Json.str(r.get("result")).equals("ok")) { saved.accept(Json.str(r.get("notes"))); load.accept(false); } }); });
+			ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/pack/mods" + q, m("send",
+					send)); SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said,
+					r); if (Json.str(r.get("result")).equals("ok")) { saved.accept(Json.str(r.get("notes"))); load.accept(false); } }); });
 		});
 		JScrollPane sp = new JScrollPane(table); sp.setPreferredSize(new java.awt.Dimension(1100, 400));
 		JPanel lp = new JPanel(new BorderLayout(0, 6));
@@ -281,7 +314,8 @@ final class PackUi {
 		JPanel foot = new JPanel(new BorderLayout()); foot.add(line(save, again), BorderLayout.WEST); foot.add(said, BorderLayout.CENTER);
 		lp.add(foot, BorderLayout.SOUTH);
 		load.accept(false);
-		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/pack/mods" + q, null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) {} t.dispose(); return; }
+		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/pack/mods" + q,
+				null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) { Quiet.seen(ignored); } t.dispose(); return; }
 		javax.swing.JOptionPane.showMessageDialog(over, lp, "Mods players get", javax.swing.JOptionPane.PLAIN_MESSAGE);
 	}
 	private static final Map<DefaultTableModel, java.util.List<String>> rowHand = new java.util.WeakHashMap<>();
@@ -289,7 +323,8 @@ final class PackUi {
 
 	/** Systems: every machine this one knows of, how it stands with each, and Remember / Forget. */
 	static void systems(java.awt.Component over) {
-		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands", "Its Gatekeeper's address", "Seen through", "Last heard from"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+		DefaultTableModel tm = new DefaultTableModel(new Object[] {"System", "Machine", "What it has", "How it stands",
+				"Its Gatekeeper's address", "Seen through", "Last heard from"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(tm);
 		table.setRowHeight(24);
 		table.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
@@ -300,7 +335,9 @@ final class PackUi {
 		JButton keep = new JButton("Remember"), forget = new JButton("Forget");
 		keep.setToolTipText("Keeps the chosen system in this list after the constellation is left. Only a neighbor can be remembered. It gives that system nothing.");
 		forget.setToolTipText("Stops remembering the chosen system");
-		Runnable pick = () -> { int i = table.getSelectedRow(); Map<String, Object> r = i >= 0 && i < shown.size() ? shown.get(i) : null; keep.setEnabled(r != null && ServerTools.yes(r.get("neighbor")) && !ServerTools.yes(r.get("remembered"))); forget.setEnabled(r != null && ServerTools.yes(r.get("remembered"))); };
+		Runnable pick = () -> { int i = table.getSelectedRow(); Map<String, Object> r = i >= 0 && i < shown.size() ? shown.get(i)
+				: null; keep.setEnabled(r != null && ServerTools.yes(r.get("neighbor"))
+				&& !ServerTools.yes(r.get("remembered"))); forget.setEnabled(r != null && ServerTools.yes(r.get("remembered"))); };
 		table.getSelectionModel().addListSelectionListener(e -> pick.run());
 		java.util.function.Consumer<Map<String, Object>> show = r -> {
 			int was = table.getSelectedRow();
@@ -310,13 +347,19 @@ final class PackUi {
 				Map<String, Object> s = Json.map(o);
 				shown.add(s);
 				boolean house = ServerTools.yes(s.get("gatehouse")), keeper = ServerTools.yes(s.get("gatekeeper"));
-				tm.addRow(new Object[] {Json.str(s.get("name")), Json.str(s.get("device")), house && keeper ? "Gatehouse and Gatekeeper" : keeper ? "Gatekeeper" : "Gatehouse", Json.str(s.get("status")), Json.str(s.get("address")), Json.str(s.get("via")), ServerTools.yes(s.get("this")) ? "" : ServerTools.yes(s.get("open")) ? "Now" : Json.str(s.get("last_seen"))});
+				tm.addRow(new Object[] {Json.str(s.get("name")), Json.str(s.get("device")), house && keeper ? "Gatehouse and Gatekeeper"
+						: keeper ? "Gatekeeper" : "Gatehouse", Json.str(s.get("status")), Json.str(s.get("address")),
+						Json.str(s.get("via")), ServerTools.yes(s.get("this")) ? "" : ServerTools.yes(s.get("open")) ? "Now" : Json.str(s.get("last_seen"))});
 				if (!wasId.isEmpty() && wasId.equals(Json.str(s.get("id")))) table.setRowSelectionInterval(tm.getRowCount() - 1, tm.getRowCount() - 1);
 			}
 			pick.run();
 		};
-		Runnable load = () -> ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/systems", null); SwingUtilities.invokeLater(() -> show.accept(r)); });
-		java.util.function.Consumer<Boolean> act = forgetIt -> { int i = table.getSelectedRow(); if (i < 0 || i >= shown.size()) return; String id = Json.str(shown.get(i).get("id")); ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/systems/remember", m("id", id, "forget", forgetIt)); SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said, r); load.run(); }); }); };
+		Runnable load = () -> ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/systems",
+				null); SwingUtilities.invokeLater(() -> show.accept(r)); });
+		java.util.function.Consumer<Boolean> act = forgetIt -> { int i = table.getSelectedRow(); if (i < 0
+				|| i >= shown.size()) return; String id = Json.str(shown.get(i).get("id")); ServerToolsUi.later(() -> { Map<String,
+				Object> r = ServerToolsUi.ask("POST", "/admin/systems/remember", m("id", id, "forget",
+				forgetIt)); SwingUtilities.invokeLater(() -> { ServerToolsUi.say(said, r); load.run(); }); }); };
 		keep.addActionListener(e -> act.accept(false));
 		forget.addActionListener(e -> act.accept(true));
 		JScrollPane sp = new JScrollPane(table); sp.setPreferredSize(new java.awt.Dimension(980, 340));
@@ -325,7 +368,8 @@ final class PackUi {
 		lp.add(sp, BorderLayout.CENTER);
 		JPanel foot = new JPanel(new BorderLayout()); foot.add(line(keep, forget), BorderLayout.WEST); foot.add(said, BorderLayout.CENTER);
 		lp.add(foot, BorderLayout.SOUTH);
-		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/systems", null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) {} t.dispose(); return; }
+		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/systems",
+				null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) { Quiet.seen(ignored); } t.dispose(); return; }
 		load.run();
 		javax.swing.JOptionPane.showMessageDialog(over, lp, "Systems", javax.swing.JOptionPane.PLAIN_MESSAGE);
 	}
@@ -338,20 +382,28 @@ final class PackUi {
 		ServerToolsUi.later(() -> {
 			Map<String, Object> r = ServerToolsUi.ask("GET", "/admin/history", null);
 			SwingUtilities.invokeLater(() -> {
-				DefaultTableModel lm = new DefaultTableModel(new Object[] {"When", "What", "Server", "Kind", "Minecraft", "Pack", "Gatekeeper", "Its address", "System"}, 0) { @Override public boolean isCellEditable(int rr, int cc) { return false; } };
+				DefaultTableModel lm = new DefaultTableModel(new Object[] {"When", "What", "Server", "Kind", "Minecraft", "Pack",
+						"Gatekeeper", "Its address", "System"}, 0) { @Override public boolean isCellEditable(int rr, int cc) { return false; } };
 				for (Object o : Json.list(r.get("entries"))) {
 					Map<String, Object> e = Json.map(o);
-					lm.addRow(new Object[] {Json.str(e.get("when")), whatSays(Json.str(e.get("what"))), Json.str(e.get("name")), Json.str(e.get("kind")), Json.str(e.get("version")), Json.str(e.get("pack")), Json.str(e.get("gatekeeper")), Json.str(e.get("address")), Json.str(e.get("system"))});
+					lm.addRow(new Object[] {Json.str(e.get("when")), whatSays(Json.str(e.get("what"))), Json.str(e.get("name")),
+							Json.str(e.get("kind")), Json.str(e.get("version")), Json.str(e.get("pack")), Json.str(e.get("gatekeeper")),
+							Json.str(e.get("address")), Json.str(e.get("system"))});
 				}
 				List<Object> keepers = Json.list(r.get("gatekeepers"));
 				StringBuilder who = new StringBuilder();
-				for (Object o : keepers) { Map<String, Object> k = Json.map(o); who.append(who.length() == 0 ? "" : "; ").append(Json.str(k.get("name"))).append(ServerTools.yes(k.get("this")) ? " (this one)" : Json.str(k.get("address")).isEmpty() ? "" : " at " + Json.str(k.get("address"))).append(", ").append(ServerToolsUi.num(k.get("servers"))).append(" server(s), last ").append(Json.str(k.get("last"))); }
+				for (Object o : keepers) { Map<String, Object> k = Json.map(o); who.append(who.length() == 0 ? ""
+						: "; ").append(Json.str(k.get("name"))).append(ServerTools.yes(k.get("this")) ? " (this one)"
+						: Json.str(k.get("address")).isEmpty() ? "" : " at "
+						+ Json.str(k.get("address"))).append(", ").append(ServerToolsUi.num(k.get("servers"))).append(" server(s), last ").append(Json.str(k.get("last"))); }
 				JTable lt = new JTable(lm); lt.setRowHeight(24);
 				JScrollPane ls = new JScrollPane(lt); ls.setPreferredSize(new java.awt.Dimension(1000, 380));
 				JPanel lp = new JPanel(new BorderLayout(0, 6));
-				String head = lm.getRowCount() == 0 ? "Nothing yet. A line is added when a Gatekeeper makes a server, starts or stops looking after one, or builds a pack's new version."
+				String head = lm.getRowCount() == 0
+						? "Nothing yet. A line is added when a Gatekeeper makes a server, starts or stops looking after one, or builds a pack's new version."
 						: "Newest first. Every server a Gatekeeper of this constellation has made or looked after, kept even after the server is gone. Gatekeepers in it: " + who + ". "
-								+ (ServerTools.yes(r.get("shared")) ? "Shared with the Gatekeeper this one joined, both ways." : "A Gatekeeper that joins this one is handed all of it, and adds its own.");
+								+ (ServerTools.yes(r.get("shared")) ? "Shared with the Gatekeeper this one joined, both ways."
+										: "A Gatekeeper that joins this one is handed all of it, and adds its own.");
 				lp.add(ServerToolsUi.note(ServerToolsUi.wrap(head, 960)), BorderLayout.NORTH);
 				lp.add(ls, BorderLayout.CENTER);
 				javax.swing.JOptionPane.showMessageDialog(over, lp, "History of servers", javax.swing.JOptionPane.PLAIN_MESSAGE);

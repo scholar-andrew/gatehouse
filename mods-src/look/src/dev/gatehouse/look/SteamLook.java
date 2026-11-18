@@ -55,8 +55,10 @@ public final class SteamLook {
 			"Panel.background", BACK, "OptionPane.background", BACK, "OptionPane.messageForeground", TEXT, "Viewport.background", BACK,
 			"Label.foreground", TEXT, "Label.disabledForeground", DIM,
 			"Button.background", RAISED, "Button.foreground", TEXT, "Button.margin", new Insets(6, 14, 6, 14),
-			"CheckBox.icon", toggle(), "RadioButton.icon", ring(), "CheckBox.background", BACK, "CheckBox.foreground", TEXT, "RadioButton.background", BACK, "RadioButton.foreground", TEXT,
-			"TextField.background", DEEP, "TextField.foreground", TEXT, "TextField.caretForeground", TEXT, "TextField.selectionBackground", HOVER, "TextField.selectionForeground", Color.WHITE,
+			"CheckBox.icon", toggle(), "RadioButton.icon", ring(), "CheckBox.background", BACK, "CheckBox.foreground", TEXT,
+					"RadioButton.background", BACK, "RadioButton.foreground", TEXT,
+			"TextField.background", DEEP, "TextField.foreground", TEXT, "TextField.caretForeground", TEXT, "TextField.selectionBackground",
+					HOVER, "TextField.selectionForeground", Color.WHITE,
 			"PasswordField.background", DEEP, "PasswordField.foreground", TEXT, "PasswordField.caretForeground", TEXT,
 			"TextArea.background", DEEP, "TextArea.foreground", TEXT, "TextArea.selectionBackground", HOVER, "TextArea.selectionForeground", Color.WHITE,
 			"TextField.border", BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(LINE), BorderFactory.createEmptyBorder(4, 6, 4, 6)),
@@ -64,13 +66,16 @@ public final class SteamLook {
 			"ComboBox.background", RAISED, "ComboBox.foreground", TEXT, "ComboBox.selectionBackground", HOVER, "ComboBox.selectionForeground", Color.WHITE,
 			"List.background", DEEP, "List.foreground", TEXT, "List.selectionBackground", HOVER, "List.selectionForeground", Color.WHITE,
 			"Table.background", DEEP, "Table.foreground", TEXT, "Table.gridColor", LINE, "Table.selectionBackground", HOVER, "Table.selectionForeground", Color.WHITE,
-			"TableHeader.background", RAISED, "TableHeader.foreground", TEXT, "TableHeader.cellBorder", BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 1, DEEP), BorderFactory.createEmptyBorder(5, 6, 5, 6)),
+			"TableHeader.background", RAISED, "TableHeader.foreground", TEXT, "TableHeader.cellBorder",
+					BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 0, 1, 1, DEEP), BorderFactory.createEmptyBorder(5, 6, 5, 6)),
 			"ScrollPane.background", BACK, "ScrollPane.border", BorderFactory.createLineBorder(LINE), "ScrollBar.width", 14,
 			"TabbedPane.background", BACK, "TabbedPane.foreground", DIM, "TabbedPane.selected", BACK, "TabbedPane.contentBorderInsets", new Insets(1, 0, 0, 0),
-			"TabbedPane.tabInsets", new Insets(8, 16, 8, 16), "TabbedPane.selectedTabPadInsets", new Insets(0, 0, 0, 0), "TabbedPane.tabAreaInsets", new Insets(0, 0, 0, 0), "TabbedPane.tabsOverlapBorder", Boolean.FALSE,
+			"TabbedPane.tabInsets", new Insets(8, 16, 8, 16), "TabbedPane.selectedTabPadInsets", new Insets(0, 0, 0, 0),
+					"TabbedPane.tabAreaInsets", new Insets(0, 0, 0, 0), "TabbedPane.tabsOverlapBorder", Boolean.FALSE,
 			"PopupMenu.background", RAISED, "PopupMenu.border", BorderFactory.createLineBorder(HOVER), "MenuItem.background", RAISED, "MenuItem.foreground", TEXT,
 			"MenuItem.selectionBackground", HOVER, "MenuItem.selectionForeground", Color.WHITE, "MenuItem.border", BorderFactory.createEmptyBorder(6, 10, 6, 10),
-			"ToolTip.background", DEEP, "ToolTip.foreground", TEXT, "ToolTip.border", BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(HOVER), BorderFactory.createEmptyBorder(4, 6, 4, 6)),
+			"ToolTip.background", DEEP, "ToolTip.foreground", TEXT, "ToolTip.border",
+					BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(HOVER), BorderFactory.createEmptyBorder(4, 6, 4, 6)),
 			"FileChooser.listViewBackground", DEEP, "Separator.foreground", LINE, "TitledBorder.titleColor", TEXT,
 		};
 		for (int i = 0; i < kv.length; i += 2) UIManager.put(kv[i], kv[i + 1]);
@@ -140,7 +145,8 @@ public final class SteamLook {
 	 *  under the row. */
 	public static final class FlatTabs extends BasicTabbedPaneUI {
 		public static ComponentUI createUI(JComponent c) { return new FlatTabs(); }
-		@Override protected void installDefaults() { super.installDefaults(); tabAreaInsets = new Insets(0, 0, 0, 0); contentBorderInsets = new Insets(1, 0, 0, 0); selectedTabPadInsets = new Insets(0, 0, 0, 0); }
+		@Override protected void installDefaults() { super.installDefaults(); tabAreaInsets = new Insets(0, 0, 0,
+				0); contentBorderInsets = new Insets(1, 0, 0, 0); selectedTabPadInsets = new Insets(0, 0, 0, 0); }
 		@Override protected void paintTabBackground(Graphics g, int placement, int index, int x, int y, int w, int h, boolean selected) {
 			g.setColor(selected ? DEEP : index == getRolloverTab() ? new Color(0x22344A) : BACK);
 			g.fillRect(x, y, w, h);
@@ -174,7 +180,8 @@ public final class SteamLook {
 	/** A thin scroll bar with a rounded thumb and no arrow buttons. */
 	public static final class FlatScroll extends BasicScrollBarUI {
 		public static ComponentUI createUI(JComponent c) { return new FlatScroll(); }
-		private static JButton none() { JButton b = new JButton(); b.setPreferredSize(new Dimension(0, 0)); b.setMinimumSize(new Dimension(0, 0)); b.setMaximumSize(new Dimension(0, 0)); return b; }
+		private static JButton none() { JButton b = new JButton(); b.setPreferredSize(new Dimension(0,
+				0)); b.setMinimumSize(new Dimension(0, 0)); b.setMaximumSize(new Dimension(0, 0)); return b; }
 		@Override protected JButton createDecreaseButton(int orientation) { return none(); }
 		@Override protected JButton createIncreaseButton(int orientation) { return none(); }
 		@Override protected void paintTrack(Graphics g, JComponent c, Rectangle r) { g.setColor(DEEP); g.fillRect(r.x, r.y, r.width, r.height); }
@@ -223,7 +230,8 @@ public final class SteamLook {
 				g.setStroke(new java.awt.BasicStroke(on ? 2.2f : 1.6f));
 				g.draw(new java.awt.geom.Ellipse2D.Double(x + 2, y + 2, 16, 16));
 				if (on) g.fill(new java.awt.geom.Ellipse2D.Double(x + 6, y + 6, 8, 8));
-				if (c.isFocusOwner()) { g.setColor(GameShell.a(ACCENT, 120)); g.setStroke(new java.awt.BasicStroke(1.4f)); g.draw(new java.awt.geom.Ellipse2D.Double(x - 1, y - 1, 22, 22)); }
+				if (c.isFocusOwner()) { g.setColor(GameShell.a(ACCENT,
+						120)); g.setStroke(new java.awt.BasicStroke(1.4f)); g.draw(new java.awt.geom.Ellipse2D.Double(x - 1, y - 1, 22, 22)); }
 				g.dispose();
 			}
 		};

@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * How this Gatekeeper updates (host.json "update_mode"; each launcher has the same choice of its own, in its Options),
@@ -97,8 +98,9 @@ final class AutoUpdate {
 		Thread t = new Thread(() -> {
 			try {
 				lookForNewer();
-				if (newer() && !mode().equals("normal")) log(mode() + " update: " + from + " saw a newer version first; this Gatekeeper has now seen " + newestKeeper + " too");
-			} catch (RuntimeException ignored) {}
+				if (newer() && !mode().equals("normal")) log(mode() + " update: " + from
+						+ " saw a newer version first; this Gatekeeper has now seen " + newestKeeper + " too");
+			} catch (RuntimeException ignored) { Quiet.seen(ignored); }
 		}, "update-hint");
 		t.setDaemon(true);
 		t.start();
@@ -117,7 +119,8 @@ final class AutoUpdate {
 		r.source = clean(Json.str(b.get("source")), 200).replace("<", "");
 		if (keeper) for (Object o : Json.list(b.get("clients"))) {   // (its own launchers, for the lead's list: kept as plain words)
 			Map<String, Object> c = Json.map(o);
-			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player", clean(Json.str(c.get("player")), 16).replaceAll("\\W", ""), "system", clean(Json.str(c.get("system")), 20).replace("<", ""),
+			if (r.clients.size() < 60) r.clients.add(m("name", clean(Json.str(c.get("name")), 40).replace("<", ""), "player",
+					clean(Json.str(c.get("player")), 16).replaceAll("\\W", ""), "system", clean(Json.str(c.get("system")), 20).replace("<", ""),
 					"version", Json.str(c.get("version")).replaceAll("[^\\w.\\-]", ""), "mode", modeOf(c), "open", ServerTools.yes(c.get("open")), "install", installOf(c)));
 		}
 		seen.put(id, r);
@@ -134,7 +137,9 @@ final class AutoUpdate {
 				if (!d.isEmpty()) {
 					allowed = !keeper || ServerTools.yes(d.get("constellation"));
 					String kept = Json.str(d.get("version"));
-					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && (r.own.equals(kept) || (!kept.isEmpty() && !r.own.isEmpty() && cmpVersion(r.own, kept) < 0)) && r.install.equals(Json.str(d.get("install"))) && r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
+					if (!(r.mode.equals(Json.str(d.get("update_mode"))) && (r.own.equals(kept) || (!kept.isEmpty() && !r.own.isEmpty()
+							&& cmpVersion(r.own, kept) < 0)) && r.install.equals(Json.str(d.get("install")))
+							&& r.kind.equals(Json.str(d.get("kind")).isEmpty() ? "launcher" : Json.str(d.get("kind"))))) {
 						// (a version it reports that isn't the one it reported before: it has updated, and that goes in the update log.
 						// Not for a Gatekeeper: it writes the line for its own update, where it was fetched from included, and hands
 						// it on; a second line from here would say the same update twice, and without the source)
@@ -142,15 +147,19 @@ final class AutoUpdate {
 						// (two launchers reporting as one device, an old one still open beside its updated copy, would
 						// otherwise turn the version back and forth every few seconds: only a newer version counts)
 						String own = !before.isEmpty() && !r.own.isEmpty() && cmpVersion(r.own, before) < 0 ? before : r.own;
-						if (!keeper && !before.isEmpty() && !own.isEmpty() && !before.equals(own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind, Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, own, r.mode, r.info, r.source, r.install);
+						if (!keeper && !before.isEmpty() && !own.isEmpty()
+								&& !before.equals(own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind,
+								Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, own, r.mode, r.info, r.source, r.install);
 						d.put("update_mode", r.mode); d.put("version", own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
 						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);
-						if (keeper && !ServerTools.yes(d.get("constellation")) && !ServerTools.yes(d.get("asked_said"))) { d.put("asked_said", true); saveDevices(devs); log("the Gatekeeper " + name + " asks to join this Gatekeeper's constellation: allow it on the Constellation tab"); }
+						if (keeper && !ServerTools.yes(d.get("constellation"))
+								&& !ServerTools.yes(d.get("asked_said"))) { d.put("asked_said",
+								true); saveDevices(devs); log("the Gatekeeper " + name + " asks to join this Gatekeeper's constellation: allow it on the Constellation tab"); }
 					}
 				}
 			}
-		} catch (IOException ignored) {}
+		} catch (IOException ignored) { Quiet.seen(ignored); }
 		// (a Gatekeeper that joined hands on the lines of its own update log: they are filed here as having come through it)
 		if (keeper && allowed) UpdateLog.taken(name.replace(" (Gatekeeper)", ""), Json.list(b.get("events")));
 		String state = "idle";
@@ -163,7 +172,7 @@ final class AutoUpdate {
 		if (keeper && allowed) {
 			out.put("pack", ownPack());
 			Manage.noted(id, b);   // (what it says about this Gatekeeper managing it: its address and secret, or nothing)
-			try { out.put("may_manage", ServerTools.yes(Json.map(devices().get(id)).get("manage"))); } catch (Exception ignored) {}
+			try { out.put("may_manage", ServerTools.yes(Json.map(devices().get(id)).get("manage"))); } catch (Exception ignored) { Quiet.seen(ignored); }
 		}
 		// (while the constellation is gathering or going, each client is shown who is being waited for)
 		if (!state.equals("idle") && newer()) out.put("gather", gatherFor(id));
@@ -179,16 +188,19 @@ final class AutoUpdate {
 	 *  place of the one pip that Gatekeeper has for it. */
 	static Map<String, Object> gatherFor(String id) {
 		boolean names = id.isEmpty();
-		if (!names) { Map<String, Object> d = Json.map(devices().get(id)); names = ServerTools.yes(d.get("local")) || ServerTools.yes(d.get("admin")) || ServerTools.yes(d.get("constellation")); }
+		if (!names) { Map<String, Object> d = Json.map(devices().get(id)); names = ServerTools.yes(d.get("local"))
+				|| ServerTools.yes(d.get("admin")) || ServerTools.yes(d.get("constellation")); }
 		List<Object> pips = new ArrayList<>();
 		long now = System.currentTimeMillis();
 		List<Object> mine = new ArrayList<>();   // (this Gatekeeper and its own clients)
-		mine.add(m("s", DirectHost.anyTracked() ? "busy" : newer() ? "ready" : "waiting", "k", "gatekeeper", "n", names ? myName() : "", "me", id.isEmpty(), "i", setting("constellation_id", "")));
+		mine.add(m("s", DirectHost.anyTracked() ? "busy" : newer() ? "ready" : "waiting", "k", "gatekeeper", "n", names ? myName() : "",
+				"me", id.isEmpty(), "i", setting("constellation_id", "")));
 		for (Map.Entry<String, Rep> e : seen.entrySet()) {
 			Rep r = e.getValue();
 			if (now - r.at >= 25_000 || !r.mode.equals("constellation") || !counts(e.getKey(), r)) continue;
 			boolean sawIt = !r.sees.isEmpty() || (!r.own.isEmpty() && !newestKeeper.isEmpty() && cmpVersion(r.own, newestKeeper) >= 0);
-			mine.add(m("s", r.busy ? "busy" : sawIt && !r.waiting ? "ready" : "waiting", "k", r.kind, "n", names ? r.name.replace(" (Gatekeeper)", "") : "", "me", e.getKey().equals(id), "i", r.kind.equals("gatekeeper") ? r.install : ""));
+			mine.add(m("s", r.busy ? "busy" : sawIt && !r.waiting ? "ready" : "waiting", "k", r.kind, "n", names
+					? r.name.replace(" (Gatekeeper)", "") : "", "me", e.getKey().equals(id), "i", r.kind.equals("gatekeeper") ? r.install : ""));
 		}
 		List<Object> fromLead = following() ? Json.list(leadGather.get("pips")) : new ArrayList<>();
 		if (fromLead.isEmpty()) pips.addAll(mine);
@@ -204,7 +216,8 @@ final class AutoUpdate {
 		}
 		return m("pips", pips);
 	}
-	static String installOf(Map<String, Object> b) { String s = Json.str(b.get("install")); return s.matches("[0-9a-fA-F\\-]{16,64}") ? s.toLowerCase(java.util.Locale.ROOT) : ""; }
+	static String installOf(Map<String, Object> b) { String s = Json.str(b.get("install")); return s.matches("[0-9a-fA-F\\-]{16,64}")
+			? s.toLowerCase(java.util.Locale.ROOT) : ""; }
 	/** Is that client one this Gatekeeper waits for and takes along (a launcher, or a Gatekeeper that was allowed in)? */
 	static boolean counts(String id, Rep r) {
 		if (!r.kind.equals("gatekeeper")) return true;
@@ -249,8 +262,10 @@ final class AutoUpdate {
 			Map<String, Object> d = Json.map(e.getValue());
 			if (Json.str(d.get("kind")).equals("gatekeeper")) continue;
 			Rep r = seen.get(e.getKey());
-			out.add(m("name", Json.str(d.get("name")), "player", Json.str(d.get("player")), "system", Json.str(d.get("os")), "version", r == null ? Json.str(d.get("version")) : r.own,
-					"mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", (r != null && now - r.at < 25_000) || now - contact.getOrDefault(e.getKey(), 0L) < 20_000,
+			out.add(m("name", Json.str(d.get("name")), "player", Json.str(d.get("player")), "system", Json.str(d.get("os")), "version",
+					r == null ? Json.str(d.get("version")) : r.own,
+					"mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", (r != null && now - r.at < 25_000)
+							|| now - contact.getOrDefault(e.getKey(), 0L) < 20_000,
 					"install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
 		}
 		return out;
@@ -259,14 +274,17 @@ final class AutoUpdate {
 	static void talkToLead() {
 		if (lead().isEmpty()) { leadState = ""; leadSaid = ""; leadMember = false; return; }
 		List<Object> handing = UpdateLog.unsent();
-		String say = Json.write(m("kind", "gatekeeper", "events", handing, "info", UpdateLog.info(), "install", setting("constellation_id", ""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting", launchersWaiting, "system", systemName(), "clients", ownClients(), "manage", Manage.offer()));
+		String say = Json.write(m("kind", "gatekeeper", "events", handing, "info", UpdateLog.info(), "install", setting("constellation_id",
+				""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting",
+				launchersWaiting, "system", systemName(), "clients", ownClients(), "manage", Manage.offer()));
 		try {
 			Map<String, Object> r;
 			try { r = Json.map(Json.parse(leadCall("/v1/update/state", say))); }
 			catch (IOException first) {
 				if (!"unknown".equals(first.getMessage())) throw first;
 				// (not known there yet: it introduces itself, as a launcher does, and reports again)
-				leadCall("/v1/hello", Json.write(m("id", setting("constellation_id", ""), "token", setting("constellation_token", ""), "name", myName() + " (Gatekeeper)", "os", systemName())));
+				leadCall("/v1/hello", Json.write(m("id", setting("constellation_id", ""), "token", setting("constellation_token", ""),
+						"name", myName() + " (Gatekeeper)", "os", systemName())));
 				r = Json.map(Json.parse(leadCall("/v1/update/state", say)));
 			}
 			leadHeard = System.currentTimeMillis();
@@ -278,11 +296,15 @@ final class AutoUpdate {
 			if (leadMember) UpdateLog.handedOn(handing.size());   // (taken there: not handed on again)
 			// (where that Gatekeeper's machine publishes the program: remembered, and looked at only if this one's owner chose that)
 			String pack = Json.str(r.get("pack"));
-			if (leadMember && r.containsKey("pack") && !pack.equals(setting("lead_pack", ""))) { if (pack.isEmpty()) cfg.remove("lead_pack"); else cfg.put("lead_pack", pack); ServerTools.saveCfg(); }
-			leadSaid = leadMember ? "Part of " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation." : "Asked to join " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation: waiting for its owner to allow it (on its Constellation tab).";
+			if (leadMember && r.containsKey("pack") && !pack.equals(setting("lead_pack",
+					""))) { if (pack.isEmpty()) cfg.remove("lead_pack"); else cfg.put("lead_pack", pack); ServerTools.saveCfg(); }
+			leadSaid = leadMember ? "Part of " + (leadName.isEmpty() ? "that Gatekeeper" : leadName) + "'s constellation."
+					: "Asked to join " + (leadName.isEmpty() ? "that Gatekeeper" : leadName)
+					+ "'s constellation: waiting for its owner to allow it (on its Constellation tab).";
 		} catch (IOException | RuntimeException e) {
 			leadState = ""; leadGather = new java.util.LinkedHashMap<>();
-			leadSaid = "The Gatekeeper at " + lead().replaceFirst("^https?://", "") + " isn't answering" + (leadHeard > 0 ? "" : " (or isn't a Gatekeeper of this version)") + ". Until it does, this Gatekeeper decides about updates by itself.";
+			leadSaid = "The Gatekeeper at " + lead().replaceFirst("^https?://", "") + " isn't answering" + (leadHeard > 0 ? ""
+					: " (or isn't a Gatekeeper of this version)") + ". Until it does, this Gatekeeper decides about updates by itself.";
 		}
 	}
 
@@ -304,37 +326,46 @@ final class AutoUpdate {
 					// (never the same published file twice: if it was put in place and this is still the older version,
 					// what was published is at fault, and updating to it again and again would only keep restarting)
 					String target = newestKeeper + "|" + newestKeeperSha;
-					if (target.equals(read(dir.resolve("auto-update-tried.txt")).trim())) { status = newestKeeper + " was installed by itself already, but this is still " + ownVersion() + ". Not trying that one again by itself: press Update Gatekeeper, or wait for the next version."; gatherSince = 0; stuck = true; continue; }
+					if (target.equals(read(dir.resolve("auto-update-tried.txt")).trim())) { status = newestKeeper
+							+ " was installed by itself already, but this is still " + ownVersion()
+							+ ". Not trying that one again by itself: press Update Gatekeeper, or wait for the next version."; gatherSince = 0; stuck = true; continue; }
 					stuck = false;
 					List<String> waitingFor = new ArrayList<>(), ready = new ArrayList<>();
 					if (mode.equals("constellation")) {
-						if (gatherSince == 0) { gatherSince = now; saidServers = false; log(tag + newestKeeper + " is out. Waiting for the clients that are open to be ready for it too."); }
+						if (gatherSince == 0) { gatherSince = now; saidServers = false; log(tag + newestKeeper
+								+ " is out. Waiting for the clients that are open to be ready for it too."); }
 						for (Object[] o : open()) ((Boolean) o[1] ? ready : waitingFor).add((String) o[0]);
 						launchersWaiting = !waitingFor.isEmpty();
 						long waited = now - gatherSince;
 						if (following()) {
 							// (a member: the Gatekeeper it joined says when; this one only tells it whether it is ready)
-							if (!leadState.equals("go")) { status = newestKeeper + " is out. " + (waitingFor.isEmpty() ? "Ready" : "Waiting for " + String.join(", ", waitingFor)) + "; " + leadName + " gives the go for the whole constellation."; continue; }
-						} else if (waited < 15_000 || (!waitingFor.isEmpty() && waited < 600_000)) { status = newestKeeper + " is out. Waiting for " + (waitingFor.isEmpty() ? "the open clients to report" : String.join(", ", waitingFor) + " to be ready") + "."; continue; }
+							if (!leadState.equals("go")) { status = newestKeeper + " is out. " + (waitingFor.isEmpty() ? "Ready"
+									: "Waiting for " + String.join(", ", waitingFor)) + "; " + leadName + " gives the go for the whole constellation."; continue; }
+						} else if (waited < 15_000 || (!waitingFor.isEmpty() && waited < 600_000)) { status = newestKeeper
+								+ " is out. Waiting for " + (waitingFor.isEmpty() ? "the open clients to report" : String.join(", ", waitingFor) + " to be ready") + "."; continue; }
 					}
 					if (DirectHost.anyTracked()) {
-						status = newestKeeper + (mode.equals("constellation") ? " is ready for everyone." : " is out.") + " Waiting for the servers this Gatekeeper runs to be off.";
+						status = newestKeeper + (mode.equals("constellation") ? " is ready for everyone." : " is out.")
+								+ " Waiting for the servers this Gatekeeper runs to be off.";
 						if (!saidServers) { saidServers = true; log(tag + status); }
 						continue;
 					}
 					if (mode.equals("constellation")) {
 						goUntil = now + 90_000;
 						dev.gatehouse.look.Chime.constellation();   // (everyone is ready: the constellation's own sound, here and on every client told to go)
-						status = "Updating to " + newestKeeper + " now" + (following() ? ", on " + leadName + "'s go" : "") + (ready.isEmpty() ? "" : ", with " + String.join(", ", ready)) + ".";
+						status = "Updating to " + newestKeeper + " now" + (following() ? ", on " + leadName + "'s go" : "")
+								+ (ready.isEmpty() ? "" : ", with " + String.join(", ", ready)) + ".";
 						log(tag + status + (waitingFor.isEmpty() ? "" : " Not waited for any longer: " + String.join(", ", waitingFor) + "."));
 						Thread.sleep(8000);   // (so every open client has asked once and been told to go)
 					} else { status = "Updating to " + newestKeeper + " now."; log(tag + status); }
 					UpdateLog.how = howNow(mode);
 					String[] r = applyUpdate(0);
 					log(tag + r[1]);
-					if (r[0].equals("ok")) try { java.nio.file.Files.writeString(dir.resolve("auto-update-tried.txt"), target, StandardCharsets.UTF_8); } catch (IOException ignored) {}
+					if (r[0].equals("ok")) try { java.nio.file.Files.writeString(dir.resolve("auto-update-tried.txt"), target,
+							StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }
 					gatherSince = 0;
-					if (!r[0].equals("ok")) { notBefore = System.currentTimeMillis() + 600_000; status = "The update didn't go through (" + r[1] + "). Trying again in ten minutes."; }
+					if (!r[0].equals("ok")) { notBefore = System.currentTimeMillis() + 600_000; status = "The update didn't go through ("
+							+ r[1] + "). Trying again in ten minutes."; }
 				} catch (InterruptedException e) { return; }
 				catch (RuntimeException e) { log("updating by itself: " + e); }
 			}
@@ -357,12 +388,17 @@ final class AutoUpdate {
 			boolean keeper = Json.str(d.get("kind")).equals("gatekeeper"), in = ServerTools.yes(d.get("constellation"));
 			boolean open = (r != null && now - r.at < 25_000) || now - contact.getOrDefault(e.getKey(), 0L) < 20_000;
 			String nm = Json.str(d.get("name")).replace(" (Gatekeeper)", "");
-			clients.add(m("id", e.getKey(), "type", keeper ? "Gatekeeper" : "Gatehouse (launcher)", "name", nm, "player", Json.str(d.get("player")), "system", r != null && !r.system.isEmpty() ? r.system : Json.str(d.get("os")),
-					"version", r == null ? Json.str(d.get("version")) : r.own, "mode", r == null ? Json.str(d.get("update_mode")) : r.mode, "open", open, "last_seen", Json.str(d.get("last_seen")),
-					"here", ServerTools.yes(d.get("local")), "via", "", "manage", ServerTools.yes(d.get("manage")), "manageable", !Json.str(d.get("manage_url")).isEmpty(), "membership", !keeper ? "" : in ? "member" : "asked", "install", r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
+			clients.add(m("id", e.getKey(), "type", keeper ? "Gatekeeper" : "Gatehouse (launcher)", "name", nm, "player",
+					Json.str(d.get("player")), "system", r != null && !r.system.isEmpty() ? r.system : Json.str(d.get("os")),
+					"version", r == null ? Json.str(d.get("version")) : r.own, "mode", r == null ? Json.str(d.get("update_mode")) : r.mode,
+							"open", open, "last_seen", Json.str(d.get("last_seen")),
+					"here", ServerTools.yes(d.get("local")), "via", "", "manage", ServerTools.yes(d.get("manage")), "manageable",
+							!Json.str(d.get("manage_url")).isEmpty(), "membership", !keeper ? "" : in ? "member" : "asked", "install",
+							r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
 			if (keeper && in && r != null) for (Object o : r.clients) {
 				Map<String, Object> c = Json.map(o);
-				clients.add(m("id", "", "type", "Gatehouse (launcher)", "name", Json.str(c.get("name")), "player", Json.str(c.get("player")), "system", Json.str(c.get("system")), "version", Json.str(c.get("version")), "mode", Json.str(c.get("mode")),
+				clients.add(m("id", "", "type", "Gatehouse (launcher)", "name", Json.str(c.get("name")), "player",
+						Json.str(c.get("player")), "system", Json.str(c.get("system")), "version", Json.str(c.get("version")), "mode", Json.str(c.get("mode")),
 						"open", ServerTools.yes(c.get("open")), "last_seen", "", "here", false, "via", nm, "membership", "", "install", Json.str(c.get("install"))));
 			}
 		}
@@ -372,8 +408,10 @@ final class AutoUpdate {
 		String mode = mode();
 		return m("gatekeeper", m("type", "Gatekeeper", "name", myName(), "system", systemName(), "version", ownVersion(), "mode", mode, "newest", newestKeeper,
 						"status", mode.equals("normal") ? (newer() ? newestKeeper + " is out: press Update Gatekeeper." : "Up to date.") : (status.isEmpty() ? "On." : status)),
-				"clients", clients, "duplicates", merged, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName, "member", leadMember, "said", lead().isEmpty() ? "" : leadSaid,
-						"updates", setting("lead_updates", "true").equals("true"), "manage", Manage.leadMay(), "manageable", Manage.leadLets, "pack", setting("lead_pack", "").replaceFirst("^https?://", "").replaceFirst("/gatekeeper$", "")));
+				"clients", clients, "duplicates", merged, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName,
+						"member", leadMember, "said", lead().isEmpty() ? "" : leadSaid,
+						"updates", setting("lead_updates", "true").equals("true"), "manage", Manage.leadMay(), "manageable",
+								Manage.leadLets, "pack", setting("lead_pack", "").replaceFirst("^https?://", "").replaceFirst("/gatekeeper$", "")));
 	}
 
 	/** The same client can be in a constellation more than one way: a launcher paired with this Gatekeeper that is
@@ -392,10 +430,12 @@ final class AutoUpdate {
 		for (Object o : order) {
 			Map<String, Object> c = Json.map(o);
 			if (!Json.str(c.get("membership")).isEmpty()) continue;   // (a Gatekeeper that joined is a row of its own)
-			String id = Json.str(c.get("install")), looks = (Json.str(c.get("name")) + "|" + Json.str(c.get("player")) + "|" + Json.str(c.get("system"))).toLowerCase(java.util.Locale.ROOT);
+			String id = Json.str(c.get("install")), looks = (Json.str(c.get("name")) + "|" + Json.str(c.get("player")) + "|"
+					+ Json.str(c.get("system"))).toLowerCase(java.util.Locale.ROOT);
 			Map<String, Object> first = !id.isEmpty() && byId.containsKey(id) ? byId.get(id) : null;
 			String how = "id";
-			if (first == null && byLooks.containsKey(looks) && (id.isEmpty() || Json.str(byLooks.get(looks).get("install")).isEmpty())) { first = byLooks.get(looks); how = "name"; }
+			if (first == null && byLooks.containsKey(looks) && (id.isEmpty()
+					|| Json.str(byLooks.get(looks).get("install")).isEmpty())) { first = byLooks.get(looks); how = "name"; }
 			if (first == null) { if (!id.isEmpty()) byId.put(id, c); if (!Json.str(c.get("name")).isEmpty()) byLooks.put(looks, c); continue; }
 			List<Object> also = new ArrayList<>(Json.list(first.get("also")));
 			String way = Json.str(c.get("via")).isEmpty() ? "directly" : "through " + Json.str(c.get("via"));
@@ -422,10 +462,13 @@ final class AutoUpdate {
 			if (b.containsKey("join")) {
 				// (an address, or the pairing link or file text that names it: host:port is all that is taken from it)
 				java.util.regex.Matcher at = java.util.regex.Pattern.compile("([A-Za-z0-9.\\-]+):(\\d{2,5})").matcher(Json.str(b.get("join")).replaceFirst("^[a-z]+://(pair/)?", ""));
-				if (!at.find()) { reply(x, 200, m("result", "refused", "message", "Give the other Gatekeeper's address, like 100.x.y.z:25570 (it is on its Server status tab, under Share pairing).")); return true; }
+				if (!at.find()) { reply(x, 200, m("result", "refused", "message",
+						"Give the other Gatekeeper's address, like 100.x.y.z:25570 (it is on its Server status tab, under Share pairing).")); return true; }
 				String url = "http://" + at.group(1) + ":" + at.group(2);
-				if ((at.group(1).equals(setting("bind", "")) || at.group(1).equals("127.0.0.1")) && Integer.parseInt(at.group(2)) == port()) { reply(x, 200, m("result", "refused", "message", "That is this Gatekeeper itself.")); return true; }
-				if (setting("constellation_id", "").isEmpty()) { cfg.put("constellation_id", java.util.UUID.randomUUID().toString()); cfg.put("constellation_token", WebPanel.random(32)); }
+				if ((at.group(1).equals(setting("bind", "")) || at.group(1).equals("127.0.0.1"))
+						&& Integer.parseInt(at.group(2)) == port()) { reply(x, 200, m("result", "refused", "message", "That is this Gatekeeper itself.")); return true; }
+				if (setting("constellation_id", "").isEmpty()) { cfg.put("constellation_id",
+						java.util.UUID.randomUUID().toString()); cfg.put("constellation_token", WebPanel.random(32)); }
 				cfg.put("constellation_lead", url);
 				ServerTools.saveCfg();
 				leadHeard = 0; leadMember = false; leadState = ""; leadName = "";
@@ -438,7 +481,8 @@ final class AutoUpdate {
 				if (lead().isEmpty()) { reply(x, 200, m("result", "refused", "message", "This Gatekeeper hasn't joined another's constellation.")); return true; }
 				if (on) cfg.put("lead_manage", "true"); else { cfg.remove("lead_manage"); cfg.remove("manage_token"); }
 				ServerTools.saveCfg();
-				log("constellation: the Gatekeeper this one joined " + (on ? "may now manage this one (its servers, players and launchers; not its settings or the machine)" : "may no longer manage this one"));
+				log("constellation: the Gatekeeper this one joined " + (on
+						? "may now manage this one (its servers, players and launchers; not its settings or the machine)" : "may no longer manage this one"));
 				msg = on ? "The Gatekeeper this one joined may now manage it from its own window: servers, players and launchers. Not its settings, updates or the machine." : "It may no longer manage this one.";
 			} else if (b.containsKey("manage")) {
 				String id = Json.str(b.get("manage"));
@@ -446,10 +490,13 @@ final class AutoUpdate {
 				synchronized (HostHelper.class) {
 					Map<String, Object> devs = devices();
 					Map<String, Object> d = Json.map(devs.get(id));
-					if (d.isEmpty() || !Json.str(d.get("kind")).equals("gatekeeper") || !ServerTools.yes(d.get("constellation"))) { reply(x, 200, m("result", "refused", "message", "Click a Gatekeeper that has joined and been allowed in first.")); return true; }
+					if (d.isEmpty() || !Json.str(d.get("kind")).equals("gatekeeper")
+							|| !ServerTools.yes(d.get("constellation"))) { reply(x, 200, m("result", "refused", "message",
+							"Click a Gatekeeper that has joined and been allowed in first.")); return true; }
 					if (on) d.put("manage", true); else d.remove("manage");
 					saveDevices(devs);
-					log("constellation: " + who(d) + (on ? " may now manage this Gatekeeper (its servers, players and launchers; not its settings or the machine)" : " may no longer manage this Gatekeeper"));
+					log("constellation: " + who(d) + (on
+							? " may now manage this Gatekeeper (its servers, players and launchers; not its settings or the machine)" : " may no longer manage this Gatekeeper"));
 					msg = who(d) + (on ? " may now manage this Gatekeeper from its own window: servers, players and launchers. Not its settings, updates or the machine." : " may no longer manage this Gatekeeper.");
 				}
 			} else if (b.containsKey("lead_updates")) {
@@ -458,11 +505,19 @@ final class AutoUpdate {
 				if (lead().isEmpty()) { reply(x, 200, m("result", "refused", "message", "This Gatekeeper hasn't joined another's constellation.")); return true; }
 				cfg.put("lead_updates", on ? "true" : "false");   // (on unless turned off: the two Gatekeepers pass the program file between them)
 				ServerTools.saveCfg();
-				log("constellation: the program file is " + (on ? "shared with the Gatekeeper this one joined again (taken from it, and handed to it)" : "no longer shared with the Gatekeeper this one joined: this one fetches its own"));
-				msg = on ? "This Gatekeeper takes updates from the Gatekeeper it joined, and hands on any it finds first." : "This Gatekeeper fetches its own updates again, from its own machine's pack server or GitHub.";
-				new Thread(() -> { try { lookForNewer(); } catch (RuntimeException ignored) {} }, "look").start();
+				log("constellation: the program file is " + (on
+						? "shared with the Gatekeeper this one joined again (taken from it, and handed to it)"
+						: "no longer shared with the Gatekeeper this one joined: this one fetches its own"));
+				msg = on ? "This Gatekeeper takes updates from the Gatekeeper it joined, and hands on any it finds first."
+						: "This Gatekeeper fetches its own updates again, from its own machine's pack server or GitHub.";
+				new Thread(() -> { try { lookForNewer(); } catch (RuntimeException ignored) { Quiet.seen(ignored); } }, "look").start();
 			} else if (b.containsKey("leave")) {
-				cfg.remove("constellation_lead"); cfg.remove("lead_updates"); cfg.remove("lead_pack"); cfg.remove("lead_manage"); cfg.remove("manage_token"); ServerTools.saveCfg();
+				cfg.remove("constellation_lead");
+				cfg.remove("lead_updates");
+				cfg.remove("lead_pack");
+				cfg.remove("lead_manage");
+				cfg.remove("manage_token");
+				ServerTools.saveCfg();
 				Manage.leadLets = false;
 				leadMember = false; leadState = ""; leadSaid = ""; leadName = "";
 				log("constellation: this Gatekeeper is on its own again");
@@ -473,10 +528,12 @@ final class AutoUpdate {
 				synchronized (HostHelper.class) {
 					Map<String, Object> devs = devices();
 					Map<String, Object> d = Json.map(devs.get(id));
-					if (d.isEmpty() || !Json.str(d.get("kind")).equals("gatekeeper")) { reply(x, 200, m("result", "refused", "message", "Click a Gatekeeper in the list first.")); return true; }
+					if (d.isEmpty() || !Json.str(d.get("kind")).equals("gatekeeper")) { reply(x, 200, m("result", "refused", "message",
+							"Click a Gatekeeper in the list first.")); return true; }
 					if (in) d.put("constellation", true); else d.remove("constellation");
 					saveDevices(devs);
-					msg = Json.str(d.get("name")).replace(" (Gatekeeper)", "") + (in ? " is now part of this constellation: in constellation mode it updates on this Gatekeeper's go, and its launchers are listed here." : " is no longer part of this constellation.");
+					msg = Json.str(d.get("name")).replace(" (Gatekeeper)", "") + (in
+							? " is now part of this constellation: in constellation mode it updates on this Gatekeeper's go, and its launchers are listed here." : " is no longer part of this constellation.");
 				}
 				log("constellation: " + msg);
 			}
@@ -496,7 +553,8 @@ final class AutoUpdate {
 		List<Object> names = new ArrayList<>();
 		for (Object[] o : open()) names.add(o[0]);
 		String mode = mode();
-		Map<String, Object> out = m("mode", mode, "on", !mode.equals("normal"), "status", mode.equals("normal") ? "Normal: you press Update Gatekeeper yourself." : (status.isEmpty() ? "On." : status), "launchers", names);
+		Map<String, Object> out = m("mode", mode, "on", !mode.equals("normal"), "status", mode.equals("normal")
+				? "Normal: you press Update Gatekeeper yourself." : (status.isEmpty() ? "On." : status), "launchers", names);
 		if (mode.equals("constellation") && newer() && !stuck) out.put("gather", gatherFor(""));
 		reply(x, 200, out);
 		return true;

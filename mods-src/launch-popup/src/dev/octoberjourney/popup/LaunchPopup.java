@@ -37,6 +37,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.UIManager;
 import javax.swing.WindowConstants;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The window the pack sync shows before Minecraft starts (Prism waits for the sync, so the game starts once this is
@@ -112,7 +113,8 @@ public final class LaunchPopup {
 	static volatile java.awt.Rectangle handed;
 	static void leaveBounds(Path file, java.awt.Window f) {
 		java.awt.Rectangle b = f.getBounds();
-		try { Files.writeString(file, b.x + "," + b.y + "," + b.width + "," + b.height + "," + System.currentTimeMillis(), StandardCharsets.UTF_8); } catch (IOException ignored) {}
+		try { Files.writeString(file, b.x + "," + b.y + "," + b.width + "," + b.height + "," + System.currentTimeMillis(),
+				StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }
 	}
 	/** The place written in that note, if it was written in the last two minutes; null otherwise. */
 	static java.awt.Rectangle readBounds(Path file) {
@@ -172,17 +174,22 @@ public final class LaunchPopup {
 				case "pc-sleep" -> System.out.println("pc sleep: " + c.sleepPc());
 				case "steam-update" -> {
 					System.out.println("Steam running: " + SteamUpdate.steamRunning());
-					try { for (String l : SteamUpdate.run(Path.of(args[1]), args.length > 3 ? args[3] : "all", !(args.length > 4 && args[4].equals("plan")))) System.out.println(l); }
+					try { for (String l : SteamUpdate.run(Path.of(args[1]), args.length > 3 ? args[3] : "all", !(args.length > 4
+							&& args[4].equals("plan")))) System.out.println(l); }
 					catch (SteamUpdate.NeedsPermission ex) { System.out.println("needs permission: " + ex.getMessage()); }
 				}
-				case "install-pack" -> System.out.println("installed: " + PackInstall.install(Path.of(args[1]), args[3], null, m -> System.out.println("   " + m)));   // (testing: args[1] is the instances folder)
-				case "install-plain" -> System.out.println("set up: " + PackInstall.vanilla(Path.of(args[1]), args[3], args[4], args[5], args[6], null));   // (testing: instances folder, server id, name, address, version)
+				case "install-pack" -> System.out.println("installed: " + PackInstall.install(Path.of(args[1]), args[3], null,
+						m -> System.out.println("   " + m)));   // (testing: args[1] is the instances folder)
+				case "install-plain" -> System.out.println("set up: " + PackInstall.vanilla(Path.of(args[1]), args[3], args[4], args[5],
+						args[6], null));   // (testing: instances folder, server id, name, address, version)
 				case "steam-add" -> { System.out.println(SteamUpdate.canAdd(Path.of(args[1]))); System.out.println(SteamUpdate.add(Path.of(args[1]))); for (String l : SteamUpdate.run(Path.of(args[1]), "pack", true)) System.out.println(l); }
-				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper " + c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
+				case "pair" -> System.out.println("pair: " + String.join(": ", c.pair(args.length > 3 ? args[3] : "")) + "  [keeper "
+						+ c.helperLabel() + ", id " + c.deviceId.substring(0, 8) + "]");
 				case "request" -> System.out.println("request: " + c.request(args.length > 3 ? args[3] : "server", args.length > 4 ? args[4] : ""));
 				case "connection" -> System.out.print(Connection.text(Connection.run(Path.of(args[1]), c)));
 				case "admin-devices" -> System.out.println("admin devices: " + c.helper("GET", "/v1/admin/devices", null));
-				case "admin-perm" -> System.out.println("admin perm: " + c.helper("POST", "/v1/admin/perm", "{\"id\":\"" + args[3] + "\",\"perm\":\"" + args[4] + "\",\"state\":\"" + args[5] + "\"}"));
+				case "admin-perm" -> System.out.println("admin perm: " + c.helper("POST", "/v1/admin/perm", "{\"id\":\"" + args[3]
+						+ "\",\"perm\":\"" + args[4] + "\",\"state\":\"" + args[5] + "\"}"));
 				case "admin-forget" -> System.out.println("admin forget: " + c.helper("POST", "/v1/admin/forget", "{\"id\":\"" + args[3] + "\"}"));
 				case "mcss-force-close" -> System.out.println("mcss force close: " + c.mcssClose(true));
 				case "stop-watch" -> {   // stop, wait until it's off, and say whether the shutdown was smooth
@@ -209,8 +216,10 @@ public final class LaunchPopup {
 		// pack-sync-status.txt) the summary in the same window.
 		if (args.length >= 3 && args[0].equals("--size")) {   // testing: what an update from this pack address would download
 			long[] n = pending(Path.of(args[1]), fetch(args[2] + "/update-sizes.json"));
-			System.out.println("this launcher: " + sha256(Files.readAllBytes(Path.of(LaunchPopup.class.getProtectionDomain().getCodeSource().getLocation().toURI()))).substring(0, 12));
-			System.out.println(n == null ? "unknown" : sizeText(n[0]) + " (" + n[0] + " bytes), " + n[1] + " files, " + n[2] + " mods" + (n[3] == 1 ? ", first install" : ""));
+			System.out.println("this launcher: "
+					+ sha256(Files.readAllBytes(Path.of(LaunchPopup.class.getProtectionDomain().getCodeSource().getLocation().toURI()))).substring(0, 12));
+			System.out.println(n == null ? "unknown" : sizeText(n[0]) + " (" + n[0] + " bytes), " + n[1] + " files, " + n[2] + " mods"
+					+ (n[3] == 1 ? ", first install" : ""));
 			return;
 		}
 		if (args.length >= 2 && args[0].equals("--progress")) { progress(Path.of(args[1])); System.exit(exitCode); }
@@ -221,7 +230,8 @@ public final class LaunchPopup {
 			Thread.sleep(args.length > 1 ? Long.parseLong(args[1]) : 1500);
 			System.exit(0);
 		}
-		if (args.length >= 2 && args[0].equals("--steam")) System.exit(SteamUpdate.cli(args));   // (for the installers: a shortcut into Steam's library, or out of it)
+		if (args.length >= 2
+				&& args[0].equals("--steam")) System.exit(SteamUpdate.cli(args));   // (for the installers: a shortcut into Steam's library, or out of it)
 		if (args.length >= 2 && args[0].equals("--self-update")) {   // testing: look for a newer Gatehouse for this instances folder, as the main window does
 			System.out.println("Gatehouse " + Notes.version(Notes.own()) + "; newer one fetched: " + Notes.selfUpdate(Path.of(args[1])));
 			return;
@@ -341,7 +351,7 @@ public final class LaunchPopup {
 			handed = readBounds(dir.resolve(HANDOFF));
 			if (handed != null) place(f, handed); else f.setLocationRelativeTo(null);
 			if (System.getenv("OJ_POPUP_PNG") == null) { f.setVisible(true); bringForwardOnce(f); }   // (testing: pictures only)
-			try { Files.deleteIfExists(dir.resolve(HANDOFF)); } catch (IOException ignored) {}   // (the main window's cue to go)
+			try { Files.deleteIfExists(dir.resolve(HANDOFF)); } catch (IOException ignored) { Quiet.seen(ignored); }   // (the main window's cue to go)
 			reuse = f;
 		});
 		String png = System.getenv("OJ_POPUP_PNG");
@@ -379,12 +389,14 @@ public final class LaunchPopup {
 				java.util.regex.Matcher fm = java.util.regex.Pattern.compile("\\((\\d+)/(\\d+)\\)").matcher(last);
 				long[] files = r == 1 && !asking && fm.find() ? new long[] {Long.parseLong(fm.group(1)), Long.parseLong(fm.group(2))} : null;
 				SwingUtilities.invokeLater(() -> {
-					if (files != null && files[1] > 0) packBar.count("Downloading the pack: " + files[0] + " of " + files[1] + " files", files[0], files[1]); else packBar.done();
+					if (files != null && files[1] > 0) packBar.count("Downloading the pack: " + files[0] + " of " + files[1] + " files", files[0], files[1]);
+					else packBar.done();
 					for (int i = 0; i < STEPS.length; i++) {
 						String[] g = got.get(STEPS[i]);
 						if (g != null) { rows[i].setIcon(mark(g[0])); rows[i].setText(html(STEPS[i], g[1])); }
 						else if (i == r) {
-							String detail = i == 0 ? "Reaching the pack (Tailscale, then GitHub)" : i == 1 ? (asking ? "Waiting for your answer below" : last.isEmpty() ? "Checking the pack's files" : last) : "";
+							String detail = i == 0 ? "Reaching the pack (Tailscale, then GitHub)" : i == 1 ? (asking
+									? "Waiting for your answer below" : last.isEmpty() ? "Checking the pack's files" : last) : "";
 							rows[i].setIcon(mark("running" + (k % 4))); rows[i].setText(html(STEPS[i], detail));
 						} else { rows[i].setIcon(mark("pending")); rows[i].setText(STEPS[i]); }
 					}
@@ -397,7 +409,7 @@ public final class LaunchPopup {
 							java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(cp.getWidth(), cp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 							java.awt.Graphics2D g = img.createGraphics(); cp.paint(g); g.dispose();
 							javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + "-progress.png"));
-						} catch (IOException ignored) {}
+						} catch (IOException ignored) { Quiet.seen(ignored); }
 					}
 				});
 			}
@@ -430,14 +442,15 @@ public final class LaunchPopup {
 						System.exit(RELAUNCH);
 					}
 				}
-			} catch (Exception ignored) {}   // (couldn't: carry on with this launcher; the update replaces it as before)
+			} catch (Exception ignored) { Quiet.seen(ignored); }   // (couldn't: carry on with this launcher; the update replaces it as before)
 			long[] n = pending(dir, sizes);
 			// Every file of the pack is here as the pack has it, and nothing is left over: there is nothing to update.
 			if (canCurrent && n != null && n[1] == 0 && n[3] == 0 && n[6] == 0 && n[7] == 0) reply = "current";
 			Path pull = dir.resolve("pull-pending.json");
 			Files.deleteIfExists(pull);
 			if (n != null && n[0] > 0 && !base.contains("githubusercontent"))
-				Files.writeString(pull, "{\"bytes\": " + n[0] + ", \"local_bytes\": " + (n[0] - n[5]) + ", \"files\": " + n[1] + ", \"mods\": " + n[2] + "}\n", StandardCharsets.UTF_8);
+				Files.writeString(pull, "{\"bytes\": " + n[0] + ", \"local_bytes\": " + (n[0] - n[5]) + ", \"files\": " + n[1]
+						+ ", \"mods\": " + n[2] + "}\n", StandardCharsets.UTF_8);
 			JFrame f = reuse;
 			if (n != null && n[0] > 0 && ui && f != null) {
 				asking = true;
@@ -445,7 +458,8 @@ public final class LaunchPopup {
 				String size = sizeText(n[0]);
 				boolean first = n[3] == 1;
 				long other = n[1] - n[2];
-				String what = join(n[2] == 0 ? null : n[2] + " mod" + (n[2] == 1 ? "" : "s"), other == 0 ? null : other + (n[2] == 0 ? "" : " other") + " file" + (other == 1 ? "" : "s"));
+				String what = join(n[2] == 0 ? null : n[2] + " mod" + (n[2] == 1 ? "" : "s"), other == 0 ? null : other + (n[2] == 0 ? ""
+						: " other") + " file" + (other == 1 ? "" : "s"));
 				// Where it comes from: the pack's own files from the source the sync reached (the owner's PC over Tailscale,
 				// or GitHub when that isn't reachable); mods the pack only lists, from Modrinth.
 				String source = base.contains("githubusercontent") ? "GitHub" : "the owner's PC, over Tailscale";
@@ -469,7 +483,7 @@ public final class LaunchPopup {
 						java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(cp.getWidth(), cp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D g = img.createGraphics(); cp.paint(g); g.dispose();
 						javax.imageio.ImageIO.write(img, "png", new java.io.File(png.replaceAll("\\.png$", "") + "-ask.png"));
-					} catch (IOException ignored) {}
+					} catch (IOException ignored) { Quiet.seen(ignored); }
 				});
 				synchronized (choice) {
 					while (choice[0] == null && f.isDisplayable()) {
@@ -482,9 +496,9 @@ public final class LaunchPopup {
 				if (choice[0].equals("skip")) { skipped = size; reply = "skip|" + size; }
 				SwingUtilities.invokeLater(() -> { askPanel.setVisible(false); progressPlay.setText("Play"); progressPlay.setEnabled(false); if (embedded) f.validate(); else f.pack(); if (handed != null) place(f, handed); });
 			}
-		} catch (Exception ignored) {}   // (size unknown: the update just runs, as it always did)
+		} catch (Exception ignored) { Quiet.seen(ignored); }   // (size unknown: the update just runs, as it always did)
 		asking = false;
-		try { Files.writeString(answer, reply + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) {}
+		try { Files.writeString(answer, reply + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }
 	}
 
 	/** What an update would download: {bytes, files, of them mods, 1 on a first install, mods that come from Modrinth}, from the pack's
@@ -510,7 +524,7 @@ public final class LaunchPopup {
 				continue;
 			}
 			long size = 0;
-			try { size = (long) Double.parseDouble(s(f.get("size"))); } catch (NumberFormatException ignored) {}
+			try { size = (long) Double.parseDouble(s(f.get("size"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 			bytes += size;
 			n++;
 			if (e.getKey().startsWith("mods/")) mods++;
@@ -531,7 +545,7 @@ public final class LaunchPopup {
 			if (!fresh || !clean) return false;
 			ServerControl c = new ServerControl(dir);
 			if (!c.configured()) return true;
-			if (c.hasHelper()) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) {}
+			if (c.hasHelper()) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 			if (!c.ban.isEmpty() || c.whitelisted.equals("no")) return false;
 			String[] s = c.status();
 			return s.length > 2 && s[2].equals("online") && c.blocked.isEmpty();
@@ -541,7 +555,8 @@ public final class LaunchPopup {
 	/** Starts an instance through Prism Launcher, joining its server, and waits for Prism to close. */
 	static void startGame(String prism, String[] e, boolean direct) {
 		Path note = Path.of(e[3]).resolve("direct-launch");
-		try { if (direct) Files.writeString(note, String.valueOf(System.currentTimeMillis()), StandardCharsets.UTF_8); else Files.deleteIfExists(note); } catch (IOException ignored) {}
+		try { if (direct) Files.writeString(note, String.valueOf(System.currentTimeMillis()),
+				StandardCharsets.UTF_8); else Files.deleteIfExists(note); } catch (IOException ignored) { Quiet.seen(ignored); }
 		List<String> cmd = new ArrayList<>(List.of(prism, "--launch", e[0]));
 		if (!e[2].isEmpty()) { cmd.add("--server"); cmd.add(e[2]); }
 		run(cmd);
@@ -682,7 +697,8 @@ public final class LaunchPopup {
 		}
 	}
 
-	static final Color YELLOW = new Color(0xF2C230), QUIT_RED = new Color(0xD23C3C), INK = new Color(0x3A2F00), SLATE = new Color(0x5B6B82), ORANGE = new Color(0xE0832B);
+	static final Color YELLOW = new Color(0xF2C230), QUIT_RED = new Color(0xD23C3C), INK = new Color(0x3A2F00),
+			SLATE = new Color(0x5B6B82), ORANGE = new Color(0xE0832B);
 
 	/** The Steam config button and the line beside it, for one shortcut: "pack" (this pack's own, on its launcher's
 	 *  Client updates tab) or "launcher" (the Gatehouse launcher's own, on its main window).
@@ -693,7 +709,8 @@ public final class LaunchPopup {
 		JButton b = new JButton(label);
 		Color grey = new Color(0x8F98A0), plain = b.getBackground();
 		JLabel note = new JLabel(" ");
-		java.util.function.BiConsumer<Color, String> say = (col, msg) -> { note.setForeground(col); note.setText("<html><div style='width:470px'>" + esc(msg).replace("\n", "<br>") + "</div></html>"); };
+		java.util.function.BiConsumer<Color, String> say = (col,
+				msg) -> { note.setForeground(col); note.setText("<html><div style='width:470px'>" + esc(msg).replace("\n", "<br>") + "</div></html>"); };
 		String[] state = {"checking"};   // checking, none, ready, permission, error
 		Runnable look = () -> new Thread(() -> {
 			String st, msg; Color col = grey;
@@ -703,7 +720,8 @@ public final class LaunchPopup {
 				else {
 					st = "ready";
 					boolean running = SteamUpdate.steamRunning().equals("yes");
-					msg = (SteamUpdate.available(mc) ? "To update: " : "") + String.join("; ", todo) + "." + (running ? "\nSteam is running: quit Steam first (Steam menu, Exit)." : " Steam has to be closed.");
+					msg = (SteamUpdate.available(mc) ? "To update: " : "") + String.join("; ", todo) + "." + (running
+							? "\nSteam is running: quit Steam first (Steam menu, Exit)." : " Steam has to be closed.");
 					if (running) col = ORANGE;
 				}
 			} catch (SteamUpdate.NeedsPermission ex) { st = "permission"; msg = "Prism Launcher's sandbox isn't allowed to see Steam's shortcut list on this device yet. Press the button for the one command that allows it."; }
@@ -714,13 +732,16 @@ public final class LaunchPopup {
 				state[0] = s2;
 				b.setEnabled(s2.equals("ready") || s2.equals("permission"));
 				b.setBackground(c2 == ORANGE ? ORANGE : plain);
-				b.setToolTipText(s2.equals("none") ? "Nothing to update: this shortcut, its art and its controller layout match the pack" : "Brings this Steam shortcut, its art and its controller layout up to date with the pack. Steam has to be closed.");
+				b.setToolTipText(s2.equals("none") ? "Nothing to update: this shortcut, its art and its controller layout match the pack"
+						: "Brings this Steam shortcut, its art and its controller layout up to date with the pack. Steam has to be closed.");
 				say.accept(c2, m2);
 			});
 		}, "steam-look").start();
 		b.setEnabled(false);
 		if (System.getenv("OJ_POPUP_PNG") != null) {   // (test pictures: one look, straight away)
-			try { List<String> todo = SteamUpdate.available(mc) ? SteamUpdate.run(mc, which, false) : List.of(SteamUpdate.canAdd(mc)); b.setEnabled(!todo.isEmpty()); say.accept(grey, todo.isEmpty() ? "Steam config is up to date." : (SteamUpdate.available(mc) ? "To update: " : "") + String.join("; ", todo) + ". Steam has to be closed."); }
+			try { List<String> todo = SteamUpdate.available(mc) ? SteamUpdate.run(mc, which, false)
+					: List.of(SteamUpdate.canAdd(mc)); b.setEnabled(!todo.isEmpty()); say.accept(grey, todo.isEmpty()
+					? "Steam config is up to date." : (SteamUpdate.available(mc) ? "To update: " : "") + String.join("; ", todo) + ". Steam has to be closed."); }
 			catch (IOException | RuntimeException ex) { say.accept(grey, String.valueOf(ex.getMessage())); }
 		} else {
 			look.run();
@@ -737,10 +758,11 @@ public final class LaunchPopup {
 					// (Inside Prism's Flatpak the launcher can't see whether Steam is running: the player says.)
 					int[] answer = {javax.swing.JOptionPane.CANCEL_OPTION};
 					try {
-						SwingUtilities.invokeAndWait(() -> answer[0] = javax.swing.JOptionPane.showConfirmDialog(f, "<html><div style='width:400px'>Steam has to be closed for this, or it undoes the change when it exits.<br><br>"
+						SwingUtilities.invokeAndWait(() -> answer[0] = javax.swing.JOptionPane.showConfirmDialog(f,
+								"<html><div style='width:400px'>Steam has to be closed for this, or it undoes the change when it exits.<br><br>"
 								+ "On a Steam Deck: switch to Desktop Mode, quit Steam there (Steam menu, Exit), start this pack from Prism Launcher, and press this button.<br><br>Is Steam closed now?</div></html>",
 								label, javax.swing.JOptionPane.YES_NO_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE));
-					} catch (Exception ignored) {}
+					} catch (Exception ignored) { Quiet.seen(ignored); }
 					running = answer[0] == javax.swing.JOptionPane.YES_OPTION ? "no" : "asked";
 				}
 				Color col; String msg; boolean done = false;
@@ -752,16 +774,19 @@ public final class LaunchPopup {
 					did.addAll(SteamUpdate.run(mc, which, true));
 					did.remove("Already up to date.");
 					boolean started = SteamUpdate.startSteam();
-					col = new Color(0x8BD46E); msg = String.join("\n", did) + "\n" + (started ? "Steam is starting again. You can press Quit here." : "Start Steam to see it. You can press Quit here.");
+					col = new Color(0x8BD46E);
+					msg = String.join("\n", did) + "\n" + (started ? "Steam is starting again. You can press Quit here." : "Start Steam to see it. You can press Quit here.");
 					done = true;
 				}
 				catch (SteamUpdate.NeedsPermission ex) {
 					boolean copied = false;
-					try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(ex.getMessage()), null); copied = true; } catch (RuntimeException ignored) {}
+					try { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(ex.getMessage()), null); copied = true; } catch (RuntimeException ignored) { Quiet.seen(ignored); }
 					col = new Color(0xE9B949);
-					msg = "Allow it once: open Konsole (in Desktop Mode) and run\n" + ex.getMessage() + "\n" + (copied ? "(The command is copied: paste it there.) " : "") + "Then close Prism Launcher, start the pack again and press this button.";
+					msg = "Allow it once: open Konsole (in Desktop Mode) and run\n" + ex.getMessage() + "\n" + (copied
+							? "(The command is copied: paste it there.) " : "") + "Then close Prism Launcher, start the pack again and press this button.";
 				}
-				catch (IOException | RuntimeException ex) { col = new Color(0xFF7B72); msg = "Not updated: " + (ex.getMessage() == null ? ex.toString() : ex.getMessage()); }
+				catch (IOException | RuntimeException ex) { col = new Color(0xFF7B72); msg = "Not updated: " + (ex.getMessage() == null
+						? ex.toString() : ex.getMessage()); }
 				Color c2 = col; String m2 = msg; boolean d2 = done;
 				SwingUtilities.invokeLater(() -> {
 					say.accept(c2, m2);
@@ -783,7 +808,8 @@ public final class LaunchPopup {
 	static volatile int iconMessages = 0;
 	static volatile boolean iconUpdate = false;
 	static void icons() {
-		Runnable r = () -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w instanceof JFrame && w.isDisplayable()) dev.gatehouse.look.AppIcon.apply(w, false, iconMessages, iconUpdate); };
+		Runnable r = () -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w instanceof JFrame
+				&& w.isDisplayable()) dev.gatehouse.look.AppIcon.apply(w, false, iconMessages, iconUpdate); };
 		if (SwingUtilities.isEventDispatchThread()) r.run(); else SwingUtilities.invokeLater(r);
 	}
 	/** Every window gets the icon as it opens, and looking at one clears the messages. */
@@ -802,7 +828,7 @@ public final class LaunchPopup {
 				if (age > 20_000 && (age / 1000) % 4 != 0) return;
 				for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) w.repaint();
 			}).start();
-		} catch (RuntimeException ignored) {}
+		} catch (RuntimeException ignored) { Quiet.seen(ignored); }
 	}
 	static void chime() {
 		boolean looking = false;
@@ -825,7 +851,7 @@ public final class LaunchPopup {
 				try (javax.sound.sampled.SourceDataLine line = javax.sound.sampled.AudioSystem.getSourceDataLine(fmt)) {
 					line.open(fmt); line.start(); line.write(pcm, 0, pcm.length); line.drain();
 				}
-			} catch (Exception | LinkageError ignored) {}
+			} catch (Exception | LinkageError ignored) { Quiet.seen(ignored); }
 		}, "chime");
 		t.setDaemon(true);
 		t.start();
@@ -909,7 +935,8 @@ public final class LaunchPopup {
 	static void summary(Path dir, String status) throws Exception {
 		// (What the player had seen before this launch: put back if the window isn't shown, so the notes aren't lost.)
 		String[] seenFiles = {"server-state-seen.json", "server-notes-seen.txt", "pack-version-seen.txt"}, seenBefore = new String[seenFiles.length];
-		for (int i = 0; i < seenFiles.length; i++) seenBefore[i] = Files.isRegularFile(dir.resolve(seenFiles[i])) ? Files.readString(dir.resolve(seenFiles[i]), StandardCharsets.UTF_8) : null;
+		for (int i = 0; i < seenFiles.length; i++) seenBefore[i] = Files.isRegularFile(dir.resolve(seenFiles[i]))
+				? Files.readString(dir.resolve(seenFiles[i]), StandardCharsets.UTF_8) : null;
 		loadProfile(dir);
 		List<Version> log = changelog(dir.resolve("extras/changelog.txt"));
 		String current = log.isEmpty() ? null : log.get(0).version();
@@ -923,17 +950,21 @@ public final class LaunchPopup {
 				ServerControl sc = new ServerControl(dir);
 				if (!status.equals("failed") && !status.equals("offline") && sc.hasHelper() && !sc.ban.equals("blacklist")) {
 					String was = seenBefore[2] == null ? "" : seenBefore[2].trim();
-					String body = "{\"from\": \"" + ServerControl.jsonEsc(was.equals(s(current)) ? "" : was) + "\", \"to\": \"" + ServerControl.jsonEsc(s(current)) + "\", \"pack\": \"" + ServerControl.jsonEsc(NAME)
-							+ "\", \"bytes\": " + s(pp.get("bytes")) + ", \"local_bytes\": " + s(pp.get("local_bytes")) + ", \"files\": " + s(pp.get("files")) + ", \"mods\": " + s(pp.get("mods")) + "}";
+					String body = "{\"from\": \"" + ServerControl.jsonEsc(was.equals(s(current)) ? "" : was) + "\", \"to\": \""
+							+ ServerControl.jsonEsc(s(current)) + "\", \"pack\": \"" + ServerControl.jsonEsc(NAME)
+							+ "\", \"bytes\": " + s(pp.get("bytes")) + ", \"local_bytes\": " + s(pp.get("local_bytes")) + ", \"files\": "
+									+ s(pp.get("files")) + ", \"mods\": " + s(pp.get("mods")) + "}";
 					Thread tell = new Thread(() -> {
-						try { Map<String, Object> r = sc.helper("POST", "/v1/pulled", body); if ("401".equals(s(r.get("_code")))) { sc.hello(); sc.helper("POST", "/v1/pulled", body); } } catch (IOException | RuntimeException ignored) {}
+						try { Map<String, Object> r = sc.helper("POST", "/v1/pulled",
+								body); if ("401".equals(s(r.get("_code")))) { sc.hello(); sc.helper("POST", "/v1/pulled",
+								body); } } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 					}, "pulled");
 					tell.setDaemon(true);
 					tell.start();
 					tell.join(2500);
 				}
 			}
-		} catch (IOException | RuntimeException ignored) {}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		String seen = read(dir.resolve("pack-version-seen.txt")).trim();
 		String options = read(dir.resolve("pack-options.json"));
 
@@ -959,7 +990,8 @@ public final class LaunchPopup {
 				changed = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
 		int settingsFiles = 0, modsInstalled = 0;
 		for (Map.Entry<String, Object> e : after.entrySet()) {
-			if (!e.getKey().startsWith("mods/")) { if (e.getKey().startsWith("config/") && !before.isEmpty() && !same(before.get(e.getKey()), e.getValue())) settingsFiles++; continue; }
+			if (!e.getKey().startsWith("mods/")) { if (e.getKey().startsWith("config/") && !before.isEmpty()
+					&& !same(before.get(e.getKey()), e.getValue())) settingsFiles++; continue; }
 			modsInstalled++;
 			if (before.isEmpty()) continue;
 			Object old = before.get(e.getKey());
@@ -977,7 +1009,8 @@ public final class LaunchPopup {
 			if (firstInstall) d = "Installed " + modsInstalled + " mods";
 			else if (added.isEmpty() && removed.isEmpty() && changed.isEmpty() && settingsFiles == 0) d = "Up to date";
 			else d = join(added.isEmpty() ? null : added.size() + " added", removed.isEmpty() ? null : removed.size() + " removed",
-					changed.isEmpty() ? null : changed.size() + " updated", settingsFiles == 0 ? null : settingsFiles + " settings file" + (settingsFiles > 1 ? "s" : "") + " updated");
+					changed.isEmpty() ? null : changed.size() + " updated", settingsFiles == 0 ? null : settingsFiles + " settings file"
+							+ (settingsFiles > 1 ? "s" : "") + " updated");
 			checks.set(i, new Check(d.equals("Up to date") ? "ok" : "updated", c.label(), d));
 		}
 
@@ -1018,7 +1051,8 @@ public final class LaunchPopup {
 		boolean plainServer = "true".equals(s(asMap(parse(read(dir.resolve("extras/profile.json")))).get("plain")));
 		if (plainServer) headline = NAME;
 		String sub;
-		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing + " as installed. The Connection tab says what's wrong.";
+		if (status.equals("offline")) sub = "The pack couldn't be reached (Tailscale or internet). Playing" + playing
+				+ " as installed. The Connection tab says what's wrong.";
 		else if (status.equals("failed")) sub = "Starting with the mods already installed. Details are in pack-sync.log in the game folder.";
 		else if (updated || somethingHappened) sub = "Here's what this launch checked and changed.";
 		else if (serverNews) sub = "Nothing new for this device; the Server updates tab shows what changed on the server.";
@@ -1062,7 +1096,8 @@ public final class LaunchPopup {
 		// window would have shown stays unseen, so it's shown the next time the window does appear.
 		if (directLaunch(dir, !status.equals("failed") && !status.equals("offline") && skipped == null)) {
 			for (int i = 0; i < seenFiles.length; i++) {
-				if (seenBefore[i] == null) Files.deleteIfExists(dir.resolve(seenFiles[i])); else Files.writeString(dir.resolve(seenFiles[i]), seenBefore[i], StandardCharsets.UTF_8);
+				if (seenBefore[i] == null) Files.deleteIfExists(dir.resolve(seenFiles[i]));
+				else Files.writeString(dir.resolve(seenFiles[i]), seenBefore[i], StandardCharsets.UTF_8);
 			}
 			SwingUtilities.invokeAndWait(() -> { if (reuse != null) reuse.dispose(); });
 			exitCode = 0;
@@ -1085,13 +1120,15 @@ public final class LaunchPopup {
 		for (Map.Entry<String, Object> e : nm.entrySet()) {
 			Map<String, Object> m = asMap(e.getValue()), o = asMap(om.get(e.getKey()));
 			if (o.isEmpty()) out.add(new String[] {"ok", "Added: " + clean(s(m.get("name"))) + " " + s(m.get("version"))});
-			else if (!s(o.get("sha256")).equals(s(m.get("sha256")))) out.add(new String[] {"updated", "Updated: " + clean(s(m.get("name"))) + " " + s(o.get("version")) + " \u2192 " + s(m.get("version"))});
+			else if (!s(o.get("sha256")).equals(s(m.get("sha256")))) out.add(new String[] {"updated", "Updated: " + clean(s(m.get("name")))
+					+ " " + s(o.get("version")) + " \u2192 " + s(m.get("version"))});
 		}
 		for (Map.Entry<String, Object> e : om.entrySet())
 			if (!nm.containsKey(e.getKey())) out.add(new String[] {"off", "Removed: " + clean(s(asMap(e.getValue()).get("name")))});
 		Map<String, Object> os = asMap(old.get("settings")), ns = asMap(now.get("settings"));
 		for (Map.Entry<String, Object> e : ns.entrySet())
-			if (!s(os.get(e.getKey())).equals(s(e.getValue()))) out.add(new String[] {"updated", e.getKey() + ": " + (os.containsKey(e.getKey()) ? s(os.get(e.getKey())) : "not set") + " \u2192 " + s(e.getValue())});
+			if (!s(os.get(e.getKey())).equals(s(e.getValue()))) out.add(new String[] {"updated", e.getKey() + ": "
+					+ (os.containsKey(e.getKey()) ? s(os.get(e.getKey())) : "not set") + " \u2192 " + s(e.getValue())});
 		if (!s(old.get("datapacks")).equals(s(now.get("datapacks")))) out.add(new String[] {"updated", "Data packs changed"});
 		return out;
 	}
@@ -1111,7 +1148,8 @@ public final class LaunchPopup {
 			for (String n : v.notes()) rows.add(text("\u2022 " + n));
 		}
 		rows.add(heading("What the server runs (as last recorded)"));
-		rows.add(row(touched.test("Minecraft") || touched.test("Fabric") ? BLUE : GREEN, "Game", "Minecraft " + s(st.get("minecraft")) + ", Fabric Loader " + s(st.get("fabric_loader"))));
+		rows.add(row(touched.test("Minecraft") || touched.test("Fabric") ? BLUE : GREEN, "Game", "Minecraft " + s(st.get("minecraft"))
+				+ ", Fabric Loader " + s(st.get("fabric_loader"))));
 		if (!jarvis.isEmpty()) rows.add(row(touched.test("Updated: Jarvis") || touched.test("Added: Jarvis") ? BLUE : GREEN, "Jarvis", s(jarvis.get("version"))));
 		long changedMods = changes.stream().filter(c -> c[1].startsWith("Added: ") || c[1].startsWith("Updated: ") || c[1].startsWith("Removed: ")).count();
 		rows.add(row(changedMods > 0 ? BLUE : GREEN, "Mods", mods.size() + " on the server" + (changedMods > 0 ? ", " + changedMods + " changed" : "")));
@@ -1198,16 +1236,17 @@ public final class LaunchPopup {
 				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (works from the home network)" : "The server machine is awake");
 				String ping = s.length > 3 ? s[3] : "";
 				int ms = -1;
-				try { ms = Integer.parseInt(ping); } catch (NumberFormatException ignored) {}
+				try { ms = Integer.parseInt(ping); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 				meter.set(ms);
 				pingText.setText(ms < 0 ? "\u2014" : ms + " ms");
 				players.setText("Players: " + (s.length > 4 && !s[4].isEmpty() ? s[4] + " online" : "\u2014"));
 			}
 		};
 		// A blacklisted launcher isn't shown how the machine, MCSS or the server are, and doesn't go looking either.
-		java.util.function.Supplier<String[]> reading = () -> c.ban.equals("blacklist") ? new String[] {"off", "Not shown: this launcher is blacklisted", "blocked", "", ""} : c.status();
+		java.util.function.Supplier<String[]> reading = () -> c.ban.equals("blacklist") ? new String[] {"off",
+				"Not shown: this launcher is blacklisted", "blocked", "", ""} : c.status();
 		Runnable refresh = () -> new Thread(() -> { String[] s = reading.get(); SwingUtilities.invokeLater(() -> apply.accept(s)); }, "server-status").start();
-		if (!live && c.hasHelper()) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) {}
+		if (!live && c.hasHelper()) try { c.hello(); c.mcssState(); } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		if (!live) apply.accept(reading.get());   // (test pictures: one reading, so they show real values)
 		java.util.function.BiConsumer<String, String> stopResult = (state, text) -> SwingUtilities.invokeLater(() -> {
 			stopped.setIcon(state.equals("running") ? mark("running0") : mark(state));
@@ -1217,7 +1256,8 @@ public final class LaunchPopup {
 			hold.run();
 			new Thread(() -> {
 				String msg;
-				try { msg = "Wake signal sent (" + c.wake().size() + " addresses)" + (c.wakeAddress.isEmpty() ? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
+				try { msg = "Wake signal sent (" + c.wake().size() + " addresses)" + (c.wakeAddress.isEmpty()
+						? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't send the wake signal: " + ex.getMessage(); }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> pcNote.setText(wrap(m)));
@@ -1230,7 +1270,8 @@ public final class LaunchPopup {
 				String msg;
 				try { c.start(); msg = "Start requested: the server takes a minute or so to come up"; }
 				catch (ServerControl.Refused ex) { msg = ex.getMessage(); }
-				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
+				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403
+						? "Your access isn't allowed to start the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"; }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server machine awake?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> note.setText(wrap(m)));
@@ -1247,7 +1288,8 @@ public final class LaunchPopup {
 				long t0 = System.currentTimeMillis();
 				try { c.stop(); }
 				catch (ServerControl.Refused ex) { stopResult.accept("failed", ex.getMessage()); return; }
-				catch (ServerControl.HttpError ex) { stopResult.accept("failed", ex.code == 401 || ex.code == 403 ? "Your access isn't allowed to stop the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"); return; }
+				catch (ServerControl.HttpError ex) { stopResult.accept("failed", ex.code == 401 || ex.code == 403
+						? "Your access isn't allowed to stop the server (ask the owner)" : "The panel said no (" + ex.getMessage() + ")"); return; }
 				catch (IOException | RuntimeException ex) { stopResult.accept("failed", "Couldn't reach the panel: is the server machine awake?"); return; }
 				stopResult.accept("running", "Stopping: saving the world and shutting down\u2026");
 				refresh.run();
@@ -1326,7 +1368,8 @@ public final class LaunchPopup {
 			if (!startIt && javax.swing.JOptionPane.showConfirmDialog(f, force
 					? "Force close MCSS on the server machine? Its X button is set to hide it, so it will be ended rather than closed normally. (Only once the Minecraft server is stopped.)"
 					: "Close MCSS on the server machine? It closes normally, like its X button. (Only once the Minecraft server is stopped.)",
-					force ? "Force close MCSS" : "Close MCSS", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
+					force ? "Force close MCSS" : "Close MCSS", javax.swing.JOptionPane.OK_CANCEL_OPTION,
+							javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
 			mNote.setText(startIt ? "Starting MCSS\u2026" : "Closing MCSS\u2026");
 			new Thread(() -> {
 				String msg;
@@ -1341,7 +1384,8 @@ public final class LaunchPopup {
 		mStart.addActionListener(e -> mcssAct.apply(true).run());
 		pcSleep.addActionListener(e -> {
 			hold.run();
-			if (javax.swing.JOptionPane.showConfirmDialog(f, "Put the server machine to sleep? MCSS stays open and carries on when it wakes. Wake server machine wakes it again from the home network.",
+			if (javax.swing.JOptionPane.showConfirmDialog(f,
+					"Put the server machine to sleep? MCSS stays open and carries on when it wakes. Wake server machine wakes it again from the home network.",
 					"Sleep server machine", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
 			pcNote.setText("Asking the server machine to sleep\u2026");
 			new Thread(() -> {
@@ -1359,7 +1403,8 @@ public final class LaunchPopup {
 			h.setFont(h.getFont().deriveFont(Font.BOLD, 14f));
 			h.setBorder(BorderFactory.createCompoundBorder(
 					BorderFactory.createEmptyBorder(box.getComponentCount() == 0 ? 0 : 10, 0, 0, 0),
-					BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(box.getComponentCount() == 0 ? 0 : 1, 0, 0, 0, new Color(0x2F4860)), BorderFactory.createEmptyBorder(6, 0, 2, 0))));
+					BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(box.getComponentCount() == 0 ? 0 : 1, 0, 0, 0,
+							new Color(0x2F4860)), BorderFactory.createEmptyBorder(6, 0, 2, 0))));
 			h.setMaximumSize(new Dimension(Integer.MAX_VALUE, h.getPreferredSize().height));   // (so its dividing line spans the tab)
 			for (JComponent x : java.util.stream.Stream.concat(java.util.stream.Stream.of((JComponent) h), java.util.Arrays.stream(parts)).toList()) {
 				x.setAlignmentX(Component.LEFT_ALIGNMENT); box.add(x); box.add(Box.createVerticalStrut(2));
@@ -1372,7 +1417,8 @@ public final class LaunchPopup {
 		};
 		// "Request permission", one for each thing this device may not do: it asks the owner (a chime and a line in the
 		// Gatekeeper there). Granted: a chime here and a note. Denied: the button flashes red, with the owner's reason.
-		PlayButton[] reqB = {new PlayButton("Request permission", SLATE, Color.WHITE, 13f), new PlayButton("Request permission", SLATE, Color.WHITE, 13f), new PlayButton("Request permission", SLATE, Color.WHITE, 13f)};
+		PlayButton[] reqB = {new PlayButton("Request permission", SLATE, Color.WHITE, 13f), new PlayButton("Request permission", SLATE,
+				Color.WHITE, 13f), new PlayButton("Request permission", SLATE, Color.WHITE, 13f)};
 		String[] reqType = {"perm:machine", "perm:mcss", "perm:server"};
 		JLabel[] reqNote = {pcNote, mNote, note};
 		boolean[] reqPending = new boolean[3];
@@ -1418,7 +1464,8 @@ public final class LaunchPopup {
 			}
 		};
 		permsChanged[0].run();
-		group.accept("Server Machine", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep, reqB[0]}), pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
+		group.accept("Server Machine", c.hasHelper() ? new JComponent[] {pcStatus, row.apply(new JButton[] {wake, pcSleep, reqB[0]}),
+				pcNote} : new JComponent[] {pcStatus, row.apply(new JButton[] {wake}), pcNote});
 		if (c.hasHelper()) group.accept("MCSS (the server software)", new JComponent[] {mcss, row.apply(new JButton[] {mStart, mClose, reqB[1]}), mNote});
 		JLabel via = new JLabel(wrap("Control: " + c.accessText()));
 		via.setFont(via.getFont().deriveFont(Font.PLAIN, 12f));
@@ -1457,7 +1504,8 @@ public final class LaunchPopup {
 			new Thread(() -> {
 				String msg;
 				try { c.signIn(u, pw, c.wakeAddress); msg = "Signed in as " + u.trim() + "."; }
-				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403 ? "The panel didn't accept that username and password." : "The panel said no (" + ex.getMessage() + ")."; }
+				catch (ServerControl.HttpError ex) { msg = ex.code == 401 || ex.code == 403
+						? "The panel didn't accept that username and password." : "The panel said no (" + ex.getMessage() + ")."; }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't reach the panel: is the server machine awake, and MCSS running?"; }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> { cfgNote.setText(wrap(m)); signIn.setEnabled(true); pass.setText(""); showWho.run(); });
@@ -1493,7 +1541,8 @@ public final class LaunchPopup {
 		keeperHead.setFont(keeperHead.getFont().deriveFont(Font.BOLD, 14f));
 		keeperHead.setBorder(BorderFactory.createEmptyBorder(10, 0, 2, 0));
 		JLabel keeperNow = new JLabel(), keeperNote = new JLabel(" ");
-		Runnable showKeeper = () -> keeperNow.setText(wrap(!c.hasHelper() ? "This launcher isn't paired with a Gatekeeper: it can show whether the server is online, and nothing more."
+		Runnable showKeeper = () -> keeperNow.setText(wrap(!c.hasHelper()
+				? "This launcher isn't paired with a Gatekeeper: it can show whether the server is online, and nothing more."
 				: "This launcher talks to Gatekeeper at " + c.helperLabel() + (c.keeperUrl.isEmpty() ? " (the one this pack names)." : " (paired on this device).")));
 		showKeeper.run();
 		javax.swing.JTextField keeperField = new javax.swing.JTextField(c.keeperUrl.replaceFirst("(?i)^https?://", ""), 20);
@@ -1522,11 +1571,12 @@ public final class LaunchPopup {
 		for (JButton bt : new JButton[] {pairB, unpairB}) { bt.setFont(bt.getFont().deriveFont(13f)); keeperRow.add(bt); }
 		JLabel keeperHelp = new JLabel(wrap("To pair with another Gatekeeper, ask its owner for the pairing address (Gatekeeper on the server machine: Status, Copy pairing address) and type it here. This device has to be in that owner's Tailscale network."));
 		keeperHelp.setForeground(new Color(0x8F98A0));
-		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote, keeperHead, keeperNow, keeperHelp, keeperRow, keeperNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
+		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote, keeperHead, keeperNow, keeperHelp, keeperRow,
+				keeperNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }
 
 		if (live) {
 			refresh.run();
-			if (c.hasHelper()) new Thread(() -> { try { c.hello(); } catch (IOException | RuntimeException ignored) {} mcssRefresh.run(); }, "hello").start();
+			if (c.hasHelper()) new Thread(() -> { try { c.hello(); } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); } mcssRefresh.run(); }, "hello").start();
 			// Every few seconds while the window is open.
 			Timer poll = new Timer(4000, e -> { if (f.isDisplayable()) { refresh.run(); if (c.hasHelper()) mcssRefresh.run(); showWho.run(); } });
 			poll.start();
@@ -1550,26 +1600,33 @@ public final class LaunchPopup {
 		// suspend and blacklist are here too.
 		JPanel access = new JPanel(new BorderLayout(0, 6));
 		access.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
-		javax.swing.JRadioButton byDevice = new javax.swing.JRadioButton("By launcher (one device)", true), byPlayer = new javax.swing.JRadioButton("By player (all their devices)");
+		javax.swing.JRadioButton byDevice = new javax.swing.JRadioButton("By launcher (one device)", true),
+				byPlayer = new javax.swing.JRadioButton("By player (all their devices)");
 		javax.swing.ButtonGroup how = new javax.swing.ButtonGroup(); how.add(byDevice); how.add(byPlayer);
 		JPanel pick = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 0));
 		pick.add(byDevice); pick.add(byPlayer);
 		access.add(pick, BorderLayout.NORTH);
-		java.util.function.Function<String[], javax.swing.table.DefaultTableModel> newModel = cols -> new javax.swing.table.DefaultTableModel(cols, 0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
-		javax.swing.table.DefaultTableModel model = newModel.apply(new String[] {"Launcher", "Player", "Last seen", "Status", "Server Machine", "MCSS", "Minecraft server", "Gatekeeper control", "Controls the server"});
-		javax.swing.table.DefaultTableModel pmodel = newModel.apply(new String[] {"Player", "Launchers", "Last joined", "Whitelist", "Status", "Server Machine", "MCSS", "Minecraft server"});
+		java.util.function.Function<String[],
+				javax.swing.table.DefaultTableModel> newModel = cols -> new javax.swing.table.DefaultTableModel(cols,
+				0) { @Override public boolean isCellEditable(int r, int col) { return false; } };
+		javax.swing.table.DefaultTableModel model = newModel.apply(new String[] {"Launcher", "Player", "Last seen", "Status",
+				"Server Machine", "MCSS", "Minecraft server", "Gatekeeper control", "Controls the server"});
+		javax.swing.table.DefaultTableModel pmodel = newModel.apply(new String[] {"Player", "Launchers", "Last joined", "Whitelist",
+				"Status", "Server Machine", "MCSS", "Minecraft server"});
 		javax.swing.JTable table = new javax.swing.JTable(model), ptable = new javax.swing.JTable(pmodel);
 		javax.swing.table.DefaultTableCellRenderer paint = new javax.swing.table.DefaultTableCellRenderer() {
 			@Override public Component getTableCellRendererComponent(javax.swing.JTable tb, Object v, boolean sel, boolean focus, int r, int col) {
 				Component x = super.getTableCellRendererComponent(tb, v, sel, focus, r, col);
 				String tx = s(v);
-				Color bg = tx.startsWith("Allowed") ? new Color(0xCDEFD3) : tx.startsWith("Denied") || tx.startsWith("Blacklisted") || tx.startsWith("Suspended") ? new Color(0xF6CACA) : tx.startsWith("Not allowed") ? Color.WHITE : null;
+				Color bg = tx.startsWith("Allowed") ? new Color(0xCDEFD3) : tx.startsWith("Denied") || tx.startsWith("Blacklisted")
+						|| tx.startsWith("Suspended") ? new Color(0xF6CACA) : tx.startsWith("Not allowed") ? Color.WHITE : null;
 				x.setBackground(bg != null ? bg : sel ? tb.getSelectionBackground() : tb.getBackground());
 				x.setForeground(bg != null ? Color.BLACK : sel ? tb.getSelectionForeground() : tb.getForeground());
 				return x;
 			}
 		};
-		for (javax.swing.JTable tb : new javax.swing.JTable[] {table, ptable}) { tb.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION); tb.setRowHeight(24); tb.setDefaultRenderer(Object.class, paint); }
+		for (javax.swing.JTable tb : new javax.swing.JTable[] {table,
+				ptable}) { tb.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION); tb.setRowHeight(24); tb.setDefaultRenderer(Object.class, paint); }
 		List<String> ids = new ArrayList<>(), pnames = new ArrayList<>();
 		Map<String, String> dban = new LinkedHashMap<>(), pban = new LinkedHashMap<>();   // (who is suspended or blacklisted: a device itself, or a player)
 		Map<String, Boolean> pwl = new LinkedHashMap<>();
@@ -1579,7 +1636,8 @@ public final class LaunchPopup {
 		JPanel deck = new JPanel(cards);
 		deck.add(ts, "device"); deck.add(pts, "player");
 		access.add(deck, BorderLayout.CENTER);
-		JButton wlB = new JButton("Add to whitelist"), kickB = new JButton("Kick\u2026"), suspendB = new JButton("Suspend\u2026"), blackB = new JButton("Blacklist\u2026"), liftB = new JButton("Lift"),
+		JButton wlB = new JButton("Add to whitelist"), kickB = new JButton("Kick\u2026"), suspendB = new JButton("Suspend\u2026"),
+				blackB = new JButton("Blacklist\u2026"), liftB = new JButton("Lift"),
 				forget = new JButton("Forget"), revoke = new JButton("Remove server access");
 		wlB.setToolTipText("Adds the selected player to the server's whitelist, or takes them off it");
 		kickB.setToolTipText("Kicks the selected player off the Minecraft server now. They can join again.");
@@ -1600,7 +1658,8 @@ public final class LaunchPopup {
 		};
 		JPanel buttons = new JPanel();
 		dev.gatehouse.look.WrapLayout.on(buttons, 6, 1);   // (side by side while they fit, in rows when the window is narrower: never squeezed)
-		for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {wlB, revoke}), set.apply("Administrative actions", new JButton[] {kickB, suspendB, blackB, liftB}), set.apply("List", new JButton[] {forget}))) {
+		for (JPanel g : List.of(set.apply("Server accesses", new JButton[] {wlB, revoke}), set.apply("Administrative actions",
+				new JButton[] {kickB, suspendB, blackB, liftB}), set.apply("List", new JButton[] {forget}))) {
 			buttons.add(g);
 		}
 		String hint = "Click a permission to change it: Allowed, Not allowed or Denied.";
@@ -1612,11 +1671,13 @@ public final class LaunchPopup {
 		// ---- Gatekeeper activity
 		JPanel activity = new JPanel(new BorderLayout(0, 8));
 		activity.setBorder(BorderFactory.createEmptyBorder(10, 10, 8, 10));
-		JLabel mcssLine = new JLabel("Asking Gatekeeper\u2026", dot(GRAY), JLabel.LEFT), serverLine = new JLabel(" ", dot(GRAY), JLabel.LEFT), keyLine = new JLabel(" ");
+		JLabel mcssLine = new JLabel("Asking Gatekeeper\u2026", dot(GRAY), JLabel.LEFT), serverLine = new JLabel(" ", dot(GRAY),
+				JLabel.LEFT), keyLine = new JLabel(" ");
 		keyLine.setForeground(grey);
 		JPanel lines = new JPanel();
 		lines.setLayout(new BoxLayout(lines, BoxLayout.Y_AXIS));
-		for (JLabel l : new JLabel[] {mcssLine, serverLine, keyLine}) { l.setIconTextGap(8); l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0)); l.setAlignmentX(Component.LEFT_ALIGNMENT); lines.add(l); }
+		for (JLabel l : new JLabel[] {mcssLine, serverLine, keyLine}) { l.setIconTextGap(8); l.setBorder(BorderFactory.createEmptyBorder(2,
+				0, 2, 0)); l.setAlignmentX(Component.LEFT_ALIGNMENT); lines.add(l); }
 		activity.add(lines, BorderLayout.NORTH);
 		javax.swing.JTextArea log = new javax.swing.JTextArea(12, 40);
 		log.setEditable(false);
@@ -1642,19 +1703,24 @@ public final class LaunchPopup {
 			String ban = "";
 			if (players[0]) {
 				int r = ptable.getSelectedRow();
-				if (r >= 0 && r < pnames.size()) { ban = pban.getOrDefault(pnames.get(r), ""); wlB.setText(pwl.getOrDefault(pnames.get(r), false) ? "Remove from whitelist" : "Add to whitelist"); }
+				if (r >= 0 && r < pnames.size()) { ban = pban.getOrDefault(pnames.get(r), ""); wlB.setText(pwl.getOrDefault(pnames.get(r),
+						false) ? "Remove from whitelist" : "Add to whitelist"); }
 			} else { int r = table.getSelectedRow(); if (r >= 0 && r < ids.size()) ban = dban.getOrDefault(ids.get(r), ""); }
 			liftB.setEnabled(!ban.isEmpty());
 			wlB.setVisible(players[0]); kickB.setVisible(players[0]); revoke.setVisible(!players[0]); forget.setVisible(!players[0]);
 		};
-		byDevice.addActionListener(e -> { players[0] = false; cards.show(deck, "device"); note.setText(wrap(hint + " Suspend and Blacklist here are for this one device.")); labels.run(); });
-		byPlayer.addActionListener(e -> { players[0] = true; cards.show(deck, "player"); note.setText(wrap(hint + " A player's setting goes to all their confirmed launchers (and ones they join from later), except a launcher that is itself Denied.")); labels.run(); });
+		byDevice.addActionListener(e -> { players[0] = false; cards.show(deck, "device"); note.setText(wrap(hint
+				+ " Suspend and Blacklist here are for this one device.")); labels.run(); });
+		byPlayer.addActionListener(e -> { players[0] = true; cards.show(deck, "player"); note.setText(wrap(hint
+				+ " A player's setting goes to all their confirmed launchers (and ones they join from later), except a launcher that is itself Denied.")); labels.run(); });
 		java.util.function.Consumer<Runnable> ui = r -> { if (SwingUtilities.isEventDispatchThread()) r.run(); else SwingUtilities.invokeLater(r); };
 		Runnable fetch = () -> {
 			try {
-				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), pl = c.helper("GET", "/v1/admin/players", null), lg = c.helper("GET", "/v1/admin/log", null), pu = c.helper("GET", "/v1/admin/pulls", null);
+				Map<String, Object> r = c.helper("GET", "/v1/admin/devices", null), pl = c.helper("GET", "/v1/admin/players", null),
+						lg = c.helper("GET", "/v1/admin/log", null), pu = c.helper("GET", "/v1/admin/pulls", null);
 				ui.accept(() -> {
-					if (!"200".equals(s(r.get("_code")))) { mcssLine.setIcon(dot(RED)); mcssLine.setText(s(r.get("error")).isEmpty() ? "Gatekeeper said no (" + s(r.get("_code")) + ")" : s(r.get("error"))); note.setText(wrap(mcssLine.getText())); return; }
+					if (!"200".equals(s(r.get("_code")))) { mcssLine.setIcon(dot(RED)); mcssLine.setText(s(r.get("error")).isEmpty()
+							? "Gatekeeper said no (" + s(r.get("_code")) + ")" : s(r.get("error"))); note.setText(wrap(mcssLine.getText())); return; }
 					int sel = table.getSelectedRow();
 					String keep = sel >= 0 && sel < ids.size() ? ids.get(sel) : null, you = s(r.get("you"));
 					pullModel.setRowCount(0);
@@ -1662,12 +1728,14 @@ public final class LaunchPopup {
 					if (pu.get("pulls") instanceof List<?> pls) for (Object o : pls) {
 						Map<String, Object> q = asMap(o);
 						long bytes = 0;
-						try { bytes = (long) Double.parseDouble(s(q.get("bytes"))); } catch (NumberFormatException ignored) {}
+						try { bytes = (long) Double.parseDouble(s(q.get("bytes"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 						pullTotal += bytes;
-						pullModel.addRow(new Object[] {s(q.get("time")), s(q.get("name")), s(q.get("player")), (s(q.get("from")).isEmpty() ? "first install, " : s(q.get("from")) + " \u2192 ") + s(q.get("to")),
+						pullModel.addRow(new Object[] {s(q.get("time")), s(q.get("name")), s(q.get("player")), (s(q.get("from")).isEmpty()
+								? "first install, " : s(q.get("from")) + " \u2192 ") + s(q.get("to")),
 								s(q.get("files")).replaceAll("\\.0$", ""), s(q.get("mods")).replaceAll("\\.0$", ""), sizeText(bytes)});
 					}
-					pullHead.setText(pullModel.getRowCount() == 0 ? "No updates pulled from the server machine yet." : pullModel.getRowCount() + " download" + (pullModel.getRowCount() == 1 ? "" : "s") + " recorded, " + sizeText(pullTotal) + " in all. Newest first.");
+					pullHead.setText(pullModel.getRowCount() == 0 ? "No updates pulled from the server machine yet."
+							: pullModel.getRowCount() + " download" + (pullModel.getRowCount() == 1 ? "" : "s") + " recorded, " + sizeText(pullTotal) + " in all. Newest first.");
 					model.setRowCount(0); ids.clear(); dban.clear();
 					for (Map.Entry<String, Object> e : asMap(r.get("devices")).entrySet()) {
 						Map<String, Object> v = asMap(e.getValue());
@@ -1701,7 +1769,8 @@ public final class LaunchPopup {
 					boolean mc = "true".equals(s(r.get("mcss"))), sv = "true".equals(s(r.get("minecraft")));
 					mcssLine.setIcon(dot(mc ? GREEN : GRAY)); mcssLine.setText(mc ? "MCSS is running" : "MCSS isn't running");
 					serverLine.setIcon(dot(sv ? GREEN : GRAY)); serverLine.setText(sv ? "The Minecraft server is running" : "The Minecraft server is off");
-					keyLine.setText("true".equals(s(r.get("has_key"))) ? " " : "Gatekeeper isn't signed in to MCSS yet (server control needs it; done on the server machine).");
+					keyLine.setText("true".equals(s(r.get("has_key"))) ? " "
+							: "Gatekeeper isn't signed in to MCSS yet (server control needs it; done on the server machine).");
 					StringBuilder sb = new StringBuilder();
 					if (lg.get("log") instanceof List<?> l) for (Object x : l) sb.append(x).append('\n');
 					if (!log.getText().equals(sb.toString())) { log.setText(sb.toString()); log.setCaretPosition(log.getDocument().getLength()); }
@@ -1713,7 +1782,9 @@ public final class LaunchPopup {
 		Runnable load = () -> new Thread(fetch, "manage").start();
 		java.util.function.BiConsumer<String, String> act = (path, body) -> new Thread(() -> {
 			String m;
-			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code"))) ? (s(r.get("message")).isEmpty() ? " " : s(r.get("message"))) : s(r.get("error")).isEmpty() ? "Gatekeeper said no (" + s(r.get("_code")) + ")" : s(r.get("error")); }
+			try { Map<String, Object> r = c.helper("POST", path, body); m = "200".equals(s(r.get("_code")))
+					? (s(r.get("message")).isEmpty() ? " " : s(r.get("message"))) : s(r.get("error")).isEmpty() ? "Gatekeeper said no ("
+					+ s(r.get("_code")) + ")" : s(r.get("error")); }
 			catch (IOException | RuntimeException ex) { m = "Couldn't reach Gatekeeper"; }
 			String msg = m;
 			SwingUtilities.invokeLater(() -> note.setText(wrap(msg)));
@@ -1744,7 +1815,8 @@ public final class LaunchPopup {
 				if (col >= first && col < first + 3) {
 					for (String[] o : new String[][] {{"Allowed", "allowed"}, {"Not allowed", "none"}, {"Denied", "denied"}}) {
 						javax.swing.JMenuItem it = new javax.swing.JMenuItem(o[0]);
-						it.addActionListener(a -> act.accept(pl ? "/v1/admin/player/perm" : "/v1/admin/perm", "{" + who + ",\"perm\":\"" + permNames[col - first] + "\",\"state\":\"" + o[1] + "\"}"));
+						it.addActionListener(a -> act.accept(pl ? "/v1/admin/player/perm" : "/v1/admin/perm", "{" + who + ",\"perm\":\""
+								+ permNames[col - first] + "\",\"state\":\"" + o[1] + "\"}"));
 						menu.add(it);
 					}
 				} else if (pl && col == 3) {
@@ -1767,7 +1839,8 @@ public final class LaunchPopup {
 				if (typed == null) return;
 				reason = typed.trim();
 			}
-			act.accept(kind.equals("kick") ? "/v1/admin/kick" : "/v1/admin/ban", "{" + who + ",\"kind\":\"" + kind + "\",\"reason\":\"" + ServerControl.jsonEsc(reason) + "\"}");
+			act.accept(kind.equals("kick") ? "/v1/admin/kick" : "/v1/admin/ban", "{" + who + ",\"kind\":\"" + kind + "\",\"reason\":\""
+					+ ServerControl.jsonEsc(reason) + "\"}");
 		};
 		kickB.addActionListener(e -> banAct.accept("kick", "Kick from the server"));
 		suspendB.addActionListener(e -> banAct.accept("suspend", "Suspend (can't start the game or use controls)"));
@@ -1780,18 +1853,22 @@ public final class LaunchPopup {
 		forget.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			if (javax.swing.JOptionPane.showConfirmDialog(f, "Forget this launcher? It can ask again later.", "Forget", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/forget", "{\"id\":\"" + ids.get(r) + "\"}");
+			if (javax.swing.JOptionPane.showConfirmDialog(f, "Forget this launcher? It can ask again later.", "Forget",
+					javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/forget", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		revoke.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			if (javax.swing.JOptionPane.showConfirmDialog(f, wrap("Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."),
-					"Remove server access", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/revoke", "{\"id\":\"" + ids.get(r) + "\"}");
+			if (javax.swing.JOptionPane.showConfirmDialog(f,
+					wrap("Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."),
+					"Remove server access",
+							javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/revoke", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		table.getSelectionModel().addListSelectionListener(e -> labels.run());
 		ptable.getSelectionModel().addListSelectionListener(e -> labels.run());
 		// Asked for while either tab is on screen: every few seconds, and at once when one is opened.
-		Timer t = new Timer(4000, e -> { if (gone(f, access)) ((Timer) e.getSource()).stop(); else if (access.isShowing() || activity.isShowing() || pulled.isShowing()) load.run(); });
+		Timer t = new Timer(4000, e -> { if (gone(f, access)) ((Timer) e.getSource()).stop(); else if (access.isShowing()
+				|| activity.isShowing() || pulled.isShowing()) load.run(); });
 		t.start();
 		for (JPanel q : new JPanel[] {access, activity, pulled})
 			q.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && q.isShowing()) load.run(); });
@@ -1838,7 +1915,8 @@ public final class LaunchPopup {
 			for (int pass = 0; pass < boxes.size(); pass++)
 				for (Map.Entry<String, javax.swing.JCheckBox> e : boxes.entrySet()) {
 					String missing = "";
-					for (Object n : needs.get(e.getKey())) { javax.swing.JCheckBox nb = boxes.get(s(n)); if (nb != null && !(nb.isSelected() && nb.isEnabled())) missing = names.get(s(n)); }
+					for (Object n : needs.get(e.getKey())) { javax.swing.JCheckBox nb = boxes.get(s(n)); if (nb != null
+							&& !(nb.isSelected() && nb.isEnabled())) missing = names.get(s(n)); }
 					e.getValue().setEnabled(missing.isEmpty());
 					e.getValue().setToolTipText(missing.isEmpty() ? null : "Needs " + missing + ", which is off");
 				}
@@ -1861,7 +1939,8 @@ public final class LaunchPopup {
 				choice.put(key, cb.isSelected());
 				follow.run();
 				StringBuilder sb = new StringBuilder("{");
-				for (Map.Entry<String, Boolean> c : choice.entrySet()) sb.append(sb.length() > 1 ? ", " : "").append('"').append(ServerControl.jsonEsc(c.getKey())).append("\": ").append(c.getValue());
+				for (Map.Entry<String, Boolean> c : choice.entrySet()) sb.append(sb.length() > 1 ? ", "
+						: "").append('"').append(ServerControl.jsonEsc(c.getKey())).append("\": ").append(c.getValue());
 				String now = read(options), next = withMember(now, "mods", sb.append("}").toString());
 				try {
 					if (next == null) throw new IOException("pack-options.json isn't in a form this can change");
@@ -1935,7 +2014,8 @@ public final class LaunchPopup {
 	static String[] shutdownVerdict(ServerControl c, long secs) {
 		List<String> log;
 		try { log = c.console(80); }
-		catch (IOException e) { return new String[] {"warn", "The server stopped (after " + secs + " s), but its log couldn't be read to confirm the world was saved"}; }
+		catch (IOException e) { return new String[] {"warn", "The server stopped (after " + secs
+				+ " s), but its log couldn't be read to confirm the world was saved"}; }
 		int from = -1;
 		for (int i = log.size() - 1; i >= 0; i--) if (log.get(i).contains("Stopping server")) { from = i; break; }
 		if (from < 0) return new String[] {"warn", "The server stopped (after " + secs + " s), but its log doesn't show a normal shutdown"};
@@ -1947,7 +2027,8 @@ public final class LaunchPopup {
 			if (l.contains("/ERROR]") || l.contains("Exception")) errors++;
 		}
 		if (!worlds || dims == 0) return new String[] {"warn", "The server stopped (after " + secs + " s), but its log doesn't show the world being saved"};
-		if (errors > 0) return new String[] {"warn", "Shut down and saved the world (" + dims + " dimensions, " + secs + " s), with " + errors + " error line" + (errors > 1 ? "s" : "") + " in the log (see the panel's console)"};
+		if (errors > 0) return new String[] {"warn", "Shut down and saved the world (" + dims + " dimensions, " + secs + " s), with "
+				+ errors + " error line" + (errors > 1 ? "s" : "") + " in the log (see the panel's console)"};
 		return new String[] {"ok", "Shut down smoothly: the world was saved (" + dims + " dimensions) and the server stopped after " + secs + " s"};
 	}
 
@@ -1959,7 +2040,7 @@ public final class LaunchPopup {
 			try {
 				Object t = cb.getData(java.awt.datatransfer.DataFlavor.stringFlavor);
 				if (t != null && !t.toString().isBlank()) return t.toString();
-			} catch (Exception ignored) {}
+			} catch (Exception ignored) { Quiet.seen(ignored); }
 		}
 		return null;
 	}
@@ -2002,7 +2083,8 @@ public final class LaunchPopup {
 
 	private static JComponent row(Color c, String label, String detail) {
 		if (detail != null && !detail.isEmpty()) detail = Character.toUpperCase(detail.charAt(0)) + detail.substring(1);
-		JLabel l = new JLabel("<html>" + esc(label) + (detail == null || detail.isEmpty() ? "" : "<font color='#8f98a0'>&nbsp;&nbsp;" + esc(detail) + "</font>") + "</html>", dot(c), JLabel.LEFT);
+		JLabel l = new JLabel("<html>" + esc(label) + (detail == null || detail.isEmpty() ? "" : "<font color='#8f98a0'>&nbsp;&nbsp;"
+				+ esc(detail) + "</font>") + "</html>", dot(c), JLabel.LEFT);
 		l.setIconTextGap(8);
 		l.setFont(l.getFont().deriveFont(Font.PLAIN, 14f));
 		l.setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 0));
@@ -2034,11 +2116,13 @@ public final class LaunchPopup {
 
 	private static String plain(List<Component> rows) {
 		StringBuilder sb = new StringBuilder();
-		for (Component c : rows) if (c instanceof JLabel jl) sb.append(jl.getText().replaceAll("<[^>]+>", "").replace("&nbsp;", " ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")).append('\n');
+		for (Component c : rows) if (c instanceof JLabel jl) sb.append(jl.getText().replaceAll("<[^>]+>", "").replace("&nbsp;",
+				" ").replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")).append('\n');
 		return sb.toString();
 	}
 
-	private static void show(Path dir, String headline, String sub, List<Component> rows, List<Component> serverRows, boolean serverNews, int seconds, boolean big) throws Exception {
+	private static void show(Path dir, String headline, String sub, List<Component> rows, List<Component> serverRows, boolean serverNews,
+			int seconds, boolean big) throws Exception {
 		Object lock = new Object();
 		boolean[] done = {false};
 		SwingUtilities.invokeAndWait(() -> {
@@ -2083,8 +2167,9 @@ public final class LaunchPopup {
 					if (packPretend == null && packStart[0] == null) { packStart[0] = sig; return; }   // (the starting point)
 					if (sig.equals(packStart[0]) || sig.equals(packDeclined[0]) || got[1].equals("0") || (sig.equals(packSeen[0]) && packUpdate.isVisible())) return;
 					packSeen[0] = sig;
-					long bytes = 0; try { bytes = Long.parseLong(got[2]); } catch (NumberFormatException ignored) {}
-					packUpdateText.setText("<html><b>An update to " + esc(NAME) + " is ready" + (got[0].isEmpty() ? "" : ": " + esc(got[0])) + ".</b> " + got[1] + (got[1].equals("1") ? " file" : " files") + (bytes > 0 ? ", " + sizeText(bytes) : "") + " to download.</html>");
+					long bytes = 0; try { bytes = Long.parseLong(got[2]); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
+					packUpdateText.setText("<html><b>An update to " + esc(NAME) + " is ready" + (got[0].isEmpty() ? "" : ": "
+							+ esc(got[0])) + ".</b> " + got[1] + (got[1].equals("1") ? " file" : " files") + (bytes > 0 ? ", " + sizeText(bytes) : "") + " to download.</html>");
 					packUpdate.setVisible(true);
 					f.validate();
 					if (System.getenv("OJ_POPUP_PNG") == null) chime();
@@ -2094,7 +2179,8 @@ public final class LaunchPopup {
 			if (packPretend != null) packLook.run();
 			else if (System.getenv("OJ_POPUP_PNG") == null) {
 				new Thread(packLook, "pack-update").start();
-				new Timer(Notes.pollMillis(), tick -> { if (!gone(f, packUpdate)) new Thread(packLook, "pack-update").start(); else ((Timer) tick.getSource()).stop(); }).start();
+				new Timer(Notes.pollMillis(), tick -> { if (!gone(f, packUpdate)) new Thread(packLook,
+						"pack-update").start(); else ((Timer) tick.getSource()).stop(); }).start();
 			}
 			top.add(h, BorderLayout.NORTH);
 			top.add(s, BorderLayout.CENTER);
@@ -2112,7 +2198,8 @@ public final class LaunchPopup {
 			Runnable[] haloQuit = {() -> {}};   // (set once the Quit button exists)
 			// (A server with no Steam shortcut yet, like one set up from the launcher's menu: the same button adds one.)
 			if (SteamUpdate.available(dir)) clientTab.add(steamRow(dir, "pack", "Update " + NAME + "'s Steam config", f, () -> haloQuit[0].run()), BorderLayout.SOUTH);
-			else if (Files.isRegularFile(dir.resolve("extras").resolve(System.getProperty("os.name", "").startsWith("Windows") ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")))
+			else if (Files.isRegularFile(dir.resolve("extras").resolve(System.getProperty("os.name", "").startsWith("Windows")
+					? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")))
 				clientTab.add(steamRow(dir, "pack", "Add " + NAME + " to Steam", f, () -> haloQuit[0].run()), BorderLayout.SOUTH);
 			tabs.addTab("Client updates", clientTab);
 			ServerControl control = new ServerControl(dir);
@@ -2162,7 +2249,8 @@ public final class LaunchPopup {
 			// Server controls, a tab of their own: status, wake, start, stop, the panel, and this device's access.
 			if (control.configured()) {
 				Runnable[] syncTabs = {() -> {}};
-				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live, () -> { syncTabs[0].run(); playState[0].run(); });
+				JComponent[] parts = controls(control, f, () -> hold[0].run(), System.getenv("OJ_POPUP_PNG") == null, live,
+						() -> { syncTabs[0].run(); playState[0].run(); });
 				JPanel[] serverTabs = new JPanel[3];
 				for (int i = 0; i < 3; i++) {
 					JPanel tab = new JPanel(new BorderLayout());
@@ -2231,11 +2319,13 @@ public final class LaunchPopup {
 					boolean win = System.getProperty("os.name", "").startsWith("Windows");
 					Path script = dir.toAbsolutePath().resolve("extras").resolve(win ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh");
 					Files.deleteIfExists(dir.resolve("back-to-menu"));
-					if (Files.isRegularFile(script)) new ProcessBuilder(win ? List.of("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", script.toString()) : List.of("bash", script.toString())).start();
-				} catch (IOException ignored) {}
+					if (Files.isRegularFile(script)) new ProcessBuilder(win ? List.of("powershell", "-NoProfile", "-ExecutionPolicy",
+							"Bypass", "-WindowStyle", "Hidden", "-File", script.toString()) : List.of("bash", script.toString())).start();
+				} catch (IOException ignored) { Quiet.seen(ignored); }
 				exitCode = QUIT; f.dispose();
 			});
-			menu.setVisible(Files.isRegularFile(dir.resolve("extras").resolve(System.getProperty("os.name", "").startsWith("Windows") ? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")));
+			menu.setVisible(Files.isRegularFile(dir.resolve("extras").resolve(System.getProperty("os.name", "").startsWith("Windows")
+					? "gatehouse-launcher.ps1" : "gatehouse-launcher.sh")));
 			Nav.tag(menu, "back"); Nav.tag(again, "restart"); Nav.tag(quit, "quit");
 			Nav.start();
 			haloQuit[0] = () -> ((PlayButton) quit).halo();
@@ -2269,7 +2359,8 @@ public final class LaunchPopup {
 			String[] requestNote = {""}, noteFor = {""}, asked = {""};
 			long[] startingUntil = {0};   // (the owner said yes to Request server: "Server starting" until it's on, at most 6 minutes)
 			// ("blocked": the Gatekeeper says nobody, or not this Gatehouse, may join until something is updated)
-			java.util.function.Supplier<String> mode = () -> !serverShown[0] ? "next" : control.ban.equals("blacklist") ? "unblacklist" : control.ban.equals("suspend") ? "unsuspend"
+			java.util.function.Supplier<String> mode = () -> !serverShown[0] ? "next" : control.ban.equals("blacklist") ? "unblacklist"
+					: control.ban.equals("suspend") ? "unsuspend"
 					: !control.blocked.isEmpty() ? "blocked"
 					: control.hasHelper() && control.whitelisted.equals("no") ? "whitelist" : !serverLive[0] && control.hasHelper() ? "server" : "play";
 			Runnable label = () -> {
@@ -2293,7 +2384,8 @@ public final class LaunchPopup {
 				if (startingUntil[0] > 0 && serverLive[0]) { startingUntil[0] = 0; requestNote[0] = ""; chime(); }
 				boolean starting = m.equals("server") && System.currentTimeMillis() < startingUntil[0];
 				play.setText(switch (m) { case "next" -> "Next: server updates"; case "unblacklist" -> "Request unblacklist"; case "unsuspend" -> "Request unsuspend";
-					case "whitelist" -> "Request whitelist"; case "server" -> starting ? "Server starting" : "Request server"; case "blocked" -> "Update needed"; default -> "Play"; });
+					case "whitelist" -> "Request whitelist"; case "server" -> starting ? "Server starting"
+							: "Request server"; case "blocked" -> "Update needed"; default -> "Play"; });
 				// "Next" only turns the page, so it always works; Play waits for the server; a request, one a minute.
 				play.setEnabled(m.equals("next") || (m.equals("play") ? serverLive[0] : !m.equals("blocked") && !starting && System.currentTimeMillis() >= requestWait[0]));
 				String who = control.banScope.equals("user") ? "Your account" + (control.player().isEmpty() ? "" : " (" + control.player() + ")") : "This device";
@@ -2332,7 +2424,8 @@ public final class LaunchPopup {
 						boolean ok = false;
 						try {
 							Map<String, Object> r = control.request(m, text);
-							msg = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty() ? "The server machine didn't take the request" : s(r.get("error"))) : s(r.get("message"));
+							msg = s(r.get("message")).isEmpty() ? (s(r.get("error")).isEmpty()
+									? "The server machine didn't take the request" : s(r.get("error"))) : s(r.get("message"));
 							ok = "ok".equals(s(r.get("result")));
 						} catch (IOException | RuntimeException ex) { msg = "Couldn't reach the server machine (it may be asleep: Connection, Server controls can wake it, if you're allowed)"; }
 						String shown = msg;
@@ -2352,7 +2445,8 @@ public final class LaunchPopup {
 			hold[0] = () -> { };
 			play.addActionListener(e -> next.run());
 			// Enter or Space press the button. Closing the window is Quit: only Play starts the game.
-			for (int key : new int[] {KeyEvent.VK_ENTER, KeyEvent.VK_SPACE}) p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key, 0), "next");
+			for (int key : new int[] {KeyEvent.VK_ENTER,
+					KeyEvent.VK_SPACE}) p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(key, 0), "next");
 			p.getActionMap().put("next", new javax.swing.AbstractAction() {
 				@Override public void actionPerformed(java.awt.event.ActionEvent e) { next.run(); }
 			});
@@ -2390,7 +2484,7 @@ public final class LaunchPopup {
 			if (png != null && !png.isEmpty()) {
 				Path choice = dir.resolve("test-popup-choice.txt");
 				String ch = read(choice).trim();
-				if (!ch.isEmpty()) { try { Files.delete(choice); } catch (IOException ignored) {} exitCode = ch.equals("quit") ? QUIT : ch.equals("restart") ? RESTART : 0; }
+				if (!ch.isEmpty()) { try { Files.delete(choice); } catch (IOException ignored) { Quiet.seen(ignored); } exitCode = ch.equals("quit") ? QUIT : ch.equals("restart") ? RESTART : 0; }
 				try {
 					// Every other tab too: <file>-controls.png and -connection.png (inside Connection), -config.png,
 					// -mods.png, -manage.png.
@@ -2418,8 +2512,10 @@ public final class LaunchPopup {
 						shell.paint(g);
 						g.dispose();
 						javax.imageio.ImageIO.write(img, "png", new java.io.File(i == 0 ? png : png.replaceAll("\\.png$", "") + "-server.png"));
-						if (i == 0) Files.writeString(Path.of(png + ".txt"), f.getTitle() + "\n" + headline + "\n" + sub + "\n" + plain(deviceRows) + play.getText() + "\n", StandardCharsets.UTF_8);
-						else Files.writeString(Path.of(png + ".txt"), "---- Server tab: " + tabs.getTitleAt(1) + "\n" + plain(serverRows) + play.getText() + "\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+						if (i == 0) Files.writeString(Path.of(png + ".txt"), f.getTitle() + "\n" + headline + "\n" + sub + "\n"
+								+ plain(deviceRows) + play.getText() + "\n", StandardCharsets.UTF_8);
+						else Files.writeString(Path.of(png + ".txt"), "---- Server tab: " + tabs.getTitleAt(1) + "\n" + plain(serverRows)
+								+ play.getText() + "\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
 					}
 				} catch (IOException e) { e.printStackTrace(); }
 				f.dispose();
@@ -2429,7 +2525,7 @@ public final class LaunchPopup {
 			if (handed != null) place(f, handed); else f.setLocationRelativeTo(null);
 			f.setVisible(true);
 			bringForwardOnce(f);
-			try { Files.deleteIfExists(dir.resolve(HANDOFF)); } catch (IOException ignored) {}
+			try { Files.deleteIfExists(dir.resolve(HANDOFF)); } catch (IOException ignored) { Quiet.seen(ignored); }
 			play.requestFocusInWindow();
 			timer.start();
 		});
@@ -2441,7 +2537,8 @@ public final class LaunchPopup {
 	/** Same installed file: the same hash in packwiz-installer's record (the pack's file, and the jar it points to). */
 	private static boolean same(Object a, Object b) {
 		Map<String, Object> x = asMap(a), y = asMap(b);
-		return String.valueOf(x.get("hash")).equals(String.valueOf(y.get("hash"))) && String.valueOf(x.get("linkedFileHash")).equals(String.valueOf(y.get("linkedFileHash")));
+		return String.valueOf(x.get("hash")).equals(String.valueOf(y.get("hash")))
+				&& String.valueOf(x.get("linkedFileHash")).equals(String.valueOf(y.get("linkedFileHash")));
 	}
 
 	private static String jar(Object entry) {

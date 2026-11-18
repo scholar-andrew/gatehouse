@@ -29,9 +29,12 @@ import javax.swing.table.DefaultTableModel;
  * else; the owner types each password themselves), and the devices it can wake.
  */
 final class PanelUi {
-	private static JPanel line(JComponent... parts) { JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); for (JComponent c : parts) p.add(c); p.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); return p; }
-	private static JLabel head(String text) { JLabel l = new JLabel(text); l.setFont(l.getFont().deriveFont(java.awt.Font.BOLD, 14f)); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); return l; }
-	private static JLabel note(String text) { JLabel l = ServerToolsUi.note(ServerToolsUi.wrap(text, 760)); l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); return l; }
+	private static JPanel line(JComponent... parts) { JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2)); for (JComponent c
+			: parts) p.add(c); p.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); return p; }
+	private static JLabel head(String text) { JLabel l = new JLabel(text); l.setFont(l.getFont().deriveFont(java.awt.Font.BOLD,
+			14f)); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4, 0)); l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); return l; }
+	private static JLabel note(String text) { JLabel l = ServerToolsUi.note(ServerToolsUi.wrap(text,
+			760)); l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); return l; }
 
 	static JPanel tab(JFrame f) {
 		JPanel p = new JPanel();
@@ -41,10 +44,12 @@ final class PanelUi {
 		JTextField addrF = new JTextField(34); addrF.setEditable(false);
 		JButton copy = new JButton("Copy");
 		JLabel said = new JLabel(" "); said.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-		DefaultTableModel um = new DefaultTableModel(new Object[] {"Account", "Admin", "On", "May", "Last signed in", "Signed in now"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+		DefaultTableModel um = new DefaultTableModel(new Object[] {"Account", "Admin", "On", "May", "Last signed in", "Signed in now"},
+				0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable ut = new JTable(um);
 		HostHelper.roomy(ut);
-		DefaultTableModel wm = new DefaultTableModel(new Object[] {"Device", "MAC address"}, 0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
+		DefaultTableModel wm = new DefaultTableModel(new Object[] {"Device", "MAC address"},
+				0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable wt = new JTable(wm);
 		List<Map<String, Object>> users = new ArrayList<>();
 		List<Object[]> perms = new ArrayList<>();   // {id, what it is called}
@@ -60,13 +65,16 @@ final class PanelUi {
 				for (Object o : Json.list(r.get("users"))) {
 					Map<String, Object> u = Json.map(o); users.add(u);
 					List<String> may = new ArrayList<>(); for (Object q : Json.list(u.get("perms"))) may.add(Json.str(q));
-					um.addRow(new Object[] {Json.str(u.get("name")), Boolean.TRUE.equals(u.get("admin")) ? "Yes" : "", Boolean.TRUE.equals(u.get("enabled")) ? "Yes" : "No", Boolean.TRUE.equals(u.get("admin")) ? "everything" : String.join(", ", may), Json.str(u.get("last_in")), ServerToolsUi.num(u.get("signed_in")).equals("0") ? "" : ServerToolsUi.num(u.get("signed_in"))});
+					um.addRow(new Object[] {Json.str(u.get("name")), Boolean.TRUE.equals(u.get("admin")) ? "Yes" : "",
+							Boolean.TRUE.equals(u.get("enabled")) ? "Yes" : "No", Boolean.TRUE.equals(u.get("admin")) ? "everything"
+							: String.join(", ", may), Json.str(u.get("last_in")), ServerToolsUi.num(u.get("signed_in")).equals("0") ? "" : ServerToolsUi.num(u.get("signed_in"))});
 				}
 				wm.setRowCount(0);
 				for (Object o : Json.list(r.get("wake_devices"))) wm.addRow(new Object[] {Json.str(Json.map(o).get("name")), Json.str(Json.map(o).get("mac"))});
 			});
 		});
-		java.util.function.BiConsumer<String, Object> post = (path, body) -> ServerToolsUi.later(() -> { Map<String, Object> r = ServerToolsUi.ask("POST", path, body); SwingUtilities.invokeLater(() -> ServerToolsUi.say(said, r)); load.run(); });
+		java.util.function.BiConsumer<String, Object> post = (path, body) -> ServerToolsUi.later(() -> { Map<String,
+				Object> r = ServerToolsUi.ask("POST", path, body); SwingUtilities.invokeLater(() -> ServerToolsUi.say(said, r)); load.run(); });
 		onF.addActionListener(e -> { if (!filling[0]) post.accept("/admin/panel", m("on", onF.isSelected())); });
 		copy.addActionListener(e -> { java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(addrF.getText()), null); said.setForeground(ServerToolsUi.GREEN); said.setText("Address copied."); });
 
@@ -75,7 +83,8 @@ final class PanelUi {
 			boolean fresh = have == null;
 			JTextField nameF = new JTextField(fresh ? "" : Json.str(have.get("name")), 20); nameF.setEditable(fresh);
 			JPasswordField p1 = new JPasswordField(20), p2 = new JPasswordField(20);
-			JCheckBox adminF = new JCheckBox("Admin: everything below, and updating Gatekeeper and making servers", !fresh && Boolean.TRUE.equals(have.get("admin"))), enF = new JCheckBox("The account can sign in", fresh || Boolean.TRUE.equals(have.get("enabled")));
+			JCheckBox adminF = new JCheckBox("Admin: everything below, and updating Gatekeeper and making servers", !fresh
+					&& Boolean.TRUE.equals(have.get("admin"))), enF = new JCheckBox("The account can sign in", fresh || Boolean.TRUE.equals(have.get("enabled")));
 			JPanel form = new JPanel(); form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 			form.add(line(new JLabel("Account name"), nameF));
 			form.add(line(new JLabel(fresh ? "Password" : "New password (empty: keep it)"), p1));
@@ -83,8 +92,10 @@ final class PanelUi {
 			form.add(note("At least 10 characters. Gatekeeper keeps only a scrambled form of it that can't be turned back, so nobody can read it later, you included."));
 			form.add(line(enF)); form.add(line(adminF));
 			List<JCheckBox> boxes = new ArrayList<>();
-			for (Object[] pm : perms) { JCheckBox b = new JCheckBox(Json.str(pm[1]), !fresh && Json.list(have.get("perms")).contains(pm[0])); boxes.add(b); form.add(line(b)); }
-			if (JOptionPane.showConfirmDialog(f, form, fresh ? "New account" : "Change " + Json.str(have.get("name")), JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+			for (Object[] pm : perms) { JCheckBox b = new JCheckBox(Json.str(pm[1]), !fresh
+					&& Json.list(have.get("perms")).contains(pm[0])); boxes.add(b); form.add(line(b)); }
+			if (JOptionPane.showConfirmDialog(f, form, fresh ? "New account" : "Change " + Json.str(have.get("name")),
+					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			String a = new String(p1.getPassword()), b2 = new String(p2.getPassword());
 			if (!a.equals(b2)) { said.setForeground(ServerToolsUi.RED); said.setText("The two passwords weren't the same: nothing was saved."); return; }
 			List<Object> may = new ArrayList<>();
@@ -93,8 +104,10 @@ final class PanelUi {
 		};
 		JButton addU = new JButton("New account…"), changeU = new JButton("Change…"), delU = new JButton("Remove");
 		addU.addActionListener(e -> edit.accept(null));
-		changeU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i >= 0 && i < users.size()) edit.accept(users.get(i)); else { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); } });
-		delU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i < 0 || i >= users.size()) { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); return; } String n = Json.str(users.get(i).get("name")); if (JOptionPane.showConfirmDialog(f, "Remove the account " + n + "? It is signed out everywhere.", "Remove account", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) post.accept("/admin/panel/user", m("name", n, "remove", true)); });
+		changeU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i >= 0
+				&& i < users.size()) edit.accept(users.get(i)); else { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); } });
+		delU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i < 0
+				|| i >= users.size()) { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); return; } String n = Json.str(users.get(i).get("name")); if (JOptionPane.showConfirmDialog(f, "Remove the account " + n + "? It is signed out everywhere.", "Remove account", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) post.accept("/admin/panel/user", m("name", n, "remove", true)); });
 
 		JButton addW = new JButton("Add a device…"), delW = new JButton("Remove"), wakeW = new JButton("Wake it now");
 		addW.addActionListener(e -> {
@@ -102,10 +115,12 @@ final class PanelUi {
 			JPanel form = new JPanel(); form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 			form.add(line(new JLabel("Name"), nameF)); form.add(line(new JLabel("MAC address"), macF));
 			form.add(note("The MAC address of that device's network adapter, like 1C:2D:3E:4F:5A:6B. On Windows: Settings, Network & internet, the adapter's properties, Physical address (MAC). The device has to be on the same home network as this machine and set to wake on a network signal (its adapter's Power Management in Device Manager, and often a setting in its BIOS)."));
-			if (JOptionPane.showConfirmDialog(f, form, "A device to wake", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION) post.accept("/admin/wake", m("add", m("name", nameF.getText().trim(), "mac", macF.getText().trim())));
+			if (JOptionPane.showConfirmDialog(f, form, "A device to wake", JOptionPane.OK_CANCEL_OPTION,
+					JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION) post.accept("/admin/wake", m("add", m("name", nameF.getText().trim(), "mac", macF.getText().trim())));
 		});
 		delW.addActionListener(e -> { int i = wt.getSelectedRow(); if (i >= 0) post.accept("/admin/wake", m("remove", Json.str(wm.getValueAt(i, 0)))); });
-		wakeW.addActionListener(e -> { int i = wt.getSelectedRow(); if (i >= 0) post.accept("/admin/wake", m("send", Json.str(wm.getValueAt(i, 0)))); else { said.setForeground(ServerToolsUi.GREY); said.setText("Click a device first."); } });
+		wakeW.addActionListener(e -> { int i = wt.getSelectedRow(); if (i >= 0) post.accept("/admin/wake", m("send",
+				Json.str(wm.getValueAt(i, 0)))); else { said.setForeground(ServerToolsUi.GREY); said.setText("Click a device first."); } });
 
 		JScrollPane us = new JScrollPane(ut), ws = new JScrollPane(wt);
 		us.setPreferredSize(new java.awt.Dimension(780, 150)); ws.setPreferredSize(new java.awt.Dimension(780, 110));

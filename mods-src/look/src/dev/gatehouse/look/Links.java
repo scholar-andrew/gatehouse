@@ -42,7 +42,8 @@ public final class Links {
 	/** Opens a folder in the system's file manager. */
 	public static boolean openFolder(Path dir) {
 		if (WIN) return desktop(dir.toString(), true) || run(List.of("explorer.exe", dir.toString()));
-		for (List<String> w : List.of(List.of("xdg-open", dir.toString()), List.of("gio", "open", dir.toString()), List.of("flatpak-spawn", "--host", "xdg-open", dir.toString()))) if (run(w)) return true;
+		for (List<String> w : List.of(List.of("xdg-open", dir.toString()), List.of("gio", "open", dir.toString()), List.of("flatpak-spawn",
+				"--host", "xdg-open", dir.toString()))) if (run(w)) return true;
 		return desktop(dir.toString(), true);
 	}
 	/** As open(); when nothing took it, shows the address with a Copy button instead of doing nothing. */

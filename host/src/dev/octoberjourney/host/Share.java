@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Files passed between the clients of a chatroom, through this Gatekeeper. Someone in a room offers a file: it is
@@ -36,7 +37,8 @@ final class Share {
 	private static final long DAY = 24L * 3600 * 1000, ALL = 500L * 1024 * 1024;
 
 	static boolean on() { return !setting("share", "true").equals("false"); }
-	static long max() { try { return (long) (Double.parseDouble(setting("share_max_mb", "25")) * 1024 * 1024); } catch (NumberFormatException e) { return 25L * 1024 * 1024; } }
+	static long max() { try { return (long) (Double.parseDouble(setting("share_max_mb",
+			"25")) * 1024 * 1024); } catch (NumberFormatException e) { return 25L * 1024 * 1024; } }
 	private static Path folder() { return dir.resolve("shared"); }
 	private static long num(Object o) { try { return (long) Double.parseDouble(Json.str(o)); } catch (RuntimeException e) { return 0; } }
 	private static String q(HttpExchange x, String key) {
@@ -55,14 +57,16 @@ final class Share {
 		while (!l.isEmpty() && (now - num(Json.map(l.get(0)).get("at")) > DAY || total > ALL)) {
 			Map<String, Object> old = Json.map(l.remove(0));
 			total -= num(old.get("size"));
-			try { Files.deleteIfExists(folder().resolve(Json.str(old.get("id")))); } catch (IOException ignored) {}
+			try { Files.deleteIfExists(folder().resolve(Json.str(old.get("id")))); } catch (IOException ignored) { Quiet.seen(ignored); }
 			changed = true;
 		}
 		if (changed) save(l);
 		return l;
 	}
-	private static void save(List<Object> l) { try { Files.createDirectories(folder()); Files.writeString(folder().resolve("index.json"), Json.write(l), StandardCharsets.UTF_8); } catch (IOException ignored) {} }
-	private static String size(long n) { return n < 1024 ? n + " bytes" : n < 1024 * 1024 ? (n / 1024) + " KB" : String.format(java.util.Locale.ROOT, "%.1f MB", n / 1048576.0); }
+	private static void save(List<Object> l) { try { Files.createDirectories(folder()); Files.writeString(folder().resolve("index.json"),
+			Json.write(l), StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); } }
+	private static String size(long n) { return n < 1024 ? n + " bytes" : n < 1024 * 1024 ? (n / 1024) + " KB"
+			: String.format(java.util.Locale.ROOT, "%.1f MB", n / 1048576.0); }
 
 	private static synchronized Map<String, Object> offer(String room, String who, String key, String name, byte[] b) {
 		if (!on()) return m("result", "refused", "message", "This Gatekeeper's owner has turned file sharing off.");
@@ -72,11 +76,13 @@ final class Share {
 		if (clean.isEmpty()) clean = "file";
 		if (clean.length() > 120) clean = clean.substring(clean.length() - 120);
 		String id = java.util.UUID.randomUUID().toString();
-		try { Files.createDirectories(folder()); Files.write(folder().resolve(id), b); } catch (IOException e) { return m("result", "failed", "message", "Couldn't keep it: " + e.getMessage()); }
+		try { Files.createDirectories(folder()); Files.write(folder().resolve(id), b); } catch (IOException e) { return m("result",
+				"failed", "message", "Couldn't keep it: " + e.getMessage()); }
 		List<Object> l = index();
 		l.add(m("id", id, "room", room, "name", clean, "size", b.length, "who", who, "when", LocalDateTime.now().format(TIME), "at", System.currentTimeMillis()));
 		save(l);
-		Chat.say(room, who, key + "/file", "offers a file: " + clean + " (" + size(b.length) + "). Files… saves a copy.", m("id", id, "name", clean, "size", b.length));
+		Chat.say(room, who, key + "/file", "offers a file: " + clean + " (" + size(b.length) + "). Files… saves a copy.", m("id", id,
+				"name", clean, "size", b.length));
 		log("files: " + who + " offered " + clean + " (" + size(b.length) + ") in " + Chat.all().getOrDefault(room, room));
 		return m("result", "ok", "message", "Offered to the room. It is kept for a day.", "id", id);
 	}
@@ -93,15 +99,18 @@ final class Share {
 		x.sendResponseHeaders(200, b.length);
 		try (OutputStream o = x.getResponseBody()) { o.write(b); }
 	}
-	private static Map<String, Object> find(String id) { for (Object o : index()) if (id.equals(Json.str(Json.map(o).get("id")))) return Json.map(o); return null; }
+	private static Map<String, Object> find(String id) { for (Object o
+			: index()) if (id.equals(Json.str(Json.map(o).get("id")))) return Json.map(o); return null; }
 	private static byte[] bodyBytes(HttpExchange x) throws IOException { try (InputStream in = x.getRequestBody()) { return in.readNBytes((int) Math.min(Integer.MAX_VALUE - 8, max() + 1)); } }
 
 	/** A launcher that has said hello. */
 	static void launcher(HttpExchange x, String path, String id, Map<String, Object> d) throws IOException {
-		if (path.equals("/v1/share/list")) { String room = q(x, "room"); reply(x, 200, m("on", on(), "max", max(), "files", Chat.may(id, d, room) ? listed(room) : new ArrayList<>())); return; }
+		if (path.equals("/v1/share/list")) { String room = q(x, "room"); reply(x, 200, m("on", on(), "max", max(), "files", Chat.may(id, d,
+				room) ? listed(room) : new ArrayList<>())); return; }
 		if (x.getRequestMethod().equals("GET")) {
 			Map<String, Object> e = find(q(x, "id"));
-			if (e == null || !Chat.may(id, d, Json.str(e.get("room")))) { reply(x, 404, m("result", "refused", "message", "No such file in a room this launcher is in.")); return; }
+			if (e == null || !Chat.may(id, d, Json.str(e.get("room")))) { reply(x, 404, m("result", "refused", "message",
+					"No such file in a room this launcher is in.")); return; }
 			give(x, e); return;
 		}
 		String room = q(x, "room");
@@ -113,7 +122,8 @@ final class Share {
 	static boolean admin(HttpExchange x, String path) throws IOException {
 		if (path.equals("/admin/share/list")) { reply(x, 200, m("on", on(), "max", max(), "files", listed(q(x, "room")))); return true; }
 		if (!path.equals("/admin/share")) return false;
-		if (x.getRequestMethod().equals("GET")) { Map<String, Object> e = find(q(x, "id")); if (e == null) reply(x, 404, m("result", "refused", "message", "No such file.")); else give(x, e); return true; }
+		if (x.getRequestMethod().equals("GET")) { Map<String, Object> e = find(q(x, "id")); if (e == null) reply(x, 404, m("result",
+				"refused", "message", "No such file.")); else give(x, e); return true; }
 		String room = q(x, "room");
 		if (!Chat.all().containsKey(room)) { reply(x, 200, m("result", "refused", "message", "No such room.")); return true; }
 		reply(x, 200, offer(room, "Host", "host", q(x, "name"), bodyBytes(x)));

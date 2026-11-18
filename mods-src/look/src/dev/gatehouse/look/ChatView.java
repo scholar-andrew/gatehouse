@@ -190,7 +190,8 @@ public final class ChatView extends JPanel {
 			if (r != null && reading) { try { b = backend.talk(r, shown, null); } catch (Exception e) { b = null; } }
 			Batch bb = b;
 			List<Room> rs = now;
-			Runnable ui = () -> { cards(rs); if (bb != null) take(r, bb); else if (rs.isEmpty()) empty("No rooms yet. A room is there for each Gatekeeper and each of its servers this device is let onto."); count(); };
+			Runnable ui = () -> { cards(rs); if (bb != null) take(r,
+					bb); else if (rs.isEmpty()) empty("No rooms yet. A room is there for each Gatekeeper and each of its servers this device is let onto."); count(); };
 			if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
 		} finally { polling = false; }
 	}
@@ -212,7 +213,8 @@ public final class ChatView extends JPanel {
 	private void take(Room r, Batch b) {
 		if (r == null || !r.key().equals(chosen)) return;
 		if (shown == 0) list.removeAll();
-		boolean atEnd = scroll.getVerticalScrollBar().getValue() + scroll.getVerticalScrollBar().getVisibleAmount() >= scroll.getVerticalScrollBar().getMaximum() - 24;
+		boolean atEnd = scroll.getVerticalScrollBar().getValue()
+				+ scroll.getVerticalScrollBar().getVisibleAmount() >= scroll.getVerticalScrollBar().getMaximum() - 24;
 		for (Msg m : b.msgs()) list.add(message(r, m));
 		while (list.getComponentCount() > 200) list.remove(0);
 		if (list.getComponentCount() == 0) empty("Nothing said here yet.");
@@ -235,7 +237,8 @@ public final class ChatView extends JPanel {
 		if (t.isEmpty() || r == null) return;
 		line.setText("");
 		Thread th = new Thread(() -> {
-			try { Batch b = backend.talk(r, shown, t); SwingUtilities.invokeLater(() -> { take(r, b); said.setText(b.said() == null || b.said().isEmpty() ? " " : b.said()); }); }
+			try { Batch b = backend.talk(r, shown, t); SwingUtilities.invokeLater(() -> { take(r, b); said.setText(b.said() == null
+					|| b.said().isEmpty() ? " " : b.said()); }); }
 			catch (Exception e) { tell("Not sent: " + why(e)); SwingUtilities.invokeLater(() -> { if (line.getText().isEmpty()) line.setText(t); }); }
 		}, "chat-say");
 		th.setDaemon(true); th.start();
@@ -268,7 +271,7 @@ public final class ChatView extends JPanel {
 		@Override protected void paintComponent(Graphics g0) {
 			if (!asked && room.picture() != null) {
 				asked = true;
-				Thread t = new Thread(() -> { Image i = null; try { i = room.picture().get(); } catch (RuntimeException ignored) {} Image got = i; SwingUtilities.invokeLater(() -> { pic = got; repaint(); }); }, "room-picture");
+				Thread t = new Thread(() -> { Image i = null; try { i = room.picture().get(); } catch (RuntimeException ignored) { Quiet.seen(ignored); } Image got = i; SwingUtilities.invokeLater(() -> { pic = got; repaint(); }); }, "room-picture");
 				t.setDaemon(true); t.start();
 			}
 			Graphics2D g = GameShell.smooth(g0);
@@ -310,7 +313,8 @@ public final class ChatView extends JPanel {
 	}
 	private static String initials(String name) {
 		StringBuilder sb = new StringBuilder();
-		for (String p : name.trim().split("\\s+")) if (!p.isEmpty() && Character.isLetterOrDigit(p.charAt(0)) && sb.length() < 2) sb.append(Character.toUpperCase(p.charAt(0)));
+		for (String p : name.trim().split("\\s+")) if (!p.isEmpty() && Character.isLetterOrDigit(p.charAt(0))
+				&& sb.length() < 2) sb.append(Character.toUpperCase(p.charAt(0)));
 		return sb.length() == 0 ? "#" : sb.toString();
 	}
 	private static String fit(Graphics2D g, String s, int w) {
@@ -330,7 +334,8 @@ public final class ChatView extends JPanel {
 		if (n.matches(".*\\.(mp3|ogg|oga|wav|m4a|flac|aac|opus)$")) return "sound";
 		return "file";
 	}
-	static String size(long n) { return n < 1024 ? n + " bytes" : n < 1048576 ? (n / 1024) + " KB" : String.format(java.util.Locale.ROOT, "%.1f MB", n / 1048576.0); }
+	static String size(long n) { return n < 1024 ? n + " bytes" : n < 1048576 ? (n / 1024) + " KB" : String.format(java.util.Locale.ROOT,
+			"%.1f MB", n / 1048576.0); }
 
 	private JComponent message(Room r, Msg m) {
 		JPanel p = new JPanel(new BorderLayout(0, 3)); p.setOpaque(false);
@@ -354,7 +359,8 @@ public final class ChatView extends JPanel {
 		JLabel what = new JLabel("offered a " + (k.equals("picture file") ? "picture" : k) + ":  " + m.fileName() + "  (" + size(m.fileSize()) + ")");
 		what.setForeground(GameShell.TEXT);
 		JButton view = new JButton(k.equals("picture") ? "View" : "Open"), keep = new JButton("Save a copy…");
-		view.setToolTipText(k.equals("picture") ? "Fetches the picture and shows it here. Nothing is fetched before you press this." : "Fetches it and opens it with this device's own program for it");
+		view.setToolTipText(k.equals("picture") ? "Fetches the picture and shows it here. Nothing is fetched before you press this."
+				: "Fetches it and opens it with this device's own program for it");
 		keep.setToolTipText("Fetches it and saves it where you choose");
 		row.add(what); row.add(view); row.add(keep);
 		box.add(row, BorderLayout.NORTH);
@@ -383,7 +389,8 @@ public final class ChatView extends JPanel {
 			fc.setSelectedFile(new java.io.File(m.fileName()));
 			if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
 			java.io.File to = fc.getSelectedFile();
-			fetch(r, m, bytes -> { try { Files.write(to.toPath(), bytes); tell("Saved: " + to); } catch (java.io.IOException ex) { tell("Not saved: " + ex.getMessage()); } }, () -> {});
+			fetch(r, m, bytes -> { try { Files.write(to.toPath(), bytes); tell("Saved: "
+					+ to); } catch (java.io.IOException ex) { tell("Not saved: " + ex.getMessage()); } }, () -> {});
 		});
 		return box;
 	}
@@ -407,7 +414,8 @@ public final class ChatView extends JPanel {
 			String safe = m.fileName().replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "_");
 			Path f = d.resolve(m.fileId().replaceAll("[^A-Za-z0-9\\-]", "") + "-" + safe);
 			Files.write(f, bytes);
-			if (java.awt.Desktop.isDesktopSupported() && java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) java.awt.Desktop.getDesktop().open(f.toFile());
+			if (java.awt.Desktop.isDesktopSupported()
+					&& java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.OPEN)) java.awt.Desktop.getDesktop().open(f.toFile());
 			else new ProcessBuilder("xdg-open", f.toString()).start();
 		} catch (Exception e) { tell("Couldn't open it here: " + why(e) + ". Save a copy instead."); }
 	}
@@ -434,7 +442,8 @@ public final class ChatView extends JPanel {
 				Graphics2D g = b.createGraphics(); g.drawImage(img, 0, 0, null); g.dispose();
 				ByteArrayOutputStream o = new ByteArrayOutputStream();
 				javax.imageio.ImageIO.write(b, "png", o);
-				offerBytes(r, "pasted picture " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss")) + ".png", o.toByteArray());
+				offerBytes(r, "pasted picture "
+						+ java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH.mm.ss")) + ".png", o.toByteArray());
 				return true;
 			}
 			if (wordsToo && t.isDataFlavorSupported(DataFlavor.stringFlavor)) {

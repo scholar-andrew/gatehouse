@@ -16,7 +16,8 @@ import java.awt.geom.RoundRectangle2D;
  */
 public final class DeviceIcon {
 	private DeviceIcon() {}
-	public static final String[][] KINDS = {{"desktop", "Desktop PC"}, {"laptop", "Laptop"}, {"steamdeck", "Steam Deck"}, {"rogally", "ROG Ally"}, {"handheld", "Another handheld"},
+	public static final String[][] KINDS = {{"desktop", "Desktop PC"}, {"laptop", "Laptop"}, {"steamdeck", "Steam Deck"}, {"rogally",
+			"ROG Ally"}, {"handheld", "Another handheld"},
 			{"minipc", "Mini PC"}, {"maclaptop", "Mac laptop"}, {"macdesktop", "Mac desktop (all-in-one)"}, {"macmini", "Mac mini"}, {"server", "Server"}};
 
 	public static boolean known(String kind) { for (String[] k : KINDS) if (k[0].equals(kind)) return true; return false; }
@@ -40,7 +41,15 @@ public final class DeviceIcon {
 			}
 			case "laptop" -> {   // an open lid over a base that is wider than it
 				g.setColor(body); g.fill(rr(18, 22, 64, 44, 6));
-				Path2D base = new Path2D.Double(); base.moveTo(12, 68); base.lineTo(88, 68); base.lineTo(96, 78); base.quadTo(96, 82, 92, 82); base.lineTo(8, 82); base.quadTo(4, 82, 4, 78); base.closePath(); g.fill(base);
+				Path2D base = new Path2D.Double();
+				base.moveTo(12, 68);
+				base.lineTo(88, 68);
+				base.lineTo(96, 78);
+				base.quadTo(96, 82, 92, 82);
+				base.lineTo(8, 82);
+				base.quadTo(4, 82, 4, 78);
+				base.closePath();
+				g.fill(base);
 				g.setColor(glass); g.fill(rr(23, 27, 54, 34, 3));
 				g.setColor(mark); g.fill(rr(41, 74, 18, 3, 1.5));
 			}
@@ -50,7 +59,16 @@ public final class DeviceIcon {
 				g.setColor(mark); g.fill(dot(15, 41, 5)); g.fill(rr(9.5, 51, 11, 11, 2.5)); g.fill(dot(85, 41, 5)); g.fill(rr(79.5, 51, 11, 11, 2.5));
 			}
 			case "rogally" -> {   // a handheld with cut corners: a stick and a d-pad on the left, four buttons and a stick on the right
-				Path2D p = new Path2D.Double(); p.moveTo(11, 28); p.lineTo(89, 28); p.lineTo(98, 39); p.lineTo(98, 60); p.lineTo(88, 72); p.lineTo(12, 72); p.lineTo(2, 60); p.lineTo(2, 39); p.closePath();
+				Path2D p = new Path2D.Double();
+				p.moveTo(11, 28);
+				p.lineTo(89, 28);
+				p.lineTo(98, 39);
+				p.lineTo(98, 60);
+				p.lineTo(88, 72);
+				p.lineTo(12, 72);
+				p.lineTo(2, 60);
+				p.lineTo(2, 39);
+				p.closePath();
 				g.setColor(body); g.fill(p);
 				g.setColor(glass); g.fill(rr(26, 34, 48, 32, 2));
 				g.setColor(mark); g.fill(dot(14, 42, 5)); g.fill(rr(11.5, 54, 5, 13, 1)); g.fill(rr(7.5, 58, 13, 5, 1));
@@ -83,7 +101,8 @@ public final class DeviceIcon {
 			}
 			case "server" -> {   // three units in a rack, each with its lights
 				g.setColor(body); for (int i = 0; i < 3; i++) g.fill(rr(14, 20 + i * 21, 72, 17, 4));
-				g.setColor(mark); for (int i = 0; i < 3; i++) { g.fill(dot(24, 28.5 + i * 21, 2.6)); g.fill(dot(32, 28.5 + i * 21, 2.6)); g.fill(rr(52, 27 + i * 21, 26, 3, 1.5)); }
+				g.setColor(mark);
+				for (int i = 0; i < 3; i++) { g.fill(dot(24, 28.5 + i * 21, 2.6)); g.fill(dot(32, 28.5 + i * 21, 2.6)); g.fill(rr(52, 27 + i * 21, 26, 3, 1.5)); }
 			}
 			default -> { }
 		}

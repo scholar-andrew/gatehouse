@@ -23,13 +23,15 @@ public final class Chime {
 			for (int i = 0; i < tail && n * step + i < mix.length; i++) {
 				double t = i / rate, env = Math.min(1, t / 0.012) * Math.exp(-t * (lastNote ? 2.0 : 4.0));
 				// (a bell-like tone: the note, a little of its octave, and a touch of a higher partial that dies quickly)
-				mix[n * step + i] += env * (Math.sin(2 * Math.PI * rise[n] * t) + 0.22 * Math.sin(4 * Math.PI * rise[n] * t) + 0.10 * Math.exp(-t * 9) * Math.sin(6 * Math.PI * rise[n] * t));
+				mix[n * step + i] += env * (Math.sin(2 * Math.PI * rise[n] * t) + 0.22 * Math.sin(4 * Math.PI * rise[n] * t)
+						+ 0.10 * Math.exp(-t * 9) * Math.sin(6 * Math.PI * rise[n] * t));
 			}
 		}
 		// (under the last note: the chord it belongs to, an octave down and quiet)
 		int at = step * (rise.length - 1);
 		for (double f : new double[] {261.63, 329.63, 392.00})
-			for (int i = 0; at + i < mix.length; i++) { double t = i / rate; mix[at + i] += 0.28 * Math.min(1, t / 0.06) * Math.exp(-t * 2.2) * Math.sin(2 * Math.PI * f * t); }
+			for (int i = 0; at + i < mix.length; i++) { double t = i / rate; mix[at + i] += 0.28 * Math.min(1,
+					t / 0.06) * Math.exp(-t * 2.2) * Math.sin(2 * Math.PI * f * t); }
 		byte[] pcm = new byte[mix.length * 2];
 		for (int i = 0; i < mix.length; i++) {
 			double fade = Math.min(1, (mix.length - i) / (rate * 0.25));   // (no click at the end)
@@ -72,9 +74,11 @@ public final class Chime {
 				int step = (int) (rate * 0.11), tail = (int) (rate * 0.5);
 				double[] mix = new double[step + tail];
 				for (int n = 0; n < notes.length; n++)
-					for (int i = 0; i < tail && n * step + i < mix.length; i++) { double tt = i / rate; mix[n * step + i] += Math.min(1, tt / 0.008) * Math.exp(-tt * 7) * (Math.sin(2 * Math.PI * notes[n] * tt) + 0.2 * Math.sin(4 * Math.PI * notes[n] * tt)); }
+					for (int i = 0; i < tail && n * step + i < mix.length; i++) { double tt = i / rate; mix[n * step + i] += Math.min(1,
+							tt / 0.008) * Math.exp(-tt * 7) * (Math.sin(2 * Math.PI * notes[n] * tt) + 0.2 * Math.sin(4 * Math.PI * notes[n] * tt)); }
 				byte[] pcm = new byte[mix.length * 2];
-				for (int i = 0; i < mix.length; i++) { int v = (int) Math.max(-32767, Math.min(32767, mix[i] * 0.16 * 32767)); pcm[2 * i] = (byte) v; pcm[2 * i + 1] = (byte) (v >> 8); }
+				for (int i = 0; i < mix.length; i++) { int v = (int) Math.max(-32767, Math.min(32767,
+						mix[i] * 0.16 * 32767)); pcm[2 * i] = (byte) v; pcm[2 * i + 1] = (byte) (v >> 8); }
 				javax.sound.sampled.AudioFormat fmt = new javax.sound.sampled.AudioFormat(rate, 16, 1, true, false);
 				try (javax.sound.sampled.SourceDataLine line = javax.sound.sampled.AudioSystem.getSourceDataLine(fmt)) { line.open(fmt); line.start(); line.write(pcm, 0, pcm.length); line.drain(); }
 			} catch (Exception | LinkageError silent) { /* no sound on this machine */ }
@@ -87,7 +91,8 @@ public final class Chime {
 	public static void main(String[] a) throws Exception {
 		byte[] pcm = wave();
 		javax.sound.sampled.AudioFormat fmt = new javax.sound.sampled.AudioFormat(44100f, 16, 1, true, false);
-		javax.sound.sampled.AudioSystem.write(new javax.sound.sampled.AudioInputStream(new java.io.ByteArrayInputStream(pcm), fmt, pcm.length / 2), javax.sound.sampled.AudioFileFormat.Type.WAVE, new java.io.File(a[0]));
+		javax.sound.sampled.AudioSystem.write(new javax.sound.sampled.AudioInputStream(new java.io.ByteArrayInputStream(pcm), fmt,
+				pcm.length / 2), javax.sound.sampled.AudioFileFormat.Type.WAVE, new java.io.File(a[0]));
 		System.out.println(pcm.length / 2 / 44100.0 + " seconds");
 	}
 }

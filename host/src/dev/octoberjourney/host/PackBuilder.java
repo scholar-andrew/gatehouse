@@ -37,15 +37,18 @@ import java.util.TreeMap;
 public final class PackBuilder {
 	private PackBuilder() {}
 	static final String[] ARTS = {"cover.png", "hero.png", "logo.png", "icon.png", "wide.png"};
-	static final String[] CLIENTS = {"pack-sync.ps1", "pack-sync.sh", "launch-wrapper.sh", "launch-wrapper.exe", "gatehouse-launcher.ps1", "gatehouse-launcher.sh", "plain-launch.ps1", "plain-launch.sh"};
+	static final String[] CLIENTS = {"pack-sync.ps1", "pack-sync.sh", "launch-wrapper.sh", "launch-wrapper.exe", "gatehouse-launcher.ps1",
+			"gatehouse-launcher.sh", "plain-launch.ps1", "plain-launch.sh"};
 
 	private static String hex(String algorithm, byte[] b) {
-		try { StringBuilder sb = new StringBuilder(); for (byte x : MessageDigest.getInstance(algorithm).digest(b)) sb.append(String.format("%02x", x)); return sb.toString(); }
+		try { StringBuilder sb = new StringBuilder(); for (byte x
+				: MessageDigest.getInstance(algorithm).digest(b)) sb.append(String.format("%02x", x)); return sb.toString(); }
 		catch (java.security.NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
 	}
 	private static String toml(String s) { return "\"" + s.replace("\\", "\\\\").replace("\"", "\\\"") + "\""; }
 	static byte[] extra(String name) throws IOException {
-		try (InputStream in = PackBuilder.class.getResourceAsStream("/pack-extras/" + name)) { if (in == null) throw new IOException("this program doesn't carry " + name); return in.readAllBytes(); }
+		try (InputStream in = PackBuilder.class.getResourceAsStream("/pack-extras/"
+				+ name)) { if (in == null) throw new IOException("this program doesn't carry " + name); return in.readAllBytes(); }
 	}
 
 	// ---- JSON written the way Python's json.dumps(x, indent=1) writes it, so the files come out the same
@@ -57,7 +60,8 @@ public final class PackBuilder {
 			for (Map.Entry<?, ?> e : m.entrySet()) ordered.put(String.valueOf(e.getKey()), e.getValue());
 			sb.append("{\n");
 			int i = 0;
-			for (Map.Entry<String, Object> e : ordered.entrySet()) { sb.append(" ".repeat(level + 1)); quote(sb, e.getKey()); sb.append(": "); dump(sb, e.getValue(), level + 1, sort); sb.append(++i < ordered.size() ? ",\n" : "\n"); }
+			for (Map.Entry<String, Object> e : ordered.entrySet()) { sb.append(" ".repeat(level + 1)); quote(sb,
+					e.getKey()); sb.append(": "); dump(sb, e.getValue(), level + 1, sort); sb.append(++i < ordered.size() ? ",\n" : "\n"); }
 			sb.append(" ".repeat(level)).append("}");
 		} else if (o instanceof List<?> l) {
 			if (l.isEmpty()) { sb.append("[]"); return; }
@@ -142,7 +146,9 @@ public final class PackBuilder {
 		try { return new Reader(Files.readString(f, StandardCharsets.UTF_8).replaceFirst("^\\uFEFF", "")).value(); }
 		catch (RuntimeException e) { throw new IOException(f.getFileName() + " isn't readable: " + e.getMessage()); }
 	}
-	@SuppressWarnings("unchecked") private static Map<String, Object> json(Path f) throws IOException { Object o = parse(f); if (o instanceof Map<?, ?> m) return (Map<String, Object>) m; throw new IOException(f.getFileName() + " isn't what was expected"); }
+	@SuppressWarnings("unchecked") private static Map<String,
+			Object> json(Path f) throws IOException { Object o = parse(f); if (o instanceof Map<?, ?> m) return (Map<String,
+			Object>) m; throw new IOException(f.getFileName() + " isn't what was expected"); }
 	@SuppressWarnings("unchecked") private static List<Object> jsonList(Path f) throws IOException { Object o = parse(f); if (o instanceof List<?> l) return (List<Object>) l; throw new IOException(f.getFileName() + " isn't what was expected"); }
 
 	/** Builds both variants of the pack defined in def into out/main and out/deck. program: the launcher file the pack
@@ -150,7 +156,8 @@ public final class PackBuilder {
 	static List<String> build(Path def, Path out, byte[] program, String gatehouse) throws IOException {
 		Map<String, Object> src = json(def.resolve("source/mods.json"));
 		List<String> said = new ArrayList<>();
-		for (String variant : new String[] {"main", "deck"}) said.add(one(def, out.resolve(variant), variant, Json.map(src.get("pack")), Json.list(src.get("mods")), program, gatehouse));
+		for (String variant : new String[] {"main", "deck"}) said.add(one(def, out.resolve(variant), variant, Json.map(src.get("pack")),
+				Json.list(src.get("mods")), program, gatehouse));
 		return said;
 	}
 
@@ -158,16 +165,19 @@ public final class PackBuilder {
 		if (!Files.exists(dir)) return;
 		try (java.util.stream.Stream<Path> s = Files.walk(dir)) { for (Path p : s.sorted(java.util.Comparator.reverseOrder()).toList()) Files.delete(p); }
 	}
-	private static byte[] put(Path out, String rel, byte[] data) throws IOException { Path p = out.resolve(rel); Files.createDirectories(p.getParent()); Files.write(p, data); return data; }
+	private static byte[] put(Path out, String rel,
+			byte[] data) throws IOException { Path p = out.resolve(rel); Files.createDirectories(p.getParent()); Files.write(p, data); return data; }
 	private static byte[] put(Path out, String rel, String text) throws IOException { return put(out, rel, text.getBytes(StandardCharsets.UTF_8)); }
 	private static void copyTree(Path from, Path out, String under, String kind, List<Entry> entries) throws IOException {
 		if (!Files.isDirectory(from)) return;
 		List<Path> files;
 		try (java.util.stream.Stream<Path> s = Files.walk(from)) { files = s.filter(Files::isRegularFile).toList(); }
-		for (Path p : files) { String rel = under + "/" + from.relativize(p).toString().replace('\\', '/'); entries.add(new Entry(rel, hex("SHA-256", put(out, rel, Files.readAllBytes(p))), kind)); }
+		for (Path p : files) { String rel = under + "/" + from.relativize(p).toString().replace('\\', '/'); entries.add(new Entry(rel,
+				hex("SHA-256", put(out, rel, Files.readAllBytes(p))), kind)); }
 	}
 
-	private static String one(Path def, Path out, String variant, Map<String, Object> meta, List<Object> mods, byte[] program, String gatehouse) throws IOException {
+	private static String one(Path def, Path out, String variant, Map<String, Object> meta, List<Object> mods, byte[] program,
+			String gatehouse) throws IOException {
 		wipe(out);
 		List<Entry> entries = new ArrayList<>();
 		List<Map<String, Object>> mine = new ArrayList<>();
@@ -178,8 +188,10 @@ public final class PackBuilder {
 			String rel;
 			if (m.containsKey("url")) {
 				rel = "mods/" + Json.str(m.get("slug")) + ".pw.toml";
-				String text = "name = " + toml(Json.str(m.get("title"))) + "\nfilename = " + toml(Json.str(m.get("filename"))) + "\nside = \"client\"\n\n[download]\nurl = " + toml(Json.str(m.get("url")))
-						+ "\nhash-format = \"sha512\"\nhash = " + toml(Json.str(m.get("sha512"))) + "\n\n[update.modrinth]\nmod-id = " + toml(Json.str(m.get("project"))) + "\nversion = " + toml(Json.str(m.get("version"))) + "\n";
+				String text = "name = " + toml(Json.str(m.get("title"))) + "\nfilename = " + toml(Json.str(m.get("filename")))
+						+ "\nside = \"client\"\n\n[download]\nurl = " + toml(Json.str(m.get("url")))
+						+ "\nhash-format = \"sha512\"\nhash = " + toml(Json.str(m.get("sha512"))) + "\n\n[update.modrinth]\nmod-id = "
+								+ toml(Json.str(m.get("project"))) + "\nversion = " + toml(Json.str(m.get("version"))) + "\n";
 				entries.add(new Entry(rel, hex("SHA-256", put(out, rel, text)), "meta"));
 				if (Json.str(m.get("size")).isEmpty()) throw new IOException(rel + ": no download size is recorded for it");
 				sizes.put(rel, m.get("size"));
@@ -207,16 +219,22 @@ public final class PackBuilder {
 		copyTree(def.resolve("source/files/config"), out, "config", "", entries);
 		copyTree(def.resolve("source/files/config-defaults"), out, "config", "preserve", entries);
 		// Steam: the pack's own art (or the program's, where the pack has none), Prism Launcher's, the launcher's, and the Deck's controller layout
-		for (String n : ARTS) { Path own = def.resolve("art").resolve(n), auto = def.resolve("art-auto").resolve(n); String rel = "steam/art/" + n; entries.add(new Entry(rel, hex("SHA-256", put(out, rel, Files.isRegularFile(own) ? Files.readAllBytes(own) : Files.isRegularFile(auto) ? Files.readAllBytes(auto) : extra("art/" + n))), "")); }
-		for (String set : new String[] {"art-prism", "art-launcher"}) for (String n : ARTS) { String rel = "steam/" + set + "/" + n; entries.add(new Entry(rel, hex("SHA-256", put(out, rel, extra(set + "/" + n))), "")); }
+		for (String n : ARTS) { Path own = def.resolve("art").resolve(n),
+				auto = def.resolve("art-auto").resolve(n); String rel = "steam/art/" + n; entries.add(new Entry(rel, hex("SHA-256",
+				put(out, rel, Files.isRegularFile(own) ? Files.readAllBytes(own) : Files.isRegularFile(auto) ? Files.readAllBytes(auto) : extra("art/" + n))), "")); }
+		for (String set : new String[] {"art-prism", "art-launcher"}) for (String n : ARTS) { String rel = "steam/" + set + "/"
+				+ n; entries.add(new Entry(rel, hex("SHA-256", put(out, rel, extra(set + "/" + n))), "")); }
 		entries.add(new Entry("steam/controller_neptune.vdf", hex("SHA-256", put(out, "steam/controller_neptune.vdf", extra("steam/controller_neptune.vdf"))), ""));
 		Map<String, Object> config = json(def.resolve("config.json"));
 		List<Object> servers = new ArrayList<>();
-		for (Object o : Json.list(config.get("servers"))) { Map<String, Object> s = new LinkedHashMap<>(); s.put("name", Json.map(o).get("name")); s.put("address", Json.map(o).get("address")); servers.add(s); }
+		for (Object o : Json.list(config.get("servers"))) { Map<String, Object> s = new LinkedHashMap<>(); s.put("name",
+				Json.map(o).get("name")); s.put("address", Json.map(o).get("address")); servers.add(s); }
 		entries.add(new Entry("extras/servers.json", hex("SHA-256", put(out, "extras/servers.json", dumps(servers, false) + "\n")), ""));
 		entries.add(new Entry("extras/mod-names.json", hex("SHA-256", put(out, "extras/mod-names.json", dumps(names, false) + "\n")), ""));
 		Map<String, Object> profile = new LinkedHashMap<>();
-		profile.put("name", config.get("pack_name")); profile.put("instance_id", config.get("instance_id")); profile.put("pack_sources", config.containsKey("pack_sources") ? config.get("pack_sources") : new ArrayList<>());
+		profile.put("name", config.get("pack_name"));
+		profile.put("instance_id", config.get("instance_id"));
+		profile.put("pack_sources", config.containsKey("pack_sources") ? config.get("pack_sources") : new ArrayList<>());
 		entries.add(new Entry("extras/profile.json", hex("SHA-256", put(out, "extras/profile.json", dumps(profile, false) + "\n")), ""));
 		Map<String, Object> control = new LinkedHashMap<>();
 		for (Map.Entry<String, Object> e : Json.map(config.get("server_control")).entrySet()) if (!e.getKey().startsWith("_")) control.put(e.getKey(), e.getValue());
@@ -224,16 +242,19 @@ public final class PackBuilder {
 		entries.add(new Entry("extras/mod-toggles.json", hex("SHA-256", put(out, "extras/mod-toggles.json", dumps(toggles, false) + "\n")), ""));
 		// what the server runs, and its notes
 		Map<String, Object> state = Files.isRegularFile(def.resolve("server/state.json")) ? json(def.resolve("server/state.json")) : new LinkedHashMap<>();
-		List<Object> serverLog = Files.isRegularFile(def.resolve("server/state.json")) && Files.isRegularFile(def.resolve("server/changelog.json")) ? jsonList(def.resolve("server/changelog.json")) : new ArrayList<>();
+		List<Object> serverLog = Files.isRegularFile(def.resolve("server/state.json"))
+				&& Files.isRegularFile(def.resolve("server/changelog.json")) ? jsonList(def.resolve("server/changelog.json")) : new ArrayList<>();
 		entries.add(new Entry("extras/server-state.json", hex("SHA-256", put(out, "extras/server-state.json", dumps(state, true) + "\n")), ""));
 		StringBuilder sl = new StringBuilder();
-		for (Object o : serverLog) { Map<String, Object> e = Json.map(o); sl.append("== ").append(Json.str(e.get("id"))).append(" | ").append(Json.str(e.get("date"))).append("\n"); for (Object n : Json.list(e.get("notes"))) sl.append("- ").append(Json.str(n)).append("\n"); }
+		for (Object o : serverLog) { Map<String,
+				Object> e = Json.map(o); sl.append("== ").append(Json.str(e.get("id"))).append(" | ").append(Json.str(e.get("date"))).append("\n"); for (Object n : Json.list(e.get("notes"))) sl.append("- ").append(Json.str(n)).append("\n"); }
 		entries.add(new Entry("extras/server-changelog.txt", hex("SHA-256", put(out, "extras/server-changelog.txt", sl.toString())), ""));
 		// the pack's own notes: its first entry has to be this version, so no version goes out without notes
 		List<Object> log = jsonList(def.resolve("source/changelog.json"));
 		if (log.isEmpty() || !Json.str(Json.map(log.get(0)).get("version")).equals(Json.str(meta.get("version")))) throw new IOException("the pack's notes need an entry for " + Json.str(meta.get("version")) + " at the top");
 		List<String> lines = new ArrayList<>();
-		for (Object o : log) { Map<String, Object> v = Json.map(o); lines.add("== " + Json.str(v.get("version")) + " | " + Json.str(v.get("date"))); for (Object n : Json.list(v.get("notes"))) lines.add("- " + Json.str(n)); }
+		for (Object o : log) { Map<String, Object> v = Json.map(o); lines.add("== " + Json.str(v.get("version")) + " | "
+				+ Json.str(v.get("date"))); for (Object n : Json.list(v.get("notes"))) lines.add("- " + Json.str(n)); }
 		entries.add(new Entry("extras/changelog.txt", hex("SHA-256", put(out, "extras/changelog.txt", String.join("\n", lines) + "\n")), ""));
 		entries.add(new Entry("extras/launch-popup.jar", hex("SHA-256", put(out, "extras/launch-popup.jar", program)), ""));
 		for (String n : CLIENTS) entries.add(new Entry("extras/" + n, hex("SHA-256", put(out, "extras/" + n, extra("clients/" + n))), ""));
@@ -252,15 +273,19 @@ public final class PackBuilder {
 		us.put("version", meta.get("version")); us.put("gatehouse", gatehouse); us.put("files", files);
 		put(out, "update-sizes.json", dumps(us, false) + "\n");
 		String name = Json.str(meta.get("name")) + (variant.equals("deck") ? " (Steam Deck)" : "");
-		put(out, "pack.toml", "name = " + toml(name) + "\nauthor = " + toml(Json.str(meta.get("author"))) + "\nversion = " + toml(Json.str(meta.get("version"))) + "\npack-format = \"packwiz:1.1.0\"\n\n[index]\nfile = \"index.toml\"\nhash-format = \"sha256\"\nhash = "
-				+ toml(hex("SHA-256", indexData)) + "\n\n[versions]\nminecraft = " + toml(Json.str(meta.get("minecraft"))) + "\nfabric = " + toml(Json.str(meta.get("fabric"))) + "\n");
-		long modsN = entries.stream().filter(e -> e.rel().startsWith("mods/")).count(), configN = entries.stream().filter(e -> e.rel().startsWith("config/")).count(), steamN = entries.stream().filter(e -> e.rel().startsWith("steam/")).count();
+		put(out, "pack.toml", "name = " + toml(name) + "\nauthor = " + toml(Json.str(meta.get("author"))) + "\nversion = "
+				+ toml(Json.str(meta.get("version"))) + "\npack-format = \"packwiz:1.1.0\"\n\n[index]\nfile = \"index.toml\"\nhash-format = \"sha256\"\nhash = "
+				+ toml(hex("SHA-256", indexData)) + "\n\n[versions]\nminecraft = " + toml(Json.str(meta.get("minecraft"))) + "\nfabric = "
+						+ toml(Json.str(meta.get("fabric"))) + "\n");
+		long modsN = entries.stream().filter(e -> e.rel().startsWith("mods/")).count(),
+				configN = entries.stream().filter(e -> e.rel().startsWith("config/")).count(), steamN = entries.stream().filter(e -> e.rel().startsWith("steam/")).count();
 		return variant + ": " + modsN + " mods, " + configN + " config file(s), " + steamN + " Steam file(s)";
 	}
 
 	/** Testing and the build tools: --build-pack <definition folder> <where to write it> [<the launcher file to carry>]. */
 	public static void main(String[] a) throws Exception {
 		Path program = a.length > 3 ? Path.of(a[3]) : Path.of(PackBuilder.class.getProtectionDomain().getCodeSource().getLocation().toURI());
-		for (String line : build(Path.of(a[1]), Path.of(a[2]), Files.readAllBytes(program), Json.str(HostHelper.notesInside("gatehouse").get("version")))) System.out.println(line);
+		for (String line : build(Path.of(a[1]), Path.of(a[2]), Files.readAllBytes(program),
+				Json.str(HostHelper.notesInside("gatehouse").get("version")))) System.out.println(line);
 	}
 }

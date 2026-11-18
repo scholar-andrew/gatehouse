@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The launcher on this same machine (the Play half of the program, beside this Host half) linking itself to this
@@ -32,7 +33,8 @@ final class LocalLink {
 	static boolean admin(HttpExchange x, String path) throws IOException {
 		if (path.equals("/admin/local/open")) {   // (the launcher on this machine asks for Gatekeeper's window: Gatekeeper opens it itself)
 			// (a window that is already open is brought to the front instead: it asks every moment whether it should come)
-			if (System.currentTimeMillis() - windowSeen < 2500) { raise++; reply(x, 200, m("result", "ok", "message", "Switching to Gatekeeper's window.")); return true; }
+			if (System.currentTimeMillis() - windowSeen < 2500) { raise++; reply(x, 200, m("result", "ok", "message",
+					"Switching to Gatekeeper's window.")); return true; }
 			panelSeen = 0;
 			openPanelNow();
 			reply(x, 200, m("result", "ok", "message", "Opening Gatekeeper's window."));
@@ -46,19 +48,22 @@ final class LocalLink {
 			return true;
 		}
 		if (path.equals("/admin/quit") && x.getRequestMethod().equals("POST")) {   // (ended from its own window)
-			if (DirectHost.anyTracked()) { reply(x, 200, m("result", "refused", "message", "A Minecraft server that this Gatekeeper runs is on. Stop it first: ending Gatekeeper would leave it running with nobody able to reach its console.")); return true; }
+			if (DirectHost.anyTracked()) { reply(x, 200, m("result", "refused", "message",
+					"A Minecraft server that this Gatekeeper runs is on. Stop it first: ending Gatekeeper would leave it running with nobody able to reach its console.")); return true; }
 			log("Gatekeeper was ended from its window. It starts again when you next sign in, or from Start Gatekeeper.");
 			reply(x, 200, m("result", "ok", "message", "Gatekeeper has ended."));
-			Thread end = new Thread(() -> { try { Thread.sleep(600); } catch (InterruptedException ignored) {} System.exit(0); }, "quit");
+			Thread end = new Thread(() -> { try { Thread.sleep(600); } catch (InterruptedException ignored) { Quiet.seen(ignored); } System.exit(0); }, "quit");
 			end.setDaemon(true); end.start();
 			return true;
 		}
 		if (!path.equals("/admin/local/link")) return false;
 		String bind = setting("bind", ""), name = setting("name", "");
 		if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
-		if (!x.getRequestMethod().equals("POST")) { reply(x, 200, m("bind_url", bind.isEmpty() ? "" : "http://" + bind + ":" + port(), "port", port(), "name", name, "version", ownVersion())); return true; }
+		if (!x.getRequestMethod().equals("POST")) { reply(x, 200, m("bind_url", bind.isEmpty() ? "" : "http://" + bind + ":" + port(),
+				"port", port(), "name", name, "version", ownVersion())); return true; }
 		Map<String, Object> b = body(x);
-		String id = Json.str(b.get("id")), token = Json.str(b.get("token")), player = Json.str(b.get("player")), uuid = Json.str(b.get("uuid")).replace("-", "").toLowerCase(java.util.Locale.ROOT);
+		String id = Json.str(b.get("id")), token = Json.str(b.get("token")), player = Json.str(b.get("player")),
+				uuid = Json.str(b.get("uuid")).replace("-", "").toLowerCase(java.util.Locale.ROOT);
 		String[] r = link(id, token, player, uuid);
 		reply(x, 200, m("result", r[0], "message", r[1], "name", name));
 		return true;
@@ -67,7 +72,8 @@ final class LocalLink {
 	static synchronized String[] link(String id, String token, String player, String uuid) throws IOException {
 		Map<String, Object> devs = devices();
 		Map<String, Object> d = Json.map(devs.get(id));
-		if (d.isEmpty() || token.length() < 32 || !sha256(token).equals(d.get("token_sha256"))) return new String[] {"refused", "That launcher hasn't introduced itself to this Gatekeeper yet."};
+		if (d.isEmpty() || token.length() < 32 || !sha256(token).equals(d.get("token_sha256"))) return new String[] {"refused",
+				"That launcher hasn't introduced itself to this Gatekeeper yet."};
 		boolean was = ServerTools.yes(d.get("local"));
 		d.put("local", true);
 		// (written down as well as held to be so, so the Access Manager shows what it is allowed)
@@ -79,20 +85,18 @@ final class LocalLink {
 		saveDevices(devs);
 		List<String> listed = new ArrayList<>(), not = new ArrayList<>();
 		if (named) {
-			String keep = SERVER.get();
-			try {
-				for (Object o : all) {
-					SERVER.set(Json.str(Json.map(o).get("id")));
-					if (goneFromMcss(Json.map(o)) || whitelisted(player)) continue;
-					String[] w = whitelist(player, uuid);
-					(w[0].equals("ok") ? listed : not).add(serverName() + (w[0].equals("ok") ? "" : " (" + w[1] + ")"));
-				}
-			} finally { SERVER.set(keep); }
+			eachServer((sid, s) -> {
+				if (goneFromMcss(s) || whitelisted(player)) return;
+				String[] w = whitelist(player, uuid);
+				(w[0].equals("ok") ? listed : not).add(serverName() + (w[0].equals("ok") ? "" : " (" + w[1] + ")"));
+			});
 		}
-		if (!was) log("the launcher on this machine (" + who(d) + ") linked itself to this Gatekeeper: it is allowed everything here" + (named ? ", and plays as " + player : ""));
+		if (!was) log("the launcher on this machine (" + who(d) + ") linked itself to this Gatekeeper: it is allowed everything here"
+				+ (named ? ", and plays as " + player : ""));
 		if (!listed.isEmpty()) log(player + " (this machine's own launcher) was put on the whitelist of " + String.join(", ", listed));
 		if (!not.isEmpty()) log(player + " (this machine's own launcher) couldn't be put on the whitelist of " + String.join(", ", not));
-		return new String[] {"ok", "Linked: this machine's launcher is allowed everything here" + (listed.isEmpty() ? "" : ", and " + player + " is now on the whitelist of " + String.join(", ", listed)) + "."};
+		return new String[] {"ok", "Linked: this machine's launcher is allowed everything here" + (listed.isEmpty() ? "" : ", and "
+				+ player + " is now on the whitelist of " + String.join(", ", listed)) + "."};
 	}
 
 	/** Puts a player on the current server's whitelist. With the server off and the player never seen there, the

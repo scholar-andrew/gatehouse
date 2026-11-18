@@ -53,7 +53,8 @@ public final class NotesView {
 	public static String newest(Map<String, Object> notes) {
 		Object v = notes.get("version");
 		if (v != null && !String.valueOf(v).isEmpty()) return String.valueOf(v);
-		if (notes.get("changes") instanceof List<?> l && !l.isEmpty() && l.get(0) instanceof Map<?, ?> c && c.get("version") != null) return String.valueOf(c.get("version"));
+		if (notes.get("changes") instanceof List<?> l && !l.isEmpty() && l.get(0) instanceof Map<?, ?> c
+				&& c.get("version") != null) return String.valueOf(c.get("version"));
 		return "";
 	}
 
@@ -71,7 +72,8 @@ public final class NotesView {
 	public static void markSeen(Path file, Map<String, Object> notes) {
 		String v = newest(notes), was = seen(file);
 		if (v.isEmpty() || (!was.isEmpty() && !newer(v, was))) return;
-		try { Files.createDirectories(file.getParent()); Files.writeString(file, v + "\n", StandardCharsets.UTF_8); } catch (IOException | RuntimeException ignored) {}
+		try { Files.createDirectories(file.getParent()); Files.writeString(file, v + "\n",
+				StandardCharsets.UTF_8); } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 	}
 	/** The first time there is no file: everything up to now counts as seen, so nothing is marked new on a first start. */
 	public static String seenOrNow(Path file, Map<String, Object> notes) {
@@ -90,7 +92,8 @@ public final class NotesView {
 		JPanel list = new Track();
 		list.setLayout(new Column());
 		list.setBorder(BorderFactory.createEmptyBorder(6, 12, 12, 12));
-		if (!head.isEmpty()) { JLabel h = new JLabel(head); h.setForeground(GameShell.DIM); h.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0)); h.setAlignmentX(Component.LEFT_ALIGNMENT); list.add(h); }
+		if (!head.isEmpty()) { JLabel h = new JLabel(head); h.setForeground(GameShell.DIM); h.setBorder(BorderFactory.createEmptyBorder(4,
+				0, 4, 0)); h.setAlignmentX(Component.LEFT_ALIGNMENT); list.add(h); }
 		// (R29: two or more versions not seen yet: first, what's new since the one last seen, a line for each)
 		List<String[]> unseenOnes = new java.util.ArrayList<>();
 		if (!seen.isEmpty() && notes.get("changes") instanceof List<?> l0) for (Object o : l0) {
@@ -104,7 +107,8 @@ public final class NotesView {
 			sum.setBorder(BorderFactory.createEmptyBorder(8, 12, 10, 12));
 			JLabel sh = new JLabel("What's new since " + seen + ": " + unseenOnes.size() + " updates");
 			sh.setFont(sh.getFont().deriveFont(java.awt.Font.BOLD, 14f)); sh.setForeground(GameShell.TEXT);
-			JPanel shRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)) { @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); } };
+			JPanel shRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0,
+					0)) { @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); } };
 			shRow.setOpaque(false); shRow.add(sh);
 			sum.add(shRow);
 			for (String[] u : unseenOnes) sum.add(line("• " + u[0] + (u[1].isEmpty() ? "" : ": " + u[1])));
@@ -119,7 +123,8 @@ public final class NotesView {
 			any = true;
 			String v = String.valueOf(c.get("version") == null ? "" : c.get("version")), date = c.get("date") == null ? "" : String.valueOf(c.get("date"));
 			boolean fresh = !seen.isEmpty() && !v.isEmpty() && newer(v, seen);
-			JPanel entry = fresh ? new Box() : new JPanel() { @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); } };
+			JPanel entry = fresh ? new Box()
+					: new JPanel() { @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); } };
 			entry.setOpaque(false);
 			entry.setLayout(new Column());
 			entry.setBorder(fresh ? BorderFactory.createEmptyBorder(8, 12, 10, 12) : BorderFactory.createEmptyBorder(4, 0, 4, 0));
@@ -138,7 +143,8 @@ public final class NotesView {
 			if (fresh) list.add(javax.swing.Box.createVerticalStrut(6));
 			list.add(entry);
 		}
-		if (!any) { JLabel e = new JLabel(none); e.setForeground(GameShell.DIM); e.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0)); e.setAlignmentX(Component.LEFT_ALIGNMENT); list.add(e); }
+		if (!any) { JLabel e = new JLabel(none); e.setForeground(GameShell.DIM); e.setBorder(BorderFactory.createEmptyBorder(8, 0, 0,
+				0)); e.setAlignmentX(Component.LEFT_ALIGNMENT); list.add(e); }
 		JPanel holder = new Track(); holder.setLayout(new BorderLayout()); holder.setOpaque(false); holder.add(list, BorderLayout.NORTH);
 		list.setOpaque(false);
 		JScrollPane sp = new JScrollPane(holder, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
@@ -230,7 +236,8 @@ public final class NotesView {
 				javax.swing.SwingUtilities.invokeLater(() -> { remeasure(this); revalidate(); repaint(); });
 			}
 		}
-		private static void remeasure(java.awt.Container c) { for (Component k : c.getComponents()) { k.invalidate(); if (k instanceof java.awt.Container cc) remeasure(cc); } }
+		private static void remeasure(java.awt.Container c) { for (Component k
+				: c.getComponents()) { k.invalidate(); if (k instanceof java.awt.Container cc) remeasure(cc); } }
 		@Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
 		@Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
 		@Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return 120; }

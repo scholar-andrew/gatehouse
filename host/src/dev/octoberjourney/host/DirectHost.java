@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Gatekeeper running the Minecraft servers itself, with no host program in between (see ServerHost). It is what a
@@ -68,11 +69,14 @@ final class DirectHost implements ServerHost {
 	/** The server jar in a folder, or null. */
 	static Path serverJar(Path d) {
 		List<Path> jars = new ArrayList<>();
-		try (java.util.stream.Stream<Path> s = Files.list(d)) { s.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".jar")).sorted().forEach(jars::add); }
+		try (java.util.stream.Stream<Path> s = Files.list(d)) { s.filter(p -> Files.isRegularFile(p)
+				&& p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".jar")).sorted().forEach(jars::add); }
 		catch (IOException | RuntimeException e) { return null; }
-		for (String start : new String[] {"fabric-server", "quilt-server"}) for (Path p : jars) if (p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).startsWith(start)) return p;
+		for (String start : new String[] {"fabric-server", "quilt-server"}) for (Path p
+				: jars) if (p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).startsWith(start)) return p;
 		for (Path p : jars) if (p.getFileName().toString().equalsIgnoreCase("server.jar")) return p;
-		for (String part : new String[] {"paper", "purpur", "spigot", "forge", "server"}) for (Path p : jars) if (p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).contains(part)) return p;
+		for (String part : new String[] {"paper", "purpur", "spigot", "forge", "server"}) for (Path p
+				: jars) if (p.getFileName().toString().toLowerCase(java.util.Locale.ROOT).contains(part)) return p;
 		return jars.size() == 1 ? jars.get(0) : null;
 	}
 	/** Does that folder look like a Minecraft server's? */
@@ -110,7 +114,8 @@ final class DirectHost implements ServerHost {
 		Path lib = d.resolve("libraries");
 		if (!Files.isDirectory(lib)) return null;
 		String want = WIN ? "win_args.txt" : "unix_args.txt";
-		try (java.util.stream.Stream<Path> s = Files.walk(lib, 6)) { return s.filter(p -> p.getFileName().toString().equals(want)).sorted(java.util.Comparator.reverseOrder()).findFirst().orElse(null); }
+		try (java.util.stream.Stream<Path> s = Files.walk(lib,
+				6)) { return s.filter(p -> p.getFileName().toString().equals(want)).sorted(java.util.Comparator.reverseOrder()).findFirst().orElse(null); }
 		catch (IOException | RuntimeException e) { return null; }
 	}
 	/** Why one of host.json's servers can't be started as it stands, or "" when it can. */
@@ -132,7 +137,7 @@ final class DirectHost implements ServerHost {
 		ProcessHandle h = ProcessHandle.of(Long.parseLong(t[0])).orElse(null);
 		String began = h == null ? "" : h.info().startInstant().map(i -> String.valueOf(i.toEpochMilli())).orElse("");
 		if (h != null && h.isAlive() && began.equals(t[1])) return h;
-		try { Files.deleteIfExists(pidFile(d)); } catch (IOException ignored) {}
+		try { Files.deleteIfExists(pidFile(d)); } catch (IOException ignored) { Quiet.seen(ignored); }
 		return null;
 	}
 
@@ -166,7 +171,9 @@ final class DirectHost implements ServerHost {
 				Run r = new Run();
 				r.process = p; r.console = p.getOutputStream();
 				runs.put(id, r);
-				try { Files.writeString(pidFile(d), p.pid() + "|" + p.toHandle().info().startInstant().map(i -> String.valueOf(i.toEpochMilli())).orElse(""), StandardCharsets.UTF_8); } catch (IOException ignored) {}
+				try { Files.writeString(pidFile(d), p.pid() + "|"
+						+ p.toHandle().info().startInstant().map(i -> String.valueOf(i.toEpochMilli())).orElse(""),
+						StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }
 				log("start " + name + ": " + String.join(" ", cmd) + "  (in " + d + ")");
 				String awaitedAs = serverKey() + "|server";
 				Thread t = new Thread(() -> watch(id, name, d, r, awaitedAs), "server-" + id);
@@ -182,7 +189,8 @@ final class DirectHost implements ServerHost {
 		}
 		ProcessHandle h = adopted(d);
 		if (h == null) return new String[] {"ok", "The server isn't running"};
-		if (WIN) return new String[] {"refused", name + " was started before Gatekeeper last restarted, so Gatekeeper can't reach its console to stop it safely. Stop it from inside the game (/stop, as an operator); after that it is Gatekeeper's to start and stop again."};
+		if (WIN) return new String[] {"refused", name
+				+ " was started before Gatekeeper last restarted, so Gatekeeper can't reach its console to stop it safely. Stop it from inside the game (/stop, as an operator); after that it is Gatekeeper's to start and stop again."};
 		// (the ordinary request to end, to the server and whatever started it: a Minecraft server saves the world and shuts down on it)
 		h.descendants().forEach(ProcessHandle::destroy);
 		h.destroy();
@@ -197,16 +205,17 @@ final class DirectHost implements ServerHost {
 				synchronized (r.last) { r.last.addLast(line); if (r.last.size() > 6) r.last.removeFirst(); }
 				synchronized (r.lines) { r.lines.addLast(line); r.printed++; if (r.lines.size() > 2000) r.lines.removeFirst(); }
 			}
-		} catch (IOException ignored) {}
+		} catch (IOException ignored) { Quiet.seen(ignored); }
 		int code = -1;
-		try { code = r.process.waitFor(); } catch (InterruptedException ignored) {}
+		try { code = r.process.waitFor(); } catch (InterruptedException ignored) { Quiet.seen(ignored); }
 		runs.remove(id, r);
 		ended.put(id, r);
-		try { Files.deleteIfExists(pidFile(d)); } catch (IOException ignored) {}
+		try { Files.deleteIfExists(pidFile(d)); } catch (IOException ignored) { Quiet.seen(ignored); }
 		if (!r.stopping) { met(awaitedAs); phaseSeen.clear(); }   // (it is off, whatever was being waited for)
 		String said;
 		synchronized (r.last) { said = String.join(" / ", r.last); }
-		if (!r.stopping && !r.restart) Notify.down(name, name + (r.ready ? " ended without being asked to" : " ended before it had finished starting") + " (exit code " + code + ")."
+		if (!r.stopping && !r.restart) Notify.down(name, name + (r.ready ? " ended without being asked to"
+				: " ended before it had finished starting") + " (exit code " + code + ")."
 				+ (Json.str(server().get("keep_online")).equals("crash") ? " It's set to be kept on: Gatekeeper starts it again (up to three times in ten minutes)." : ""));
 		log(name + (r.stopping ? " stopped" : r.ready ? " ended without being asked to" : " ended before it had finished starting") + " (exit code " + code + ")"
 				+ (r.stopping ? "" : ". The last it said: " + (said.isEmpty() ? "nothing" : said)));
@@ -224,7 +233,7 @@ final class DirectHost implements ServerHost {
 			}
 		}
 		if (again) {
-			try { Thread.sleep(2000); } catch (InterruptedException ignored) {}
+			try { Thread.sleep(2000); } catch (InterruptedException ignored) { Quiet.seen(ignored); }
 			SERVER.set(id);
 			String[] s = startServerFully(r.restart ? "a restart" : "crash handling");
 			log("start " + name + " again: " + s[1]);
@@ -238,7 +247,8 @@ final class DirectHost implements ServerHost {
 	/** Stop, then start again once it has stopped. */
 	static String[] restart() {
 		Run r = run(id());
-		if (r == null) return adopted(serverDir()) != null ? new String[] {"refused", serverName() + " was started before Gatekeeper last restarted, so Gatekeeper can't restart it: stop it from inside the game first"} : startServerFully("the owner");
+		if (r == null) return adopted(serverDir()) != null ? new String[] {"refused", serverName()
+				+ " was started before Gatekeeper last restarted, so Gatekeeper can't restart it: stop it from inside the game first"} : startServerFully("the owner");
 		r.restart = true; r.stopping = true;
 		String[] t = type(r, "stop");
 		return t[0].equals("ok") ? new String[] {"ok", "Restart requested: the server saves the world, shuts down and starts again"} : t;
@@ -262,7 +272,8 @@ final class DirectHost implements ServerHost {
 	@Override public String[] command(String command) {
 		Run r = runs.get(id());
 		if (r != null && r.process.isAlive()) return type(r, command.replaceAll("[\\r\\n]", " "));
-		if (adopted(serverDir()) != null) return new String[] {"refused", serverName() + " was started before Gatekeeper last restarted, so its console can't be reached until the server has been restarted"};
+		if (adopted(serverDir()) != null) return new String[] {"refused", serverName()
+				+ " was started before Gatekeeper last restarted, so its console can't be reached until the server has been restarted"};
 		return new String[] {"refused", "The server isn't running"};
 	}
 
@@ -284,7 +295,8 @@ final class DirectHost implements ServerHost {
 		out.put("server_folder", Json.str(s.get("dir")));
 		out.put("started_with", cmd == null ? "nothing to start in that folder" : String.join(" ", cmd));
 		out.put("can_start", s.isEmpty() ? "no server chosen" : blocker(s).isEmpty() ? "yes" : blocker(s));
-		out.put("console", r != null && r.process.isAlive() ? "Gatekeeper has it" : s.isEmpty() || adopted(serverDir()) == null ? "the server is off" : "lost (the server outlived the Gatekeeper that started it)");
+		out.put("console", r != null && r.process.isAlive() ? "Gatekeeper has it" : s.isEmpty() || adopted(serverDir()) == null
+				? "the server is off" : "lost (the server outlived the Gatekeeper that started it)");
 		return out;
 	}
 }

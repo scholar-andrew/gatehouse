@@ -39,7 +39,8 @@ final class SafeFile {
 			Files.createDirectories(backups);
 			String base = name.replaceAll("\\.json$", "");
 			List<Path> had = new ArrayList<>();
-			try (java.util.stream.Stream<Path> s = Files.list(backups)) { s.filter(p -> p.getFileName().toString().startsWith(base + "-") && p.getFileName().toString().endsWith(".json")).sorted().forEach(had::add); }
+			try (java.util.stream.Stream<Path> s = Files.list(backups)) { s.filter(p -> p.getFileName().toString().startsWith(base + "-")
+					&& p.getFileName().toString().endsWith(".json")).sorted().forEach(had::add); }
 			Path last = had.isEmpty() ? null : had.get(had.size() - 1);
 			if (last != null && System.currentTimeMillis() - Files.getLastModifiedTime(last).toMillis() < EVERY) return;
 			if (last != null && java.util.Arrays.equals(Files.readAllBytes(last), Files.readAllBytes(file))) return;

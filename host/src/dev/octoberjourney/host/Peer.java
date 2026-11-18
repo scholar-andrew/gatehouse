@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * The program file passed from client to client, so a constellation needs it fetched from outside only once.
@@ -56,13 +57,14 @@ final class Peer {
 		}
 		if (!meta.isEmpty() && (cmpVersion(Json.str(meta.get("version")), ownVersion()) <= 0 || !Files.isRegularFile(file()))) {
 			meta = new LinkedHashMap<>();
-			try { Files.deleteIfExists(file()); Files.deleteIfExists(dir.resolve("program-held.json")); } catch (IOException ignored) {}
+			try { Files.deleteIfExists(file()); Files.deleteIfExists(dir.resolve("program-held.json")); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
 		return meta;
 	}
 	static String heldVersion() { return Json.str(held().get("version")); }
 	/** Where the held file came from, for the update log: the place it was fetched from, or who handed it over. */
-	static String heldFrom() { String f = Json.str(held().get("from")); return f.startsWith("fetched from ") ? f.substring("fetched from ".length()) : f.isEmpty() ? "" : "a copy " + f; }
+	static String heldFrom() { String f = Json.str(held().get("from")); return f.startsWith("fetched from ")
+			? f.substring("fetched from ".length()) : f.isEmpty() ? "" : "a copy " + f; }
 
 	/** The held file, if it is the one with this checksum (checked again as it is read). */
 	static byte[] heldBytes(String sha) {
@@ -78,7 +80,11 @@ final class Peer {
 		String v = heldVersion();
 		if (v.isEmpty() || cmpVersion(v, ownVersion()) <= 0) return;
 		if (!newestKeeper.isEmpty() && cmpVersion(v, newestKeeper) <= 0) return;
-		newestKeeper = v; newestKeeperSha = Json.str(held().get("sha256")); newestKeeperAt = "a copy handed over by " + Json.str(held().get("from")); newestHouse = v; newestNeeds = Json.str(held().get("needs"));
+		newestKeeper = v;
+		newestKeeperSha = Json.str(held().get("sha256"));
+		newestKeeperAt = "a copy handed over by " + Json.str(held().get("from"));
+		newestHouse = v;
+		newestNeeds = Json.str(held().get("needs"));
 	}
 
 	/** Takes a program file in. Returns {result, message}: ok, have (nothing newer in it) or refused. */
@@ -89,8 +95,10 @@ final class Peer {
 		// (R24: a program file whose release signature doesn't fit is never kept or handed on. Looked for before the
 		// lock is taken: it can ask GitHub, and nothing else should wait on that)
 		String signed = signature(b, sha);
-		if (signed.equals("bad")) { log("program: refused a file from " + from + ": " + dev.gatehouse.Signed.words(signed)); return new String[] {"refused", "Its release signature doesn't fit: it isn't a published Gatekeeper."}; }
-		if (signed.equals("unsigned") && setting("require_signed", "false").equals("true")) return new String[] {"refused", "It has no release signature, and this Gatekeeper takes only signed ones."};
+		if (signed.equals("bad")) { log("program: refused a file from " + from + ": "
+				+ dev.gatehouse.Signed.words(signed)); return new String[] {"refused", "Its release signature doesn't fit: it isn't a published Gatekeeper."}; }
+		if (signed.equals("unsigned") && setting("require_signed", "false").equals("true")) return new String[] {"refused",
+				"It has no release signature, and this Gatekeeper takes only signed ones."};
 		return storeChecked(b, sha, from);
 	}
 	private static synchronized String[] storeChecked(byte[] b, String sha, String from) {
@@ -100,10 +108,13 @@ final class Peer {
 			String v = "", needs = "";
 			try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(part.toFile())) {
 				java.util.zip.ZipEntry notes = z.getEntry("gatekeeper-notes.json");
-				if (z.getEntry("dev/octoberjourney/host/HostHelper.class") == null || z.getEntry("dev/gatehouse/Main.class") == null || z.getEntry("META-INF/MANIFEST.MF") == null || notes == null) throw new IOException("not the program");
-				try (InputStream in = z.getInputStream(notes)) { Map<String, Object> n = Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))); v = Json.str(n.get("version")); needs = Json.str(n.get("needs")); }
+				if (z.getEntry("dev/octoberjourney/host/HostHelper.class") == null || z.getEntry("dev/gatehouse/Main.class") == null
+						|| z.getEntry("META-INF/MANIFEST.MF") == null || notes == null) throw new IOException("not the program");
+				try (InputStream in = z.getInputStream(notes)) { Map<String, Object> n = Json.map(Json.parse(new String(in.readAllBytes(),
+						StandardCharsets.UTF_8))); v = Json.str(n.get("version")); needs = Json.str(n.get("needs")); }
 			} catch (IOException | RuntimeException notIt) { Files.deleteIfExists(part); return new String[] {"refused", "That isn't a Gatekeeper that can run."}; }
-			if (v.isEmpty() || cmpVersion(v, ownVersion()) <= 0 || (!heldVersion().isEmpty() && cmpVersion(v, heldVersion()) <= 0)) { Files.deleteIfExists(part); return new String[] {"have", "This Gatekeeper already has that version or a newer one."}; }
+			if (v.isEmpty() || cmpVersion(v, ownVersion()) <= 0 || (!heldVersion().isEmpty() && cmpVersion(v,
+					heldVersion()) <= 0)) { Files.deleteIfExists(part); return new String[] {"have", "This Gatekeeper already has that version or a newer one."}; }
 			Files.move(part, file(), StandardCopyOption.REPLACE_EXISTING);
 			meta = new LinkedHashMap<>(m("version", v, "sha256", sha, "size", b.length, "from", from, "needs", needs));
 			SafeFile.write(dir.resolve("program-held.json"), Json.write(meta));
@@ -111,7 +122,7 @@ final class Peer {
 			prefer();
 			passOn();
 			return new String[] {"ok", "Taken: Gatekeeper " + v + "."};
-		} catch (IOException e) { try { Files.deleteIfExists(part); } catch (IOException ignored) {} return new String[] {"refused", "Couldn't keep it: " + e.getMessage()}; }
+		} catch (IOException e) { try { Files.deleteIfExists(part); } catch (IOException ignored) { Quiet.seen(ignored); } return new String[] {"refused", "Couldn't keep it: " + e.getMessage()}; }
 	}
 
 	// ---- seeing a newer version at a source: it is fetched at once, so it can be given out
@@ -144,7 +155,8 @@ final class Peer {
 		if (version.isEmpty() || cmpVersion(version, have) <= 0) return m("go", false, "have", true);
 		long now = System.currentTimeMillis();
 		if (version.equals(handVersion) && now < handUntil && !who.equals(handWho)) return m("go", false, "by", handWho);
-		if (!version.equals(handVersion) || !who.equals(handWho)) log("program: " + who + " saw Gatekeeper " + version + " first and is fetching it for this constellation");
+		if (!version.equals(handVersion) || !who.equals(handWho)) log("program: " + who + " saw Gatekeeper " + version
+				+ " first and is fetching it for this constellation");
 		handVersion = version; handWho = who; handUntil = now + 90_000;
 		return m("go", true);
 	}
@@ -161,12 +173,14 @@ final class Peer {
 		if (!sha.isEmpty()) c.setRequestProperty("X-Sha256", sha);
 		c.setFixedLengthStreamingMode(body.length);
 		try (OutputStream o = c.getOutputStream()) { o.write(body); }
-		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? ""
+				: new String(in.readAllBytes(), StandardCharsets.UTF_8); }
 	}
 	/** True when this Gatekeeper should fetch the version itself: it joined nobody, or was told to go ahead. */
 	private static boolean raise(String version) {
 		if (lead().isEmpty()) return !inHand(version);
-		try { Map<String, Object> r = Json.map(Json.parse(leadPost("/v1/program/hand", Json.write(m("version", version)).getBytes(StandardCharsets.UTF_8), "application/json", ""))); return !Boolean.FALSE.equals(r.get("go")); }
+		try { Map<String, Object> r = Json.map(Json.parse(leadPost("/v1/program/hand", Json.write(m("version",
+				version)).getBytes(StandardCharsets.UTF_8), "application/json", ""))); return !Boolean.FALSE.equals(r.get("go")); }
 		catch (IOException | RuntimeException alone) { return true; }
 	}
 	private static void passOn() {
@@ -177,7 +191,8 @@ final class Peer {
 				String sha = Json.str(h.get("sha256"));
 				byte[] b = heldBytes(sha);
 				if (b == null) return;
-				Map<String, Object> ask = Json.map(Json.parse(leadPost("/v1/program/hand", Json.write(m("version", Json.str(h.get("version")))).getBytes(StandardCharsets.UTF_8), "application/json", "")));
+				Map<String, Object> ask = Json.map(Json.parse(leadPost("/v1/program/hand", Json.write(m("version",
+						Json.str(h.get("version")))).getBytes(StandardCharsets.UTF_8), "application/json", "")));
 				if (Boolean.TRUE.equals(ask.get("have"))) return;
 				String said = leadPost("/v1/program", b, "application/java-archive", sha);
 				if (said.contains("\"ok\"")) log("program: Gatekeeper " + Json.str(h.get("version")) + " was handed on to the Gatekeeper this one joined");
@@ -221,9 +236,12 @@ final class Peer {
 		else { f = ownJar(); v = ownVersion(); needs = Json.str(notesInside("gatekeeper").get("needs")); synchronized (Peer.class) { if (ownSha == null) ownSha = sha256(Files.readAllBytes(f)); sha = ownSha; } }
 		long size = Files.size(f);
 		String rest = path.substring("/v1/program/".length());
-		if (rest.equals("gatekeeper.json")) send(x, Json.write(m("version", v, "sha256", sha, "size", size, "gatehouse", v, "needs", needs)).getBytes(StandardCharsets.UTF_8), "application/json");
-		else if (rest.equals("main/update-sizes.json") || rest.equals("deck/update-sizes.json")) send(x, Json.write(m("gatehouse", v, "files", m("extras/launch-popup.jar", m("hash", sha, "size", size)))).getBytes(StandardCharsets.UTF_8), "application/json");
-		else if (rest.equals("oj-host.jar") || rest.equals("main/extras/launch-popup.jar") || rest.equals("deck/extras/launch-popup.jar")) send(x, Files.readAllBytes(f), "application/java-archive");
+		if (rest.equals("gatekeeper.json")) send(x, Json.write(m("version", v, "sha256", sha, "size", size, "gatehouse", v, "needs",
+				needs)).getBytes(StandardCharsets.UTF_8), "application/json");
+		else if (rest.equals("main/update-sizes.json") || rest.equals("deck/update-sizes.json")) send(x, Json.write(m("gatehouse", v,
+				"files", m("extras/launch-popup.jar", m("hash", sha, "size", size)))).getBytes(StandardCharsets.UTF_8), "application/json");
+		else if (rest.equals("oj-host.jar") || rest.equals("main/extras/launch-popup.jar")
+				|| rest.equals("deck/extras/launch-popup.jar")) send(x, Files.readAllBytes(f), "application/java-archive");
 		else reply(x, 404, m("error", "no such file"));
 	}
 
@@ -231,7 +249,8 @@ final class Peer {
 	/** POST /v1/program and /v1/program/hand, from a client that has said hello (d: what is kept about it). */
 	static void take(HttpExchange x, String path, String who, Map<String, Object> d) throws IOException {
 		boolean trusted = ServerTools.yes(d.get("local")) || ServerTools.yes(d.get("admin")) || ServerTools.yes(d.get("constellation"));
-		if (!trusted) { reply(x, 200, m("result", "refused", "go", false, "message", "Only this machine's own launcher, a launcher with Gatekeeper control, or a Gatekeeper allowed into this constellation hands program files over.")); return; }
+		if (!trusted) { reply(x, 200, m("result", "refused", "go", false, "message",
+				"Only this machine's own launcher, a launcher with Gatekeeper control, or a Gatekeeper allowed into this constellation hands program files over.")); return; }
 		if (path.equals("/v1/program/hand")) { reply(x, 200, hand(who, Json.str(body(x).get("version")))); return; }
 		String sha = x.getRequestHeaders().getFirst("X-Sha256");
 		String[] r = store(bodyBytes(x), sha == null ? "" : sha.trim(), "handed over by " + who);

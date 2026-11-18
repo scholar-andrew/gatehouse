@@ -53,7 +53,8 @@ final class SwitchesScreen extends Screen {
 			Switches.Toggle t = toggles.get(i);
 			String blockedBy = null;
 			for (String need : t.needs()) if (Boolean.FALSE.equals(on.get(need))) blockedBy = Switches.nameOf(toggles, need);
-			String note = t.description() + "\n\nPack default: " + (t.pack() ? "on" : "off") + "." + (t.setting() ? "" : " Loaded now: " + (t.loaded() ? "yes" : "no") + ".")
+			String note = t.description() + "\n\nPack default: " + (t.pack() ? "on" : "off") + "." + (t.setting() ? "" : " Loaded now: "
+					+ (t.loaded() ? "yes" : "no") + ".")
 					+ (blockedBy != null ? "\nOff while " + blockedBy + " is off." : "");
 			CycleButton<Boolean> b = CycleButton.onOffBuilder(blockedBy == null && t.wanted())
 					.withTooltip(v -> Tooltip.create(Component.literal(note)))

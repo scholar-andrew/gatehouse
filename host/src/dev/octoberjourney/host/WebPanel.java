@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Gatekeeper's web panel: a page, served on this machine's Tailscale address only (the same listener launchers use),
@@ -41,21 +42,26 @@ import com.sun.net.httpserver.HttpExchange;
  */
 final class WebPanel {
 	/** An account's permissions, and what each is called. An admin account has all of them, and the admin-only calls. */
-	static final String[][] PERMS = {{"view", "See servers, players and the log"}, {"control", "Start, stop and restart servers"}, {"console", "Read and type in a server's console, kick"},
-			{"manage", "Server settings, backups and tasks"}, {"access", "Launchers, players and their permissions"}, {"machine", "Sleep this machine, wake other devices"}, {"updates", "See the constellation and its update log"}};
+	static final String[][] PERMS = {{"view", "See servers, players and the log"}, {"control", "Start, stop and restart servers"},
+			{"console", "Read and type in a server's console, kick"},
+			{"manage", "Server settings, backups and tasks"}, {"access", "Launchers, players and their permissions"}, {"machine",
+					"Sleep this machine, wake other devices"}, {"updates", "See the constellation and its update log"}};
 	/** The window's calls the panel hands through: "METHOD path" -> the permission it needs ("admin": admin accounts only). */
 	static final Map<String, String> ALLOWED = new LinkedHashMap<>();
 	static {
 		for (String c : new String[] {"GET overview", "GET players", "GET log", "GET about", "GET checklist", "GET tools/server"}) ALLOWED.put(c, "view");
 		for (String c : new String[] {"POST server/start", "POST server/stop", "POST tools/action", "POST mcss/start", "POST mcss/close"}) ALLOWED.put(c, "control");
 		for (String c : new String[] {"POST tools/console", "POST tools/command", "POST kick"}) ALLOWED.put(c, "console");
-		for (String c : new String[] {"POST tools/server", "POST tools/properties", "POST tools/backup", "POST tools/task", "POST whitelist/on"}) ALLOWED.put(c, "manage");
-		for (String c : new String[] {"GET devices", "POST request/answer", "POST requests/clear", "POST perm", "POST forget", "POST revoke", "POST ban", "POST whitelist", "POST player/perm"}) ALLOWED.put(c, "access");
+		for (String c : new String[] {"POST tools/server", "POST tools/properties", "POST tools/backup", "POST tools/task",
+				"POST whitelist/on"}) ALLOWED.put(c, "manage");
+		for (String c : new String[] {"GET devices", "POST request/answer", "POST requests/clear", "POST perm", "POST forget",
+				"POST revoke", "POST ban", "POST whitelist", "POST player/perm"}) ALLOWED.put(c, "access");
 		for (String c : new String[] {"GET wake", "POST wake", "POST sleep"}) ALLOWED.put(c, "machine");
 		ALLOWED.put("GET updates", "updates");
 		ALLOWED.put("POST chat", "access");   // (reading the rooms and writing as Host; emptying a room is for the machine itself)
 		ALLOWED.put("GET constellation", "updates");   // (the same people, players, systems and versions the log names; looking only)
-		ALLOWED.put("GET auto", "updates");            // (how this Gatekeeper updates, and the pips while its constellation gathers)   // (who updated, when, from which version to which: its own permission)
+		ALLOWED.put("GET auto",
+				"updates");            // (how this Gatekeeper updates, and the pips while its constellation gathers)   // (who updated, when, from which version to which: its own permission)
 		ALLOWED.put("GET constellation", "view");
 		for (String c : new String[] {"GET update", "POST update", "GET tools/new", "POST tools/new", "POST tools/versions"}) ALLOWED.put(c, "admin");
 	}
@@ -119,16 +125,19 @@ final class WebPanel {
 		String as = key == null ? name : key;
 		all.put(as, u); saveUsers(all);
 		if (!password.isEmpty() || !ServerTools.yes(u.get("enabled"))) endSessions(as);
-		log("web panel: account " + as + (key == null ? " made" : " changed") + (password.isEmpty() ? "" : " (password set)") + ": " + (ServerTools.yes(u.get("admin")) ? "admin" : "may " + Json.list(u.get("perms"))) + (ServerTools.yes(u.get("enabled")) ? "" : ", disabled"));
+		log("web panel: account " + as + (key == null ? " made" : " changed") + (password.isEmpty() ? "" : " (password set)") + ": "
+				+ (ServerTools.yes(u.get("admin")) ? "admin" : "may " + Json.list(u.get("perms"))) + (ServerTools.yes(u.get("enabled")) ? "" : ", disabled"));
 		return new String[] {"ok", (key == null ? "Made " : "Saved ") + as + "."};
 	}
 	static void endSessions(String user) { sessions.values().removeIf(s -> s.user.equalsIgnoreCase(user)); }
-	static boolean may(Map<String, Object> u, String perm) { return ServerTools.yes(u.get("admin")) || (!perm.equals("admin") && Json.list(u.get("perms")).contains(perm)); }
+	static boolean may(Map<String, Object> u, String perm) { return ServerTools.yes(u.get("admin")) || (!perm.equals("admin")
+			&& Json.list(u.get("perms")).contains(perm)); }
 
 	// ------------------------------------------------------------------ waking other devices
 
 	static List<Object> wakeDevices() { return Json.list(cfg.get("wake_devices")); }
-	static String macOf(String s) { String h = s.replaceAll("[^0-9A-Fa-f]", "").toUpperCase(Locale.ROOT); return h.length() == 12 ? String.join(":", h.split("(?<=\\G..)")) : ""; }
+	static String macOf(String s) { String h = s.replaceAll("[^0-9A-Fa-f]", "").toUpperCase(Locale.ROOT); return h.length() == 12
+			? String.join(":", h.split("(?<=\\G..)")) : ""; }
 	/** Sends a device its Wake-on-LAN packet, on every network this machine is on that has a broadcast address. */
 	static String[] wake(String name) {
 		Map<String, Object> dev = null;
@@ -147,12 +156,13 @@ final class WebPanel {
 						s.setBroadcast(true);
 						for (int port : new int[] {9, 7}) s.send(new java.net.DatagramPacket(packet, packet.length, ia.getBroadcast(), port));
 						sent++;
-					} catch (IOException ignored) {}
+					} catch (IOException ignored) { Quiet.seen(ignored); }
 				}
 			}
-		} catch (IOException ignored) {}
+		} catch (IOException ignored) { Quiet.seen(ignored); }
 		if (sent == 0) return new String[] {"failed", "This machine is on no network a wake signal can be sent on."};
-		return new String[] {"ok", "Wake signal sent to " + Json.str(dev.get("name")) + " (" + macOf(Json.str(dev.get("mac"))) + "). It only arrives on this machine's own network, and only wakes a device set up to listen for it; give it half a minute."};
+		return new String[] {"ok", "Wake signal sent to " + Json.str(dev.get("name")) + " (" + macOf(Json.str(dev.get("mac")))
+				+ "). It only arrives on this machine's own network, and only wakes a device set up to listen for it; give it half a minute."};
 	}
 	static synchronized String[] saveWake(Map<String, Object> b) throws IOException {
 		List<Object> list = new ArrayList<>(wakeDevices());
@@ -165,7 +175,8 @@ final class WebPanel {
 		Map<String, Object> add = Json.map(b.get("add"));
 		String name = clean(Json.str(add.get("name")), 40), mac = macOf(Json.str(add.get("mac")));
 		if (name.isEmpty()) return new String[] {"refused", "Give the device a name."};
-		if (mac.isEmpty()) return new String[] {"refused", "A MAC address is twelve hex digits, like 1C:2D:3E:4F:5A:6B (on that device: Settings, Network, its adapter's Physical address)."};
+		if (mac.isEmpty()) return new String[] {"refused",
+				"A MAC address is twelve hex digits, like 1C:2D:3E:4F:5A:6B (on that device: Settings, Network, its adapter's Physical address)."};
 		list.removeIf(o -> Json.str(Json.map(o).get("name")).equalsIgnoreCase(name));
 		list.add(m("name", name, "mac", mac));
 		cfg.put("wake_devices", list); ServerTools.saveCfg();
@@ -184,14 +195,17 @@ final class WebPanel {
 				cfg.put("web_panel", want ? "true" : "false"); ServerTools.saveCfg();
 				if (!want) sessions.clear();
 				log("web panel turned " + (want ? "on" : "off"));
-				reply(x, 200, m("result", "ok", "message", want ? (address().isEmpty() ? "On. It needs this machine's Tailscale address first (Server setup)." : "On: " + address() + " (from a device on your Tailscale network).") : "Off. Everyone is signed out."));
+				reply(x, 200, m("result", "ok", "message", want ? (address().isEmpty()
+						? "On. It needs this machine's Tailscale address first (Server setup)." : "On: " + address()
+						+ " (from a device on your Tailscale network).") : "Off. Everyone is signed out."));
 				return true;
 			}
 			List<Object> list = new ArrayList<>();
 			for (Map.Entry<String, Object> e : users().entrySet()) {
 				Map<String, Object> u = Json.map(e.getValue());
 				int in = 0; for (Session s : sessions.values()) if (s.user.equals(e.getKey())) in++;
-				list.add(m("name", e.getKey(), "admin", ServerTools.yes(u.get("admin")), "enabled", ServerTools.yes(u.get("enabled")), "perms", Json.list(u.get("perms")), "made", Json.str(u.get("made")), "last_in", Json.str(u.get("last_in")), "signed_in", in));
+				list.add(m("name", e.getKey(), "admin", ServerTools.yes(u.get("admin")), "enabled", ServerTools.yes(u.get("enabled")),
+						"perms", Json.list(u.get("perms")), "made", Json.str(u.get("made")), "last_in", Json.str(u.get("last_in")), "signed_in", in));
 			}
 			List<Object> perms = new ArrayList<>();
 			for (String[] p : PERMS) perms.add(m("id", p[0], "name", p[1]));
@@ -225,9 +239,11 @@ final class WebPanel {
 		x.sendResponseHeaders(code, body.length);
 		try (OutputStream o = x.getResponseBody()) { o.write(body); }
 	}
-	static void json(HttpExchange x, int code, Map<String, Object> body) throws IOException { send(x, code, "application/json; charset=utf-8", Json.write(body).getBytes(StandardCharsets.UTF_8)); }
+	static void json(HttpExchange x, int code, Map<String, Object> body) throws IOException { send(x, code,
+			"application/json; charset=utf-8", Json.write(body).getBytes(StandardCharsets.UTF_8)); }
 	static String cookie(HttpExchange x) {
-		for (String h : x.getRequestHeaders().getOrDefault("Cookie", List.of())) for (String part : h.split(";")) if (part.trim().startsWith("gk_session=")) return part.trim().substring(11);
+		for (String h : x.getRequestHeaders().getOrDefault("Cookie", List.of())) for (String part
+				: h.split(";")) if (part.trim().startsWith("gk_session=")) return part.trim().substring(11);
 		return "";
 	}
 	static Session session(HttpExchange x) {
@@ -247,14 +263,16 @@ final class WebPanel {
 		for (String[] p : PERMS) if (may(u, p[0])) perms.add(p[0]);
 		String name = setting("name", "");
 		if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
-		return m("user", s.user, "admin", ServerTools.yes(u.get("admin")), "perms", perms, "csrf", s.csrf, "gatekeeper", name, "version", ownVersion(), "system", systemName(), "host", nativeOk() ? "builtin" : "mcss");
+		return m("user", s.user, "admin", ServerTools.yes(u.get("admin")), "perms", perms, "csrf", s.csrf, "gatekeeper", name, "version",
+				ownVersion(), "system", systemName(), "host", nativeOk() ? "builtin" : "mcss");
 	}
 
 	static void web(HttpExchange x) throws IOException {
 		try {
 			String path = x.getRequestURI().getPath(), method = x.getRequestMethod();
 			String from = x.getRemoteAddress().getAddress().getHostAddress();
-			if (!on()) { send(x, 404, "text/plain; charset=utf-8", "The web panel is off. Its owner turns it on in Gatekeeper's window (Web panel tab).".getBytes(StandardCharsets.UTF_8)); return; }
+			if (!on()) { send(x, 404, "text/plain; charset=utf-8",
+					"The web panel is off. Its owner turns it on in Gatekeeper's window (Web panel tab).".getBytes(StandardCharsets.UTF_8)); return; }
 			if (method.equals("GET") && (path.equals("/panel") || path.equals("/panel/"))) { page(x, "panel.html", "text/html; charset=utf-8"); return; }
 			if (method.equals("GET") && path.equals("/panel/panel.js")) { page(x, "panel.js", "text/javascript; charset=utf-8"); return; }
 			if (method.equals("GET") && path.equals("/panel/panel.css")) { page(x, "panel.css", "text/css; charset=utf-8"); return; }
@@ -263,7 +281,9 @@ final class WebPanel {
 			if (s == null) { json(x, 401, m("result", "signin", "message", "Sign in first.")); return; }
 			if (path.equals("/panel/me") && method.equals("GET")) { json(x, 200, who(s)); return; }
 			// (anything that changes something must carry the session's own token: another site can't know it)
-			if (!method.equals("GET") && !MessageDigest.isEqual(s.csrf.getBytes(StandardCharsets.UTF_8), header(x, "X-Panel-Token").getBytes(StandardCharsets.UTF_8))) { json(x, 403, m("result", "refused", "message", "That request didn't come from the panel's own page.")); return; }
+			if (!method.equals("GET") && !MessageDigest.isEqual(s.csrf.getBytes(StandardCharsets.UTF_8), header(x,
+					"X-Panel-Token").getBytes(StandardCharsets.UTF_8))) { json(x, 403, m("result", "refused", "message",
+					"That request didn't come from the panel's own page.")); return; }
 			if (path.equals("/panel/logout") && method.equals("POST")) {
 				sessions.remove(sha(cookie(x)));
 				x.getResponseHeaders().add("Set-Cookie", "gk_session=; Path=/panel; Max-Age=0; HttpOnly; SameSite=Strict");
@@ -278,26 +298,30 @@ final class WebPanel {
 			if (method.equals("POST")) {
 				Map<String, Object> b;
 				try (InputStream in = x.getRequestBody()) { b = Json.map(Json.parse(new String(in.readNBytes(200_000), StandardCharsets.UTF_8))); }
-				for (String k : MACHINE_ONLY) if (b.containsKey(k) && !Json.str(b.get(k)).isEmpty()) { json(x, 403, m("result", "refused", "message", "\"" + k + "\" can only be set in Gatekeeper's own window, at the machine.")); return; }
-				if (call.equals("tools/new") && List.of("forge", "file").contains(Json.str(b.get("kind")))) { json(x, 403, m("result", "refused", "message", "A server from an installer or a jar on the machine's disk is made in Gatekeeper's own window.")); return; }
+				for (String k : MACHINE_ONLY) if (b.containsKey(k) && !Json.str(b.get(k)).isEmpty()) { json(x, 403, m("result", "refused",
+						"message", "\"" + k + "\" can only be set in Gatekeeper's own window, at the machine.")); return; }
+				if (call.equals("tools/new") && List.of("forge", "file").contains(Json.str(b.get("kind")))) { json(x, 403, m("result",
+						"refused", "message", "A server from an installer or a jar on the machine's disk is made in Gatekeeper's own window.")); return; }
 				body = Json.write(b);
 			}
 			String query = x.getRequestURI().getQuery(), server = serverIn(query);
 			String answer = local(method, "/admin/" + call + (server.isEmpty() ? call.equals("update") && "1".equals(query) ? "?1" : "" : "?server=" + server), body);
 			if (method.equals("POST") && !call.equals("tools/console") && !call.equals("tools/versions")) {
 				Map<String, Object> said = Json.map(Json.parse(answer));
-				log("web panel, " + s.user + ": " + call + (server.isEmpty() ? "" : " (" + server + ")") + (Json.str(said.get("message")).isEmpty() ? "" : ": " + clean(Json.str(said.get("message")), 160)));
+				log("web panel, " + s.user + ": " + call + (server.isEmpty() ? "" : " (" + server + ")")
+						+ (Json.str(said.get("message")).isEmpty() ? "" : ": " + clean(Json.str(said.get("message")), 160)));
 			}
 			send(x, 200, "application/json; charset=utf-8", answer.getBytes(StandardCharsets.UTF_8));
 		} catch (Exception e) {
-			try { json(x, 500, m("result", "failed", "message", "Gatekeeper couldn't do that: " + e)); } catch (IOException ignored) {}
+			try { json(x, 500, m("result", "failed", "message", "Gatekeeper couldn't do that: " + e)); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
 	}
 	static String local(String method, String path, String body) throws IOException {
 		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + path).openConnection();
 		c.setConnectTimeout(3000); c.setReadTimeout(path.startsWith("/admin/update") ? 180_000 : 30000); c.setRequestMethod(method);
 		if (body != null) { c.setDoOutput(true); try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); } }
-		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "{}" : new String(in.readAllBytes(), StandardCharsets.UTF_8); }
+		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? "{}"
+				: new String(in.readAllBytes(), StandardCharsets.UTF_8); }
 	}
 	static void page(HttpExchange x, String name, String type) throws IOException {
 		try (InputStream in = WebPanel.class.getResourceAsStream("/web/" + name)) {
@@ -317,16 +341,20 @@ final class WebPanel {
 		long now = System.currentTimeMillis();
 		long[] w = wrong.computeIfAbsent(pair, k -> new long[2]);
 		if (wrong.size() > 2000) wrong.entrySet().removeIf(e -> e.getValue()[1] < now - 600_000 && e.getValue() != w);
-		if (w[1] > now) { json(x, 429, m("result", "refused", "message", "Too many wrong passwords: wait " + Math.max(1, (w[1] - now) / 60_000 + 1) + " minutes, then try again.")); return; }
+		if (w[1] > now) { json(x, 429, m("result", "refused", "message", "Too many wrong passwords: wait " + Math.max(1,
+				(w[1] - now) / 60_000 + 1) + " minutes, then try again.")); return; }
 		Map<String, Object> u = key == null ? new LinkedHashMap<>() : Json.map(all.get(key));
 		// (an account that isn't there costs the same time as one that is, so the answer doesn't say which it was)
 		byte[] salt = u.isEmpty() ? new byte[16] : unhex(Json.str(u.get("salt")));
-		int rounds = ROUNDS; try { if (!u.isEmpty()) rounds = (int) Double.parseDouble(Json.str(u.get("rounds"))); } catch (NumberFormatException ignored) {}
-		boolean right = MessageDigest.isEqual(hash(password.toCharArray(), salt, rounds).getBytes(StandardCharsets.UTF_8), Json.str(u.get("hash")).getBytes(StandardCharsets.UTF_8)) && !u.isEmpty() && ServerTools.yes(u.get("enabled"));
+		int rounds = ROUNDS;
+		try { if (!u.isEmpty()) rounds = (int) Double.parseDouble(Json.str(u.get("rounds"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
+		boolean right = MessageDigest.isEqual(hash(password.toCharArray(), salt, rounds).getBytes(StandardCharsets.UTF_8),
+				Json.str(u.get("hash")).getBytes(StandardCharsets.UTF_8)) && !u.isEmpty() && ServerTools.yes(u.get("enabled"));
 		if (!right) {
 			w[0]++;
 			if (w[0] >= 5) { w[0] = 0; w[1] = now + 300_000; }
-			log("web panel: sign-in refused for \"" + clean(name, 32) + "\" from " + from + (tailscaleName(from).isEmpty() ? "" : " (" + tailscaleName(from) + ")") + (w[1] > now ? "; that pair is locked out for 5 minutes" : ""));
+			log("web panel: sign-in refused for \"" + clean(name, 32) + "\" from " + from + (tailscaleName(from).isEmpty() ? "" : " ("
+					+ tailscaleName(from) + ")") + (w[1] > now ? "; that pair is locked out for 5 minutes" : ""));
 			json(x, 401, m("result", "refused", "message", "That name and password don't match an account here."));
 			return;
 		}
@@ -336,7 +364,8 @@ final class WebPanel {
 		Session s = new Session();
 		s.user = key; s.csrf = random(16); s.from = from;
 		sessions.put(sha(token), s);
-		synchronized (WebPanel.class) { Map<String, Object> again = users(); Map<String, Object> me = Json.map(again.get(key)); if (!me.isEmpty()) { me.put("last_in", LocalDateTime.now().format(TIME)); saveUsers(again); } }
+		synchronized (WebPanel.class) { Map<String, Object> again = users(); Map<String,
+				Object> me = Json.map(again.get(key)); if (!me.isEmpty()) { me.put("last_in", LocalDateTime.now().format(TIME)); saveUsers(again); } }
 		log("web panel: " + key + " signed in from " + from + (tailscaleName(from).isEmpty() ? "" : " (" + tailscaleName(from) + ")"));
 		x.getResponseHeaders().add("Set-Cookie", "gk_session=" + token + "; Path=/panel; Max-Age=86400; HttpOnly; SameSite=Strict");
 		json(x, 200, who(s));

@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import dev.gatehouse.look.Quiet;
 
 /**
  * R29 (1): Gatekeeper notices when it has frozen, and restarts itself.
@@ -31,13 +32,15 @@ final class Watchdog {
 	static void start() {
 		if ("off".equals(System.getenv("OJ_WATCHDOG"))) return;
 		long every = 30_000;
-		try { every = Math.max(1000, Long.parseLong(System.getenv().getOrDefault("OJ_WATCHDOG_MS", "30000"))); } catch (NumberFormatException ignored) {}
+		try { every = Math.max(1000, Long.parseLong(System.getenv().getOrDefault("OJ_WATCHDOG_MS",
+				"30000"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 		long ms = every;
 		// (testing only: a stand-in Gatekeeper made to freeze the way it did on 2026-11-17, once)
 		if (System.getenv("OJ_HOST_DIR") != null && System.getenv("OJ_WATCHDOG_TEST_FREEZE") != null && !Files.exists(dir.resolve("watchdog-test-froze"))) {
-			try { Files.writeString(dir.resolve("watchdog-test-froze"), "1"); } catch (IOException ignored) {}
+			try { Files.writeString(dir.resolve("watchdog-test-froze"), "1"); } catch (IOException ignored) { Quiet.seen(ignored); }
 			Object a = new Object(), b = new Object();
-			Thread one = new Thread(() -> { synchronized (a) { pause(); synchronized (b) { } } }, "test-one"), two = new Thread(() -> { synchronized (b) { pause(); synchronized (a) { } } }, "test-two");
+			Thread one = new Thread(() -> { synchronized (a) { pause(); synchronized (b) { } } }, "test-one"),
+					two = new Thread(() -> { synchronized (b) { pause(); synchronized (a) { } } }, "test-two");
 			one.setDaemon(true); two.setDaemon(true); one.start(); two.start();
 		}
 		Thread t = new Thread(() -> {
@@ -51,7 +54,8 @@ final class Watchdog {
 					long now = System.currentTimeMillis();
 					silentSince = answers ? 0 : silentSince == 0 ? now : silentSince;
 					String why = locked >= 2 ? "two of its parts are waiting on each other (" + names(stuck) + ")"
-							: silentSince > 0 && now - silentSince > Math.max(ms * 20, 600_000L) ? "it hasn't answered on this machine for " + (now - silentSince) / 60_000 + " minutes" : null;
+							: silentSince > 0 && now - silentSince > Math.max(ms * 20, 600_000L)
+									? "it hasn't answered on this machine for " + (now - silentSince) / 60_000 + " minutes" : null;
 					if (why != null) { restart(why); return; }
 				} catch (RuntimeException | Error ignored) { /* the next look */ }
 				try { Thread.sleep(ms); } catch (InterruptedException e) { return; }
@@ -61,7 +65,7 @@ final class Watchdog {
 		t.start();
 	}
 
-	private static void pause() { try { Thread.sleep(300); } catch (InterruptedException ignored) {} }
+	private static void pause() { try { Thread.sleep(300); } catch (InterruptedException ignored) { Quiet.seen(ignored); } }
 
 	/** Does this Gatekeeper answer on this machine? (/v1/alive is answered before anything that takes a lock.) */
 	static boolean alive() {
@@ -75,14 +79,18 @@ final class Watchdog {
 	private static String names(long[] ids) {
 		if (ids == null) return "";
 		StringBuilder s = new StringBuilder();
-		for (java.lang.management.ThreadInfo i : java.lang.management.ManagementFactory.getThreadMXBean().getThreadInfo(ids)) if (i != null) s.append(s.length() == 0 ? "" : ", ").append(i.getThreadName());
+		for (java.lang.management.ThreadInfo i
+				: java.lang.management.ManagementFactory.getThreadMXBean().getThreadInfo(ids)) if (i != null) s.append(s.length() == 0 ? ""
+				: ", ").append(i.getThreadName());
 		return s.toString();
 	}
 
 	/** A line in host.log without going through log() (whose lock could be among those stuck). */
 	static void note(String s) {
-		try { Files.writeString(dir.resolve("host.log"), LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "  " + s + "\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
-		catch (IOException ignored) {}
+		try { Files.writeString(dir.resolve("host.log"),
+				LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "  " + s + "\n",
+				StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
+		catch (IOException ignored) { Quiet.seen(ignored); }
 	}
 
 	private static final String SCRIPT = String.join("\r\n",
@@ -98,7 +106,8 @@ final class Watchdog {
 			"");
 
 	static void restart(String why) {
-		if (DirectHostRunning()) { note("watchdog: Gatekeeper seems frozen (" + why + "), but a server it runs itself is on, so it isn't restarted: restart Gatekeeper yourself when that server can stop"); return; }
+		if (DirectHostRunning()) { note("watchdog: Gatekeeper seems frozen (" + why
+				+ "), but a server it runs itself is on, so it isn't restarted: restart Gatekeeper yourself when that server can stop"); return; }
 		note("watchdog: Gatekeeper froze (" + why + "): restarting it");
 		try {
 			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -114,11 +123,13 @@ final class Watchdog {
 				pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
 			} else if (System.getenv("INVOCATION_ID") == null) {
 				// (not under its service, which would start it again by itself: a small waiter does it)
-				String cmd = "while kill -0 " + ProcessHandle.current().pid() + " 2>/dev/null; do sleep 1; done; cd '" + dir.toString().replace("'", "'\\''") + "' && exec '" + java.replace("'", "'\\''") + "' -jar '" + jar.toString().replace("'", "'\\''") + "' --serve";
+				String cmd = "while kill -0 " + ProcessHandle.current().pid() + " 2>/dev/null; do sleep 1; done; cd '"
+						+ dir.toString().replace("'", "'\\''") + "' && exec '" + java.replace("'", "'\\''") + "' -jar '" + jar.toString().replace("'", "'\\''") + "' --serve";
 				new ProcessBuilder("setsid", "bash", "-c", cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
 			}
 		} catch (Exception e) { note("watchdog: couldn't arrange the restart (" + e + "); ending anyway so whatever started Gatekeeper can start it again"); }
-		try { Files.writeString(dir.resolve("watchdog-restarted.txt"), why, StandardCharsets.UTF_8); } catch (IOException ignored) {}   // (the next Gatekeeper tells the owner)
+		try { Files.writeString(dir.resolve("watchdog-restarted.txt"), why,
+				StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }   // (the next Gatekeeper tells the owner)
 		Runtime.getRuntime().halt(3);   // (halt, not exit: nothing may wait on a lock on the way out)
 	}
 

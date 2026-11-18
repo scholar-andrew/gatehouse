@@ -1,4 +1,7 @@
 [
+ {"version": "1.58.2", "date": "2026-11-18", "notes": [
+  "Gatehouse 3.25.2: tidier code and an optional debug log; nothing changes in use. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.58.1", "date": "2026-11-18", "notes": [
   "Gatehouse 3.25.1: an important security fix in Gatekeeper. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

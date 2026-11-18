@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Release signatures (R24). Each published program file is signed on GitHub with the release key (it is kept in the
@@ -75,7 +76,8 @@ public final class Signed {
 		if (sig == null) sig = fetch(sha, places);
 		if (sig == null) return "unsigned";
 		if (!fits(data, sig)) return "bad";
-		if (keep != null) try { Files.createDirectories(keep); Files.write(keep.resolve(sha.toLowerCase(java.util.Locale.ROOT) + ".sig"), sig); } catch (IOException ignored) {}
+		if (keep != null) try { Files.createDirectories(keep); Files.write(keep.resolve(sha.toLowerCase(java.util.Locale.ROOT) + ".sig"),
+				sig); } catch (IOException ignored) { Quiet.seen(ignored); }
 		return "signed";
 	}
 	private static byte[] read(Path p) { try { return Files.isRegularFile(p) ? Files.readAllBytes(p) : null; } catch (IOException e) { return null; } }

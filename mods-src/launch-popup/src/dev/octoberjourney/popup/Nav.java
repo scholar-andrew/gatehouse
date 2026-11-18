@@ -16,6 +16,7 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.text.JTextComponent;
+import dev.gatehouse.look.Quiet;
 
 /** Driving the launcher's windows with a controller (Pad reads it):
  *    left stick, d-pad   move the selection to the nearest button, tab, box or list in that direction
@@ -33,8 +34,10 @@ public final class Nav {
 
 	private static boolean on;
 	/** What the bumpers (and Q and E) do: the sections of the window in front, one back or one on. */
-	static dev.gatehouse.look.GameShell shellOf(Window w) { return w instanceof javax.swing.JFrame jf && jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs ? gs : null; }
-	private static void flip(Window w, int by) { if (w instanceof javax.swing.JFrame jf && jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs) gs.flip(by); }
+	static dev.gatehouse.look.GameShell shellOf(Window w) { return w instanceof javax.swing.JFrame jf
+			&& jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs ? gs : null; }
+	private static void flip(Window w, int by) { if (w instanceof javax.swing.JFrame jf
+			&& jf.getContentPane() instanceof dev.gatehouse.look.GameShell gs) gs.flip(by); }
 
 	/** Marks a button as the one B / Select, Y or Start goes to. */
 	public static void tag(JComponent c, String what) { c.putClientProperty("nav", what); }
@@ -45,7 +48,7 @@ public final class Nav {
 		if (on) return;
 		on = true;
 		Pad.start(word -> { dev.gatehouse.look.GameShell.pad(true); SwingUtilities.invokeLater(() -> act(word)); });
-		try { if (java.nio.file.Files.exists(java.nio.file.Path.of("/dev/input/js0"))) dev.gatehouse.look.GameShell.pad(true); } catch (RuntimeException ignored) {}   // (a Steam Deck: the controller's buttons from the start)
+		try { if (java.nio.file.Files.exists(java.nio.file.Path.of("/dev/input/js0"))) dev.gatehouse.look.GameShell.pad(true); } catch (RuntimeException ignored) { Quiet.seen(ignored); }   // (a Steam Deck: the controller's buttons from the start)
 		KeyboardFocusManager.getCurrentKeyboardFocusManager().addKeyEventDispatcher(e -> {
 			if (e.getID() != java.awt.event.KeyEvent.KEY_PRESSED || e.getModifiersEx() != 0) return false;
 			dev.gatehouse.look.GameShell.pad(false);
@@ -62,7 +65,8 @@ public final class Nav {
 			}
 			Component fo = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
 			int k = e.getKeyCode();
-			String dir = k == java.awt.event.KeyEvent.VK_UP ? "up" : k == java.awt.event.KeyEvent.VK_DOWN ? "down" : k == java.awt.event.KeyEvent.VK_LEFT ? "left" : k == java.awt.event.KeyEvent.VK_RIGHT ? "right" : null;
+			String dir = k == java.awt.event.KeyEvent.VK_UP ? "up" : k == java.awt.event.KeyEvent.VK_DOWN ? "down"
+					: k == java.awt.event.KeyEvent.VK_LEFT ? "left" : k == java.awt.event.KeyEvent.VK_RIGHT ? "right" : null;
 			if (dir == null || !(fo instanceof AbstractButton || (fo instanceof JTabbedPane && (dir.equals("up") || dir.equals("down"))))) return false;
 			if (fo instanceof javax.swing.JMenuItem) return false;
 			act(dir);
@@ -81,7 +85,7 @@ public final class Nav {
 	static synchronized void rightClickIsLeftClick() {
 		if (rightIsLeft) return;
 		boolean deck = false;
-		try { String p = java.nio.file.Files.readString(java.nio.file.Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); deck = p.equals("Jupiter") || p.equals("Galileo"); } catch (java.io.IOException | RuntimeException ignored) {}
+		try { String p = java.nio.file.Files.readString(java.nio.file.Path.of("/sys/devices/virtual/dmi/id/product_name")).trim(); deck = p.equals("Jupiter") || p.equals("Galileo"); } catch (java.io.IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		if (!deck && System.getenv("OJ_RIGHT_AS_LEFT") == null) return;
 		rightIsLeft = true;
 		final int R = java.awt.event.InputEvent.BUTTON3_DOWN_MASK, L = java.awt.event.InputEvent.BUTTON1_DOWN_MASK;
@@ -117,9 +121,11 @@ public final class Nav {
 			case "b" -> {
 				// (B with the menu open closes it first)
 				dev.gatehouse.look.GameShell gm = shellOf(w);
-				if (gm != null && gm.menuOpen() && fo != null && SwingUtilities.isDescendingFrom(fo, gm) && fo.getParent() != null && "menu".equals(String.valueOf(((JComponent) fo.getParent()).getClientProperty("navMenu")))) { gm.toggleMenu(); return; }
+				if (gm != null && gm.menuOpen() && fo != null && SwingUtilities.isDescendingFrom(fo, gm) && fo.getParent() != null
+						&& "menu".equals(String.valueOf(((JComponent) fo.getParent()).getClientProperty("navMenu")))) { gm.toggleMenu(); return; }
 				// (a back button marked "navNow" is pressed at once; any other is only selected, for A to confirm)
-				for (Component c : stops(w)) if (c instanceof AbstractButton ab && "back".equals(ab.getClientProperty("nav")) && Boolean.TRUE.equals(ab.getClientProperty("navNow"))) { ab.doClick(); return; }
+				for (Component c : stops(w)) if (c instanceof AbstractButton ab && "back".equals(ab.getClientProperty("nav"))
+						&& Boolean.TRUE.equals(ab.getClientProperty("navNow"))) { ab.doClick(); return; }
 				if (!select(w, "back")) selectByText(w, "Cancel", "No", "Close");
 			}
 			case "lb" -> flip(w, -1);
@@ -130,10 +136,12 @@ public final class Nav {
 			case "rt-down", "rt-up" -> {
 				try {
 					if (robot == null) robot = new java.awt.Robot();
-					if (word.equals("rt-down")) robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK); else robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
-				} catch (java.awt.AWTException | RuntimeException ignored) {}
+					if (word.equals("rt-down")) robot.mousePress(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+					else robot.mouseRelease(java.awt.event.InputEvent.BUTTON1_DOWN_MASK);
+				} catch (java.awt.AWTException | RuntimeException ignored) { Quiet.seen(ignored); }
 			}
-			default -> { if (word.startsWith("scroll:")) try { scroll(w, fo, Integer.parseInt(word.substring(7))); } catch (NumberFormatException ignored) {} }
+			default -> { if (word.startsWith("scroll:")) try { scroll(w, fo,
+					Integer.parseInt(word.substring(7))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); } }
 		}
 	}
 
@@ -166,7 +174,8 @@ public final class Nav {
 	/** A scrolling list or panel with nothing to press in it (notes, the panel beside the servers, what was said in
 	 *  chat) can be landed on, so the right stick can be pointed at it: it shows a blue outline while it is chosen. */
 	private static boolean readable(javax.swing.JScrollPane s) {
-		if (!scrolls(s) || s.getParent() instanceof JComboBox || s.getViewport().getView() instanceof JTable || (s.getViewport().getView() instanceof JTextComponent t && t.isEditable())) return false;
+		if (!scrolls(s) || s.getParent() instanceof JComboBox || s.getViewport().getView() instanceof JTable
+				|| (s.getViewport().getView() instanceof JTextComponent t && t.isEditable())) return false;
 		List<Component> inside = new ArrayList<>();
 		collect(s, inside);
 		return inside.isEmpty();
@@ -191,7 +200,8 @@ public final class Nav {
 	private static void collect(Container c, List<Component> out) {
 		for (Component x : c.getComponents()) {
 			if (!x.isVisible()) continue;
-			boolean stop = (x instanceof AbstractButton || x instanceof JTabbedPane || x instanceof JTextComponent || x instanceof JTable || x instanceof JComboBox) && x.isEnabled() && x.isFocusable() && x.isShowing()
+			boolean stop = (x instanceof AbstractButton || x instanceof JTabbedPane || x instanceof JTextComponent || x instanceof JTable
+					|| x instanceof JComboBox) && x.isEnabled() && x.isFocusable() && x.isShowing()
 					&& !(x instanceof JTextComponent t && !t.isEditable());
 			// (the arrows of a scroll bar or a drop-down aren't stops)
 			if (stop && !(x.getParent() instanceof javax.swing.JScrollBar) && !(x.getParent() instanceof JComboBox)) out.add(x);
@@ -204,7 +214,9 @@ public final class Nav {
 	/** Where a stop is on the screen: for a row of tabs, the tab that's open. */
 	private static Rectangle where(Component c) {
 		Point p = c.getLocationOnScreen();
-		if (c instanceof JTabbedPane t && t.getSelectedIndex() >= 0) { Rectangle r = t.getBoundsAt(t.getSelectedIndex()); if (r != null) return new Rectangle(p.x + r.x, p.y + r.y, r.width, r.height); }
+		if (c instanceof JTabbedPane t
+				&& t.getSelectedIndex() >= 0) { Rectangle r = t.getBoundsAt(t.getSelectedIndex()); if (r != null) return new Rectangle(p.x
+				+ r.x, p.y + r.y, r.width, r.height); }
 		return new Rectangle(p.x, p.y, c.getWidth(), c.getHeight());
 	}
 

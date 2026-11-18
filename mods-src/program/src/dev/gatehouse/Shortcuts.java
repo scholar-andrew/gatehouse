@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import dev.gatehouse.look.AppIcon;
+import dev.gatehouse.look.Quiet;
 
 /**
  * How the two halves show up on the desktop.
@@ -43,10 +44,12 @@ public final class Shortcuts {
 		if (Main.WIN || System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("mac")) return;
 		String first = args.length > 0 ? args[0] : "";
 		if (first.equals("--build-pack") || first.equals("--uninstall-command")) return;
-		boolean serve = first.equals("--serve"), keeper = serve || first.equals("--panel") || first.equals("--minimized") || (args.length == 0 && Main.isKeeperFile());
+		boolean serve = first.equals("--serve"), keeper = serve || first.equals("--panel") || first.equals("--minimized")
+				|| (args.length == 0 && Main.isKeeperFile());
 		String app = keeper ? "Gatekeeper" : "Gatehouse";
 		// (the system monitor's name: the main thread's, at most 15 letters)
-		try { Files.writeString(Path.of("/proc/self/task/" + ProcessHandle.current().pid() + "/comm"), serve ? "Gatekeeper (bg)" : app, StandardCharsets.US_ASCII); } catch (IOException | RuntimeException ignored) {}
+		try { Files.writeString(Path.of("/proc/self/task/" + ProcessHandle.current().pid() + "/comm"), serve ? "Gatekeeper (bg)" : app,
+				StandardCharsets.US_ASCII); } catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 		if (serve) return;
 		// (the windows' class, which the desktop matches to the menu entry's StartupWMClass for its name and icon. Java
 		// names it after the program's main class unless told otherwise; the program file lets this be told: Add-Opens)
@@ -63,7 +66,7 @@ public final class Shortcuts {
 	/** Makes or mends this half's shortcut, in the background. prism: Prism Launcher's program, for Gatehouse's (or null). */
 	public static void ensure(boolean keeper, String prism) {
 		if (testing()) return;
-		Thread t = new Thread(() -> { try { if (Main.WIN) windows(keeper, prism); else linux(); } catch (Exception ignored) {} }, "shortcuts");
+		Thread t = new Thread(() -> { try { if (Main.WIN) windows(keeper, prism); else linux(); } catch (Exception ignored) { Quiet.seen(ignored); } }, "shortcuts");
 		t.setDaemon(true);
 		t.start();
 	}
@@ -80,7 +83,8 @@ public final class Shortcuts {
 			// the colours carry their own see-through edges)
 			int maskRow = ((s + 31) / 32) * 4;
 			ByteBuffer d = ByteBuffer.allocate(40 + s * s * 4 + maskRow * s).order(ByteOrder.LITTLE_ENDIAN);
-			d.putInt(40).putInt(s).putInt(s * 2).putShort((short) 1).putShort((short) 32).putInt(0).putInt(s * s * 4 + maskRow * s).putInt(0).putInt(0).putInt(0).putInt(0);
+			d.putInt(40).putInt(s).putInt(s * 2).putShort((short) 1).putShort((short) 32).putInt(0).putInt(s * s * 4
+					+ maskRow * s).putInt(0).putInt(0).putInt(0).putInt(0);
 			for (int y = s - 1; y >= 0; y--) for (int x = 0; x < s; x++) {
 				int argb = img.getRGB(x, y);
 				d.put((byte) argb).put((byte) (argb >> 8)).put((byte) (argb >> 16)).put((byte) (argb >>> 24));
@@ -94,7 +98,8 @@ public final class Shortcuts {
 		b.putShort((short) 0).putShort((short) 1).putShort((short) sizes.length);
 		for (int i = 0; i < sizes.length; i++) {
 			int s = sizes[i];
-			b.put((byte) (s >= 256 ? 0 : s)).put((byte) (s >= 256 ? 0 : s)).put((byte) 0).put((byte) 0).putShort((short) 1).putShort((short) 32).putInt(pngs.get(i).length).putInt(at);
+			b.put((byte) (s >= 256 ? 0 : s)).put((byte) (s >= 256 ? 0
+					: s)).put((byte) 0).put((byte) 0).putShort((short) 1).putShort((short) 32).putInt(pngs.get(i).length).putInt(at);
 			at += pngs.get(i).length;
 		}
 		for (byte[] p : pngs) b.put(p);
@@ -133,7 +138,8 @@ public final class Shortcuts {
 			name = "Gatehouse"; description = "Gatehouse: play, or host";
 		}
 		Files.createDirectories(dir);
-		Path ico = dir.resolve(keeper ? "gatekeeper.ico" : "gatehouse.ico"), ps = dir.resolve("make-shortcut.ps1"), done = dir.resolve(keeper ? "shortcut-gatekeeper.txt" : "shortcut-gatehouse.txt");
+		Path ico = dir.resolve(keeper ? "gatekeeper.ico" : "gatehouse.ico"), ps = dir.resolve("make-shortcut.ps1"),
+				done = dir.resolve(keeper ? "shortcut-gatekeeper.txt" : "shortcut-gatehouse.txt");
 		byte[] icon = ico(keeper);
 		if (!Files.isRegularFile(ico) || !java.util.Arrays.equals(Files.readAllBytes(ico), icon)) Files.write(ico, icon);
 		if (!Files.isRegularFile(ps) || !Files.readString(ps, StandardCharsets.UTF_8).equals(SCRIPT)) Files.writeString(ps, SCRIPT, StandardCharsets.UTF_8);
@@ -149,7 +155,8 @@ public final class Shortcuts {
 		if (ok) Files.writeString(done, want + "\n", StandardCharsets.UTF_8);
 	}
 	private static String readText(Path p) { try { return Files.readString(p, StandardCharsets.UTF_8).trim(); } catch (IOException e) { return ""; } }
-	private static boolean run(Path ps, Path link, String target, String arguments, String workDir, Path ico, String description, boolean onlyIfThere) throws Exception {
+	private static boolean run(Path ps, Path link, String target, String arguments, String workDir, Path ico, String description,
+			boolean onlyIfThere) throws Exception {
 		ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-File", ps.toString());
 		java.util.Map<String, String> env = pb.environment();
 		env.put("GH_LINK_PATH", link.toString()); env.put("GH_LINK_TARGET", target); env.put("GH_LINK_ARGUMENTS", arguments); env.put("GH_LINK_WORKDIR", workDir);
@@ -175,7 +182,8 @@ public final class Shortcuts {
 		if (!Files.isRegularFile(gk) && kd != null) {
 			// (Gatekeeper is here but its menu entry isn't: made as its installer makes it)
 			Files.createDirectories(apps);
-			Files.writeString(gk, "[Desktop Entry]\nType=Application\nName=Gatekeeper\nComment=Gatehouse: who may do what on this server machine, and its status\nExec=\"" + Main.java() + "\" -jar \"" + kd.resolve("oj-host.jar") + "\" --panel\nPath=" + kd + "\nTerminal=false\nCategories=Game;\n", StandardCharsets.UTF_8);
+			Files.writeString(gk,
+					"[Desktop Entry]\nType=Application\nName=Gatekeeper\nComment=Gatehouse: who may do what on this server machine, and its status\nExec=\"" + Main.java() + "\" -jar \"" + kd.resolve("oj-host.jar") + "\" --panel\nPath=" + kd + "\nTerminal=false\nCategories=Game;\n", StandardCharsets.UTF_8);
 		}
 		mend(gk, "gatekeeper", "Gatekeeper");
 	}
@@ -186,12 +194,15 @@ public final class Shortcuts {
 		List<String> out = new ArrayList<>();
 		boolean inEntry = false, iconSet = false, classSet = false;
 		for (String l : was.split("\n", -1)) {
-			if (l.startsWith("[")) { if (inEntry) { if (!iconSet) out.add(out.size() - countTrailingBlank(out), "Icon=" + icon); if (!classSet) out.add(out.size() - countTrailingBlank(out), "StartupWMClass=" + wmClass); iconSet = classSet = true; } inEntry = l.trim().equals("[Desktop Entry]"); out.add(l); continue; }
+			if (l.startsWith("[")) { if (inEntry) { if (!iconSet) out.add(out.size() - countTrailingBlank(out), "Icon="
+					+ icon); if (!classSet) out.add(out.size() - countTrailingBlank(out), "StartupWMClass="
+					+ wmClass); iconSet = classSet = true; } inEntry = l.trim().equals("[Desktop Entry]"); out.add(l); continue; }
 			if (inEntry && l.startsWith("Icon=")) { out.add("Icon=" + icon); iconSet = true; continue; }
 			if (inEntry && l.startsWith("StartupWMClass=")) { out.add("StartupWMClass=" + wmClass); classSet = true; continue; }
 			out.add(l);
 		}
-		if (inEntry) { int at = out.size() - countTrailingBlank(out); if (!classSet) out.add(at, "StartupWMClass=" + wmClass); if (!iconSet) out.add(at, "Icon=" + icon); }
+		if (inEntry) { int at = out.size() - countTrailingBlank(out); if (!classSet) out.add(at, "StartupWMClass="
+				+ wmClass); if (!iconSet) out.add(at, "Icon=" + icon); }
 		String now = String.join("\n", out);
 		if (!now.equals(was)) Files.writeString(desktop, now, StandardCharsets.UTF_8);
 	}

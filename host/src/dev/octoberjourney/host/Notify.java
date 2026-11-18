@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * Phone notifications (R34, 3) through ntfy (https://ntfy.sh, or a server of the owner's own): a friend joins a server,
@@ -34,7 +35,8 @@ final class Notify {
 	static boolean wants(String kind) { return on() && !setting("ntfy_" + kind, "true").equals("false"); }
 
 	/** A friend joined a server. */
-	static void joined(String player, String server) { if (wants("join")) send(player + " joined " + server, player + " is playing on " + server + ".", "video_game", 3); }
+	static void joined(String player, String server) { if (wants("join")) send(player + " joined " + server, player + " is playing on "
+			+ server + ".", "video_game", 3); }
 	/** A server went down without being asked to. */
 	static void down(String server, String what) { if (wants("down")) send(server + " went down", what, "warning", 4); }
 	/** Something about updating needs the owner. */
@@ -47,7 +49,7 @@ final class Notify {
 		String url = setting("ntfy_url", "https://ntfy.sh").replaceAll("/+$", "") + "/" + setting("ntfy_topic", "");
 		OUT.submit(() -> {
 			try { lastResult = post(url, title, body, tags, priority); Thread.sleep(2000); }
-			catch (InterruptedException ignored) {}
+			catch (InterruptedException ignored) { Quiet.seen(ignored); }
 			finally { queued.decrementAndGet(); }
 		});
 	}
@@ -91,21 +93,27 @@ final class Notify {
 		else if (path.equals("/admin/notify") && x.getRequestMethod().equals("POST")) {
 			Map<String, Object> b = body(x);
 			for (String k : new String[] {"on", "join", "down", "update"}) if (b.containsKey(k)) set("ntfy_" + k, ServerTools.yes(b.get(k)) ? "true" : "false");
-			if (b.containsKey("url")) { String u = Json.str(b.get("url")).trim(); set("ntfy_url", u.matches("https?://[A-Za-z0-9.\\-:]+(/[\\w.\\-/]*)?") ? u.replaceAll("/+$", "") : "https://ntfy.sh"); }
+			if (b.containsKey("url")) { String u = Json.str(b.get("url")).trim(); set("ntfy_url",
+					u.matches("https?://[A-Za-z0-9.\\-:]+(/[\\w.\\-/]*)?") ? u.replaceAll("/+$", "") : "https://ntfy.sh"); }
 			if (setting("ntfy_on", "false").equals("true") && setting("ntfy_topic", "").isEmpty()) set("ntfy_topic", newTopic());
 		}
 		else if (path.equals("/admin/notify/keep") && x.getRequestMethod().equals("POST")) {   // (crash watch: start this server again when it goes down)
 			Map<String, Object> b = body(x);
 			String id = Json.str(b.get("server"));
-			for (Object o : servers()) { Map<String, Object> s = Json.map(o); if (id.equals(Json.str(s.get("id")))) { s.put("keep_online", ServerTools.yes(b.get("on")) ? "crash" : "none"); log("crash watch: " + Json.str(s.get("name")) + (ServerTools.yes(b.get("on")) ? " is started again when it goes down" : " is left off when it goes down")); } }
+			for (Object o : servers()) { Map<String, Object> s = Json.map(o); if (id.equals(Json.str(s.get("id")))) { s.put("keep_online",
+					ServerTools.yes(b.get("on")) ? "crash" : "none"); log("crash watch: " + Json.str(s.get("name"))
+					+ (ServerTools.yes(b.get("on")) ? " is started again when it goes down" : " is left off when it goes down")); } }
 			ServerTools.saveCfg();
 		}
 		java.util.List<Object> keep = new java.util.ArrayList<>();
-		for (Object o : servers()) { Map<String, Object> s = Json.map(o); keep.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "keep", Json.str(s.get("keep_online")).equals("crash"))); }
+		for (Object o : servers()) { Map<String, Object> s = Json.map(o); keep.add(m("id", Json.str(s.get("id")), "name",
+				Json.str(s.get("name")), "keep", Json.str(s.get("keep_online")).equals("crash"))); }
 		reply(x, 200, m("on", setting("ntfy_on", "false").equals("true"), "url", setting("ntfy_url", "https://ntfy.sh"), "topic", setting("ntfy_topic", ""),
-				"join", !setting("ntfy_join", "true").equals("false"), "down", !setting("ntfy_down", "true").equals("false"), "update", !setting("ntfy_update", "true").equals("false"), "last", lastResult,
+				"join", !setting("ntfy_join", "true").equals("false"), "down", !setting("ntfy_down", "true").equals("false"), "update",
+						!setting("ntfy_update", "true").equals("false"), "last", lastResult,
 				"servers", keep));
 		return true;
 	}
-	private static void set(String k, String v) { cfg.put(k, v); try { ServerTools.saveCfg(); } catch (IOException e) { log("couldn't save notification settings: " + e); } }
+	private static void set(String k, String v) { cfg.put(k,
+			v); try { ServerTools.saveCfg(); } catch (IOException e) { log("couldn't save notification settings: " + e); } }
 }

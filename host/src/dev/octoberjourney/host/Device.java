@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import com.sun.net.httpserver.HttpExchange;
+import dev.gatehouse.look.Quiet;
 
 /**
  * What kind of machine this Gatekeeper is on (a desktop, a laptop, a Steam Deck, a ROG Ally...), so a launcher can
@@ -38,7 +39,8 @@ final class Device {
 	static void start() {
 		Thread t = new Thread(() -> {
 			try { found = detect(); } catch (RuntimeException e) { found = ""; }
-			log("this machine: " + (found.isEmpty() ? "no kind recognised" : dev.gatehouse.look.DeviceIcon.name(found)) + (setting("device_kind", "").isEmpty() ? "" : " (Options says: " + dev.gatehouse.look.DeviceIcon.name(kind()) + ")"));
+			log("this machine: " + (found.isEmpty() ? "no kind recognised" : dev.gatehouse.look.DeviceIcon.name(found))
+					+ (setting("device_kind", "").isEmpty() ? "" : " (Options says: " + dev.gatehouse.look.DeviceIcon.name(kind()) + ")"));
 		}, "device");
 		t.setDaemon(true);
 		t.start();
@@ -64,7 +66,8 @@ final class Device {
 			List<String> m = run("sysctl", "-n", "hw.model");
 			String model = m.isEmpty() ? "" : m.get(0);
 			boolean battery = String.join(" ", run("pmset", "-g", "batt")).contains("InternalBattery");
-			return model.startsWith("MacBook") || battery ? "maclaptop" : model.startsWith("iMac") ? "macdesktop" : model.startsWith("Macmini") ? "macmini" : model.isEmpty() ? "" : "macdesktop";
+			return model.startsWith("MacBook") || battery ? "maclaptop" : model.startsWith("iMac") ? "macdesktop"
+					: model.startsWith("Macmini") ? "macmini" : model.isEmpty() ? "" : "macdesktop";
 		}
 		if (WIN) {
 			List<String> l = run("powershell", "-NoProfile", "-NonInteractive", "-Command",
@@ -82,12 +85,13 @@ final class Device {
 		if (s.contains("rog ally") || s.contains("rc71l") || s.contains("rc72l")) return "rogally";
 		for (String h : new String[] {"legion go", "claw", "ayaneo", "gpd win", "onexplayer", "aokzoe", "ayn loki"}) if (s.contains(h)) return "handheld";
 		List<Integer> types = new ArrayList<>();
-		for (String t : chassis.split("[^0-9]+")) if (!t.isEmpty()) try { types.add(Integer.parseInt(t)); } catch (NumberFormatException ignored) {}
+		for (String t : chassis.split("[^0-9]+")) if (!t.isEmpty()) try { types.add(Integer.parseInt(t)); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 		for (int t : types) if (t == 8 || t == 9 || t == 10 || t == 14 || t == 31 || t == 32) return "laptop";
 		for (int t : types) if (t == 11 || t == 30) return "handheld";
 		for (int t : types) if (t == 35 || t == 36) return "minipc";
 		for (int t : types) if (t == 17 || t == 23 || t == 28 || t == 29) return "server";
-		for (int t : types) if (t == 3 || t == 4 || t == 5 || t == 6 || t == 7 || t == 13 || t == 15 || t == 16 || t == 24) return t == 13 && s.contains("apple") ? "macdesktop" : "desktop";
+		for (int t : types) if (t == 3 || t == 4 || t == 5 || t == 6 || t == 7 || t == 13 || t == 15 || t == 16 || t == 24) return t == 13
+				&& s.contains("apple") ? "macdesktop" : "desktop";
 		return "";
 	}
 
@@ -97,7 +101,8 @@ final class Device {
 		if (x.getRequestMethod().equals("POST")) {
 			Map<String, Object> b = body(x);
 			String want = Json.str(b.get("kind"));
-			if (!want.isEmpty() && !dev.gatehouse.look.DeviceIcon.known(want)) { reply(x, 200, m("result", "refused", "message", "No such kind of machine.")); return true; }
+			if (!want.isEmpty() && !dev.gatehouse.look.DeviceIcon.known(want)) { reply(x, 200, m("result", "refused", "message",
+					"No such kind of machine.")); return true; }
 			if (want.isEmpty()) cfg.remove("device_kind"); else cfg.put("device_kind", want);
 			ServerTools.saveCfg();
 			log("this machine: Options now says " + (want.isEmpty() ? "automatic" : dev.gatehouse.look.DeviceIcon.name(want)));

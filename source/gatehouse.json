@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.25.1",
+ "version": "3.25.2",
  "changes": [
+  {"version": "3.25.2", "date": "2026-11-18", "notes": [
+   "Tidier code, with nothing changed in what Gatehouse and Gatekeeper do (the code review, R36): Gatekeeper's window code is in pieces now (its main part went from 1,874 lines to under 1,000, with twelve parts in classes of their own), long lines are broken up (lines over 200 characters went from 797 to about 190), and work over several servers is done through helpers that can't leave the wrong server selected.",
+   "Errors that are passed over on purpose now leave a trace when debugging is on: put a file named debug-on.txt in Gatekeeper's folder (or Gatehouse's home folder) and they are written to debug.log there."
+  ]},
   {"version": "3.25.1", "date": "2026-11-18", "notes": [
    "Security fix (important): Gatekeeper no longer takes requests from web pages. Before, a web page open in a browser on the same machine could have sent Gatekeeper requests (browsers allow that), including ones that change settings or start programs. Requests carrying a browser's marks, or addressed to this machine by another name, are now refused. Gatekeeper's own window, the launchers and other Gatekeepers are unaffected, as are the web panel and the status page.",
    "Gatekeeper refuses requests over 1 MB (program and shared files keep their own limits) and messages nested absurdly deep, so neither can be used to wear it down."

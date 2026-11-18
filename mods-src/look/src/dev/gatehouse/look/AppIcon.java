@@ -95,7 +95,8 @@ public final class AppIcon {
 		g.setClip(gateArea.createTransformedArea(scale));
 		g.setColor(accent);
 		double bar = small ? 14 : 8;
-		for (double x : small ? new double[] {232, 266} : new double[] {222, 244, 266, 288}) g.fill(new Rectangle2D.Double(x * k, 260 * k, bar * k, (small ? 120 : 92) * k));
+		for (double x : small ? new double[] {232, 266} : new double[] {222, 244, 266, 288}) g.fill(new Rectangle2D.Double(x * k, 260 * k,
+				bar * k, (small ? 120 : 92) * k));
 		g.fill(new Rectangle2D.Double(200 * k, (small ? 318 : 308) * k, 112 * k, (small ? 12 : 7) * k));
 		g.setClip(null);
 		if (!small) {
