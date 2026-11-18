@@ -2393,9 +2393,34 @@ public final class HostHelper {
 		} catch (Exception e) { return e.getMessage() == null ? e.toString() : e.getMessage(); }
 	}
 
+	/** R31: a window opened before Gatekeeper updated keeps the old version's code (and says the old version) until it is
+	 *  opened again. When the running Gatekeeper is newer than this window, and the program file on disk is that newer
+	 *  version too (so a failed update can't make it open again and again), a new window is started from the file and
+	 *  this one ends. True when that happened. */
+	static boolean reopenIfBehind(String running) {
+		String mine = Json.str(notesInside("gatekeeper").get("version"));
+		if (running.isEmpty() || mine.isEmpty() || !dev.gatehouse.look.NotesView.newer(running, mine)) return false;
+		try {
+			Path jar = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+			String onDisk;
+			try (java.util.zip.ZipFile z = new java.util.zip.ZipFile(jar.toFile()); InputStream in = z.getInputStream(z.getEntry("gatekeeper-notes.json"))) { onDisk = Json.str(Json.map(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8))).get("version")); }
+			if (!dev.gatehouse.look.NotesView.newer(onDisk, mine)) return false;
+			ProcessBuilder pb = new ProcessBuilder(ProcessHandle.current().info().command().orElse(WIN ? "javaw" : "java"), "-jar", jar.toString(), "--panel").directory(dir.toFile());
+			pb.environment().put("OJ_PANEL_REPLACES", String.valueOf(ProcessHandle.current().pid()));
+			pb.redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
+			log("window: Gatekeeper is " + running + " now, this window was " + mine + ": it opened again as " + onDisk);
+			Runtime.getRuntime().halt(0);
+			return true;
+		} catch (Exception e) { return false; }
+	}
+
 	static void panel() throws Exception {
 		if (farUrl == null) dev.gatehouse.Shortcuts.ensure(true, null);   // (R16: Gatekeeper's shortcut, with its castle)
-		if (System.getenv("OJ_PANEL_PNG") == null && farUrl == null) {
+		// (R31: this window replaces an older one that saw Gatekeeper had updated: it waits for that one to be gone,
+		// and doesn't hand over to it as to an open window)
+		String replaces = System.getenv("OJ_PANEL_REPLACES");
+		if (replaces != null) try { ProcessHandle.of(Long.parseLong(replaces)).ifPresent(h -> { try { h.onExit().get(10, java.util.concurrent.TimeUnit.SECONDS); } catch (Exception ignored) {} }); } catch (NumberFormatException ignored) {}
+		if (System.getenv("OJ_PANEL_PNG") == null && farUrl == null && replaces == null) {
 			// One window: when one is already open, that one is brought to the front and this one isn't opened.
 			boolean running = true;
 			try { if (Boolean.TRUE.equals(Json.map(Json.parse(call("GET", "/admin/window?peek", null))).get("open"))) { call("POST", "/admin/local/open", "{}"); return; } }
@@ -2837,6 +2862,8 @@ public final class HostHelper {
 			Runnable askUpdate = () -> new Thread(() -> {
 				try {
 					Map<String, Object> u = Json.map(Json.parse(call("GET", "/admin/update", null)));
+					// (R31: the Gatekeeper behind this window has updated since it opened: it opens again as that version)
+					if (farUrl == null && reopenIfBehind(Json.str(u.get("own")))) return;
 					boolean behind = Boolean.TRUE.equals(u.get("outdated")) || "true".equals(Json.str(u.get("outdated")));
 					SwingUtilities.invokeLater(() -> {
 						if (behind && !ownUpdate.isVisible()) chime();

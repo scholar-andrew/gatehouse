@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.24.0",
+ "version": "3.24.1",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.24.1", "date": "2026-11-18", "notes": [
+   "Fixed: a Gatekeeper window opened before Gatekeeper updated kept showing the old version (and its old buttons) until it was closed. It now notices within a minute that the Gatekeeper behind it is newer, and opens again as the new version. Windows opened on 3.24.0 or earlier still need closing and opening once."
+  ]},
   {"version": "3.24.0", "date": "2026-11-18", "notes": [
    "Gatekeeper restarts itself if it freezes. A watchdog beside it looks twice a minute: parts of it waiting on each other for good (what happened on 17 November) restarts it within a minute; not answering at all for ten minutes does too. It restarts the way sign-in starts it, and says so in its activity log. Not while a server Gatekeeper runs itself is on.",
    "Gatekeeper's window shows a red bar with Restart Gatekeeper when the Gatekeeper behind it stops answering, instead of showing nothing.",
