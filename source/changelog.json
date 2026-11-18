@@ -1,4 +1,7 @@
 [
+ {"version": "1.65.0", "date": "2026-11-18", "notes": [
+  "Gatehouse 3.32.0: Gatehouse fetches pack updates itself, from whichever source answers fastest, checking every file against the signed list (step 2 towards updates from any Gate System). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.64.0", "date": "2026-11-18", "notes": [
   "Gatehouse 3.31.0: packs are signed on GitHub like the program, and Gatehouse checks the signature before updating (the first step towards updates from any Gate System). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.31.0",
+ "version": "3.32.0",
  "changes": [
+  {"version": "3.32.0", "date": "2026-11-18", "notes": [
+   "Updates from any Gate System, step 2 of 3 (R40): Gatehouse now fetches a pack's update itself. It asks every source at once and takes the newest pack that answers well (between equals, whichever answered fastest). Every file is checked against the pack's signed list before it is used; a copy that doesn't match is thrown away and the next source asked.",
+   "From your PC and GitHub an unsigned pack is still taken, as before. From another Gate System only a signed one is (step 3 is when other machines start handing out updates). Checked files are kept on the device, so it can hand them on in step 3 and a file already there isn't fetched again.",
+   "If anything goes wrong with fetching through Gatehouse, the update falls back to the sources one by one, as before. Older Gatehouses aren't affected."
+  ]},
   {"version": "3.31.0", "date": "2026-11-18", "notes": [
    "Updates from any Gate System, step 1 of 3 (R40): each pack is now signed on GitHub like the program. Its pack.toml holds the fingerprint of the pack's list of files, and the list holds every file's, so one signature covers the whole pack.",
    "Before updating a pack from a source, Gatehouse checks that signature, and skips a source whose pack isn't the published one. From your PC and GitHub an unsigned pack is still taken, as now (GitHub signs a minute or two after each publish). The check matters most from step 2 on: there, a pack handed over by another machine is only taken when its signature fits."

@@ -51,7 +51,24 @@ pack_checkable() {
   python3 -c 'import json, re, sys, zipfile
 v = json.loads(zipfile.ZipFile(sys.argv[1]).read("gatehouse-notes.json")).get("version", "0")
 p = [int(x) for x in re.sub(r"[^0-9.].*$", "", v).split(".") if x]
-sys.exit(0 if p >= [3, 31, 0] else 1)' "$here/extras/launch-popup.jar" 2>/dev/null
+sys.exit(0 if p >= [int(x) for x in sys.argv[2].split(".")] else 1)' "$here/extras/launch-popup.jar" "${1:-3.31.0}" 2>/dev/null
+}
+# R40, step 2: Gatehouse fetching the update itself (3.32.0 or newer): every source asked at once, the newest pack that
+# answers well taken (between equals, the fastest), and every file checked against the signed list before the installer
+# gets it. Started in the background; relay_url is its address, empty when it couldn't be started.
+relay_pid=""; relay_url=""
+start_relay() {
+  rm -f "$here/pack-relay-port.txt" "$here/pack-relay-used.txt"
+  local srcs=() s
+  while IFS= read -r s || [ -n "$s" ]; do s="${s%%$'\r'}"; s="${s%/}"; [ -z "$s" ] && continue; [[ "$s" == \#* ]] && continue; srcs+=("$s"); done < "$here/pack-sources.txt"
+  "$java_bin" -jar "$(run_jar)" --pack-relay "$variant" "$here" "${srcs[@]}" >/dev/null 2>&1 &
+  relay_pid=$!
+  local i port
+  for i in $(seq 1 50); do
+    if [ -f "$here/pack-relay-port.txt" ]; then port=$(tr -dc '0-9' < "$here/pack-relay-port.txt"); [ -n "$port" ] && { relay_url="http://127.0.0.1:$port/pack.toml"; return 0; }; fi
+    sleep 0.2
+  done
+  kill "$relay_pid" 2>/dev/null; relay_pid=""; return 1
 }
 run_jar() { cp -f "$here/extras/launch-popup.jar" "$here/launcher-run.jar" 2>/dev/null; if [ -f "$here/launcher-run.jar" ]; then echo "$here/launcher-run.jar"; else echo "$here/extras/launch-popup.jar"; fi; }
 start_progress() {
@@ -285,7 +302,7 @@ run_installer() {
   # R40: the pack at this source has to be the published one. Its pack.toml's release signature is checked first (by
   # the launcher; only one from 3.31.0 on knows how, so an older one isn't asked). A signature that doesn't fit skips
   # this source (exit 125) and the next is tried; none found yet (GitHub signs a minute or two after each publish) is taken.
-  if pack_checkable; then
+  if [[ "$1" != http://127.0.0.1:* ]] && pack_checkable; then
     local chk; chk=$("$java_bin" -jar "$(run_jar)" --pack-signed "$1" 2>/dev/null | head -n 1)
     note "pack signature at $1: $chk"
     case "$chk" in bad*) note "  skipped: this source's pack isn't the published one"; return 125;; esac
@@ -303,6 +320,17 @@ run_installer() {
 code=1; url=""; first_url="${urls[0]}"
 queue=("$first_url"); widened=0
 if [ "$skip" = 1 ] || [ "$current" = 1 ]; then code=0; url="$first_url"; queue=(); fi
+relay_used=""
+if [ "${#queue[@]}" -gt 0 ] && pack_checkable 3.32.0 && start_relay; then
+  # (through Gatehouse first; if that doesn't finish, the sources one by one, as before)
+  run_installer "$relay_url"; code=$?
+  note "($variant) through Gatehouse ($relay_url) -> exit $code"
+  [ -f "$here/pack-relay.log" ] && tail -n 3 "$here/pack-relay.log" | while IFS= read -r l; do note "  relay: $l"; done
+  kill "$relay_pid" 2>/dev/null
+  if [ "$code" = 0 ] && [ -f "$here/pack-relay-used.txt" ]; then
+    url="$(sed -n 1p "$here/pack-relay-used.txt")/pack.toml"; relay_used="$(sed -n 2p "$here/pack-relay-used.txt")"; queue=()
+  else code=1; fi
+fi
 while [ "${#queue[@]}" -gt 0 ]; do
   u="${queue[0]}"; queue=("${queue[@]:1}")
   run_installer "$u"; code=$?; url="$u"
@@ -318,7 +346,7 @@ while [ "${#queue[@]}" -gt 0 ]; do
   fi
 done
 if [ "$code" = 0 ] && [ "$skip" != 1 ] && [ "$current" != 1 ]; then date +%s > "$here/pack-sync-full.txt"; fi
-case "$url" in *githubusercontent*) where="GitHub" ;; *) where="the owner's PC (Tailscale)" ;; esac
+case "$url" in *githubusercontent*) where="GitHub" ;; *) if [ "$relay_used" = peer ]; then where="another Gate System"; else where="the owner's PC (Tailscale)"; fi ;; esac
 if [ "$skip" = 1 ]; then
   status ok "Connection" "$where"; status warn "Mods and settings" "Update skipped this time (about $skip_size waiting); playing what's installed"
 elif [ "$code" = 0 ]; then

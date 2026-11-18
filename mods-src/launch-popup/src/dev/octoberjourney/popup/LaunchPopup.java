@@ -176,6 +176,8 @@ public final class LaunchPopup {
 			System.exit(said.equals("signed") ? 0 : said.equals("bad") ? 2 : 1);
 			return;
 		}
+		// R40, step 2: the pack update fetched through Gatehouse, every file checked (see PackRelay).
+		if (args.length >= 3 && args[0].equals("--pack-relay")) { PackRelay.run(args); return; }
 		// The look, before anything is built (rows are made before their window is).
 		if (!GraphicsEnvironment.isHeadless() && !(args.length >= 1 && args[0].equals("--server"))) { dev.gatehouse.look.SteamLook.apply(); watchWindows(); }
 		// Testing and troubleshooting: java -jar launch-popup.jar --server <game folder> status|wake|start

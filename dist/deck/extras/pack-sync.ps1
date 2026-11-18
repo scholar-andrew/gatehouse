@@ -50,13 +50,30 @@ function RunJar {
 }
 # Does this device's launcher know --pack-signed (R40: 3.31.0 or newer)? Read from the notes inside it, never by running
 # it: an older one would take the unknown word for something else.
-function PackCheckable {
+function PackCheckable($min = '3.31.0') {
     try {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $z = [IO.Compression.ZipFile]::OpenRead($popupJar)
         try { $e = $z.GetEntry('gatehouse-notes.json'); if (-not $e) { return $false }; $j = (New-Object IO.StreamReader($e.Open())).ReadToEnd() | ConvertFrom-Json } finally { $z.Dispose() }
-        return ([version]("$($j.version)" -replace '[^0-9.].*$', '') -ge [version]'3.31.0')
+        return ([version]("$($j.version)" -replace '[^0-9.].*$', '') -ge [version]$min)
     } catch { return $false }
+}
+# R40, step 2: Gatehouse fetching the update itself (3.32.0 or newer): every source asked at once, the newest pack that
+# answers well taken (between equals, the fastest), and every file checked against the signed list before the installer
+# gets it. Started in the background; its address is in pack-relay-port.txt. Null when it couldn't be started.
+function StartRelay {
+    $portFile = Join-Path $here 'pack-relay-port.txt'
+    Remove-Item $portFile, (Join-Path $here 'pack-relay-used.txt') -Force -ErrorAction SilentlyContinue
+    $jw = Join-Path (Split-Path $java -Parent) 'javaw.exe'; if (-not (Test-Path -LiteralPath $jw)) { $jw = $java }
+    $a = @('-jar', (RunJar), '--pack-relay', $variant, $here) + @($sources)
+    $quoted = $a | ForEach-Object { if ($_ -match ' ') { '"' + $_ + '"' } else { $_ } }
+    try { $p = Start-Process -FilePath $jw -ArgumentList $quoted -WorkingDirectory $here -WindowStyle Hidden -PassThru } catch { return $null }
+    for ($i = 0; $i -lt 50; $i++) {
+        if (Test-Path $portFile) { $port = "$(Get-Content $portFile -Raw)".Trim(); if ($port -match '^\d+$') { return @{ proc = $p; url = "http://127.0.0.1:$port/pack.toml" } } }
+        Start-Sleep -Milliseconds 200
+    }
+    try { $p.Kill() } catch { }
+    return $null
 }
 function StartProgress {
     if ($embed) { return }   # (the Gatehouse window is the checklist)
@@ -255,7 +272,7 @@ function RunInstaller($u) {
     # R40: the pack at this source has to be the published one. Its pack.toml's release signature is checked first (by
     # the launcher; only one from 3.31.0 on knows how, so an older one isn't asked). A signature that doesn't fit skips
     # this source and the next is tried; none found yet (GitHub signs a minute or two after each publish) is taken.
-    if (PackCheckable) {
+    if ($u -notmatch '^http://127\.0\.0\.1:' -and (PackCheckable)) {
         $chk = "$(& $java -jar (RunJar) --pack-signed $u 2>$null | Select-Object -First 1)"
         Note "pack signature at ${u}: $chk"
         if ($chk -like 'bad*') { Status 'warn' 'Connection' "A source's pack isn't the published one, so it was skipped"; return 'bad-signature' }
@@ -331,7 +348,20 @@ RestoreSwitchedOff
 $code = $null; $url = $null
 if ($skip -or $current) { $code = 0; $url = $urls[0] }
 $queue = New-Object System.Collections.ArrayList
-if (-not ($skip -or $current)) { [void]$queue.Add($urls[0]) }
+$relayUsed = $null
+if (-not ($skip -or $current)) {
+    # (through Gatehouse first, where it can; if that doesn't finish, the sources one by one, as before)
+    $relay = if (PackCheckable '3.32.0') { StartRelay } else { $null }
+    if ($relay) {
+        $code = RunInstaller $relay.url
+        Note "through Gatehouse ($($relay.url)) -> exit $code"
+        if (Test-Path (Join-Path $here 'pack-relay.log')) { Get-Content (Join-Path $here 'pack-relay.log') -Tail 3 | ForEach-Object { Note "  relay: $_" } }
+        try { $relay.proc.Kill() } catch { }
+        $used = @(Get-Content (Join-Path $here 'pack-relay-used.txt') -ErrorAction SilentlyContinue)
+        if ("$code" -eq '0' -and $used.Count -ge 2) { $url = $used[0] + '/pack.toml'; $relayUsed = $used[1] }
+        else { $code = $null; [void]$queue.Add($urls[0]) }
+    } else { [void]$queue.Add($urls[0]) }
+}
 $widened = $false
 while ($queue.Count -gt 0) {
     $u = $queue[0]; $queue.RemoveAt(0)
@@ -343,7 +373,7 @@ while ($queue.Count -gt 0) {
     if (-not $widened) { $widened = $true; foreach ($m in @(Reachable $false)) { if ($m -ne $urls[0]) { [void]$queue.Add($m) } }; [void]$queue.Add($urls[0]) }
 }
 if ("$code" -eq '0' -and -not $skip -and -not $current) { Set-Content -Path $fullFile -Value ([DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) -Encoding ascii }
-$where = if ($url -match 'githubusercontent') { 'GitHub' } else { "the owner's PC (Tailscale)" }
+$where = if ($url -match 'githubusercontent') { 'GitHub' } elseif ($relayUsed -eq 'peer') { "another Gate System ($(([uri]$url).Host))" } else { "the owner's PC (Tailscale)" }
 if ($skip) {
     Status 'ok' 'Connection' $where
     Status 'warn' 'Mods and settings' "Update skipped this time (about $skipSize waiting); playing what's installed"
