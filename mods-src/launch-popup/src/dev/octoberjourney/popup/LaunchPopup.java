@@ -1591,7 +1591,7 @@ public final class LaunchPopup {
 		JPanel keeperRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 2));
 		keeperRow.add(new JLabel("Gatekeeper address")); keeperRow.add(keeperField);
 		for (JButton bt : new JButton[] {pairB, unpairB}) { bt.setFont(bt.getFont().deriveFont(dev.gatehouse.look.SteamLook.pt(13f))); keeperRow.add(bt); }
-		JLabel keeperHelp = new JLabel(wrap("To pair with another Gatekeeper, ask its owner for the pairing address (Gatekeeper on the server machine: Status, Copy pairing address) and type it here. This device has to be in that owner's Tailscale network."));
+		JLabel keeperHelp = new JLabel(wrap("To pair with another Gatekeeper, ask its owner for the pairing address (Gatekeeper on the server machine: Host setup, Share pairing) and type it here. This device has to be in that owner's Tailscale network."));
 		keeperHelp.setForeground(new Color(0xA9B5C1));
 		for (JComponent x : new JComponent[] {who, signHead, signHelp, fieldsWrap, cfgNote, keeperHead, keeperNow, keeperHelp, keeperRow,
 				keeperNote}) { x.setAlignmentX(Component.LEFT_ALIGNMENT); cfg.add(x); cfg.add(Box.createVerticalStrut(4)); }

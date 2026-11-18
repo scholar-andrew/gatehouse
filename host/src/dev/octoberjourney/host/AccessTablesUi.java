@@ -151,7 +151,7 @@ final class AccessTablesUi {
 		String[] pTips = {"Server control for this player: every confirmed device of theirs may start and stop this Minecraft server.",
 				"MCSS control for this player: every confirmed device of theirs may start and close MCSS (it includes server control).",
 				"Machine wake/sleep for this player: every confirmed device of theirs may wake this machine and put it to sleep.",
-						"Gatekeeper control for this player: their devices may manage the others' access from the launcher's Remote Gatekeeper tab."};
+						"Gatekeeper control for this player: their devices may manage the others' access from the Host tools tab on a server's page in Gatehouse."};
 		for (int i = 0; i < pB.length; i++) pB[i].setToolTipText(pTips[i]);
 		if (builtin()) { pB[1].setEnabled(false); pB[1].setToolTipText("MCSS control: " + noMcssShort() + ". Use Server control instead."); }
 		if (!sleepSupported()) { pB[2].setEnabled(false); pB[2].setToolTipText("Machine wake/sleep: " + notSupported().substring(0,

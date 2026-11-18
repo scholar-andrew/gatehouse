@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.34.0",
+ "version": "3.34.1",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.34.1", "date": "2026-11-18", "notes": [
+   "Wording: Gatekeeper's setup guide and messages pointed to tabs that no longer exist (a Server Status tab, a Status tab, Server config, Remote Gatekeeper). They now say where things are: Sign in to MCSS and Share pairing are on Host setup, in the menu; managing others' access from a launcher is on a server page's Host tools tab."
+  ]},
   {"version": "3.34.0", "date": "2026-11-18", "notes": [
    "The right stick scrolls sideways too (R41): push it left or right where a list or page is wider than the window, such as a wide table. Up and down work as before; pushed slantwise, it does both. In Gatehouse and in Gatekeeper."
   ]},

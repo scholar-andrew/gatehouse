@@ -186,7 +186,7 @@ final class ServerTools {
 			try {
 				String id = make(name, kind, v2, Path.of(file.isEmpty() ? "." : file), memory, p2, java, d);
 				making.putAll(Map.of("state", "done", "step", "", "id", id, "message", name + " is made, in " + d
-						+ ". It's off: start it from its Status tab, or Open it from the first screen. The first start makes the world, which takes a minute or two."));
+						+ ". It's off: start it from its card on Servers, or Open it and use its Overview tab. The first start makes the world, which takes a minute or two."));
 				log("new server " + name + " (" + kind + (v2.isEmpty() ? "" : " " + v2) + ", port " + p2 + ") made in " + d);
 				for (Object o : servers()) if (id.equals(Json.str(Json.map(o).get("id")))) History.record("made", Json.map(o), "");
 			} catch (Exception e) {

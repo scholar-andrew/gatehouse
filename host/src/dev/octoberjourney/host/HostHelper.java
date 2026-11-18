@@ -440,7 +440,7 @@ public final class HostHelper {
 		if (host.hasAccess()) add.accept(new String[] {"Gatekeeper can use MCSS", "ok", "It has its own key for MCSS."});
 		else add.accept(new String[] {"Gatekeeper can use MCSS", "todo",
 				"No key yet, so it can't start or stop servers or read their state.",
-				"Open a server here, then Server Status: sign in to MCSS once. Gatekeeper makes its own key; your password isn't kept. (MCSS's web API has to be on: MCSS, Options, Web API.)"});
+				"In Host setup (the menu), under MCSS: Sign in to MCSS once. Gatekeeper makes its own key; your password isn't kept. (MCSS's web API has to be on: MCSS, Options, Web API.)"});
 		}
 		// ---- the servers
 		List<Object> servers = servers();
@@ -1247,7 +1247,7 @@ public final class HostHelper {
 				+ " is out), and starts no server until it's updated: the owner does that in Gatekeeper's window."};
 		if (goneFromMcss(server())) return new String[] {"refused", serverName()
 				+ " was deleted in MC Server Soft, so there is nothing to start. Its owner removes it from Gatekeeper on the first screen."};
-		if (!sh().hasAccess()) return new String[] {"refused", "Gatekeeper isn't signed in to MCSS yet (Status tab: Sign in to MCSS)"};
+		if (!sh().hasAccess()) return new String[] {"refused", "Gatekeeper isn't signed in to MCSS yet (Host setup, in the menu: Sign in to MCSS)"};
 		if (sh().running()) {
 			int st = sh().serverStatus();
 			if (st == 1) return new String[] {"ok", "The server is already on"};
@@ -1265,7 +1265,7 @@ public final class HostHelper {
 			try {
 				for (int i = 0; i < 120 && sh().serverStatus() < 0; i++) Thread.sleep(1000);
 				if (sh().serverStatus() < 0) { log("start " + serverName() + " (asked by " + by
-						+ "): MCSS started, but it isn't answering Gatekeeper (if its sign-in ended, sign in again on the Status tab)"); return; }
+						+ "): MCSS started, but it isn't answering Gatekeeper (if its sign-in ended, sign in again in Host setup)"); return; }
 				Thread.sleep(1500);
 				String[] r = sh().serverStatus() == 1 || sh().serverStatus() == 3 ? new String[] {"ok", "it was already coming up"} : sh().serverAction(true);
 				log("start " + serverName() + " (asked by " + by + "), after starting MCSS: " + r[1]);
@@ -2514,7 +2514,7 @@ public final class HostHelper {
 					"Open Minecraft's EULA", "open:https://aka.ms/MinecraftEULA"});
 		} else add.apply(new Object[] {"mcss_key", "Let Gatekeeper use MCSS", !chosen.equals("ok") || !api ? "wait"
 				: st.apply("Gatekeeper can use MCSS", "todo"),
-				"Gatekeeper needs MCSS's permission to start and stop servers. Go to Servers, open one of your servers, and on its Server Status tab choose Sign in to MCSS. You sign in once with your MCSS web panel user; Gatekeeper then makes a key of its own and your password isn't kept.\n\nThis step is done when Gatekeeper has a key that MCSS accepts.", dt.apply("Gatekeeper can use MCSS"),
+				"Gatekeeper needs MCSS's permission to start and stop servers. Open Host setup in the menu, and under MCSS choose Sign in to MCSS. You sign in once with your MCSS web panel user; Gatekeeper then makes a key of its own and your password isn't kept.\n\nThis step is done when Gatekeeper has a key that MCSS accepts.", dt.apply("Gatekeeper can use MCSS"),
 				"Go to Servers", "servers"});
 		if (have.containsKey("Each server has its own port") || have.containsKey("Gatekeeper has each server's current port")) {
 			String ports = st.apply("Each server has its own port", "ok"), moved = st.apply("Gatekeeper has each server's current port", "ok");
@@ -2791,7 +2791,7 @@ public final class HostHelper {
 					1).toLowerCase(java.util.Locale.ROOT) + notSupported().substring(1)); }
 			forget.setToolTipText("Takes the selected launcher off this list, with everything it was allowed. It can introduce itself again later and starts with nothing.");
 			refreshB.setToolTipText("Reads the list again now (it also refreshes by itself every few seconds).");
-			adminB.setToolTipText("Gatekeeper control lets that launcher manage the others' permissions from its Server config tab, as this panel does (not the MCSS key, and not Gatekeeper control itself).");
+			adminB.setToolTipText("Gatekeeper control lets that launcher manage the others' permissions from the Host tools tab on a server's page in Gatehouse, as this window does (not the MCSS key, and not Gatekeeper control itself).");
 			for (JButton b : new JButton[] {serverB, mcssB, sleepB, adminB, forget, refreshB}) buttons.add(b);
 			Map<String, boolean[]> perms = new java.util.HashMap<>();   // id -> {mcss, sleep, server}, from the last refresh
 			// Gatekeeper's own MCSS key: needed for "server control" (it starts and stops the server for allowed launchers).
@@ -3439,9 +3439,8 @@ public final class HostHelper {
 			pickRow.removeAll(); pickRow.add(backB);   // (the list of servers replaces the drop-down that picked one)
 			boolean[] inServer = {false};
 			JButton[] firstEnter = {null};   // (the button that opens the first server in the list)
-			// A server's page: Access Manager, Server Status and Updates Pulled, then its Pack, then (for a server
-			// Gatekeeper runs itself) its console, settings, game settings, backups and tasks. One page, not windows
-			// opened from it. which: the tab to show ("" for the first, "pack", "manage").
+			// A server's page: Overview, then (for a server Gatekeeper runs itself) its console, settings, game settings,
+			// backups and tasks, then its Pack. One page, not windows opened from it. which: the tab to show ("" for the first, "pack", "manage").
 			java.util.function.Consumer<String[]> openServer = w -> {
 				String sid = w[0], snm = w[1], which = w[3];
 				boolean snat = "true".equals(w[2]);

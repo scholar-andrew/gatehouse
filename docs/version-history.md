@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.34.1 - 2026-11-18
+
+- Wording: Gatekeeper's setup guide and messages pointed to tabs that no longer exist (a Server Status tab, a Status tab, Server config, Remote Gatekeeper). They now say where things are: Sign in to MCSS and Share pairing are on Host setup, in the menu; managing others' access from a launcher is on a server page's Host tools tab.
+
 ## 3.34.0 - 2026-11-18
 
 - The right stick scrolls sideways too (R41): push it left or right where a list or page is wider than the window, such as a wide table. Up and down work as before; pushed slantwise, it does both. In Gatehouse and in Gatekeeper.
