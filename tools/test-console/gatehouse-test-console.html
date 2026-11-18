@@ -12,9 +12,17 @@
 body { min-height: 100vh; background-color: var(--bg0); background-image: linear-gradient(180deg, var(--bg1), var(--bg0) 900px); background-repeat: no-repeat; color: var(--text); font-family: var(--ui); font-size: 15px; line-height: 1.45; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--deep); }
 .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 1060px; margin-inline: auto; }
-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--deep); border-bottom: 1px solid var(--line); }
+header { position: sticky; isolation: isolate; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--deep); border-bottom: 1px solid var(--line); }
 .bar { display: flex; align-items: center; gap: 18px; padding-block: 10px; flex-wrap: wrap; }
 .brand { font-weight: 800; letter-spacing: .22em; font-size: 14px; white-space: nowrap; }
+/* R27: Claude waiting on the owner, at the top right */
+.waiting { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; max-width: min(46vw, 420px); background: #3A2A10; color: #FFD27A; border: 1px solid #F5BE1E; border-radius: 999px; padding: 5px 12px 5px 6px; font: 700 13px var(--ui); cursor: pointer; animation: waitpulse 2s ease-in-out infinite; }
+.waiting #waiting-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.waiting .wq { flex: none; width: 20px; height: 20px; border-radius: 50%; background: #F5BE1E; color: #1A1206; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; }
+@keyframes waitpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(245, 190, 30, .45); } 50% { box-shadow: 0 0 0 6px rgba(245, 190, 30, 0); } }
+@media (prefers-reduced-motion: reduce) { .waiting { animation: none; } }
+.waitbox { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); top: 100%; margin-top: 6px; width: min(420px, calc(100vw - 32px)); background: var(--raised); border: 1px solid #F5BE1E; border-radius: 10px; padding: 12px 14px; box-shadow: 0 10px 30px rgba(0,0,0,.45); z-index: 20; }
+.waitbox p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .brand small { display: block; font-weight: 600; letter-spacing: .12em; font-size: 10.5px; color: var(--dim); }
 .tabs { display: flex; gap: 2px; flex-wrap: wrap; min-width: 0; }
 .tab { background: none; border: 0; color: var(--dim); font: 700 13px var(--ui); letter-spacing: .14em; padding: 8px 12px 9px; cursor: pointer; border-bottom: 3px solid transparent; text-transform: uppercase; }
@@ -188,6 +196,8 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     <button class="chime" type="button" id="chime" aria-pressed="true" title="Chime when Claude replies">&#128276;</button>
   </div>
   <div class="tabs" id="tabs" role="tablist" aria-label="Sections"></div>
+  <button class="waiting" type="button" id="waiting" hidden aria-live="polite"><span class="wq">?</span><span id="waiting-t">Claude is waiting</span></button>
+  <div class="waitbox" id="waitbox" hidden><b>Claude is waiting for you</b><p id="waitbox-q"></p><p class="meta" id="waitbox-at"></p><p class="meta">Answer in your Claude Code chat. This clears when Claude picks the work up again.</p></div>
 </div></header>
 
 <main class="wrap" id="testsMain">
@@ -847,7 +857,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
   function showUnread() {
     var n = unreadList().length;
     $("m-req-new").hidden = !n;
-    document.title = (n ? "(" + n + ") " : "") + "Gatehouse Workshop";
+    document.title = ($("waiting") && !$("waiting").hidden ? "? " : "") + (n ? "(" + n + ") " : "") + "Gatehouse Workshop";
   }
   // the chime: two soft notes. A browser plays no sound until the page has been clicked or tapped once, so a chime
   // that can't play yet is owed, and plays at the first click.
@@ -860,6 +870,41 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
       notes();
     } catch (e) { owedChime = true; }
   }
+  // ---- R27: Claude waiting on the owner (meta/claude {waiting, ask, at}, which Claude writes when it stops for an answer
+  // and clears when it picks the work up). A badge at the top right, the question when it is clicked, and a sound that
+  // asks: two notes going up, unlike the reply chime. Once for each question.
+  var waitAsked = "";
+  function askSound() {
+    if (!chimeOn) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      var go = function () {
+        var t0 = actx.currentTime + 0.02;
+        [[523.25, 0, 0.22], [659.25, 0.2, 0.22], [880, 0.4, 0.5]].forEach(function (nt) {
+          var o = actx.createOscillator(), g = actx.createGain(); o.type = "triangle"; o.frequency.value = nt[0];
+          if (nt[1] >= 0.4) o.frequency.linearRampToValueAtTime(nt[0] * 1.06, t0 + nt[1] + nt[2]);   // (the last one lifts, like a question)
+          g.gain.setValueAtTime(0.0001, t0 + nt[1]); g.gain.exponentialRampToValueAtTime(0.16, t0 + nt[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + nt[1] + nt[2]);
+          o.connect(g); g.connect(actx.destination); o.start(t0 + nt[1]); o.stop(t0 + nt[1] + nt[2] + 0.05);
+        });
+      };
+      if (actx.state === "running") go(); else { owedAsk = true; actx.resume().then(function () { if (actx.state === "running" && owedAsk) { owedAsk = false; go(); } }, function () {}); }
+    } catch (e) { owedAsk = true; }
+  }
+  var owedAsk = false;
+  document.addEventListener("pointerdown", function () { if (owedAsk) { owedAsk = false; askSound(); } }, true);
+  function showWaiting(w) {
+    var on = !!(w && w.waiting && w.ask);
+    $("waiting").hidden = !on;
+    if (!on) { $("waitbox").hidden = true; waitAsked = ""; showUnread(); return; }
+    $("waiting-t").textContent = "Claude is waiting: " + w.ask;
+    $("waitbox-q").textContent = w.ask + (w.detail ? "\n\n" + w.detail : "");
+    $("waitbox-at").textContent = w.at ? "Since " + new Date(w.at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "";
+    var key = w.ask + "|" + (w.at || "");
+    if (key !== waitAsked) { waitAsked = key; askSound(); }
+    showUnread();
+  }
+  $("waiting").addEventListener("click", function (e) { e.stopPropagation(); $("waitbox").hidden = !$("waitbox").hidden; });
+  document.addEventListener("click", function (e) { if (!$("waitbox").hidden && !e.target.closest("#waitbox")) $("waitbox").hidden = true; });
   function notes() {
     var t0 = actx.currentTime + 0.02;
     [[880, 0], [1318.5, 0.16]].forEach(function (nt) {
@@ -992,6 +1037,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     db = d;
     if (!db) { loaded = true; $("empty").textContent = "The workshop keeps its checks and your answers in your claude.ai account. Open it signed in to see them."; counts(); return; }
     var timer = setTimeout(function () { if (!loaded) $("empty").textContent = "The checks are taking a while to load. Check your connection; they will appear here when they arrive."; }, 10000);
+    db.doc("meta/claude").onSnapshot(function (snap) { showWaiting(snap.exists ? snap.data() : null); }, function () {});
     db.doc("meta/current").onSnapshot(function (snap) { var v = (snap.exists && snap.data() || {}).version || ""; if (v !== current) { current = String(v); render(); liveNow(); rrender(); } }, function () {});
     db.collection("items").onSnapshot(function (snap) {
       clearTimeout(timer); loaded = true;
