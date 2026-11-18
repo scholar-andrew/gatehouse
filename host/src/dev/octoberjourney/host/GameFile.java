@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
  * names, a password, or nothing), its world folder, its Steam app ids (for SteamCMD and for players' Play), and the
  * port Steam's server query answers on. Definitions are read from Gatekeeper's own folder, games/<id>.json.
  */
-final class GameFile implements Game {
+class GameFile implements Game {
 	final Map<String, Object> def;
 	private final Pattern ready, joined, left, stopping, lag;
 

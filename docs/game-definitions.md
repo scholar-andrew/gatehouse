@@ -5,7 +5,8 @@ file instead, read by one shared adapter (`GameFile.java`; [Other games](other-g
 in Gatekeeper's own folder as `games/<id>.json`, and Gatekeeper reads it when it starts. The game then appears in
 **New server**, and its servers are started, watched, backed up and joined like any other.
 
-No game is shipped this way yet: the first will be the one chosen for stage 3.
+**Palworld** is built in (`Palworld.java`): its definition plus what only it has, namely its one-line settings file
+and its REST API (who is on, saving, a clean stop).
 
 ## A definition
 

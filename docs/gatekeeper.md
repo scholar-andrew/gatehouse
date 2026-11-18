@@ -111,6 +111,17 @@ and the server's picture, unless you choose your own. **New version** takes the 
 and update it from this Gatekeeper like any other pack. These packs aren't signed, so they are never handed out
 between machines.
 
+## Palworld
+
+**New server** can make a Palworld server (3.40.0): choose Palworld as its game, give it a name and a password
+(Palworld has no list of players: whoever has the password joins), and press Make the server. Gatekeeper fetches
+SteamCMD from Valve the first time, installs Palworld's dedicated server with it (about 5 GB), and makes its settings
+(name, password, port; Palworld's own defaults for the rest, changeable under Game settings). It also turns on
+Palworld's REST API for itself, on this machine, with a long random password: that is how it knows the server is up and
+who is on, saves before a backup, and stops it cleanly (players get a five-second warning). Friends join from
+Gatehouse: Play starts Palworld and copies the address to paste in its Join Multiplayer Game. The game port (8211 by
+default) has to be allowed through Windows Firewall for Palworld's server: Windows asks the first time it starts.
+
 ## Running servers without MCSS
 
 MC Server Soft is Windows only, so on Linux and SteamOS Gatekeeper runs the servers itself; on Windows, tick

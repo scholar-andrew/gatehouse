@@ -227,6 +227,10 @@ final class ServerTools {
 		Thread th = new Thread(() -> {
 			try {
 				SteamCmd.install(game.steamServerApp(), d, ServerTools::step);
+				Map<String, Object> made = new LinkedHashMap<>();
+				made.put("name", name); made.put("minecraft", "127.0.0.1:" + p2);
+				made.put("settings", password.isEmpty() ? Map.of("world", w2) : Map.of("world", w2, "password", password));
+				game.prepare(d, made);
 				if (!game.termsUrl().isEmpty()) Files.writeString(d.resolve("gatekeeper-terms.txt"), "Accepted by the owner in Gatekeeper's New server: " + game.termsUrl() + "\n", StandardCharsets.UTF_8);
 				String id;
 				synchronized (HostHelper.class) {
@@ -597,7 +601,8 @@ final class ServerTools {
 			Path zip = bd.resolve("backup_" + LocalDateTime.now().format(STAMP) + (all ? "_all" : "_world") + ".zip"), part = bd.resolve(zip.getFileName() + ".part");
 			try {
 				Files.createDirectories(bd);
-				if (r != null && r.ready) {
+				if (r != null && r.ready && game.saveNow(d)) Thread.sleep(3000);   // (it saved when asked: Palworld's REST API)
+				else if (r != null && r.ready) {
 					long before = r.printed;
 					for (String c : game.beforeBackup()) DirectHost.type(r, c);
 					for (int i = 0; i < 120 && r.process.isAlive(); i++) {   // (up to a minute for it to say it has saved)
@@ -613,7 +618,9 @@ final class ServerTools {
 						if (!Files.isRegularFile(p) || p.startsWith(bd)) continue;
 						String rel = d.relativize(p).toString().replace('\\', '/'), top = rel.contains("/") ? rel.substring(0, rel.indexOf('/')) : "";
 						if (rel.endsWith("session.lock") || rel.equals("gatekeeper-server.pid")) continue;
-						if (all ? (top.equals("logs") || top.equals("crash-reports")) : !top.startsWith(level)) continue;
+						// (a world folder deeper down, like Palworld's Pal/Saved/SaveGames, is matched by its whole path)
+						boolean inWorld = level.contains("/") ? rel.startsWith(level + "/") : top.startsWith(level);
+						if (all ? (top.equals("logs") || top.equals("crash-reports")) : !inWorld) continue;
 						z.putNextEntry(new java.util.zip.ZipEntry(rel));
 						try { Files.copy(p, z); files++; } catch (IOException busy) { /* a file the server has open just now: left out */ }
 						z.closeEntry();

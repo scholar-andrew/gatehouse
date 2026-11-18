@@ -1,8 +1,13 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.39.1",
+ "version": "3.40.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.40.0", "date": "2026-11-18", "notes": [
+   "Palworld servers (R34): New server can make one. Gatekeeper installs Palworld's dedicated server with SteamCMD (fetched from Valve the first time; about 5 GB) and sets it up with its name, password and port. Through Palworld's own admin interface, which Gatekeeper turns on for itself with a random password, it knows when the server is up and who is on, saves before a backup, and stops it cleanly with a warning to players. In Gatehouse, Play starts Palworld through Steam and copies the address to paste in its Join Multiplayer Game.",
+   "SteamCMD: when it updates itself the first time and ends without installing, it is asked again.",
+   "Backups find a world folder deeper inside a server's folder (Palworld's)."
+  ]},
   {"version": "3.39.1", "date": "2026-11-18", "notes": [
    "Controllers when opened straight from the desktop (R56): on Windows, a PlayStation, Switch or other controller that isn't Xbox-style was only seen when Steam started Gatehouse. Now, when there is no Xbox-style controller, it is read through Windows' own joystick interface, with its buttons where an Xbox controller has them (a Switch controller's by the letters printed on it)."
   ]},

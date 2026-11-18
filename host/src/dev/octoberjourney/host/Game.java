@@ -28,8 +28,9 @@ interface Game {
 	static Map<String, Game> all() {
 		synchronized (KNOWN) {
 			if (KNOWN.isEmpty()) {
-				Game mc = new Minecraft();
+				Game mc = new Minecraft(), pw = new Palworld();
 				KNOWN.put(mc.id(), mc);
+				KNOWN.put(pw.id(), pw);
 				Path dir = HostHelper.dir == null ? null : HostHelper.dir.resolve("games");
 				if (dir != null && java.nio.file.Files.isDirectory(dir)) try (java.util.stream.Stream<Path> s = java.nio.file.Files.list(dir)) {
 					s.filter(f -> f.getFileName().toString().endsWith(".json")).sorted().forEach(f -> { GameFile g = GameFile.load(f); if (g != null) KNOWN.putIfAbsent(g.id(), g); });
@@ -70,6 +71,16 @@ interface Game {
 	default String allowWord() { return "whitelist"; }
 	/** What that list holds: "names" (Minecraft names), "steam_ids", "password" (no list: a password), or "none". */
 	default String allowKind() { return "names"; }
+	/** After its server is installed, before it first starts: what it needs set up (Palworld: its settings file). */
+	default void prepare(Path d, Map<String, Object> server) throws IOException { }
+	/** Is it up, by asking it (for a game whose console doesn't say so)? */
+	default boolean answers(Path d) { return false; }
+	/** Asks it to save its world; true when it did (a backup then needs no console commands). */
+	default boolean saveNow(Path d) { return false; }
+	/** Asks it to save and stop by itself; true when it took the request. */
+	default boolean stopItself(Path d) { return false; }
+	/** Who is on, as it says ({name, Steam ID or ""}), or null when it can't be asked. */
+	default List<String[]> playersNow(Path d) { return null; }
 	/** Its terms for running a server (a page), or "" when there are none to accept. */
 	default String termsUrl() { return ""; }
 	default String termsName() { return ""; }

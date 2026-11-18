@@ -66,23 +66,43 @@ final class SteamCmd {
 		List<String> cmd = new ArrayList<>(List.of(program().toString(), "+force_install_dir", d.toAbsolutePath().toString(), "+login", "anonymous",
 				"+app_update", String.valueOf(app), "validate", "+quit"));
 		if (!WIN && program().toString().endsWith(".sh")) cmd.add(0, "bash");
-		step.accept("SteamCMD is installing the server (app " + app + "); a first install can take some minutes");
-		Process p = new ProcessBuilder(cmd).directory(program().getParent().toFile()).redirectErrorStream(true).start();
+		// (SteamCMD updates itself the first time, and sometimes later, and then ends without doing what it was asked
+		// ("Update complete, launching..."): it is then asked again, once it has finished, up to three times)
 		java.util.ArrayDeque<String> last = new java.util.ArrayDeque<>();
-		boolean ok = false;
-		try (BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
-			for (String line; (line = in.readLine()) != null; ) {
-				String l = line.trim();
-				if (l.isEmpty()) continue;
-				last.addLast(l); if (last.size() > 4) last.removeFirst();
-				if (l.startsWith("Success! App")) ok = true;
-				java.util.regex.Matcher m = java.util.regex.Pattern.compile("progress: ([\\d.]+)").matcher(l);
-				if (m.find()) step.accept("SteamCMD is installing the server: " + m.group(1).replaceAll("\\.\\d+$", "") + "%");
+		for (int attempt = 1; attempt <= 3; attempt++) {
+			step.accept(attempt == 1 ? "SteamCMD is installing the server (app " + app + "); a first install can take some minutes"
+					: "SteamCMD updated itself; asking it again to install the server");
+			Process p = new ProcessBuilder(cmd).directory(program().getParent().toFile()).redirectErrorStream(true).start();
+			last.clear();
+			boolean ok = false, updatedItself = false;
+			try (BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+				for (String line; (line = in.readLine()) != null; ) {
+					String l = line.trim();
+					if (l.isEmpty()) continue;
+					last.addLast(l); if (last.size() > 4) last.removeFirst();
+					if (l.startsWith("Success! App")) ok = true;
+					if (l.contains("Update complete, launching")) updatedItself = true;
+					java.util.regex.Matcher m = java.util.regex.Pattern.compile("progress: ([\\d.]+)").matcher(l);
+					if (m.find()) step.accept("SteamCMD is installing the server: " + m.group(1).replaceAll("\\.\\d+$", "") + "%");
+				}
 			}
+			int code;
+			try { code = p.waitFor(); } catch (InterruptedException e) { throw new IOException("interrupted"); }
+			if (ok && code == 0) return;
+			if (!updatedItself && attempt > 1) break;
+			waitForOthers();
 		}
-		int code;
-		try { code = p.waitFor(); } catch (InterruptedException e) { throw new IOException("interrupted"); }
-		if (!ok || code != 0) throw new IOException("SteamCMD didn't finish (" + String.join(" / ", last) + ")");
+		throw new IOException("SteamCMD didn't finish (" + String.join(" / ", last) + ")");
+	}
+	/** Waits (up to three minutes) until no SteamCMD from Gatekeeper's copy is running: after updating itself it may
+	 *  carry on in a process of its own. */
+	private static void waitForOthers() {
+		Path home = program().toAbsolutePath().getParent();
+		for (int i = 0; i < 180; i++) {
+			boolean busy = ProcessHandle.allProcesses().anyMatch(h -> h.info().command().map(c -> c.startsWith(home.toString())).orElse(false));
+			if (!busy) return;
+			try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+		}
 	}
 	@SuppressWarnings("unused") private static String text(InputStream in) throws IOException { return new String(in.readAllBytes(), StandardCharsets.UTF_8); }
 }

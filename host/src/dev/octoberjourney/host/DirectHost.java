@@ -104,7 +104,11 @@ final class DirectHost implements ServerHost {
 
 	@Override public int serverStatus() {
 		Run r = runs.get(id());
-		if (r != null && r.process.isAlive()) return r.stopping ? 4 : r.ready ? 1 : 3;
+		if (r != null && r.process.isAlive()) {
+			// (a game whose console doesn't say it's up is asked: Palworld's REST API)
+			if (!r.ready && !r.stopping) { Game g = Game.here(); if (g != null && g.answers(serverDir())) r.ready = true; }
+			return r.stopping ? 4 : r.ready ? 1 : 3;
+		}
 		return adopted(serverDir()) != null ? 1 : 0;
 	}
 
@@ -137,7 +141,8 @@ final class DirectHost implements ServerHost {
 		}
 		if (have != null && have.process.isAlive()) {
 			have.stopping = true;
-			String[] r = stopCommand().isEmpty() ? askToEnd(have) : type(have, stopCommand());
+			Game sg = Game.here();
+			String[] r = sg != null && sg.stopItself(d) ? new String[] {"ok", "asked"} : stopCommand().isEmpty() ? askToEnd(have) : type(have, stopCommand());
 			return r[0].equals("ok") ? new String[] {"ok", "Stop requested: the server saves the world and shuts down"} : r;
 		}
 		ProcessHandle h = adopted(d);

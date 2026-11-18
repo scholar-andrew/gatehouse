@@ -1238,7 +1238,16 @@ final class Home {
 										gb.setText(have ? "Play" : "Get it in Steam"); gb.setVisible(true); ((JLabel) r[4]).setVisible(false);
 										gb.setToolTipText(have ? "Starts " + gname + " through Steam, joining " + str(s.get("address")) : "Opens Steam's page to install " + gname);
 										for (java.awt.event.ActionListener al : gb.getActionListeners()) gb.removeActionListener(al);
-										gb.addActionListener(ev -> dev.gatehouse.look.Links.openOrShow(f, link));
+										boolean copies = have && !str(s.get("join")).contains("{address}");
+									String addr = str(s.get("address"));
+									gb.addActionListener(ev -> {
+										// (a game that can't be started connected, like Palworld: its address is copied, to paste in the game's own Join menu)
+										if (copies) {
+											java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(addr), null);
+											sub.setText("Starting " + gname + ". Its address, " + addr + ", is copied: in the game choose Join Multiplayer Game (or its own Join menu) and paste it.");
+										}
+										dev.gatehouse.look.Links.openOrShow(f, link);
+									});
 									} else {
 										set.accept((JLabel) r[0], new String[] {on ? "ok" : "off", (on ? "Online" : "Off") + ". A " + gname
 												+ " server: this " + LaunchPopup.TOOL + " can't install or play " + gname + " yet."});

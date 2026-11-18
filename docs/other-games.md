@@ -1,6 +1,6 @@
 # Other games: the plan (R34)
 
-Status: stages 1 and 2 built (3.37.0 and 3.39.0, 2026-11-18); the first other game is not chosen yet. Where Gatehouse goes beyond
+Status: stages 1 and 2 built (3.37.0 and 3.39.0), and stage 3 with **Palworld** (3.40.0, 2026-11-18). Where Gatehouse goes beyond
 Minecraft, and in what order.
 
 **Neutral by default** (the owner, 2026-11-18): neither program assumes Minecraft. Every server records its game; a
@@ -68,7 +68,13 @@ connected to the server.
    through Steam; neutral wording where a server isn't Minecraft. Proved with a stand-in game end to end (made with a
    stand-in SteamCMD, started, up, who is on by the query, a Steam ID allowed, what launchers are told, stopped), and
    Minecraft still behaves as in 3.36.0.
-3. **The first other game, end to end:** make its server from Gatekeeper, start, stop, crash watch, who is on,
+3. **Palworld, end to end (built, 3.40.0).** Chosen by the owner from the games on their Steam account. New server
+   installs its dedicated server with SteamCMD and makes its settings; Gatekeeper uses Palworld's own REST API (turned
+   on for Gatekeeper alone, on the game port + 1, with a random admin password) to know it is up, who is on (with Steam
+   IDs), to save before a backup and to stop cleanly. Gatehouse's Play starts it through Steam and copies the address
+   for the game's Join Multiplayer Game. Tried for real on the owner's PC: installed (5.4 GB), started, up in seconds,
+   backed up, stopped cleanly. Not yet tried: friends joining from their devices.
+   The plan's first version of this step: **The first other game, end to end:** make its server from Gatekeeper, start, stop, crash watch, who is on,
    who may join, backups, and Play from Gatehouse on the PC, the laptop and the Deck. Stand-ins first, then your
    own machines.
 4. **Mods for that game, if it has them.** For Thunderstore games (Valheim, Lethal Company) Gatekeeper keeps a

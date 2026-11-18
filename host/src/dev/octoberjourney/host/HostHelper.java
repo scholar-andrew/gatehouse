@@ -1741,6 +1741,25 @@ public final class HostHelper {
 			// (R34: a game that answers Steam's server query says who is on itself; its log still ties players to devices)
 			int qp = g.queryPort(serverDir());
 			List<String> asked = qp > 0 && minecraftRunning() ? SteamQuery.players("127.0.0.1", qp) : null;
+			List<String[]> told = asked == null && minecraftRunning() ? g.playersNow(serverDir()) : null;
+			if (told != null) {
+				// (the game says who is on, with Steam IDs: a launcher whose Steam account that is plays as them)
+				asked = new ArrayList<>();
+				Map<String, Object> devsNow = devices();
+				boolean tied = false;
+				for (String[] p : told) {
+					asked.add(p[0]);
+					if (p[1].isEmpty()) continue;
+					for (Object v : devsNow.values()) {
+						Map<String, Object> dv = Json.map(v);
+						if (p[1].equals(Json.str(dv.get("steam_id"))) && (!p[0].equals(Json.str(dv.get("player"))) || !Boolean.TRUE.equals(dv.get("player_confirmed")))) {
+							dv.put("player", p[0]); dv.put("player_confirmed", true); tied = true;
+							log("player " + p[0] + " is on " + serverName() + " with the Steam account of " + who(dv) + ": that launcher is now theirs");
+						}
+					}
+				}
+				if (tied) saveDevices(devsNow);
+			}
 			if (asked != null) {
 				Map<String, String> was = onlineBy.getOrDefault(serverKey(), Map.of()), now = new LinkedHashMap<>();
 				for (String n : asked) now.put(n, was.getOrDefault(n, ""));
