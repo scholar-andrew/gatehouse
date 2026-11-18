@@ -1,3 +1,5 @@
+== 1.64.0 | 2026-11-18
+- Gatehouse 3.31.0: packs are signed on GitHub like the program, and Gatehouse checks the signature before updating (the first step towards updates from any Gate System). Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.63.0 | 2026-11-18
 - Gatehouse 3.30.0: the web panel with the same sections as Gatekeeper's window, and Systems, History of servers and New server as pages. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.62.0 | 2026-11-18

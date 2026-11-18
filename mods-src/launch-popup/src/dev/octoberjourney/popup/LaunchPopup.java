@@ -158,6 +158,24 @@ public final class LaunchPopup {
 	static final String[] STEPS = {"Connection", "Mods and settings", "Mod switches", "Steam art and controller layouts", "Server list", "Update script"};
 
 	public static void main(String[] args) throws Exception {
+		// R40, step 1: is the pack at this address the published one? pack-sync asks before updating from a source. The
+		// pack's pack.toml is signed on GitHub like the program (its SHA-256 + ".sig"); it holds the fingerprint of the
+		// list of files, which holds every file's. Prints signed, unsigned or bad (and the exit code is 0, 1 or 2; 3 when
+		// the pack.toml couldn't be fetched). A bad one is skipped; an unsigned one is taken, as for the program.
+		if (args.length >= 2 && args[0].equals("--pack-signed")) {
+			byte[] toml;
+			try {
+				java.net.HttpURLConnection c = (java.net.HttpURLConnection) java.net.URI.create(args[1]).toURL().openConnection();
+				c.setConnectTimeout(5000); c.setReadTimeout(10000);
+				if (c.getResponseCode() != 200) throw new IOException("answered " + c.getResponseCode());
+				try (java.io.InputStream in = c.getInputStream()) { toml = in.readNBytes(64 << 20); }
+			} catch (IOException | RuntimeException ex) { System.out.println("unreachable"); System.exit(3); return; }
+			String sha = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(toml));
+			String said = dev.gatehouse.Signed.check(toml, sha, List.of(), null);
+			System.out.println(said + " " + sha);
+			System.exit(said.equals("signed") ? 0 : said.equals("bad") ? 2 : 1);
+			return;
+		}
 		// The look, before anything is built (rows are made before their window is).
 		if (!GraphicsEnvironment.isHeadless() && !(args.length >= 1 && args[0].equals("--server"))) { dev.gatehouse.look.SteamLook.apply(); watchWindows(); }
 		// Testing and troubleshooting: java -jar launch-popup.jar --server <game folder> status|wake|start

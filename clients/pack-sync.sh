@@ -44,6 +44,15 @@ fi
 popup_pid=""
 # The launcher runs from a copy (launcher-run.jar, beside this script), as on Windows, where a running program's file
 # is locked and the update has to be able to replace extras/launch-popup.jar while the launcher's window is open.
+# Does this device's launcher know --pack-signed (R40: 3.31.0 or newer)? Read from the notes inside it, never by running
+# it: an older one would take the unknown word for something else.
+pack_checkable() {
+  command -v python3 >/dev/null 2>&1 || return 1
+  python3 -c 'import json, re, sys, zipfile
+v = json.loads(zipfile.ZipFile(sys.argv[1]).read("gatehouse-notes.json")).get("version", "0")
+p = [int(x) for x in re.sub(r"[^0-9.].*$", "", v).split(".") if x]
+sys.exit(0 if p >= [3, 31, 0] else 1)' "$here/extras/launch-popup.jar" 2>/dev/null
+}
 run_jar() { cp -f "$here/extras/launch-popup.jar" "$here/launcher-run.jar" 2>/dev/null; if [ -f "$here/launcher-run.jar" ]; then echo "$here/launcher-run.jar"; else echo "$here/extras/launch-popup.jar"; fi; }
 start_progress() {
   [ -n "$embed" ] && return 0   # (the Gatehouse window is the checklist)
@@ -273,6 +282,14 @@ sys.exit(0 if re.search(r"Implementation-Version:\s*" + re.escape(sys.argv[2]) +
 # One run of packwiz-installer against one source, stopped if it hasn't finished in 5 minutes (a stalled download would
 # otherwise hold the launch forever; exit 124 then). Its output goes to pack-sync-java.log.
 run_installer() {
+  # R40: the pack at this source has to be the published one. Its pack.toml's release signature is checked first (by
+  # the launcher; only one from 3.31.0 on knows how, so an older one isn't asked). A signature that doesn't fit skips
+  # this source (exit 125) and the next is tried; none found yet (GitHub signs a minute or two after each publish) is taken.
+  if pack_checkable; then
+    local chk; chk=$("$java_bin" -jar "$(run_jar)" --pack-signed "$1" 2>/dev/null | head -n 1)
+    note "pack signature at $1: $chk"
+    case "$chk" in bad*) note "  skipped: this source's pack isn't the published one"; return 125;; esac
+  fi
   # -g: no windows. Otherwise a failed download waits on an error dialog (Quit / Continue) for someone to click,
   # holding the launch; without them a failure just ends the run, and the next source is tried.
   local a=(-jar "$here/packwiz-installer-bootstrap.jar" -g) t=()

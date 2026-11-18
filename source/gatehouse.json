@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.30.0",
+ "version": "3.31.0",
  "changes": [
+  {"version": "3.31.0", "date": "2026-11-18", "notes": [
+   "Updates from any Gate System, step 1 of 3 (R40): each pack is now signed on GitHub like the program. Its pack.toml holds the fingerprint of the pack's list of files, and the list holds every file's, so one signature covers the whole pack.",
+   "Before updating a pack from a source, Gatehouse checks that signature, and skips a source whose pack isn't the published one. From your PC and GitHub an unsigned pack is still taken, as now (GitHub signs a minute or two after each publish). The check matters most from step 2 on: there, a pack handed over by another machine is only taken when its signature fits."
+  ]},
   {"version": "3.30.0", "date": "2026-11-18", "notes": [
    "Gatekeeper's web panel has the same sections as Gatekeeper's window now (R38, phase E, the last of the menu and look audit): SERVERS, PLAYERS (Players and Launchers), CHAT and UPDATES (the update log). The machine, Constellation, Activity log and Options are in a menu behind the button with three lines at the top left. Its grey text is lighter, and buttons that remove or end something have a red outline, as in the windows.",
    "Gatekeeper: Systems, History of servers and New server open as pages inside the window, not as windows over it (R39). New server has ‹ Servers to go back without making one."

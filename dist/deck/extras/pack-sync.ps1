@@ -48,6 +48,16 @@ function RunJar {
     try { Copy-Item -LiteralPath $popupJar -Destination $runJar -Force -ErrorAction Stop } catch { }
     if (Test-Path $runJar) { $runJar } else { $popupJar }
 }
+# Does this device's launcher know --pack-signed (R40: 3.31.0 or newer)? Read from the notes inside it, never by running
+# it: an older one would take the unknown word for something else.
+function PackCheckable {
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $z = [IO.Compression.ZipFile]::OpenRead($popupJar)
+        try { $e = $z.GetEntry('gatehouse-notes.json'); if (-not $e) { return $false }; $j = (New-Object IO.StreamReader($e.Open())).ReadToEnd() | ConvertFrom-Json } finally { $z.Dispose() }
+        return ([version]("$($j.version)" -replace '[^0-9.].*$', '') -ge [version]'3.31.0')
+    } catch { return $false }
+}
 function StartProgress {
     if ($embed) { return }   # (the Gatehouse window is the checklist)
     if (-not $java -or -not (Test-Path $popupJar)) { return }
@@ -242,6 +252,14 @@ $javaLog = Join-Path $here 'pack-sync-java.log'
 # would otherwise hold the launch forever. Returns its exit code, 'timeout' or 'error'. Its output goes to
 # pack-sync-java.log.
 function RunInstaller($u) {
+    # R40: the pack at this source has to be the published one. Its pack.toml's release signature is checked first (by
+    # the launcher; only one from 3.31.0 on knows how, so an older one isn't asked). A signature that doesn't fit skips
+    # this source and the next is tried; none found yet (GitHub signs a minute or two after each publish) is taken.
+    if (PackCheckable) {
+        $chk = "$(& $java -jar (RunJar) --pack-signed $u 2>$null | Select-Object -First 1)"
+        Note "pack signature at ${u}: $chk"
+        if ($chk -like 'bad*') { Status 'warn' 'Connection' "A source's pack isn't the published one, so it was skipped"; return 'bad-signature' }
+    }
     # -g: no windows. Otherwise a failed download waits on an error dialog (Quit / Continue) for someone to click,
     # holding the launch; without them a failure just ends the run, and the next source is tried.
     $a = @('-jar', (Join-Path $here 'packwiz-installer-bootstrap.jar'), '-g')
