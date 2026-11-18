@@ -78,6 +78,9 @@ final class ConstellationUi {
 		manageLet.setToolTipText("<html>For a Gatekeeper that joined and was allowed in: from its own window it can then see this Gatekeeper's servers, start and stop them,<br>use a console, and answer launchers and players. Not this Gatekeeper's settings, updates, web accounts or the machine. Off unless you choose it.</html>");
 		manageOpen.setToolTipText("Opens a window on the Gatekeeper you clicked, if its owner has let this one manage it");
 		javax.swing.JCheckBox leadManage = new javax.swing.JCheckBox("Let that Gatekeeper manage this one");
+		// (R40: this machine handing out pack updates to the devices of this constellation; on unless turned off)
+		javax.swing.JCheckBox handOut = new javax.swing.JCheckBox("Hand out pack updates", true);
+		handOut.setToolTipText("<html>On unless you turn it off. This machine hands the published pack (signed, every file checked) to the devices of this constellation,<br>over Tailscale, when it answers faster than your PC or GitHub. The Now column says which clients hand out too.</html>");
 		leadManage.setToolTipText("<html>Off unless you choose it. The Gatekeeper this one joined can then, from its own window, see this Gatekeeper's servers, start and stop them,<br>use a console, and answer launchers and players. Not this Gatekeeper's settings, updates, web accounts or the machine.</html>");
 		JButton allow = new JButton("Allow in"), remove = dev.gatehouse.look.SteamLook.danger(new JButton("Remove")),
 				join = new JButton("Join"), leave = dev.gatehouse.look.SteamLook.danger(new JButton("Leave"));
@@ -93,7 +96,7 @@ final class ConstellationUi {
 				int keep = table.getSelectedRow();
 				model.setRowCount(0); rowIds.clear();
 				model.addRow(new Object[] {Json.str(g.get("name")) + "  (this Gatekeeper)", "Gatekeeper", "", Json.str(g.get("system")),
-						Json.str(g.get("version")), modeWord(Json.str(g.get("mode"))), "Running", "Leads it"});
+						Json.str(g.get("version")), modeWord(Json.str(g.get("mode"))), "Running" + (Json.str(g.get("hands_out")).isEmpty() ? "" : "; " + Json.str(g.get("hands_out"))), "Leads it"});
 				rowIds.add(new String[] {"", ""});
 				int open = 0, total = 0, asked = 0, dupes = 0;
 				try { dupes = (int) Double.parseDouble(Json.str(r.get("duplicates"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
@@ -108,7 +111,7 @@ final class ConstellationUi {
 					else { total++; if (up) open++; by[md.equals("normal") ? 0 : md.equals("auto") ? 1 : md.equals("constellation") ? 2 : 3]++; }
 					model.addRow(new Object[] {(via.isEmpty() ? "" : "    ") + Json.str(c.get("name"))
 							+ (Boolean.TRUE.equals(c.get("here")) ? "  (this machine)" : ""), Json.str(c.get("type")), Json.str(c.get("player")), Json.str(c.get("system")),
-							Json.str(c.get("version")).isEmpty() ? "Not said" : Json.str(c.get("version")), modeWord(md), up ? "Open" : "Closed",
+							Json.str(c.get("version")).isEmpty() ? "Not said" : Json.str(c.get("version")), modeWord(md), (up ? "Open" : "Closed") + (Json.str(c.get("hands_out")).isEmpty() ? "" : "; " + Json.str(c.get("hands_out"))),
 							ms.equals("asked") ? "Asked to join: not allowed in yet" : ms.equals("member")
 									? "Member (a Gatekeeper that joined)" + (Boolean.TRUE.equals(c.get("manage"))
 									? "; may manage this Gatekeeper" : "") + (Boolean.TRUE.equals(c.get("manageable")) ? "; lets this one manage it" : "")
@@ -130,6 +133,7 @@ final class ConstellationUi {
 				if (!address.isFocusOwner()) address.setText(Json.str(lead.get("address")));
 				address.setEditable(!joined); join.setEnabled(!joined); leave.setEnabled(joined);
 				leadFilling[0] = true;
+				handOut.setSelected(!Boolean.FALSE.equals(g.get("hand_out")));
 				leadManage.setEnabled(joined); leadManage.setSelected(joined && Boolean.TRUE.equals(lead.get("manage")));
 				leadOpen.setEnabled(joined && Boolean.TRUE.equals(lead.get("manageable")));
 				leadUpdates.setEnabled(joined); leadUpdates.setSelected(joined && Boolean.TRUE.equals(lead.get("updates")));
@@ -164,6 +168,7 @@ final class ConstellationUi {
 		manageStop.addActionListener(e -> onRow.accept("manage", false));
 		manageOpen.addActionListener(e -> onRow.accept("open", true));
 		leadUpdates.addActionListener(e -> { if (!leadFilling[0]) post.accept(m("lead_updates", leadUpdates.isSelected()), ""); });
+		handOut.addActionListener(e -> { if (!leadFilling[0]) post.accept(m("hand_out", handOut.isSelected()), ""); });
 		leave.addActionListener(e -> post.accept(m("leave", true), ""));
 		// The update log: who went from which version to which, when and how, for the whole constellation.
 		JButton logB = new JButton("Update log\u2026");
@@ -176,6 +181,7 @@ final class ConstellationUi {
 		buttons.add(manageStop);
 		buttons.add(manageOpen);
 		buttons.add(logB);
+		buttons.add(handOut);
 		// (History of servers and Systems are in the menu beside Constellation, so they are no longer buttons here too:
 		// R38. That also keeps this row on one line at the Steam Deck's size.)
 		JPanel joinRow = new JPanel(new dev.gatehouse.look.WrapLayout(FlowLayout.LEFT, 6, 2));

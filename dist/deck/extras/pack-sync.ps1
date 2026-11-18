@@ -353,12 +353,19 @@ if (-not ($skip -or $current)) {
     # (through Gatehouse first, where it can; if that doesn't finish, the sources one by one, as before)
     $relay = if (PackCheckable '3.32.0') { StartRelay } else { $null }
     if ($relay) {
+        $jarFile = Join-Path $here 'extras\launch-popup.jar'
+        $jarWas = try { (Get-FileHash -LiteralPath $jarFile -Algorithm SHA256).Hash } catch { '' }
         $code = RunInstaller $relay.url
         Note "through Gatehouse ($($relay.url)) -> exit $code"
         if (Test-Path (Join-Path $here 'pack-relay.log')) { Get-Content (Join-Path $here 'pack-relay.log') -Tail 3 | ForEach-Object { Note "  relay: $_" } }
         try { $relay.proc.Kill() } catch { }
         $used = @(Get-Content (Join-Path $here 'pack-relay-used.txt') -ErrorAction SilentlyContinue)
-        if ("$code" -eq '0' -and $used.Count -ge 2) { $url = $used[0] + '/pack.toml'; $relayUsed = $used[1] }
+        if ("$code" -eq '0' -and $used.Count -ge 2) {
+            $url = $used[0] + '/pack.toml'; $relayUsed = $used[1]
+            # (R40: Gatehouse itself came with this update from another Gate System: noted, for the update log)
+            if ($relayUsed -eq 'peer') { try { $jarNow = (Get-FileHash -LiteralPath $jarFile -Algorithm SHA256).Hash
+                if ($jarNow -and $jarNow -ne $jarWas) { Set-Content -LiteralPath (Join-Path $here 'extras\launch-popup.source.txt') -Value "$($jarNow.ToLower())|another Gate System ($(([uri]$used[0]).Host))" -Encoding ascii } } catch { } }
+        }
         else { $code = $null; [void]$queue.Add($urls[0]) }
     } else { [void]$queue.Add($urls[0]) }
 }

@@ -572,6 +572,13 @@ final class Home {
 		if (m.equals("auto") || m.equals("constellation")) return m;
 		return "true".equals(str(o.get("auto_update"))) ? "constellation" : "normal";
 	}
+	/** One of this device's Options, kept with the others in gatehouse-options.json. */
+	static void setOption(Path home, String key, Object value) {
+		Map<String, Object> o = new LinkedHashMap<>();
+		try { o.putAll(ServerControl.asMap(LaunchPopup.parseJson(LaunchPopup.readFile(home.resolve("gatehouse-options.json"))))); } catch (RuntimeException ignored) { Quiet.seen(ignored); }
+		o.put(key, value);
+		try { Files.createDirectories(home); Files.writeString(home.resolve("gatehouse-options.json"), SystemsBox.json(o) + "\n", StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); }
+	}
 	/** The Gatekeeper in this launcher's list that is the one on this same machine (as its address is listed), or "". */
 	static volatile String hereUrl = "";
 	static boolean linkHere(Path instances, Path home, List<String[]> keepers, List<String[]> packs) {
@@ -797,12 +804,18 @@ final class Home {
 					modeAuto = new javax.swing.JRadioButton("Auto: update by itself as soon as a new version is out", modeNow.equals("auto")),
 					modeGroup = new javax.swing.JRadioButton("Constellation: update together with my Gatekeeper and its other launchers", modeNow.equals("constellation"));
 			javax.swing.ButtonGroup modeGroupOf = new javax.swing.ButtonGroup();
-			java.awt.event.ActionListener pickMode = ev -> { try { Files.createDirectories(home); Files.writeString(home.resolve("gatehouse-options.json"), "{\"update_mode\": \"" + (modeAuto.isSelected() ? "auto" : modeGroup.isSelected() ? "constellation" : "normal") + "\"}\n", StandardCharsets.UTF_8); } catch (IOException ignored) { Quiet.seen(ignored); } };
+			java.awt.event.ActionListener pickMode = ev -> setOption(home, "update_mode", modeAuto.isSelected() ? "auto" : modeGroup.isSelected() ? "constellation" : "normal");
 			for (javax.swing.JRadioButton rb : new javax.swing.JRadioButton[] {modeNormal, modeAuto,
 					modeGroup}) { modeGroupOf.add(rb); rb.setAlignmentX(Component.LEFT_ALIGNMENT); rb.addActionListener(pickMode); updating.add(rb); }
 			updLine.accept("Normal is what it is unless you choose otherwise. Auto: while this window is open, " + LaunchPopup.TOOL
 					+ " updates itself as soon as it sees a new version, without waiting for anyone. Constellation: " + LaunchPopup.TOOL
 					+ " waits for a Gatekeeper in your list that is in constellation mode too; that Gatekeeper waits until every such launcher has seen the new version, and then they all update at once. With a Gatekeeper that isn't in constellation mode, you press Update as in Normal.", false);
+			// (R40: this device handing on the pack updates it has, to other Gate Systems; on unless turned off here)
+			javax.swing.JCheckBox handOut = new javax.swing.JCheckBox("Hand out pack updates to other Gate Systems while " + LaunchPopup.TOOL + " is open", PackShare.wanted(home));
+			handOut.setAlignmentX(Component.LEFT_ALIGNMENT);
+			handOut.addActionListener(ev -> { setOption(home, "hand_out", handOut.isSelected()); if (!handOut.isSelected()) PackShare.stop(); });
+			updating.add(handOut);
+			updLine.accept("Other devices of your Gatekeepers can then fetch a pack update from this one, over Tailscale, when it answers faster than the owner's PC or GitHub. Only the published pack is handed out, with its signature, and each device checks every file. A Steam Deck hands out only while it is plugged in; a machine with its own Gatekeeper leaves it to Gatekeeper.", false);
 			optLine.accept("Uninstall", true);
 			String[] planNow = uninstallPlan(instances, false);
 			optLine.accept(planNow[1], false);
@@ -2015,9 +2028,10 @@ final class Home {
 				Thread auto = new Thread(() -> {
 					long lookedAt = 0;
 					while (f.isDisplayable() || !f.isVisible()) {
-						try { Thread.sleep(5000); } catch (InterruptedException e) { return; }
-						if (!f.isDisplayable()) return;
+						try { Thread.sleep(5000); } catch (InterruptedException e) { PackShare.stop(); return; }
+						if (!f.isDisplayable()) { PackShare.stop(); return; }
 						if (LaunchPopup.embedded) continue;
+						List<Map<String, Object>> heard = new ArrayList<>();   // (R40: what each Gatekeeper said, for handing out updates)
 						String mode = updateMode(home);
 						boolean go = false, gathering = false;
 						Object[] gatherSaid = {null};
@@ -2030,13 +2044,15 @@ final class Home {
 									+ " " + System.getProperty("os.arch", "") + "; Java " + System.getProperty("java.version", ""))
 									+ "\",\"auto\":" + mode.equals("constellation") + ",\"own\":\""
 									+ ServerControl.jsonEsc(Notes.version(Notes.own())) + "\",\"sees\":\"" + (found == null ? ""
-									: ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\"}");
+									: ServerControl.jsonEsc(found[4].isEmpty() ? "newer" : found[4])) + "\",\"share\":" + PackShare.report() + "}");
+								heard.add(r);
 							if ("go".equals(str(r.get("state")))) go = true;
 							if (Notes.cmp(str(r.get("version")).isEmpty() ? "0" : str(r.get("version")),
 									Notes.version(Notes.own()).isEmpty() ? "99999" : Notes.version(Notes.own())) > 0) keeperSaysNewer = true;
 							if ("gathering".equals(str(r.get("state")))) gathering = true;
 							if (r.get("gather") != null && gatherSaid[0] == null) gatherSaid[0] = r.get("gather");
 						} catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before this */ }
+						try { PackShare.heard(heard, home, instances); } catch (RuntimeException ignored) { Quiet.seen(ignored); }
 						Object shown = mode.equals("constellation") ? gatherSaid[0] : null;
 						SwingUtilities.invokeLater(() -> gatherPips.set(shown));
 						// (a Gatekeeper knows of a newer version than this launcher is: look now, in any mode, not at the next round)

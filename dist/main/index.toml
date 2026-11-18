@@ -11,7 +11,7 @@ preserve = true
 
 [[files]]
 file = "extras/changelog.txt"
-hash = "622af06985306511773c3e7322ea71920489d54ec758c2265ef1545e925ecc04"
+hash = "bb7535be94247377c206c0071274df12c0955ffbd4a910b8434b63bd113113c9"
 
 [[files]]
 file = "extras/gatehouse-launcher.ps1"
@@ -23,7 +23,7 @@ hash = "535a87515f3c27784c8a1042167fc8c8f334a14894b822c0d191be47d2686885"
 
 [[files]]
 file = "extras/launch-popup.jar"
-hash = "8bc4a0e793629f8e0f56387502718d1bd93967d315cd1f10ce50aeda05d2d094"
+hash = "e086a731fa9276977fbed63aabfc9619c9935849ac0817a8238e83a82e6b2de9"
 
 [[files]]
 file = "extras/launch-wrapper.exe"
@@ -43,11 +43,11 @@ hash = "75d6134daed6501ca06c2c482269281b1a9fbe80585af0107f9d26ab1c83d69e"
 
 [[files]]
 file = "extras/pack-sync.ps1"
-hash = "dbb070c413daeb98648d395b68477f3c1e699c5dbb0636b3bdd1a31b8bc50364"
+hash = "6b1da25706849e375c653946f9d1fcf4d80ad274011e7ce18b514e8ed08ceb24"
 
 [[files]]
 file = "extras/pack-sync.sh"
-hash = "7c8c45904db7138ae788eb002febd56de3e49d23f08057aace2c8f8d1b39b93d"
+hash = "3f2a2efb14c133e802cf2b87af2d058b6ffe6efb36dcb61e384f5cd9e16ffb3e"
 
 [[files]]
 file = "extras/plain-launch.ps1"

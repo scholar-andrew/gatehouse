@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.32.0",
+ "version": "3.33.0",
  "changes": [
+  {"version": "3.33.0", "date": "2026-11-18", "notes": [
+   "Updates from any Gate System, step 3 of 3 (R40): Gate Systems now hand pack updates to each other over Tailscale. Gatekeeper hands out the packs on its machine all the time; Gatehouse hands out while its window is open. A device then takes an update from whichever answers fastest: your PC, GitHub, or another Gate System.",
+   "Only the published pack is handed out, with its signature, and only once the machine holds all of it. The device that takes it checks the signature and every file, and never takes an older pack, or another pack, from another machine. Packs a Gatekeeper builds aren't handed out.",
+   "Only to the devices its Gatekeepers know. A Steam Deck hands out only while it is plugged in. A switch turns it off: in Gatehouse, Updates, Update options; in Gatekeeper, on the Constellation tab, where the Now column also shows who is handing out. The update log names the machine an update came from."
+  ]},
   {"version": "3.32.0", "date": "2026-11-18", "notes": [
    "Updates from any Gate System, step 2 of 3 (R40): Gatehouse now fetches a pack's update itself. It asks every source at once and takes the newest pack that answers well (between equals, whichever answered fastest). Every file is checked against the pack's signed list before it is used; a copy that doesn't match is thrown away and the next source asked.",
    "From your PC and GitHub an unsigned pack is still taken, as before. From another Gate System only a signed one is (step 3 is when other machines start handing out updates). Checked files are kept on the device, so it can hand them on in step 3 and a file already there isn't fetched again.",

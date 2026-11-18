@@ -1046,6 +1046,7 @@ public final class HostHelper {
 		menuEntry();
 		UpdateLog.ownStart();
 		AutoUpdate.start();
+		Handout.start();   // (R40: this machine handing out pack updates to other Gate Systems)
 		// (an update that had to wait for a server to be off: done when it is)
 		Thread waiting = new Thread(() -> {
 			while (true) {

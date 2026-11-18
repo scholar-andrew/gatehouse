@@ -323,12 +323,19 @@ if [ "$skip" = 1 ] || [ "$current" = 1 ]; then code=0; url="$first_url"; queue=(
 relay_used=""
 if [ "${#queue[@]}" -gt 0 ] && pack_checkable 3.32.0 && start_relay; then
   # (through Gatehouse first; if that doesn't finish, the sources one by one, as before)
+  jar_was="$(sha256sum "$here/extras/launch-popup.jar" 2>/dev/null | cut -c1-64)"
   run_installer "$relay_url"; code=$?
   note "($variant) through Gatehouse ($relay_url) -> exit $code"
   [ -f "$here/pack-relay.log" ] && tail -n 3 "$here/pack-relay.log" | while IFS= read -r l; do note "  relay: $l"; done
   kill "$relay_pid" 2>/dev/null
   if [ "$code" = 0 ] && [ -f "$here/pack-relay-used.txt" ]; then
     url="$(sed -n 1p "$here/pack-relay-used.txt")/pack.toml"; relay_used="$(sed -n 2p "$here/pack-relay-used.txt")"; queue=()
+    # (R40: Gatehouse itself came with this update from another Gate System: noted, for the update log)
+    if [ "$relay_used" = peer ]; then
+      jar_now="$(sha256sum "$here/extras/launch-popup.jar" 2>/dev/null | cut -c1-64)"
+      peer_host="$(sed -n 1p "$here/pack-relay-used.txt" | sed -E 's#^https?://\[?([^]/:]+).*#\1#')"
+      [ -n "$jar_now" ] && [ "$jar_now" != "$jar_was" ] && printf '%s|another Gate System (%s)\n' "$jar_now" "$peer_host" > "$here/extras/launch-popup.source.txt"
+    fi
   else code=1; fi
 fi
 while [ "${#queue[@]}" -gt 0 ]; do

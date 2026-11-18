@@ -56,6 +56,7 @@ final class PackRelay {
 	record Source(String base, boolean owners, String sigs) {}
 
 	private static final Pattern VERSION = Pattern.compile("(?m)^version\\s*=\\s*\"([^\"]*)\"");
+	private static final Pattern NAME = Pattern.compile("(?m)^name\\s*=\\s*\"([^\"]*)\"");
 	private static final Pattern INDEX_HASH = Pattern.compile("(?s)\\[index\\].*?\\bhash\\s*=\\s*\"([0-9a-fA-F]{64})\"");
 
 	static void run(String[] args) throws Exception {
@@ -65,7 +66,8 @@ final class PackRelay {
 		for (int i = 3; i < args.length; i++) { String s = args[i].trim().replaceAll("/+$", ""); if (!s.isEmpty()) sources.add(new Source(s + "/" + variant, true, "")); }
 		// (Gate Systems that hand out updates: "<their pack folder for this variant>|<their signatures folder>", one a line)
 		for (String l : read(here.resolve("pack-peers.txt")).split("\\R")) {
-			String[] p = l.trim().split("\\|"); if (p.length >= 1 && p[0].startsWith("http")) sources.add(new Source(p[0].replaceAll("/+$", ""), false,
+			// (step 3: "{variant}" in a line stands for this pack's variant; written by Gatehouse from what its Gatekeepers say)
+			String[] p = l.trim().replace("{variant}", variant).split("\\|"); if (p.length >= 1 && p[0].startsWith("http")) sources.add(new Source(p[0].replaceAll("/+$", ""), false,
 					p.length > 1 ? p[1].replaceAll("/+$", "") + "/" : ""));
 		}
 		new PackRelay.Run(here, variant, sources).start();
@@ -129,6 +131,11 @@ final class PackRelay {
 			for (Source s : sources) asked.add(done.submit(() -> { byte[] b = get(s.base() + "/pack.toml", 6000); return new Object[] {s, b, System.nanoTime() - t0}; }));
 			List<Object[]> answers = new ArrayList<>();   // {source, bytes, nanos, version}
 			long firstAt = 0;
+			// (the version this device last took: another Gate System's older pack is never taken, so a machine that is
+			// behind can't turn this one back)
+			String kept = read(cache.resolve("pack.toml"));
+			Matcher had = VERSION.matcher(kept), hadName = NAME.matcher(kept);
+			String floor = had.find() ? had.group(1) : "", name = hadName.find() ? hadName.group(1) : "";
 			for (int i = 0; i < asked.size(); i++) {
 				// (once one has answered, the others are waited for a little longer, so a newer pack beats a faster old one)
 				long wait = firstAt == 0 ? 8000 : Math.max(0, 1500 - (System.nanoTime() - firstAt) / 1_000_000);
@@ -142,6 +149,11 @@ final class PackRelay {
 				String signed = dev.gatehouse.Signed.check(b, sha, s.sigs().isEmpty() ? List.of() : List.of(s.sigs()), here.resolve("gatehouse-cache").resolve("sig"));
 				if (signed.equals("bad") || (!s.owners() && !signed.equals("signed"))) { say("pack.toml from " + s.base() + ": " + signed + ", not taken"); continue; }
 				Matcher v = VERSION.matcher(new String(b, StandardCharsets.UTF_8));
+				if (!s.owners() && !floor.isEmpty() && cmp(v.find() ? v.group(1) : "", floor) < 0) { say("pack.toml from " + s.base() + ": older than this device's, not taken"); continue; }
+				v.reset();
+				// (and never another pack: from another Gate System, only one with the name of the pack this device has)
+				Matcher n = NAME.matcher(new String(b, StandardCharsets.UTF_8));
+				if (!s.owners() && !name.isEmpty() && !(n.find() && n.group(1).equals(name))) { say("pack.toml from " + s.base() + ": a different pack, not taken"); continue; }
 				answers.add(new Object[] {s, b, a[2], v.find() ? v.group(1) : "", sha, signed});
 				if (firstAt == 0) firstAt = System.nanoTime();
 			}
@@ -159,6 +171,8 @@ final class PackRelay {
 			order = o;
 			Source from = (Source) best[0];
 			say("pack " + best[3] + " (" + best[5] + ") from " + from.base() + " in " + ((long) best[2] / 1_000_000) + " ms; files from: " + order.stream().map(Source::base).toList());
+			// (kept with the checked files, so this device can hand the pack on: see PackShare)
+			try { Files.createDirectories(cache); Files.write(cache.resolve("pack.toml"), packToml); } catch (IOException ignored) { Quiet.seen(ignored); }
 			Files.writeString(here.resolve("pack-relay-used.txt"), from.base() + "\n" + (from.owners() ? "owner" : "peer") + "\n" + best[3] + "\n", StandardCharsets.UTF_8);
 		}
 
@@ -166,16 +180,8 @@ final class PackRelay {
 		byte[] index() throws IOException {
 			byte[] b = fetchChecked("index.toml", indexHash, true);
 			if (b != null && fingerprints.isEmpty()) {
-				String text = new String(b, StandardCharsets.UTF_8);
-				Matcher def = Pattern.compile("(?m)^hash-format\\s*=\\s*\"([^\"]+)\"").matcher(text);
-				String defFormat = def.find() ? def.group(1) : "sha256";
-				for (String block : text.split("\\[\\[files\\]\\]")) {
-					Matcher f = Pattern.compile("(?m)^file\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(block), h = Pattern.compile("(?m)^hash\\s*=\\s*\"([0-9a-fA-F]+)\"").matcher(block),
-							hf = Pattern.compile("(?m)^hash-format\\s*=\\s*\"([^\"]+)\"").matcher(block);
-					if (!f.find() || !h.find()) continue;
-					String format = hf.find() ? hf.group(1) : defFormat;
-					if (format.equals("sha256")) fingerprints.put(f.group(1).replace("\\\"", "\"").replace("\\\\", "\\"), h.group(1).toLowerCase(java.util.Locale.ROOT));
-				}
+				fingerprints.putAll(fingerprints(new String(b, StandardCharsets.UTF_8)));
+				try { Files.createDirectories(cache); Files.write(cache.resolve("index.toml"), b); } catch (IOException ignored) { Quiet.seen(ignored); }
 			}
 			return b;
 		}
@@ -212,6 +218,21 @@ final class PackRelay {
 			try { Files.writeString(log, java.time.LocalDateTime.now().withNano(0) + "  " + line + "\n", StandardCharsets.UTF_8,
 					java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
+	}
+
+	/** The list's files and their sha256 fingerprints (files given another kind of fingerprint are left out). */
+	static Map<String, String> fingerprints(String text) {
+		Map<String, String> out = new java.util.LinkedHashMap<>();
+		Matcher def = Pattern.compile("(?m)^hash-format\\s*=\\s*\"([^\"]+)\"").matcher(text);
+		String defFormat = def.find() ? def.group(1) : "sha256";
+		for (String block : text.split("\\[\\[files\\]\\]")) {
+			Matcher f = Pattern.compile("(?m)^file\\s*=\\s*\"((?:[^\"\\\\]|\\\\.)*)\"").matcher(block), h = Pattern.compile("(?m)^hash\\s*=\\s*\"([0-9a-fA-F]+)\"").matcher(block),
+					hf = Pattern.compile("(?m)^hash-format\\s*=\\s*\"([^\"]+)\"").matcher(block);
+			if (!f.find() || !h.find()) continue;
+			String format = hf.find() ? hf.group(1) : defFormat;
+			if (format.equals("sha256")) out.put(f.group(1).replace("\\\"", "\"").replace("\\\\", "\\"), h.group(1).toLowerCase(java.util.Locale.ROOT));
+		}
+		return out;
 	}
 
 	static byte[] get(String url, int readMs) {

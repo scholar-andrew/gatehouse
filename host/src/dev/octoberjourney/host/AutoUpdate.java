@@ -149,7 +149,7 @@ final class AutoUpdate {
 						String own = !before.isEmpty() && !r.own.isEmpty() && cmpVersion(r.own, before) < 0 ? before : r.own;
 						if (!keeper && !before.isEmpty() && !own.isEmpty()
 								&& !before.equals(own)) UpdateLog.record(name.replace(" (Gatekeeper)", ""), r.kind,
-								Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, own, r.mode, r.info, r.source, r.install);
+								Json.str(d.get("player")), r.system.isEmpty() ? Json.str(d.get("os")) : r.system, before, own, r.mode, r.info, Handout.named(r.source), r.install);
 						d.put("update_mode", r.mode); d.put("version", own); if (keeper) d.put("kind", "gatekeeper"); else d.remove("kind");
 						if (!r.install.isEmpty()) d.put("install", r.install);
 						saveDevices(devs);
@@ -169,6 +169,8 @@ final class AutoUpdate {
 			else if (!newer() && !r.own.isEmpty() && cmpVersion(ownVersion(), r.own) > 0) state = "go";   // (this Gatekeeper is ahead already: catch up)
 		}
 		Map<String, Object> out = m("state", state, "version", newer() ? newestKeeper : ownVersion(), "mode", mode(), "member", allowed, "lead", myName());
+		// (R40: what it hands out, and who else does)
+		if (!keeper || allowed) try { Map<String, Object> dv = Json.map(devices().get(id)); Handout.heard(id, dv, b); Handout.answer(id, dv, out); } catch (RuntimeException ignored) { Quiet.seen(ignored); }
 		if (keeper && allowed) {
 			out.put("pack", ownPack());
 			Manage.noted(id, b);   // (what it says about this Gatekeeper managing it: its address and secret, or nothing)
@@ -276,7 +278,7 @@ final class AutoUpdate {
 		List<Object> handing = UpdateLog.unsent();
 		String say = Json.write(m("kind", "gatekeeper", "events", handing, "info", UpdateLog.info(), "install", setting("constellation_id",
 				""), "mode", mode(), "own", ownVersion(), "sees", newer() ? newestKeeper : "", "busy", DirectHost.anyTracked(), "waiting",
-				launchersWaiting, "system", systemName(), "clients", ownClients(), "manage", Manage.offer()));
+				launchersWaiting, "system", systemName(), "clients", ownClients(), "manage", Manage.offer(), "share", dev.octoberjourney.popup.PackShare.status()));
 		try {
 			Map<String, Object> r;
 			try { r = Json.map(Json.parse(leadCall("/v1/update/state", say))); }
@@ -290,6 +292,8 @@ final class AutoUpdate {
 			leadHeard = System.currentTimeMillis();
 			leadState = Json.str(r.get("state")); leadName = Json.str(r.get("lead")); leadMember = ServerTools.yes(r.get("member"));
 			leadGather = Json.map(r.get("gather"));
+			// (R40: the Gate Systems handing out there, passed on to this one's launchers, and the devices they answer)
+			Handout.leadPeers = leadMember ? Json.list(r.get("peers")) : List.of(); Handout.leadAllow = leadMember ? Json.list(r.get("allow")) : List.of();
 			Manage.leadLets = leadMember && ServerTools.yes(r.get("may_manage"));
 			// (and word travels down: the Gatekeeper this one joined is gathering or going for a version this one hasn't seen yet)
 			if ((leadState.equals("gathering") || leadState.equals("go")) && !newer()) hint(leadName);
@@ -303,6 +307,7 @@ final class AutoUpdate {
 					+ "'s constellation: waiting for its owner to allow it (on its Constellation tab).";
 		} catch (IOException | RuntimeException e) {
 			leadState = ""; leadGather = new java.util.LinkedHashMap<>();
+			Handout.leadPeers = List.of(); Handout.leadAllow = List.of();
 			leadSaid = "The Gatekeeper at " + lead().replaceFirst("^https?://", "") + " isn't answering" + (leadHeard > 0 ? ""
 					: " (or isn't a Gatekeeper of this version)") + ". Until it does, this Gatekeeper decides about updates by itself.";
 		}
@@ -392,7 +397,7 @@ final class AutoUpdate {
 					Json.str(d.get("player")), "system", r != null && !r.system.isEmpty() ? r.system : Json.str(d.get("os")),
 					"version", r == null ? Json.str(d.get("version")) : r.own, "mode", r == null ? Json.str(d.get("update_mode")) : r.mode,
 							"open", open, "last_seen", Json.str(d.get("last_seen")),
-					"here", ServerTools.yes(d.get("local")), "via", "", "manage", ServerTools.yes(d.get("manage")), "manageable",
+					"here", ServerTools.yes(d.get("local")), "via", "", "hands_out", Handout.words(e.getKey()), "manage", ServerTools.yes(d.get("manage")), "manageable",
 							!Json.str(d.get("manage_url")).isEmpty(), "membership", !keeper ? "" : in ? "member" : "asked", "install",
 							r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));
 			if (keeper && in && r != null) for (Object o : r.clients) {
@@ -407,6 +412,7 @@ final class AutoUpdate {
 		merged -= clients.size();
 		String mode = mode();
 		return m("gatekeeper", m("type", "Gatekeeper", "name", myName(), "system", systemName(), "version", ownVersion(), "mode", mode, "newest", newestKeeper,
+						"hands_out", Handout.ownWords(), "hand_out", Handout.on(),
 						"status", mode.equals("normal") ? (newer() ? newestKeeper + " is out: press Update Gatekeeper." : "Up to date.") : (status.isEmpty() ? "On." : status)),
 				"clients", clients, "duplicates", merged, "lead", m("address", lead().replaceFirst("^https?://", ""), "name", leadName,
 						"member", leadMember, "said", lead().isEmpty() ? "" : leadSaid,
@@ -499,6 +505,14 @@ final class AutoUpdate {
 							? " may now manage this Gatekeeper (its servers, players and launchers; not its settings or the machine)" : " may no longer manage this Gatekeeper"));
 					msg = who(d) + (on ? " may now manage this Gatekeeper from its own window: servers, players and launchers. Not its settings, updates or the machine." : " may no longer manage this Gatekeeper.");
 				}
+			} else if (b.containsKey("hand_out")) {
+				// (R40: this machine handing out pack updates to other Gate Systems; on unless turned off here)
+				boolean on = ServerTools.yes(b.get("hand_out"));
+				cfg.put("hand_out", on ? "true" : "false");
+				ServerTools.saveCfg();
+				if (!on) dev.octoberjourney.popup.PackShare.stop();
+				log("pack updates: this machine " + (on ? "hands them out to other Gate Systems again" : "no longer hands them out"));
+				msg = on ? "This machine hands out pack updates to other Gate Systems again (within a minute)." : "This machine no longer hands out pack updates.";
 			} else if (b.containsKey("lead_updates")) {
 				// (the owner's own choice, made at this machine: the Gatekeeper it joined may supply this one's program)
 				boolean on = ServerTools.yes(b.get("lead_updates"));
