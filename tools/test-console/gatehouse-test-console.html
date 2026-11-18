@@ -909,7 +909,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
     var t0 = actx.currentTime + 0.02;
     [[880, 0], [1318.5, 0.16]].forEach(function (nt) {
       var o = actx.createOscillator(), g = actx.createGain(); o.type = "sine"; o.frequency.value = nt[0];
-      g.gain.setValueAtTime(0.0001, t0 + nt[1]); g.gain.exponentialRampToValueAtTime(0.18, t0 + nt[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + nt[1] + 0.6);
+      g.gain.setValueAtTime(0.0001, t0 + nt[1]); g.gain.exponentialRampToValueAtTime(0.04, t0 + nt[1] + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + nt[1] + 0.6);   // (R28: quiet; the question sound is the loud one)
       o.connect(g); g.connect(actx.destination); o.start(t0 + nt[1]); o.stop(t0 + nt[1] + 0.65);
     });
   }
