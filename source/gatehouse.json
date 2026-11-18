@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.39.0",
+ "version": "3.39.1",
  "changes": [
+  {"version": "3.39.1", "date": "2026-11-18", "notes": [
+   "Controllers when opened straight from the desktop (R56): on Windows, a PlayStation, Switch or other controller that isn't Xbox-style was only seen when Steam started Gatehouse. Now, when there is no Xbox-style controller, it is read through Windows' own joystick interface, with its buttons where an Xbox controller has them (a Switch controller's by the letters printed on it)."
+  ]},
   {"version": "3.39.0", "date": "2026-11-18", "notes": [
    "Ready for other games, step 2 (R34): a game can now be described by a small file instead of code, read by one shared adapter, so adding most games with a dedicated server becomes a file. No such game is offered yet: the first comes when you choose it.",
    "For those games: New server installs the server with SteamCMD, Valve's own tool (fetched from Valve only when you press Make the server); Gatekeeper asks the server who is on with Steam's server query; who may join can be a list of Steam IDs, a list of names, or a password, and each game's own word for it is used.",

@@ -123,7 +123,10 @@ presents as a gamepad.
 
 Typing still needs the on-screen keyboard (Steam + X). The Deck's left trackpad is read from the controller itself
 alongside Steam (read only), since Steam's layout keeps it a d-pad for the game. On Windows the controller is read through XInput, which needs
-Java 22 or newer (the Java the game itself uses); on Linux through the system's joystick devices.
+Java 22 or newer (the Java the game itself uses); on Linux through the system's joystick devices. Opened straight from
+the desktop rather than through Steam, a PlayStation, Switch or other controller that isn't Xbox-style is read through
+Windows' own joystick interface instead, with its buttons where an Xbox controller has them (on a Switch controller,
+by the letters printed on it).
 
 ## Options and removing it
 

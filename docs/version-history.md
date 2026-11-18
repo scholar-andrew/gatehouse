@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.39.1 - 2026-11-18
+
+- Controllers when opened straight from the desktop (R56): on Windows, a PlayStation, Switch or other controller that isn't Xbox-style was only seen when Steam started Gatehouse. Now, when there is no Xbox-style controller, it is read through Windows' own joystick interface, with its buttons where an Xbox controller has them (a Switch controller's by the letters printed on it).
+
 ## 3.39.0 - 2026-11-18
 
 - Ready for other games, step 2 (R34): a game can now be described by a small file instead of code, read by one shared adapter, so adding most games with a dedicated server becomes a file. No such game is offered yet: the first comes when you choose it.
