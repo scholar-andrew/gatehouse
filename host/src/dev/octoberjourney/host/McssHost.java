@@ -119,6 +119,7 @@ final class McssHost implements ServerHost {
 	}
 
 	@Override public String[] serverAction(boolean start) {
+		ServerWatch.asked(Json.str(server().get("id")));   // (R34: going off now isn't a crash)
 		if (setting("mcss_api_key", "").isEmpty()) return new String[] {"refused", "Gatekeeper has no MCSS key yet: the owner sets it in Gatekeeper (Set MCSS key)"};
 		if (processes().isEmpty()) return new String[] {"refused", "MCSS isn't running: start it first (Start MCSS)"};
 		try {

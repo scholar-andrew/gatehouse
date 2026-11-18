@@ -118,6 +118,7 @@ final class Watchdog {
 				new ProcessBuilder("setsid", "bash", "-c", cmd).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start();
 			}
 		} catch (Exception e) { note("watchdog: couldn't arrange the restart (" + e + "); ending anyway so whatever started Gatekeeper can start it again"); }
+		try { Files.writeString(dir.resolve("watchdog-restarted.txt"), why, StandardCharsets.UTF_8); } catch (IOException ignored) {}   // (the next Gatekeeper tells the owner)
 		Runtime.getRuntime().halt(3);   // (halt, not exit: nothing may wait on a lock on the way out)
 	}
 

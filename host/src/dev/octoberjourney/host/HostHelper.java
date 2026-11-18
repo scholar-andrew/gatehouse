@@ -686,6 +686,7 @@ public final class HostHelper {
 		} catch (IOException | RuntimeException next) { /* the next place */ }
 		if (!bestV.isEmpty()) { newestKeeper = bestV; newestKeeperSha = bestSha; newestKeeperAt = bestAt; newestHouse = bestHouse; newestNeeds = bestNeeds; }
 		Peer.prefer();     // (a copy a client handed over, when it is newer than anything a place said)
+		if (!newestKeeper.equals(newerSaid) && cmpVersion(newestKeeper, ownVersion()) > 0 && AutoUpdate.mode().equals("normal")) Notify.update("Gatekeeper " + newestKeeper + " is out", "Gatekeeper on " + AutoUpdate.myName() + " is " + ownVersion() + ". Press Update Gatekeeper in its window when it suits you.");
 		if (!newestKeeper.equals(newerSaid) && cmpVersion(newestKeeper, ownVersion()) > 0) { newerSaid = newestKeeper; log("a newer Gatekeeper is published: " + newestKeeper + " (this is " + ownVersion() + "; seen at " + newestKeeperAt + "). " + (outdated() ? "Servers aren't started until it's updated." : "This version still works with it: nothing is held up.")); }
 		Peer.prefetch();   // (and it is fetched now, so this Gatekeeper can give it to its constellation)
 	}
@@ -925,6 +926,11 @@ public final class HostHelper {
 		log("helper starting (port " + port() + ")");
 		if (!WIN) dev.gatehouse.Shortcuts.ensure(true, null);   // (Linux: the menu entries' icons and window names, at sign-in)
 		Watchdog.start();   // (R29: a Gatekeeper that has frozen restarts itself)
+		ServerWatch.start();   // (R34: crash watch, friends joining, and an hour of each server's performance)
+		if (Files.exists(dir.resolve("watchdog-restarted.txt"))) {   // (R34: the watchdog restarted it: the owner is told)
+			Notify.update("Gatekeeper restarted itself", "Gatekeeper on " + AutoUpdate.myName() + " froze and restarted itself: " + read(dir.resolve("watchdog-restarted.txt")).trim());
+			try { Files.deleteIfExists(dir.resolve("watchdog-restarted.txt")); } catch (IOException ignored) {}
+		}
 		try { Files.writeString(dir.resolve("serve.pid"), String.valueOf(ProcessHandle.current().pid()), StandardCharsets.UTF_8); } catch (IOException ignored) {}   // (for the window's Restart Gatekeeper)
 		Device.start();   // (what kind of machine this is, for the picture launchers show)
 		Thread newer = new Thread(() -> { while (true) { try { lookForNewer(); } catch (RuntimeException ignored) {} try { Thread.sleep(300_000); } catch (InterruptedException e) { return; } } }, "newer");
@@ -984,6 +990,7 @@ public final class HostHelper {
 					HttpServer r = HttpServer.create(new InetSocketAddress(bind, port()), 0);
 					r.createContext("/v1/", HostHelper::launcher);
 					r.createContext("/panel", WebPanel::web);   // (the web panel: off unless the owner turned it on)
+					r.createContext("/status", StatusPage::page);   // (R34: the read-only page for friends: off unless the owner turned it on)
 					r.setExecutor(java.util.concurrent.Executors.newFixedThreadPool(4));
 					r.start();
 					if (turn != bindTurn) { r.stop(0); return; }
@@ -2199,7 +2206,8 @@ public final class HostHelper {
 						SERVER.set(Json.str(s.get("id")));
 						boolean on = serverPhase().equals("online");
 						list.add(m("id", Json.str(s.get("id")), "name", Json.str(s.get("name")), "running", on, "phase", serverPhase(), "players", on ? onlineBy.getOrDefault(serverKey(), Map.of()).size() : 0,
-								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir")), "native", isNative(), "gone", goneFromMcss(s)));
+								"port", Json.str(s.get("minecraft")).replaceAll(".*:", ""), "dir", Json.str(s.get("dir")), "native", isNative(), "gone", goneFromMcss(s),
+								"perf", ServerWatch.summary(Json.str(s.get("id")))));
 					}
 				} finally { SERVER.set(keep); }
 				reply(x, 200, m("mcss_exe", builtin() ? serversDir() : setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase", mcssPhase(), "has_key", host.hasAccess(), "servers", list, "host", builtin() ? "builtin" : "mcss", "native_ok", nativeOk(), "native_folder", serversDir()));
@@ -2207,7 +2215,7 @@ public final class HostHelper {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {
 				reply(x, 200, m("log", logFor(200)));
-			} else if (!ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x, path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path)) reply(x, 404, m("error", "no such call"));
+			} else if (!Notify.admin(x, path) && !StatusPage.admin(x, path) && !ServerTools.admin(x, path) && !WebPanel.admin(x, path) && !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path) && !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x, path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) {}
 		}
@@ -3178,6 +3186,75 @@ public final class HostHelper {
 			java.awt.event.ActionListener pickMode = ev -> { if (autoFilling[0]) return; String want = modeAuto.isSelected() ? "auto" : modeGroup.isSelected() ? "constellation" : "normal"; new Thread(() -> { try { call("POST", "/admin/auto", Json.write(m("mode", want))); } catch (Exception ignored) {} autoRead.run(); }, "update-mode").start(); };
 			modeNormal.addActionListener(pickMode); modeAuto.addActionListener(pickMode); modeGroup.addActionListener(pickMode);
 			if (System.getenv("OJ_PANEL_PNG") == null) { autoRead.run(); new Timer(5000, ev -> { if (options.isShowing()) autoRead.run(); }).start(); }
+			// (R34) Phone notifications, the status page for friends, and crash watch.
+			optLine.accept("Phone notifications", true);
+			optLine.accept("Gatekeeper can tell your phone when a friend joins, when a server goes down, and when an update needs you. It uses ntfy (free, no account): install the ntfy app, add the topic below, and press Send a test. Only names and a sentence are sent. The topic works like a password: keep it to yourself.", false);
+			javax.swing.JCheckBox ntOn = new javax.swing.JCheckBox("Send notifications to my phone"), ntJoin = new javax.swing.JCheckBox("When a friend joins a server"),
+					ntDown = new javax.swing.JCheckBox("When a server goes down"), ntUpd = new javax.swing.JCheckBox("When an update needs me (or Gatekeeper restarted itself)");
+			JLabel ntTopic = new JLabel(" "); ntTopic.setFont(ntTopic.getFont().deriveFont(Font.BOLD));
+			javax.swing.JTextField ntUrl = new javax.swing.JTextField("https://ntfy.sh", 22);
+			JButton ntNew = new JButton("New topic"), ntTest = new JButton("Send a test");
+			JLabel ntSaid = new JLabel(" "); ntSaid.setForeground(new Color(0x8F98A0));
+			JPanel ntTopicRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4)); ntTopicRow.add(new JLabel("Topic:")); ntTopicRow.add(ntTopic); ntTopicRow.add(ntNew);
+			JPanel ntUrlRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 8, 4)); ntUrlRow.add(new JLabel("Server:")); ntUrlRow.add(ntUrl); ntUrlRow.add(ntTest); ntUrlRow.add(ntSaid);
+			for (javax.swing.JComponent c : new javax.swing.JComponent[] {ntOn, ntJoin, ntDown, ntUpd, ntTopicRow, ntUrlRow}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
+			optLine.accept("Status page for friends", true);
+			optLine.accept("A read-only page showing which servers are up and who is playing, with no sign-in. Only people on your Tailscale network can open it, as with the rest of Gatekeeper. It shows no addresses, folders or buttons.", false);
+			javax.swing.JCheckBox stOn = new javax.swing.JCheckBox("Share the status page");
+			JLabel stUrl = new JLabel(" "); stUrl.setForeground(new Color(0x8F98A0));
+			for (javax.swing.JComponent c : new javax.swing.JComponent[] {stOn, stUrl}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
+			optLine.accept("Crash watch", true);
+			optLine.accept("Gatekeeper notices when a server goes down without being asked to, and tells you (above). Tick a server to have it started again too: up to three times in ten minutes. For an MCSS server this needs Gatekeeper's MCSS key; MCSS also has a restart-on-crash setting of its own.", false);
+			JPanel keepList = new JPanel(); keepList.setLayout(new javax.swing.BoxLayout(keepList, javax.swing.BoxLayout.Y_AXIS)); keepList.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+			options.add(keepList);
+			boolean[] ntFilling = {false};
+			Runnable ntRead = () -> new Thread(() -> {
+				try {
+					Map<String, Object> nt = Json.map(Json.parse(call("GET", "/admin/notify", null))), st = Json.map(Json.parse(call("GET", "/admin/status-page", null)));
+					SwingUtilities.invokeLater(() -> {
+						ntFilling[0] = true;
+						ntOn.setSelected(Boolean.TRUE.equals(nt.get("on"))); ntJoin.setSelected(!Boolean.FALSE.equals(nt.get("join"))); ntDown.setSelected(!Boolean.FALSE.equals(nt.get("down"))); ntUpd.setSelected(!Boolean.FALSE.equals(nt.get("update")));
+						ntTopic.setText(Json.str(nt.get("topic")).isEmpty() ? "(made when you turn it on)" : Json.str(nt.get("topic")));
+						if (!ntUrl.isFocusOwner()) ntUrl.setText(Json.str(nt.get("url")));
+						for (javax.swing.JComponent c : new javax.swing.JComponent[] {ntJoin, ntDown, ntUpd}) c.setEnabled(ntOn.isSelected());
+						stOn.setSelected(Boolean.TRUE.equals(st.get("on")));
+						stUrl.setText(Boolean.TRUE.equals(st.get("on")) && !Json.str(st.get("url")).isEmpty() ? "Friends open: " + Json.str(st.get("url")) : " ");
+						keepList.removeAll();
+						for (Object o : Json.list(nt.get("servers"))) {
+							Map<String, Object> sv = Json.map(o);
+							javax.swing.JCheckBox k = new javax.swing.JCheckBox("Start " + Json.str(sv.get("name")) + " again when it goes down", Boolean.TRUE.equals(sv.get("keep")));
+							k.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+							String sid = Json.str(sv.get("id"));
+							k.addActionListener(ev -> new Thread(() -> { try { call("POST", "/admin/notify/keep", Json.write(m("server", sid, "on", k.isSelected()))); } catch (Exception ignored) {} }, "keep").start());
+							keepList.add(k);
+						}
+						keepList.revalidate(); keepList.repaint();
+						ntFilling[0] = false;
+					});
+				} catch (Exception ignored) {}
+			}, "notify-read").start();
+			java.awt.event.ActionListener ntSave = ev -> {
+				if (ntFilling[0]) return;
+				Map<String, Object> body = m("on", ntOn.isSelected(), "join", ntJoin.isSelected(), "down", ntDown.isSelected(), "update", ntUpd.isSelected(), "url", ntUrl.getText().trim());
+				new Thread(() -> { try { call("POST", "/admin/notify", Json.write(body)); } catch (Exception ignored) {} ntRead.run(); }, "notify-save").start();
+			};
+			for (javax.swing.JCheckBox c : new javax.swing.JCheckBox[] {ntOn, ntJoin, ntDown, ntUpd}) c.addActionListener(ntSave);
+			ntUrl.addActionListener(ntSave);
+			ntUrl.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { ntSave.actionPerformed(null); } });
+			ntNew.addActionListener(ev -> {
+				if (JOptionPane.showConfirmDialog(f, "Make a new topic? Your phone stops getting notifications until you add the new topic in the ntfy app.", "New topic", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+				new Thread(() -> { try { call("POST", "/admin/notify/topic", "{}"); } catch (Exception ignored) {} ntRead.run(); }, "notify-topic").start();
+			});
+			ntTest.addActionListener(ev -> {
+				ntTest.setEnabled(false); ntSaid.setText("Sending\u2026");
+				new Thread(() -> {
+					String said; try { said = Json.str(Json.map(Json.parse(call("POST", "/admin/notify/test", "{}"))).get("message")); } catch (Exception ex) { said = "Gatekeeper didn't answer"; }
+					String s2 = said; SwingUtilities.invokeLater(() -> { ntTest.setEnabled(true); ntSaid.setText(s2); }); ntRead.run();
+				}, "notify-test").start();
+			});
+			stOn.addActionListener(ev -> { if (ntFilling[0]) return; boolean want = stOn.isSelected(); new Thread(() -> { try { call("POST", "/admin/status-page", Json.write(m("on", want))); } catch (Exception ignored) {} ntRead.run(); }, "status-page").start(); });
+			options.addHierarchyListener(ev -> { if ((ev.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && options.isShowing()) ntRead.run(); });
+			if (System.getenv("OJ_PANEL_PNG") != null) ntRead.run();
 			// Ending the background Gatekeeper (this window is only a view of it): for when it should not be running.
 			optLine.accept("End Gatekeeper", true);
 			optLine.accept("Gatekeeper runs in the background whether this window is open or not; closing the window stops nothing. Ending it stops it until you next sign in, or until it is started again (Start Gatekeeper in the launcher on this machine, or opening this window). While it is ended, launchers can't see or start this machine's servers.", false);
@@ -3589,6 +3666,17 @@ public final class HostHelper {
 					facts.add(new String[] {"Port", Json.str(s.get("port"))});
 					facts.add(new String[] {"Run by", Json.str(r.get("host")).equals("mcss") ? (nat ? "Gatekeeper itself" : "MC Server Soft") : "Gatekeeper itself"});
 					facts.add(new String[] {"Folder", Json.str(s.get("dir"))});
+					// (R34: how it is doing, now and over the last hour)
+					Map<String, Object> pf = Json.map(s.get("perf"));
+					if (on && !pf.isEmpty()) {
+						long mem = (long) Double.parseDouble(Json.str(pf.get("mem")).isEmpty() ? "-1" : Json.str(pf.get("mem"))), memPeak = (long) Double.parseDouble(Json.str(pf.get("mem_peak")).isEmpty() ? "-1" : Json.str(pf.get("mem_peak")));
+						int cpu = (int) Double.parseDouble(Json.str(pf.get("cpu")).isEmpty() ? "-1" : Json.str(pf.get("cpu"))), cpuPeak = (int) Double.parseDouble(Json.str(pf.get("cpu_peak")).isEmpty() ? "-1" : Json.str(pf.get("cpu_peak")));
+						int lag = (int) Double.parseDouble(Json.str(pf.get("lag")).isEmpty() ? "0" : Json.str(pf.get("lag"))), mins = (int) Double.parseDouble(Json.str(pf.get("minutes")).isEmpty() ? "0" : Json.str(pf.get("minutes")));
+						java.util.function.LongFunction<String> gb = n -> n >= 1024 ? String.format(java.util.Locale.ROOT, "%.1f GB", n / 1024.0) : n + " MB";
+						if (mem >= 0) facts.add(new String[] {"Memory", gb.apply(mem) + (memPeak > mem ? " (up to " + gb.apply(memPeak) + " in the last " + (mins >= 60 ? "hour" : mins + " min") + ")" : "")});
+						if (cpu >= 0) facts.add(new String[] {"Processor", cpu + "%" + (cpuPeak > cpu ? " (up to " + cpuPeak + "%)" : "")});
+						facts.add(new String[] {"Keeping up", lag == 0 ? "Yes: no lag warnings in the last " + (mins >= 60 ? "hour" : mins + " min") : lag + " \"can't keep up\" warning" + (lag == 1 ? "" : "s") + " in the last " + (mins >= 60 ? "hour" : mins + " min")});
+					}
 					card.facts(facts);
 					if (gone) {
 						// MCSS has deleted it: said so, and Manage's place is taken by the one thing left to do with it.

@@ -153,6 +153,7 @@ final class DirectHost implements ServerHost {
 
 	@Override public String[] serverAction(boolean start) {
 		String id = id(), name = serverName();
+		ServerWatch.asked(id);
 		Path d = serverDir();
 		Run have = runs.get(id);
 		if (start) {
@@ -205,6 +206,8 @@ final class DirectHost implements ServerHost {
 		if (!r.stopping) { met(awaitedAs); phaseSeen.clear(); }   // (it is off, whatever was being waited for)
 		String said;
 		synchronized (r.last) { said = String.join(" / ", r.last); }
+		if (!r.stopping && !r.restart) Notify.down(name, name + (r.ready ? " ended without being asked to" : " ended before it had finished starting") + " (exit code " + code + ")."
+				+ (Json.str(server().get("keep_online")).equals("crash") ? " It's set to be kept on: Gatekeeper starts it again (up to three times in ten minutes)." : ""));
 		log(name + (r.stopping ? " stopped" : r.ready ? " ended without being asked to" : " ended before it had finished starting") + " (exit code " + code + ")"
 				+ (r.stopping ? "" : ". The last it said: " + (said.isEmpty() ? "nothing" : said)));
 		// Started again: because a restart was asked for, or (crash handling) because it ended unasked and this server

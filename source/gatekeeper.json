@@ -1,8 +1,14 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.24.1",
+ "version": "3.25.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.25.0", "date": "2026-11-18", "notes": [
+   "Phone notifications (Options, Phone notifications): when a friend joins a server, when a server goes down, and when an update needs you or Gatekeeper restarted itself. Through ntfy (free, no account): install the ntfy app and add the topic shown there. Off until you turn it on; only names and a sentence are sent.",
+   "Status page for friends (Options): a read-only page at http://<this machine's Tailscale address>:<Gatekeeper's port>/status showing which servers are up and who is playing, with no sign-in. Only people on your Tailscale network can open it. Off until you turn it on.",
+   "Crash watch: Gatekeeper notices a server going down without being asked to (MC Server Soft's servers too), tells you, and, for a server ticked under Options, Crash watch, starts it again: up to three times in ten minutes.",
+   "Performance on the server's card: its memory and processor use now and their highest in the last hour, and whether it is keeping up (Minecraft's own \"Can't keep up!\" warnings)."
+  ]},
   {"version": "3.24.1", "date": "2026-11-18", "notes": [
    "Fixed: a Gatekeeper window opened before Gatekeeper updated kept showing the old version (and its old buttons) until it was closed. It now notices within a minute that the Gatekeeper behind it is newer, and opens again as the new version. Windows opened on 3.24.0 or earlier still need closing and opening once."
   ]},
