@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.48.0 - 2026-11-19
+
+- A server's picture (or this Gatekeeper's) can be an animated GIF: it plays on the card while the card is under the pointer or chosen with a controller, in Gatekeeper and in Gatehouse, and stands still otherwise.
+- Add a Gatekeeper on the Gatekeepers page walks you through putting another Gatekeeper there, a step at a time, moving on by itself as each step is done.
+
 ## 3.47.0 - 2026-11-19
 
 - Gatekeeper has a Gatekeepers page (menu, Constellation): this Gatekeeper and every other one it may manage, as cards like Gatehouse's list, each with its address, its servers and who is on them, and Open.

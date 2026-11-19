@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.47.0",
+ "version": "3.48.0",
  "changes": [
+  {"version": "3.48.0", "date": "2026-11-19", "notes": [
+   "A server's picture (or this Gatekeeper's) can be an animated GIF: it plays on the card while the card is under the pointer or chosen with a controller, in Gatekeeper and in Gatehouse, and stands still otherwise.",
+   "Add a Gatekeeper on the Gatekeepers page walks you through putting another Gatekeeper there, a step at a time, moving on by itself as each step is done."
+  ]},
   {"version": "3.47.0", "date": "2026-11-19", "notes": [
    "Gatekeeper has a Gatekeepers page (menu, Constellation): this Gatekeeper and every other one it may manage, as cards like Gatehouse's list, each with its address, its servers and who is on them, and Open."
   ]},

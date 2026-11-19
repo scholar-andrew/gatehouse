@@ -108,7 +108,9 @@ in the server's `mods` folder, asks Modrinth which of those exact files it publi
 and you confirm the list. A mod published on Modrinth is fetched by players from there; any other comes from
 Gatekeeper; either way it is checked against the server's own file. Pictures for Steam are made from the pack's name
 and the server's picture, unless you choose your own. The same picture list has **In launchers** first: the picture
-on this server's card in launchers (the same one as Options, Pictures), which changes at once (3.46.0). **New version** takes the notes players read. Launchers install
+on this server's card in launchers (the same one as Options, Pictures), which changes at once (3.46.0). An animated
+GIF (8 MB at most) plays on the card while it is under the pointer or chosen with a controller, in Gatekeeper and in
+Gatehouse, and stands still otherwise (3.48.0). **New version** takes the notes players read. Launchers install
 and update it from this Gatekeeper like any other pack. These packs aren't signed, so they are never handed out
 between machines.
 
@@ -277,7 +279,9 @@ while it gathers: green ready, amber not seen yet, red a Gatekeeper with a serve
   other then gets a window on its servers, console, players and requests; never its settings, updates, web accounts
   or the machine. The menu's **Gatekeepers** page (3.47.0) lists this Gatekeeper and every other one it may manage,
   like Gatehouse's list: each with its address, how many servers it has and how many people are on them, and
-  **Open**.
+  **Open**. **Add a Gatekeeper...** (3.48.0) walks you through putting another one there, a step at a time: one
+  Gatekeeper joins the other, is let in, and lets the other manage it. It does here what can be done here, tells you
+  what to press on the other machine, and moves on by itself as each step is done.
 - **Hand out pack updates** (on unless turned off): this machine hands the published pack to the devices of this
   constellation over Tailscale ([Security](security.md#updates-from-any-gate-system)).
 - **The update log** (Updates section, or **Update log...**): every update in the constellation, when, from which

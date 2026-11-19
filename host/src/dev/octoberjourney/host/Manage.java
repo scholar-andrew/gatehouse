@@ -138,7 +138,7 @@ final class Manage {
 	static boolean admin(HttpExchange x, String path) throws IOException {
 		if (path.equals("/admin/manage/list") && x.getRequestMethod().equals("GET")) {
 			reply(x, 200, m("gatekeepers", manageable(), "name", setting("name", ""), "device", Device.kind(), "icon", Icons.tag("gatekeeper"),
-					"joined", !setting("constellation_lead", "").isEmpty()));
+					"joined", !setting("constellation_lead", "").isEmpty(), "address", setting("bind", "").isEmpty() ? "" : setting("bind", "") + ":" + port()));
 			return true;
 		}
 		if (!path.equals("/admin/manage/open") || !x.getRequestMethod().equals("POST")) return false;

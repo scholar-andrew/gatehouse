@@ -154,7 +154,11 @@ final class ServerCardsUi {
 							: javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(pb)); return im == null
 							? new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB)
 							: im; } catch (IOException ex) { return new java.awt.image.BufferedImage(1, 1,
-							java.awt.image.BufferedImage.TYPE_INT_ARGB); } }); if (img.getWidth(null) > 1) card.picture(img); }
+							java.awt.image.BufferedImage.TYPE_INT_ARGB); } }); if (img.getWidth(null) > 1) card.picture(img);
+						// (R75: an animated one plays while the card is lit)
+						java.awt.Image anim = cardPics.computeIfAbsent(pk + "|gif", k -> { byte[] gb = Icons.gif(id); return gb == null
+								? new java.awt.image.BufferedImage(1, 1, java.awt.image.BufferedImage.TYPE_INT_ARGB) : java.awt.Toolkit.getDefaultToolkit().createImage(gb); });
+						if (!(anim instanceof java.awt.image.BufferedImage)) card.moving(anim); }
 				}
 				List<String[]> facts = facts(r, s);   // (see facts(), below)
 				card.facts(facts);

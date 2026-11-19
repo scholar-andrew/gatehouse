@@ -390,15 +390,16 @@ final class Home {
 	 *  the tag the Gatekeeper gave each, so one is fetched once and again only when it changes. */
 	private static final Map<String, java.awt.image.BufferedImage> pictures = new java.util.concurrent.ConcurrentHashMap<>();
 	private static final java.util.Set<String> picturesAsked = java.util.concurrent.ConcurrentHashMap.newKeySet();
+	private static final Map<String, java.awt.Image> moving = new java.util.concurrent.ConcurrentHashMap<>();   // (R75: animated ones)
 	private static String pictureStem(String url, String what) { return Integer.toHexString(url.hashCode()) + "-"
 			+ what.replaceAll("[^A-Za-z0-9_\\-]", "_") + "-"; }
 	/** Shows on a card the picture a Gatekeeper has for "gatekeeper" or one of its servers (tag: what it said in its
 	 *  catalog; "" for none). */
 	private static void picture(Path home, ServerControl c, String url, String what, String tag, dev.gatehouse.look.GameCard card) {
-		if (tag.isEmpty()) { SwingUtilities.invokeLater(() -> card.picture(null)); return; }
+		if (tag.isEmpty()) { SwingUtilities.invokeLater(() -> { card.picture(null); card.moving(null); }); return; }
 		String key = pictureStem(url, what) + tag.replaceAll("[^A-Za-z0-9]", "");
 		java.awt.image.BufferedImage have = pictures.get(key);
-		if (have != null) { SwingUtilities.invokeLater(() -> card.picture(have)); return; }
+		if (have != null) { java.awt.Image anim = moving.get(key); SwingUtilities.invokeLater(() -> { card.picture(have); card.moving(anim); }); return; }
 		if (!picturesAsked.add(key)) return;
 		Thread t = new Thread(() -> {
 			try {
@@ -418,6 +419,25 @@ final class Home {
 				java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(b));
 				if (img != null) { pictures.put(key,
 						img); if (SwingUtilities.isEventDispatchThread()) card.picture(img); else SwingUtilities.invokeLater(() -> card.picture(img)); }
+				// R75: the animated GIF it was chosen from, if it was one (played while the card is lit). Kept beside the
+				// still one; "<key>.still" says there is none. A Gatekeeper older than 3.48.0 answers with the still PNG,
+				// which isn't a GIF, so it counts as none.
+				Path gf = home.resolve("icons").resolve(key + ".gif"), none = home.resolve("icons").resolve(key + ".still");
+				byte[] gb = null;
+				if (Files.isRegularFile(gf)) gb = Files.readAllBytes(gf);
+				else if (!Files.isRegularFile(none)) {
+					java.net.HttpURLConnection h = (java.net.HttpURLConnection) java.net.URI.create(url.replaceAll("/+$", "")
+							+ "/v1/icon?for=" + java.net.URLEncoder.encode(what, StandardCharsets.UTF_8) + "&moving=1").toURL().openConnection();
+					h.setConnectTimeout(3000); h.setReadTimeout(30000);
+					h.setRequestProperty("X-Device", str(c.deviceId)); h.setRequestProperty("X-Token", str(c.deviceToken));
+					int code = h.getResponseCode();
+					if (code == 200 && String.valueOf(h.getContentType()).startsWith("image/gif")) {
+						try (java.io.InputStream in = h.getInputStream()) { gb = in.readNBytes(9_000_000); }
+						Files.write(gf, gb);
+					} else if (code == 200 || code == 404) Files.writeString(none, "no animated picture\n");
+				}
+				if (gb != null) { java.awt.Image anim = java.awt.Toolkit.getDefaultToolkit().createImage(gb); moving.put(key, anim);
+					SwingUtilities.invokeLater(() -> card.moving(anim)); }
 			} catch (IOException | RuntimeException ignored) { /* its initials, or its machine, as before */ }
 			finally { picturesAsked.remove(key); }
 		}, "picture");

@@ -3796,7 +3796,7 @@ public final class HostHelper {
 					try {   // (R39: Systems, History of servers and New server as pages: <file>-systemspage.png, -historypage.png, -newserverpage.png)
 						for (int pg : new int[] {10, 11, 13, 12}) {
 							if (pg == 12) ServerToolsUi.newServerPage.accept(null); else firstTabs.setSelectedIndex(pg);
-						if (pg == 13 && firstTabs.getComponentAt(13) instanceof JPanel gkp && gkp.getClientProperty("load") instanceof Runnable gkl) gkl.run();   // (offscreen, nothing is "showing")
+						if (pg == 13 && firstTabs.getComponentAt(13) instanceof JPanel gkp && gkp.getClientProperty("load") instanceof Runnable gkl) { gkl.run(); if (gkp.getClientProperty("add") instanceof Runnable gka) gka.run(); }   // (offscreen, nothing is "showing"; R76: the walk-through's steps too)
 							java.awt.SecondaryLoop pgWait = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
 							javax.swing.Timer pgStop = new javax.swing.Timer(2500, ev4 -> pgWait.exit()); pgStop.setRepeats(false); pgStop.start(); pgWait.enter();
 							sync.run(); shell.validate();

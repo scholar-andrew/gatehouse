@@ -27,7 +27,7 @@ final class GatekeepersUi {
 	static JPanel page(Runnable toServers) {
 		JPanel p = new JPanel(new BorderLayout(0, 10));
 		p.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 6));
-		JLabel sub = new JLabel("<html><div style='width:820px'>This Gatekeeper, and the other Gatekeepers it may manage. Open shows one's servers, "
+		JLabel sub = new JLabel("<html><div style='width:600px'>This Gatekeeper, and the other Gatekeepers it may manage. Open shows one's servers, "
 				+ "players and chat in a window of its own. A Gatekeeper is listed here once its owner lets this one manage it, on that "
 				+ "Gatekeeper's Constellation page.</div></html>");
 		sub.setForeground(new Color(0xA9B5C1));
@@ -37,13 +37,17 @@ final class GatekeepersUi {
 		said.setForeground(new Color(0xA9B5C1));
 		JButton again = new JButton("Look again");
 		again.setToolTipText("Asks each Gatekeeper again how many servers it has and who is on them");
+		JButton add = dev.gatehouse.look.SteamLook.main(new JButton("Add a Gatekeeper…"));   // (R76)
+		add.setToolTipText("Walks you through putting another Gatekeeper on this page, a step at a time");
+		JPanel topButtons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 6, 0)); topButtons.setOpaque(false);
+		topButtons.add(add); topButtons.add(again);
 		JPanel top = new JPanel(new BorderLayout(10, 0)); top.setOpaque(false);
-		top.add(sub, BorderLayout.CENTER); top.add(again, BorderLayout.EAST);
+		top.add(sub, BorderLayout.CENTER); top.add(topButtons, BorderLayout.EAST);
 		JPanel south = new JPanel(new BorderLayout()); south.setOpaque(false); south.add(said, BorderLayout.NORTH);
 		p.add(top, BorderLayout.NORTH);
 		p.add(new javax.swing.JScrollPane(grid) {{ setBorder(BorderFactory.createEmptyBorder()); getVerticalScrollBar().setUnitIncrement(24); }}, BorderLayout.CENTER);
 		p.add(south, BorderLayout.SOUTH);
-		java.awt.Image[] ownPic = {null};
+		java.awt.Image[] ownPic = {null}, ownAnim = {null};
 		java.util.function.Consumer<Map<String, Object>> show = r -> {
 			grid.removeAll();
 			if (farUrl != null) {
@@ -59,6 +63,7 @@ final class GatekeepersUi {
 			own.state.setText("This Gatekeeper"); own.state.setForeground(new Color(0x66C0F4));
 			own.device(Json.str(r.get("device")));
 			if (ownPic[0] != null) own.picture(ownPic[0]);
+			if (ownAnim[0] != null) own.moving(ownAnim[0]);   // (R75)
 			grid.add(own);
 			List<Object> list = Json.list(r.get("gatekeepers"));
 			for (Object o : list) {
@@ -80,8 +85,8 @@ final class GatekeepersUi {
 				grid.add(card);
 			}
 			said.setText(list.isEmpty() ? (ServerTools.yes(r.get("joined"))
-					? "No other Gatekeeper lets this one manage it yet. On the Gatekeeper this one joined, its owner opens Constellation and ticks the box that lets this one manage it."
-					: "No other Gatekeeper lets this one manage it yet. A Gatekeeper that joins this one (Constellation) can let it, on its own Constellation page.") : " ");
+					? "No other Gatekeeper lets this one manage it yet. Add a Gatekeeper walks you through it."
+					: "No other Gatekeeper lets this one manage it yet. Add a Gatekeeper walks you through it.") : " ");
 			grid.revalidate(); grid.repaint();
 		};
 		Runnable load = () -> ServerToolsUi.later(() -> {
@@ -89,10 +94,15 @@ final class GatekeepersUi {
 			if (ownPic[0] == null && farUrl == null) try {
 				byte[] b = Icons.png("gatekeeper");
 				if (b != null) ownPic[0] = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(b));
+				byte[] gb = Icons.gif("gatekeeper");
+				if (gb != null) ownAnim[0] = java.awt.Toolkit.getDefaultToolkit().createImage(gb);
 			} catch (java.io.IOException | RuntimeException e) { Quiet.seen(e); }
 			SwingUtilities.invokeLater(() -> show.accept(r));
 		});
 		again.addActionListener(e -> load.run());
+		add.addActionListener(e -> AddGatekeeperUi.open(p, load));
+		add.setVisible(farUrl == null);
+		p.putClientProperty("add", (Runnable) () -> AddGatekeeperUi.open(p, null));   // (testing: pictures of its steps)
 		p.addHierarchyListener(e -> { if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.SHOWING_CHANGED) != 0 && p.isShowing()) load.run(); });
 		p.putClientProperty("load", load);
 		return p;

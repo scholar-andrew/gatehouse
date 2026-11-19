@@ -145,6 +145,15 @@ public final class GameCard extends JPanel {
 	public static volatile java.util.function.Consumer<GameCard> onHot;
 	/** A picture to show in the art, over anything else (null for none). */
 	public void picture(java.awt.Image img) { if (picture != img) { picture = img; repaint(); } }
+	private java.awt.Image moving;
+	private boolean playing;
+	/** R75: an animated picture (a GIF made with Toolkit.createImage), played in place of the picture while the card is
+	 *  under the pointer or chosen with the keyboard or a controller, from its start each time; null for none. */
+	public void moving(java.awt.Image anim) { if (moving != anim) { moving = anim; playing = false; repaint(); } }
+	@Override public boolean imageUpdate(java.awt.Image img, int flags, int x, int y, int w, int h) {
+		if (img == moving && !(hot || over)) { playing = false; return false; }   // (not lit: the animation stops asking to be drawn)
+		return super.imageUpdate(img, flags, x, y, w, h);
+	}
 	/** More about the thing this card is for, as headings and what goes under them. */
 	public void facts(java.util.List<String[]> rows) { facts = rows == null ? java.util.List.of()
 			: rows; java.util.function.Consumer<GameCard> h = onHot; if (h != null && (hot || over)) h.accept(this); }
@@ -203,12 +212,19 @@ public final class GameCard extends JPanel {
 		g.setPaint(new GradientPaint(0, (float) (ay + as * 0.45), new Color(0, 0, 0, 0), 0, (float) (ay + as), new Color(0, 0, 0, 110)));
 		g.fill(new Rectangle2D.Double(ax, ay, as, as));
 		g.setClip(old);
-		if (picture != null) {
+		if (picture != null || moving != null && lit) {
 			Shape before = g.getClip();
 			g.clip(new RoundRectangle2D.Double(ax, ay, as, as, 12, 12));
 			g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
 			java.awt.Composite was = g.getComposite();
 			if (dim) g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, 0.5f));
+			if (moving != null && lit && !dim) {
+				if (!playing) { moving.flush(); playing = true; }   // (from its first frame, each time it is lit)
+				int mw = moving.getWidth(this), mh = moving.getHeight(this);
+				if (mw > 0 && mh > 0) { int cut = Math.min(mw, mh), sx = (mw - cut) / 2, sy = (mh - cut) / 2;   // (its middle square, as the still one)
+					g.drawImage(moving, (int) ax, (int) ay, (int) (ax + as), (int) (ay + as), sx, sy, sx + cut, sy + cut, this); }
+				else if (picture != null) g.drawImage(picture, (int) ax, (int) ay, (int) as, (int) as, null);
+			} else
 			g.drawImage(picture, (int) ax, (int) ay, (int) as, (int) as, null);
 			g.setComposite(was); g.setClip(before); g.dispose();
 			return;
