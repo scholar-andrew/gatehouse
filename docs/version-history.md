@@ -7,6 +7,13 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.46.0 - 2026-11-19
+
+- Options is in sub-tabs: General, Updating, Notifications, AI helper, and End or uninstall. The Back button is gone; Esc or the menu leaves Options.
+- A server's Pack page sets the picture launchers show on the server's card too (In launchers, first in its picture list), the same picture as Options, Pictures.
+- Updates pulled names each update by the Gatehouse version it brought, like Gatehouse 3.44.0 to 3.45.1, with the pack's own numbers beside it. Updates launchers reported before this version still show only the pack's numbers.
+- October Journey's original cover picture for Steam is back: an older Gatekeeper lost it when a chosen cover was undone. Gatekeeper puts back such a lost picture when the pack's other pictures are still the originals.
+
 ## 3.45.1 - 2026-11-19
 
 - On a machine with no AI of its own, like a Steam Deck, the AI helper now says first that @ai questions in its chat rooms are answered by the Gatekeeper it joined, instead of only that Ollama isn't answering.

@@ -162,7 +162,8 @@ when the owner signs in to Windows, in the owner's session, so MCSS opens on the
   window spoke to Gatekeeper within the last 20 seconds (it asks every few seconds while open). Nothing is stored.
 - **Updates Pulled** (third tab). When a launcher has fetched an update from this machine (never when it came from
   GitHub), it tells Gatekeeper afterwards (`POST /v1/pulled`: the versions, files, mods, the download's size and how
-  much of it came from this machine; mods the pack only lists come from Modrinth). Kept in `pulls.json` beside
+  much of it came from this machine; mods the pack only lists come from Modrinth; since 3.46.0 also the Gatehouse
+  versions the pack's notes name for the old and new pack version, so the list reads "Gatehouse 3.44.0 → 3.45.1"). Kept in `pulls.json` beside
   `host.json` (the latest 1000) and shown newest first, with totals. It is what launchers report, not a measurement
   on this machine.
 - **The window.** Four sections (Servers, Players, Chat, Updates) and a menu (`GameShell`). Servers shows the

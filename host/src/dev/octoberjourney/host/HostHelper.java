@@ -1475,6 +1475,7 @@ public final class HostHelper {
 						Json.str(d.get("player")), "os", Json.str(d.get("os")),
 						"from", clean(Json.str(b.get("from")), 24), "to", clean(Json.str(b.get("to")), 24), "pack",
 								clean(Json.str(b.get("pack")), 60), "server", Json.str(server().get("id")),
+						"gatehouse_from", clean(Json.str(b.get("gatehouse_from")), 24), "gatehouse_to", clean(Json.str(b.get("gatehouse_to")), 24),
 						"bytes", num.apply("bytes"), "local_bytes", num.apply("local_bytes"), "files", num.apply("files"), "mods", num.apply("mods"));
 				synchronized (HostHelper.class) {
 					List<Object> all = Json.list(Json.parse(read(dir.resolve("pulls.json"))));
@@ -3152,6 +3153,7 @@ public final class HostHelper {
 			options.setBorder(BorderFactory.createEmptyBorder(8, 14, 10, 14));
 			java.util.function.BiConsumer<String, Boolean> optLine = (text, bold) -> {
 				JLabel l = new JLabel("<html><div style='width:760px'>" + text.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>");
+				if (bold) l.putClientProperty("optHead", text);   // (R69: a section's heading: says which sub-tab it goes in)
 				if (bold) { l.setFont(l.getFont().deriveFont(Font.BOLD, dev.gatehouse.look.SteamLook.pt(15f))); l.setBorder(BorderFactory.createEmptyBorder(12, 0, 4,
 						0)); } else l.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
 				l.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
@@ -3160,9 +3162,7 @@ public final class HostHelper {
 			Path programDir;
 			try { programDir = Path.of(HostHelper.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getParent(); } catch (Exception ex) { programDir = dir; }
 			Path keeperDir = programDir;
-			JButton optBack = new JButton("\u2039 Back");
-			optBack.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
-			options.add(optBack);
+			JButton optBack = new JButton("\u2039 Back");   // (R69: not on the page any more; Esc and the menu still use it to leave Options)
 			optLine.accept("About", true);
 			optLine.accept("Gatekeeper " + Json.str(notesInside("gatekeeper").get("version")) + " on " + systemName() + ", running from "
 					+ keeperDir + ". Its settings, its list of launchers and its log are in " + dir + ".", false);
@@ -3173,8 +3173,32 @@ public final class HostHelper {
 			UpdatingUi.addTo(options, f, optLine);   // (Options, Updating: see UpdatingUi)
 			NotifyUi.addTo(options, f, optLine);   // (R34: phone notifications, the status page, crash watch: see NotifyUi)
 			EndUi.addTo(options, f, optLine, keeperDir);   // (Options, End Gatekeeper and Uninstall: see EndUi)
-			JPanel optionsTop = new JPanel(new BorderLayout()); optionsTop.add(options, BorderLayout.NORTH);
-			JScrollPane optionsScroll = new JScrollPane(optionsTop);
+			// R69: the sections in sub-tabs, by their headings. options stays the outer panel (NotifyUi refreshes when it shows).
+			String[][] optTabs = {{"General", "About", "Pictures", "This machine"}, {"Updating", "Updating"},
+					{"Notifications", "Phone notifications", "Status page for friends", "Crash watch"}, {"AI helper", "AI helper"},
+					{"End or uninstall", "End Gatekeeper", "Uninstall"}};
+			JPanel[] optPages = new JPanel[optTabs.length];
+			for (int ti = 0; ti < optTabs.length; ti++) {
+				optPages[ti] = new JPanel(); optPages[ti].setLayout(new javax.swing.BoxLayout(optPages[ti], javax.swing.BoxLayout.Y_AXIS));
+				optPages[ti].setBorder(BorderFactory.createEmptyBorder(4, 14, 10, 14));
+			}
+			int optAt = 0;
+			for (java.awt.Component c : options.getComponents()) {
+				Object h = c instanceof javax.swing.JComponent jc ? jc.getClientProperty("optHead") : null;
+				if (h != null) for (int ti = 0; ti < optTabs.length; ti++) if (java.util.Arrays.asList(optTabs[ti]).subList(1, optTabs[ti].length).contains(h)) optAt = ti;
+				options.remove(c);
+				optPages[optAt].add(c);
+			}
+			for (JPanel pg : optPages) if (pg.getComponentCount() > 0 && pg.getComponent(0) instanceof JLabel first) first.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 0));
+			javax.swing.JTabbedPane optionTabs = new javax.swing.JTabbedPane();
+			for (int ti = 0; ti < optTabs.length; ti++) {
+				JPanel optTop = new JPanel(new BorderLayout()); optTop.add(optPages[ti], BorderLayout.NORTH);
+				JScrollPane sc = new JScrollPane(optTop); sc.setBorder(BorderFactory.createEmptyBorder()); sc.getVerticalScrollBar().setUnitIncrement(24);
+				optionTabs.addTab(optTabs[ti][0], sc);
+			}
+			options.setLayout(new BorderLayout()); options.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+			options.add(optionTabs, BorderLayout.CENTER);
+			JPanel optionsScroll = options;   // (named as before: what is showing when Options is)
 			stack.add(optionsScroll, "options");
 			String[] optionsFrom = {"overview", "Gatekeeper"};
 			gear.addActionListener(ev -> { optionsFrom[0] = backB.isVisible() ? "server"
@@ -3700,6 +3724,13 @@ public final class HostHelper {
 						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D gg2 = gi2.createGraphics(); shell.paint(gg2); gg2.dispose();
 						javax.imageio.ImageIO.write(gi2, "png", new java.io.File(shot + "-options.png"));
+						for (int ti = 1; ti < optionTabs.getTabCount(); ti++) {   // (R69: each Options sub-tab: <file>-options-<n>.png)
+							optionTabs.setSelectedIndex(ti); sync.run(); shell.validate();
+							java.awt.image.BufferedImage osi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+							java.awt.Graphics2D osg = osi.createGraphics(); shell.paint(osg); osg.dispose();
+							javax.imageio.ImageIO.write(osi, "png", new java.io.File(shot + "-options-" + (ti + 1) + ".png"));
+						}
+						optionTabs.setSelectedIndex(3);   // (the AI helper's sub-tab)
 						{   // (Options scrolled to the built-in AI: <file>-aihelper.png)
 							java.util.ArrayDeque<java.awt.Container> todo = new java.util.ArrayDeque<>(java.util.List.of(shell));
 							javax.swing.JComponent at = null;
@@ -3716,7 +3747,7 @@ public final class HostHelper {
 								javax.imageio.ImageIO.write(ai, "png", new java.io.File(shot + "-aihelper.png"));
 							}
 						}
-						optBack.doClick(0);
+						optionTabs.setSelectedIndex(0); optBack.doClick(0);
 						levels.show(stack, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); sync.run(); shell.validate();
 						java.awt.image.BufferedImage wi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D wg = wi.createGraphics(); shell.paint(wg); wg.dispose();

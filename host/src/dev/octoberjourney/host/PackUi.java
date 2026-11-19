@@ -49,7 +49,9 @@ final class PackUi {
 
 	/** A picture's bytes to or from the Gatekeeper on this machine (the pictures are files, so not sent as text). */
 	private static byte[] artCall(String q, String slot, byte[] send) throws IOException {
-		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + "/admin/pack/art" + q + "&slot=" + slot).openConnection();
+		// (R73: "server" is the server's own picture, the one launchers show on its card: the same as Options, Pictures)
+		HttpURLConnection c = (HttpURLConnection) new URL("http://127.0.0.1:" + port() + (slot.equals("server")
+				? "/admin/icon?for=" + q.replaceFirst("^\\?server=", "") : "/admin/pack/art" + q + "&slot=" + slot)).openConnection();
 		c.setConnectTimeout(2000); c.setReadTimeout(20000);
 		if (send != null) { c.setRequestMethod("POST"); c.setDoOutput(true); c.setFixedLengthStreamingMode(send.length); try (OutputStream o = c.getOutputStream()) { o.write(send); } }
 		try (InputStream in = c.getResponseCode() < 400 ? c.getInputStream() : c.getErrorStream()) { return in == null ? new byte[0] : in.readAllBytes(); }
@@ -88,7 +90,11 @@ final class PackUi {
 		build.setToolTipText("Builds the pack again as it is (after choosing a picture, say). Players get what changed the next time they press Play.");
 		release.setToolTipText("Gives the pack its next version number with notes players read before updating, then builds it");
 		bring.setToolTipText("<html>Takes a pack's definition from a folder on this machine: the folder October Journey is built from, or one laid out the same way.<br>What this server's pack was before is kept beside it until the next time.</html>");
-		JComboBox<String> slotBox = new JComboBox<>(PackArt.SAYS);
+		String[] slotSays = new String[PackArt.SAYS.length + 1], slotIds = new String[PackArt.SLOTS.length + 1];
+		slotSays[0] = "In launchers (the server's card, square)"; slotIds[0] = "server";
+		System.arraycopy(PackArt.SAYS, 0, slotSays, 1, PackArt.SAYS.length); System.arraycopy(PackArt.SLOTS, 0, slotIds, 1, PackArt.SLOTS.length);
+		JComboBox<String> slotBox = new JComboBox<>(slotSays);
+		slotBox.setToolTipText("<html>In launchers: the picture on this server's card in Gatehouse (the same as Options, Pictures).<br>The others: the pictures Steam shows for the pack's shortcut.</html>");
 		JButton choose = new JButton("Choose a picture…"), back = new JButton("Undo my choice");
 		back.setToolTipText("Goes back to the picture this pack came with, or, where it came with none, to the one Gatekeeper makes");
 		preview.setBorder(BorderFactory.createLineBorder(ServerToolsUi.GREY));
@@ -98,13 +104,16 @@ final class PackUi {
 		boolean[] opening = {true};
 		Runnable showArt = () -> {
 			int i = Math.max(0, slotBox.getSelectedIndex());
-			String slot = PackArt.SLOTS[i];
-			boolean defined = ServerTools.yes(now[0].get("defined"));
-			choose.setEnabled(defined); back.setEnabled(defined && "chosen".equals(Json.str(Json.map(now[0].get("art")).get(slot))));
+			String slot = slotIds[i];
+			boolean server = slot.equals("server"), defined = server || ServerTools.yes(now[0].get("defined"));
+			choose.setEnabled(defined); back.setEnabled(server || defined && "chosen".equals(Json.str(Json.map(now[0].get("art")).get(slot))));
+			back.setText(server ? "Remove it" : "Undo my choice");
 			if (!defined) { preview.setIcon(null); artSaid.setText(" "); return; }
+			if (server) preview.setIcon(null);
 			artSaid.setForeground(ServerToolsUi.GREY);
 			String how = Json.str(Json.map(now[0].get("art")).get(slot));
-			artSaid.setText(how.equals("chosen") ? "A picture you chose. Undo my choice goes back to what was here before."
+			artSaid.setText(server ? "Launchers show this on the server's card, made square. Remove it goes back to the server-icon.png in the server's folder, or to the server's letters."
+					: how.equals("chosen") ? "A picture you chose. Undo my choice goes back to what was here before."
 					: how.equals("pack") ? "The picture this pack came with." : "Made by Gatekeeper from the pack's name and the server's picture.");
 			Runnable fetch = () -> {
 				try {
@@ -222,7 +231,7 @@ final class PackUi {
 			post.accept("/admin/pack/import", m("folder", fc.getSelectedFile().getAbsolutePath()));
 		});
 		java.util.function.Consumer<byte[]> sendArt = bytes -> ServerToolsUi.later(() -> {
-			String slot = PackArt.SLOTS[Math.max(0, slotBox.getSelectedIndex())];
+			String slot = slotIds[Math.max(0, slotBox.getSelectedIndex())];
 			Map<String, Object> r;
 			try { r = Json.map(Json.parse(new String(artCall(q, slot, bytes),
 					StandardCharsets.UTF_8))); } catch (IOException | RuntimeException ex) { r = m("result", "failed", "message", "Gatekeeper didn't answer."); }
@@ -250,7 +259,7 @@ final class PackUi {
 		row(form, y++, null, line(make, modsB, findB, release, build, bring));
 		row(form, y++, null, said);
 		row(form, y++, null,
-				ServerToolsUi.note(ServerToolsUi.wrap("Pictures for Steam. Each is one you choose (brought to the right size here) or one Gatekeeper makes. A change goes out with the next build.", 560)));
+				ServerToolsUi.note(ServerToolsUi.wrap("Pictures: the one launchers show on this server's card (it changes at once), and the ones Steam shows for the pack's shortcut. Each Steam one is one you choose (brought to the right size here) or one Gatekeeper makes, and a change to it goes out with the next build.", 560)));
 		row(form, y++, "Picture", line(slotBox, choose, back));
 		row(form, y++, "", preview);
 		row(form, y++, "", artSaid);

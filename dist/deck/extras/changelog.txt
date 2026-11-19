@@ -1,3 +1,5 @@
+== 1.79.0 | 2026-11-19
+- Gatehouse 3.46.0: Options in sub-tabs, server pictures from the Pack page, clearer update names in Updates pulled, and the original October Journey cover back. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.78.1 | 2026-11-19
 - Gatehouse 3.45.1: clearer AI helper status on machines without an AI of their own. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.78.0 | 2026-11-18

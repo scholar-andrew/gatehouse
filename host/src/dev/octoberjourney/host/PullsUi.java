@@ -42,7 +42,9 @@ final class PullsUi {
 		JTable pullTable = new JTable(pullModel);
 		roomy(pullTable);
 		pullTable.setRowHeight(30);
-		pullTable.getColumnModel().getColumn(0).setPreferredWidth(150); pullTable.getColumnModel().getColumn(4).setPreferredWidth(220);
+		pullTable.getColumnModel().getColumn(0).setPreferredWidth(150); pullTable.getColumnModel().getColumn(4).setPreferredWidth(420);
+		for (int ci : new int[] {5, 6}) pullTable.getColumnModel().getColumn(ci).setPreferredWidth(60);
+		pullTable.setToolTipText("Update: the Gatehouse version it brought (where the launcher said), then the pack's own version numbers");
 		javax.swing.table.DefaultTableCellRenderer right = new javax.swing.table.DefaultTableCellRenderer();
 		right.setHorizontalAlignment(javax.swing.SwingConstants.RIGHT);
 		for (int ci = 5; ci <= 8; ci++) pullTable.getColumnModel().getColumn(ci).setCellRenderer(right);
@@ -74,8 +76,13 @@ final class PullsUi {
 						long bytes = 0, local = 0;
 						try { bytes = (long) Double.parseDouble(Json.str(r.get("bytes"))); local = (long) Double.parseDouble(Json.str(r.get("local_bytes"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 						total += bytes; if (Json.str(r.get("time")).compareTo(cutoff) >= 0) week += bytes;
-						String upd = (Json.str(r.get("pack")).isEmpty() ? "" : Json.str(r.get("pack")) + " ")
+						// (R72: named by what changed: the Gatehouse version the update brought, then the pack's own numbers)
+						String ghFrom = Json.str(r.get("gatehouse_from")), ghTo = Json.str(r.get("gatehouse_to"));
+						String packPart = (Json.str(r.get("pack")).isEmpty() ? "pack " : Json.str(r.get("pack")) + " pack ")
 								+ (Json.str(r.get("from")).isEmpty() ? "first install, " : Json.str(r.get("from")) + " \u2192 ") + Json.str(r.get("to"));
+						String upd = ghTo.isEmpty() ? packPart
+								: ghFrom.equals(ghTo) ? "Pack only: " + packPart + " (Gatehouse " + ghTo + ")"
+								: "Gatehouse " + (ghFrom.isEmpty() ? "" : ghFrom + " \u2192 ") + ghTo + " (" + packPart + ")";
 						pullModel.addRow(new Object[] {r.get("time"), r.get("name"), r.get("player"), r.get("os"), upd,
 								Json.str(r.get("files")).replaceAll("\\.0$", ""), Json.str(r.get("mods")).replaceAll("\\.0$", ""), mb.apply(bytes), mb.apply(local)});
 					}

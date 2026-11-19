@@ -107,7 +107,8 @@ server** (a Fabric server: its versions, no mods yet) or **Bring in a pack from 
 in the server's `mods` folder, asks Modrinth which of those exact files it publishes, guesses which ones players need,
 and you confirm the list. A mod published on Modrinth is fetched by players from there; any other comes from
 Gatekeeper; either way it is checked against the server's own file. Pictures for Steam are made from the pack's name
-and the server's picture, unless you choose your own. **New version** takes the notes players read. Launchers install
+and the server's picture, unless you choose your own. The same picture list has **In launchers** first: the picture
+on this server's card in launchers (the same one as Options, Pictures), which changes at once (3.46.0). **New version** takes the notes players read. Launchers install
 and update it from this Gatekeeper like any other pack. These packs aren't signed, so they are never handed out
 between machines.
 
@@ -291,8 +292,9 @@ folders, player names or keys.
 
 ## Options, ending and removing it
 
-**Options** has the pictures (one for this Gatekeeper and each server, shown on launchers' cards), the update mode,
-notifications, the status page, which servers start with Gatekeeper, **End Gatekeeper** (refused while a server it
+**Options** is in sub-tabs (3.46.0): **General** (about, the pictures for this Gatekeeper and each server shown on
+launchers' cards, this machine's kind), **Updating**, **Notifications** (phone, the status page, crash watch), **AI
+helper**, and **End or uninstall**. Esc or the menu leaves it. Options also has which servers start with Gatekeeper, **End Gatekeeper** (refused while a server it
 runs is on; start it again from the launcher's **Start Gatekeeper**, its window, or by signing in again) and
 **Uninstall** (type `confirm`; a tick box decides whether its settings go too: who may do what, its MCSS key, its
 log). Removing Gatekeeper leaves MCSS, your servers and their worlds untouched. From outside: the install script

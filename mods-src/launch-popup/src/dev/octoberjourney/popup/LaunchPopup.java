@@ -973,7 +973,8 @@ public final class LaunchPopup {
 				if (!status.equals("failed") && !status.equals("offline") && sc.hasHelper() && !sc.ban.equals("blacklist")) {
 					String was = seenBefore[2] == null ? "" : seenBefore[2].trim();
 					String body = "{\"from\": \"" + ServerControl.jsonEsc(was.equals(s(current)) ? "" : was) + "\", \"to\": \""
-							+ ServerControl.jsonEsc(s(current)) + "\", \"pack\": \"" + ServerControl.jsonEsc(NAME)
+							+ ServerControl.jsonEsc(s(current)) + "\", \"gatehouse_from\": \"" + ServerControl.jsonEsc(gatehouseAt(log, was))
+							+ "\", \"gatehouse_to\": \"" + ServerControl.jsonEsc(gatehouseAt(log, s(current))) + "\", \"pack\": \"" + ServerControl.jsonEsc(NAME)
 							+ "\", \"bytes\": " + s(pp.get("bytes")) + ", \"local_bytes\": " + s(pp.get("local_bytes")) + ", \"files\": "
 									+ s(pp.get("files")) + ", \"mods\": " + s(pp.get("mods")) + "}";
 					Thread tell = new Thread(() -> {
@@ -2650,6 +2651,19 @@ public final class LaunchPopup {
 	}
 
 	// ------------------------------------------------------------------ files
+
+	/** R72: the Gatehouse version a pack version came with, from its notes ("Gatehouse 3.45.1: ..."), or the newest
+	 *  one before it; "" when the notes never name one. */
+	static String gatehouseAt(List<Version> log, String packVersion) {
+		boolean reached = false;
+		java.util.regex.Pattern gh = java.util.regex.Pattern.compile("\\bGatehouse (\\d+\\.\\d+\\.\\d+)");
+		for (Version v : log) {
+			if (!reached && !v.version().equals(packVersion)) continue;
+			reached = true;
+			for (String n : v.notes()) { java.util.regex.Matcher mm = gh.matcher(n); if (mm.find()) return mm.group(1); }
+		}
+		return "";
+	}
 
 	private static List<Version> changelog(Path p) {
 		List<Version> out = new ArrayList<>();

@@ -233,9 +233,31 @@ final class Packs {
 		for (Object o : new ArrayList<>(servers())) {
 			Map<String, Object> s = Json.map(o);
 			String id = Json.str(s.get("id"));
+			if (defined(id)) repairArt(s);
 			if (defined(id) && (!has(id) || !gatehouse.equals(Json.str(info(id).get("gatehouse")))
 					|| !Json.str(obj0(def(id).resolve("config.json")).get("repo_raw")).equals(base(id)))) build(s, "this Gatekeeper changed");
 		}
+	}
+	/** R68: before 3.18.1, undoing a choice deleted the picture the pack came with. A pack whose other pictures are all
+	 *  still the set this program carries (October Journey's) gets a lost one back from that set; none chosen is touched. */
+	static void repairArt(Map<String, Object> s) {
+		String id = Json.str(s.get("id"));
+		Path art = def(id).resolve("art");
+		try {
+			List<String> missing = new ArrayList<>();
+			int same = 0;
+			for (String slot : PackArt.SLOTS) {
+				Path own = art.resolve(slot + ".png");
+				if (Files.isRegularFile(art.resolve(slot + ".chosen"))) continue;
+				if (!Files.isRegularFile(own)) { missing.add(slot); continue; }
+				if (!java.util.Arrays.equals(Files.readAllBytes(own), PackBuilder.extra("art/" + slot + ".png"))) return;   // (its own art: not ours to fill in)
+				same++;
+			}
+			if (missing.isEmpty() || same == 0) return;
+			for (String slot : missing) Files.write(art.resolve(slot + ".png"), PackBuilder.extra("art/" + slot + ".png"));
+			log("packs: " + Json.str(s.get("name")) + "'s " + String.join(", ", missing) + " picture(s) for Steam, lost by an older Gatekeeper, were put back");
+			// (refresh() builds next: a new program always rebuilds, so this goes out with this update)
+		} catch (IOException | RuntimeException e) { Quiet.seen(e); }
 	}
 	private static Map<String, Object> obj0(Path f) { try { return obj(f); } catch (IOException e) { return new LinkedHashMap<>(); } }
 
