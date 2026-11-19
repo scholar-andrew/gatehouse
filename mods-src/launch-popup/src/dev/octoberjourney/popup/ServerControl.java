@@ -30,6 +30,7 @@ import dev.gatehouse.look.Quiet;
  * wake address (host:port of a router that passes the wake signal on to the home network).
  */
 final class ServerControl {
+	static { Pins.launcher(); }   // (R79: Gatekeepers with HTTPS of their own are checked by fingerprint)
 	final Path dir;
 	final String panelUrl, serverId, minecraft, mac;
 	/** Where Gatekeeper is: the address this device was paired with (Server config, kept in server-access.json),
@@ -103,6 +104,7 @@ final class ServerControl {
 		serverId = str(c.get("mcss_server"));
 		minecraft = str(c.get("minecraft"));
 		packHelperUrl = str(c.get("helper_url"));
+		if (packHelperUrl.startsWith("https:")) Pins.pin(Pins.hostPort(packHelperUrl), str(c.get("helper_fp")));   // (R79)
 		mac = str(w.get("mac"));
 		serverKey = str(c.get("server")).replaceAll("[^\\w.-]", "");
 		if (w.get("broadcasts") instanceof List<?> l) for (Object o : l) broadcasts.add(str(o));

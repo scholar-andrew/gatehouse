@@ -495,6 +495,9 @@ final class AutoUpdate {
 				if (!at.find()) { reply(x, 200, m("result", "refused", "message",
 						"Give the other Gatekeeper's address, like 100.x.y.z:25570 (it is on its Server status tab, under Share pairing).")); return true; }
 				String url = "http://" + at.group(1) + ":" + at.group(2);
+				// (R79: a Gatekeeper with HTTPS shows its certificate; its fingerprint is kept from this first meeting on)
+				String seenFp = dev.octoberjourney.popup.Pins.seen("https://" + at.group(1) + ":" + at.group(2));
+				if (!seenFp.isEmpty()) { url = "https://" + at.group(1) + ":" + at.group(2); dev.octoberjourney.popup.Pins.pin(at.group(1) + ":" + at.group(2), seenFp); }
 				if ((at.group(1).equals(setting("bind", "")) || at.group(1).equals("127.0.0.1"))
 						&& Integer.parseInt(at.group(2)) == port()) { reply(x, 200, m("result", "refused", "message", "That is this Gatekeeper itself.")); return true; }
 				if (setting("constellation_id", "").isEmpty()) { cfg.put("constellation_id",

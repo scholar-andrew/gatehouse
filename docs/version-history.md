@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.50.0 - 2026-11-19
+
+- Gatekeeper can use HTTPS with a certificate of its own (Host setup, Use HTTPS; off unless chosen), on Tailscale, a home network or another private network. Gatehouse checks it by the fingerprint the pairing carries; launchers need the new pairing after turning it on. With HTTPS on, the web panel can be used on a home network too.
+
 ## 3.49.0 - 2026-11-19
 
 - Gatekeeper can be reached without Tailscale: Host setup, Devices reach this Gatekeeper over, Home network (only devices at home) or Another private network (ZeroTier, NetBird, Headscale...). Tailscale stays the default, and nothing is opened to the internet. On a home network the web panel stays off until Gatekeeper has HTTPS.

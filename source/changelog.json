@@ -1,4 +1,7 @@
 [
+ {"version": "1.83.0", "date": "2026-11-19", "notes": [
+  "Gatehouse 3.50.0: HTTPS for Gatekeeper with its own certificate. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.82.0", "date": "2026-11-19", "notes": [
   "Gatehouse 3.49.0: Gatekeeper on a home or another private network instead of Tailscale. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

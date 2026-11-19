@@ -43,7 +43,7 @@ final class Manage {
 		if (!leadMay() || setting("bind", "").isEmpty()) return m();
 		if (setting("manage_token", "").isEmpty()) { cfg.put("manage_token",
 				WebPanel.random(32)); try { ServerTools.saveCfg(); } catch (IOException e) { return m(); } }
-		return m("url", "http://" + setting("bind", "") + ":" + port(), "token", setting("manage_token", ""));
+		return m("url", Tls.scheme() + "://" + setting("bind", "") + ":" + port(), "token", setting("manage_token", ""), "fp", Tls.on() ? Tls.fingerprint() : "");
 	}
 	/** The Gatekeeper that leads keeps (or forgets) what a member said about managing it. */
 	static void noted(String id, Map<String, Object> said) {
@@ -55,8 +55,8 @@ final class Manage {
 				Map<String, Object> devs = devices();
 				Map<String, Object> d = Json.map(devs.get(id));
 				if (d.isEmpty() || (url.equals(Json.str(d.get("manage_url"))) && token.equals(Json.str(d.get("manage_token"))))) return;
-				if (url.isEmpty() || token.isEmpty() || !url.matches("http://[A-Za-z0-9.\\-]+:\\d{2,5}")) { d.remove("manage_url"); d.remove("manage_token"); }
-				else { d.put("manage_url", url); d.put("manage_token", token); }
+				if (url.isEmpty() || token.isEmpty() || !url.matches("https?://[A-Za-z0-9.\\-]+:\\d{2,5}")) { d.remove("manage_url"); d.remove("manage_token"); }
+				else { d.put("manage_url", url); d.put("manage_token", token); if (url.startsWith("https:")) dev.octoberjourney.popup.Pins.pin(dev.octoberjourney.popup.Pins.hostPort(url), Json.str(o.get("fp"))); }
 				saveDevices(devs);
 			}
 		} catch (IOException ignored) { Quiet.seen(ignored); }

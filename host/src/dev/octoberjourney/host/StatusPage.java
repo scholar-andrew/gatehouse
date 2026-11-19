@@ -71,7 +71,7 @@ final class StatusPage {
 			log("status page for friends: " + (on() ? "on" : "off"));
 		}
 		String bind = setting("bind", "");
-		reply(x, 200, m("on", on(), "url", bind.isEmpty() ? "" : "http://" + bind + ":" + port() + "/status"));
+		reply(x, 200, m("on", on(), "url", bind.isEmpty() ? "" : Tls.scheme() + "://" + bind + ":" + port() + "/status"));
 		return true;
 	}
 }

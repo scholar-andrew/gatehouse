@@ -24,8 +24,16 @@ Since 3.49.0 the host can choose another network instead, at the machine (Host s
 over**): the **home network** (only devices on the same Wi-Fi or cable; nothing from outside the home) or **another
 private network** they run themselves (ZeroTier, NetBird, Headscale, Radmin VPN and the like). Gatekeeper then
 listens on this machine's address on that network instead of its Tailscale one, and still nothing is opened to the
-internet. A home network isn't encrypted the way Tailscale is, so the web panel stays off in that mode until
-Gatekeeper has HTTPS of its own; launchers still prove who they are with their secret, never only by their address.
+internet. A home network isn't encrypted the way Tailscale is, so the web panel stays off in that mode unless
+Gatekeeper uses HTTPS; launchers still prove who they are with their secret, never only by their address.
+
+**HTTPS with Gatekeeper's own certificate** (3.50.0, Host setup, **Use HTTPS**; off unless chosen): Gatekeeper makes
+its own certificate once (an EC P-256 key, kept in `tls.p12` in its folder) and its door to launchers, other
+Gatekeepers, the web panel and the status page then speaks only HTTPS. Nobody signs that certificate, so a browser
+warns the first time. Gatehouse and other Gatekeepers instead check it by its fingerprint (SHA-256), which travels in
+the pairing link and file and in the packs Gatekeeper builds; between Gatekeepers it is kept from their first meeting.
+An address that was given a fingerprint and then shows a different certificate is refused. Every other site (GitHub,
+Modrinth...) is checked as usual. Launchers older than 3.50.0 can't use a Gatekeeper with HTTPS.
 
 A host shares **only the one machine** with players (Tailscale's Share, a reusable invite link), not the rest of
 their network. A Tailscale address belongs to one device, which is why Gatekeeper can match a request to a launcher

@@ -59,7 +59,7 @@ final class LocalLink {
 		if (!path.equals("/admin/local/link")) return false;
 		String bind = setting("bind", ""), name = setting("name", "");
 		if (name.isEmpty()) try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException e) { name = "Gatekeeper"; }
-		if (!x.getRequestMethod().equals("POST")) { reply(x, 200, m("bind_url", bind.isEmpty() ? "" : "http://" + bind + ":" + port(),
+		if (!x.getRequestMethod().equals("POST")) { reply(x, 200, m("bind_url", bind.isEmpty() ? "" : Tls.scheme() + "://" + bind + ":" + port(), "bind_fp", Tls.on() ? Tls.fingerprint() : "",
 				"port", port(), "name", name, "version", ownVersion())); return true; }
 		Map<String, Object> b = body(x);
 		String id = Json.str(b.get("id")), token = Json.str(b.get("token")), player = Json.str(b.get("player")),

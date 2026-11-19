@@ -304,8 +304,13 @@ home, on the same Wi-Fi or cable), or **Another private network** (ZeroTier, Net
 like, untried here). Choose it and one of this machine's addresses on it (listed with its network adapter), and Save;
 launchers paired before need the new pairing (Share pairing). Off Tailscale, Tailscale's own setup steps and its
 invite link are left out, and Gatehouse's Connect steps skip Tailscale. On a home network the web panel stays off
-until Gatekeeper has HTTPS (planned next), and Gatehouse's hand-outs between devices only run over Tailscale for now:
+unless HTTPS is on, and Gatehouse's hand-outs between devices only run over Tailscale for now:
 devices update from the Gatekeeper or GitHub instead.
+
+**Use HTTPS** (3.50.0, beside it) makes Gatekeeper's own certificate and speaks only HTTPS on that address, on any
+of the three networks. Launchers need the new pairing afterwards (it carries the certificate's fingerprint, which
+Gatehouse checks), and launchers older than 3.50.0 can't use it. **New certificate...** makes another (every launcher
+then pairs again). [Security](security.md#the-network-tailscale-or-your-own) says what is checked.
 
 ## Options, ending and removing it
 

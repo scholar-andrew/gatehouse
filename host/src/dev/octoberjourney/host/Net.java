@@ -32,7 +32,7 @@ final class Net {
 	/** The network's name in a sentence: "Tailscale", "your home network", "your private network". */
 	static String word() { return switch (mode()) { case "home" -> "your home network"; case "private" -> "your private network"; default -> "Tailscale"; }; }
 	/** The web panel needs an encrypted network (Tailscale, or a private one, which encrypts as a rule) until HTTPS. */
-	static boolean panelAllowed() { return !mode().equals("home"); }
+	static boolean panelAllowed() { return !mode().equals("home") || Tls.on(); }
 
 	/** What kind of address an IPv4 address is: "tailscale", "home" or "other". */
 	static String kind(String a) {
@@ -68,6 +68,20 @@ final class Net {
 		if (!path.equals("/admin/network")) return false;
 		if (x.getRequestMethod().equals("POST")) {
 			Map<String, Object> b = body(x);
+			if (b.containsKey("https") || b.containsKey("renew")) {   // (R79 stage 2: HTTPS with this Gatekeeper's own certificate)
+				try {
+					if (ServerTools.yes(b.get("renew"))) Tls.renew();
+					boolean on = b.containsKey("https") ? ServerTools.yes(b.get("https")) : Tls.on();
+					if (on) Tls.context();   // (made now, so a problem shows here rather than in the log)
+					cfg.put("https", on ? "true" : "false");
+					ServerTools.saveCfg();
+					log("https: " + (on ? "on, certificate " + Tls.fingerprint() : "off"));
+					bindRemote();
+					reply(x, 200, m("result", "ok", "message", (on ? "HTTPS is on: launchers need the new pairing (Share pairing), which carries this certificate's fingerprint. Launchers older than 3.50.0 can't use it."
+							: "HTTPS is off: plain HTTP again, so launchers need the new pairing.") + (ServerTools.yes(b.get("renew")) ? " A new certificate was made." : "")));
+				} catch (IOException e) { reply(x, 200, m("result", "failed", "message", "HTTPS couldn't be turned on: " + e.getMessage())); }
+				return true;
+			}
 			String mode = Json.str(b.get("network")), bind = Json.str(b.get("bind")).trim();
 			if (!mode.equals("tailscale") && !mode.equals("home") && !mode.equals("private")) { reply(x, 200, m("result", "refused", "message", "No such network.")); return true; }
 			boolean mine = false;
@@ -87,7 +101,7 @@ final class Net {
 					+ (mode.equals("home") ? " The web panel stays off on a home network until Gatekeeper has HTTPS." : "")));
 			return true;
 		}
-		reply(x, 200, m("network", mode(), "bind", setting("bind", ""), "port", port(), "addresses", addresses()));
+		reply(x, 200, m("network", mode(), "bind", setting("bind", ""), "port", port(), "addresses", addresses(), "https", Tls.on(), "fingerprint", Tls.on() ? Tls.fingerprint() : ""));
 		return true;
 	}
 }

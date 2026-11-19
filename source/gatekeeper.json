@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.49.0",
+ "version": "3.50.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.50.0", "date": "2026-11-19", "notes": [
+   "Gatekeeper can use HTTPS with a certificate of its own (Host setup, Use HTTPS; off unless chosen), on Tailscale, a home network or another private network. Gatehouse checks it by the fingerprint the pairing carries; launchers need the new pairing after turning it on. With HTTPS on, the web panel can be used on a home network too."
+  ]},
   {"version": "3.49.0", "date": "2026-11-19", "notes": [
    "Gatekeeper can be reached without Tailscale: Host setup, Devices reach this Gatekeeper over, Home network (only devices at home) or Another private network (ZeroTier, NetBird, Headscale...). Tailscale stays the default, and nothing is opened to the internet. On a home network the web panel stays off until Gatekeeper has HTTPS.",
    "Gatehouse's Connect steps skip Tailscale for a Gatekeeper on a home or another private network."

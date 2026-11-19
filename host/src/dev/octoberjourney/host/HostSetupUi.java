@@ -92,6 +92,16 @@ final class HostSetupUi {
 		JPanel netRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
 		netRow.add(netLab); netRow.add(netBox); netRow.add(addrBox); netRow.add(netSave);
 		netRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		// R79 stage 2: HTTPS with this Gatekeeper's own certificate, and its fingerprint (what pairings carry)
+		javax.swing.JCheckBox httpsBox = new javax.swing.JCheckBox("Use HTTPS (this Gatekeeper's own certificate)");
+		httpsBox.setToolTipText("<html>Launchers and other Gatekeepers then talk to it encrypted, on any network, and check its certificate by the fingerprint in the pairing.<br>Launchers need the new pairing after turning it on or off, and launchers older than 3.50.0 can't use it.<br>On a home network it lets the web panel be turned on.</html>");
+		JButton renewB = new JButton("New certificate\u2026");
+		renewB.setToolTipText("Makes a new certificate (for example if this machine's files were copied somewhere). Every launcher needs the new pairing afterwards.");
+		JLabel fpLab = new JLabel(" "); fpLab.setForeground(new Color(0xA9B5C1));
+		JPanel httpsRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+		httpsRow.add(httpsBox); httpsRow.add(renewB); httpsRow.add(fpLab);
+		httpsRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		boolean[] httpsFilling = {false};
 		java.util.List<Object> netAddrs = new java.util.ArrayList<>();
 		boolean[] netFilling = {false};
 		Runnable netFill = () -> {
@@ -119,6 +129,11 @@ final class HostSetupUi {
 					netFilling[0] = false;
 					netFill.run();
 					for (int i = 0; i < addrBox.getItemCount(); i++) if (addrBox.getItemAt(i).startsWith(bind + " ")) addrBox.setSelectedIndex(i);
+					httpsFilling[0] = true; httpsBox.setSelected(Boolean.TRUE.equals(r.get("https"))); httpsFilling[0] = false;
+					String fpNow = Json.str(r.get("fingerprint"));
+					renewB.setVisible(!fpNow.isEmpty());
+					fpLab.setText(fpNow.isEmpty() ? "" : "Fingerprint " + fpNow.substring(0, 16) + "\u2026");
+					fpLab.setToolTipText(fpNow.isEmpty() ? null : "Its whole fingerprint: " + fpNow);
 				});
 			} catch (Exception ignored) { Quiet.seen(ignored); }
 		}, "network").start();
@@ -133,8 +148,18 @@ final class HostSetupUi {
 				SwingUtilities.invokeLater(() -> { shareSaid.setText("<html><div style='width:860px'>" + msg.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); netLoad.run(); });   // (the steps look again by themselves)
 			}, "network-save").start();
 		});
+		java.util.function.Consumer<Map<String, Object>> httpsPost = body -> new Thread(() -> {
+			String said;
+			try { said = Json.str(Json.map(Json.parse(call("POST", "/admin/network", Json.write(body)))).get("message")); }
+			catch (Exception ex) { said = "Couldn't ask Gatekeeper: is it running?"; }
+			String msg = said;
+			SwingUtilities.invokeLater(() -> { shareSaid.setText("<html><div style='width:860px'>" + msg.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); netLoad.run(); });
+		}, "https").start();
+		httpsBox.addActionListener(e -> { if (!httpsFilling[0]) httpsPost.accept(m("https", httpsBox.isSelected())); });
+		renewB.addActionListener(e -> { if (JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Make a new certificate? Every launcher and Gatekeeper that knows this one needs the new pairing afterwards.</div></html>",
+				"New certificate", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) httpsPost.accept(m("renew", true)); });
 		netLoad.run();
-		fieldRows.add(netRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4));
+		fieldRows.add(netRow); fieldRows.add(httpsRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4));
 		fieldRows.add(nameRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4)); fieldRows.add(shareRow);
 		JPanel shareBox = new JPanel(new BorderLayout(0, 2));
 		shareBox.add(checkedLab, BorderLayout.NORTH);

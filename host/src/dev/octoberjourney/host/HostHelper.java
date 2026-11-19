@@ -88,10 +88,11 @@ public final class HostHelper {
 		if (viewOnly) dir = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-keeper-window");
 		Files.createDirectories(dir);
 		cfg = viewOnly ? new LinkedHashMap<>(m("port", door)) : Json.map(Json.parse(read(dir.resolve("host.json"))));
+		if (!viewOnly) dev.octoberjourney.popup.Pins.install(dir.resolve("pins.json"));   // (R79: a window on another Gatekeeper checks its certificate)
 		// A window on ANOTHER Gatekeeper, which has let this one manage it (OJ_PANEL_REMOTE: its address; see Manage): what
 		// this window asks goes there, as /v1/manage/..., and that Gatekeeper decides what of it is allowed.
 		String far = System.getenv("OJ_PANEL_REMOTE");
-		if (far != null && far.matches("http://[A-Za-z0-9.\\-]+:\\d{2,5}")) {
+		if (far != null && far.matches("https?://[A-Za-z0-9.\\-]+:\\d{2,5}")) {
 			farUrl = far;
 			remoteAuth = System.getenv().getOrDefault("OJ_PANEL_REMOTE_AUTH", "");
 			remoteName = System.getenv().getOrDefault("OJ_PANEL_REMOTE_NAME", "another Gatekeeper");
@@ -1015,6 +1016,7 @@ public final class HostHelper {
 
 	static void serve() throws Exception {
 		log("helper starting (port " + port() + ")");
+		dev.octoberjourney.popup.Pins.install(dir.resolve("pins.json"));   // (R79: other Gatekeepers' certificates, by fingerprint)
 		BuiltinAi.finishRemoval();
 		if (!WIN) dev.gatehouse.Shortcuts.ensure(true, null);   // (Linux: the menu entries' icons and window names, at sign-in)
 		Watchdog.start();   // (R29: a Gatekeeper that has frozen restarts itself)
@@ -1088,7 +1090,12 @@ public final class HostHelper {
 				String bind = setting("bind", "");
 				if (bind.isEmpty()) { if (!said) log("no Tailscale address yet (host.json \"bind\"): open Gatekeeper, Status, Server setup"); said = true; }
 				else try {
-					HttpServer r = HttpServer.create(new InetSocketAddress(bind, port()), 0);
+					HttpServer r;
+					if (Tls.on()) {   // (R79 stage 2: this Gatekeeper's own certificate; see Tls)
+						com.sun.net.httpserver.HttpsServer hs = com.sun.net.httpserver.HttpsServer.create(new InetSocketAddress(bind, port()), 0);
+						hs.setHttpsConfigurator(new com.sun.net.httpserver.HttpsConfigurator(Tls.context()));
+						r = hs;
+					} else r = HttpServer.create(new InetSocketAddress(bind, port()), 0);
 					r.createContext("/v1/", x -> { if (notFromBrowser(x, false)) launcher(x); });
 					r.createContext("/panel", WebPanel::web);   // (the web panel: off unless the owner turned it on)
 					r.createContext("/status", StatusPage::page);   // (R34: the read-only page for friends: off unless the owner turned it on)
@@ -1096,7 +1103,7 @@ public final class HostHelper {
 					r.start();
 					if (turn != bindTurn) { r.stop(0); return; }
 					remote = r;
-					log("listening on " + bind + ":" + port());
+					log("listening on " + Tls.scheme() + "://" + bind + ":" + port() + (Tls.on() ? " (certificate " + Tls.fingerprint() + ")" : ""));
 					return;
 				} catch (IOException ignored) { Quiet.seen(ignored); }
 				try { Thread.sleep(10_000); } catch (InterruptedException e) { return; }
@@ -2353,6 +2360,7 @@ public final class HostHelper {
 			} else if (path.equals("/admin/setup/scan")) {
 				Map<String, Object> scan = new LinkedHashMap<>(setupScan(Json.str(body(x).get("mcss_exe")).trim()));
 				scan.put("share_link", setting("tailscale_share_link", ""));   // (for the pairing)
+				scan.put("https", Tls.on()); scan.put("fingerprint", Tls.on() ? Tls.fingerprint() : "");   // (R79: the pairing carries the certificate's fingerprint)
 				scan.put("name", setting("name", ""));
 				reply(x, 200, scan);
 			} else if (path.equals("/admin/wizard")) {

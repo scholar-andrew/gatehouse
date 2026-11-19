@@ -111,10 +111,12 @@ final class Home {
 		if (t.isEmpty()) return null;
 		if (t.startsWith("{")) {
 			Map<String, Object> m = ServerControl.asMap(LaunchPopup.parseJson(t));
-			String a = norm(str(m.get("address")));
+			String fpf = str(m.get("fingerprint"));
+			String a = norm((fpf.isEmpty() ? "" : "https://") + str(m.get("address")));
+			if (!a.isEmpty() && !fpf.isEmpty()) Pins.pin(Pins.hostPort(a), fpf);   // (R79: a Gatekeeper with HTTPS, checked by this)
 			return a.isEmpty() ? null : new String[] {a, str(m.get("name")), Connect.invite(str(m.get("tailscale_share")))};
 		}
-		String name = "", share = "";
+		String name = "", share = "", fp = "";
 		// (an invite to a server names its Gatekeeper the same way: gatehouse://invite/<address>?code=...&name=...)
 		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://invite/")) t = "gatehouse://pair/" + t.substring("gatehouse://invite/".length());
 		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://pair/")) {
@@ -123,13 +125,15 @@ final class Home {
 			if (q >= 0) {
 				for (String kv : t.substring(q + 1).split("&")) try {
 					if (kv.startsWith("name=")) name = java.net.URLDecoder.decode(kv.substring(5), StandardCharsets.UTF_8);
+					else if (kv.startsWith("fp=")) fp = kv.substring(3).replaceAll("[^0-9A-Fa-f]", "");   // (R79: its certificate's fingerprint)
 					else if (kv.startsWith("ts=")) share = Connect.invite(java.net.URLDecoder.decode(kv.substring(3),
 							StandardCharsets.UTF_8));   // (the owner's Tailscale invite)
 				} catch (RuntimeException ignored) { Quiet.seen(ignored); }
 				t = t.substring(0, q);
 			}
 		}
-		String a = norm(t);
+		String a = norm((fp.isEmpty() || t.matches("(?i)https?://.*") ? "" : "https://") + t);
+		if (!a.isEmpty() && !fp.isEmpty()) Pins.pin(Pins.hostPort(a), fp);
 		return a.isEmpty() ? null : new String[] {a, name, share};
 	}
 
@@ -612,6 +616,7 @@ final class Home {
 			Map<String, Object> about = ServerControl.asMap(LaunchPopup.parseJson(local("GET", door + "/admin/local/link", null)));
 			if (str(about.get("port")).isEmpty()) return false;   // (a Gatekeeper from before this)
 			String bound = norm(str(about.get("bind_url"))), url = null;
+			if (bound.startsWith("https:")) Pins.pin(Pins.hostPort(bound), str(about.get("bind_fp")));   // (R79: this machine's own Gatekeeper, with HTTPS)
 			for (String[] k : keepers) if (!bound.isEmpty() && k[0].equals(bound)) url = k[0];
 			for (String[] k : keepers) if (url == null && k[0].equals(norm(door))) url = k[0];
 			boolean changed = false;

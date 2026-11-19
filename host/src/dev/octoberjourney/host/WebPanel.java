@@ -82,7 +82,7 @@ final class WebPanel {
 	static final Map<String, long[]> wrong = new ConcurrentHashMap<>();       // (account|address -> {how many, locked until})
 
 	static boolean on() { return setting("web_panel", "false").equals("true") && Net.panelAllowed(); }   // (R79: never on a home network before HTTPS)
-	static String address() { return setting("bind", "").isEmpty() ? "" : "http://" + setting("bind", "") + ":" + port() + "/panel/"; }
+	static String address() { return setting("bind", "").isEmpty() ? "" : Tls.scheme() + "://" + setting("bind", "") + ":" + port() + "/panel/"; }
 
 	// ------------------------------------------------------------------ accounts
 
