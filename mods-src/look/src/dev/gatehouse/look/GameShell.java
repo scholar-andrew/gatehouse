@@ -53,6 +53,36 @@ public final class GameShell extends JPanel {
 		pad = on;
 		javax.swing.SwingUtilities.invokeLater(() -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) { again(w); w.repaint(); } });
 	}
+	/** R90: which maker's controller is connected ("xbox", "playstation" or "nintendo"), so the prompts show the
+	 *  buttons as they are printed on it. Pad sets it from the controllers it finds; Xbox's names when there is no other. */
+	private static volatile String family = "xbox";
+	public static String family() { return family; }
+	public static void family(String f) {
+		String now = "playstation".equals(f) || "nintendo".equals(f) ? f : "xbox";
+		if (now.equals(family)) return;
+		family = now;
+		javax.swing.SwingUtilities.invokeLater(() -> { for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) { again(w); w.repaint(); } });
+	}
+	/** A button's name as this maker prints it (Xbox's names are what the windows ask for). */
+	static String printed(String padName) {
+		if ("playstation".equals(family)) return switch (padName) { case "LB" -> "L1"; case "RB" -> "R1"; case "LT" -> "L2"; case "RT" -> "R2";
+			case "Start", "Menu" -> "Options"; case "Back", "View" -> "Create"; default -> padName; };
+		if ("nintendo".equals(family)) return switch (padName) { case "LB" -> "L"; case "RB" -> "R"; case "LT" -> "ZL"; case "RT" -> "ZR";
+			case "Start", "Menu" -> "+"; case "Back", "View" -> "−"; default -> padName; };
+		return padName;
+	}
+	/** R90: PlayStation's face buttons are shapes, not letters: Cross, Circle, Square and Triangle where Xbox has A, B, X and Y. */
+	private static boolean shape(String padName) { return "playstation".equals(family) && padName.length() == 1 && "ABXY".contains(padName); }
+	private static void drawShape(Graphics2D g, String padName, double cx, double cy) {
+		g.setStroke(new BasicStroke(2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+		switch (padName) {
+			case "A" -> { g.setColor(new Color(0x7FA8E6)); g.draw(new java.awt.geom.Line2D.Double(cx - 5, cy - 5, cx + 5, cy + 5)); g.draw(new java.awt.geom.Line2D.Double(cx - 5, cy + 5, cx + 5, cy - 5)); }
+			case "B" -> { g.setColor(new Color(0xEE6B6E)); g.draw(new Ellipse2D.Double(cx - 5.5, cy - 5.5, 11, 11)); }
+			case "X" -> { g.setColor(new Color(0xE08BD0)); g.draw(new java.awt.geom.Rectangle2D.Double(cx - 5, cy - 5, 10, 10)); }
+			default -> { g.setColor(new Color(0x4FD1A1)); java.awt.geom.Path2D.Double t = new java.awt.geom.Path2D.Double();
+				t.moveTo(cx, cy - 6); t.lineTo(cx + 6, cy + 4.5); t.lineTo(cx - 6, cy + 4.5); t.closePath(); g.draw(t); }
+		}
+	}
 	private static void again(java.awt.Container c) {
 		for (java.awt.Component x : c.getComponents()) { if (x instanceof Glyph
 				|| x instanceof Hint) ((JComponent) x).revalidate(); if (x instanceof java.awt.Container k) again(k); }
@@ -72,16 +102,22 @@ public final class GameShell extends JPanel {
 	// ---- a button's picture: a round controller button, or a keyboard key
 	static int glyphWidth(Graphics2D g, String padName, String key) {
 		if (pad && padName.length() == 1) return 24;
-		return Math.max(26, g.getFontMetrics(font(11.5f, true)).stringWidth(pad ? padName : key) + 14);
+		return Math.max(26, g.getFontMetrics(font(11.5f, true)).stringWidth(pad ? printed(padName) : key) + 14);
 	}
 	static int glyph(Graphics2D g, String padName, String key, int x, int cy) {
+		if (pad && shape(padName)) {   // (R90: a PlayStation face button: its shape in its colour on a dark button)
+			g.setColor(new Color(0x1B2838)); g.fill(new Ellipse2D.Double(x, cy - 12, 24, 24));
+			g.setColor(a(TEXT, 170)); g.setStroke(new BasicStroke(1.2f)); g.draw(new Ellipse2D.Double(x + 0.6, cy - 11.4, 22.8, 22.8));
+			drawShape(g, padName, x + 12, cy);
+			return 24;
+		}
 		if (pad && padName.length() == 1) {
 			g.setColor(TEXT); g.fill(new Ellipse2D.Double(x, cy - 12, 24, 24));
 			Font f = font(13f, true); g.setFont(f); g.setColor(BG0);
 			g.drawString(padName, x + 12 - g.getFontMetrics().stringWidth(padName) / 2f, cy + 5);
 			return 24;
 		}
-		String s = pad ? padName : key; Font f = font(11.5f, true); g.setFont(f);
+		String s = pad ? printed(padName) : key; Font f = font(11.5f, true); g.setFont(f);
 		int w = glyphWidth(g, padName, key);
 		g.setColor(a(TEXT, 28)); g.fill(new RoundRectangle2D.Double(x, cy - 11, w, 22, 7, 7));
 		g.setColor(a(TEXT, 150)); g.setStroke(new BasicStroke(1.2f)); g.draw(new RoundRectangle2D.Double(x, cy - 11, w, 22, 7, 7));
@@ -105,7 +141,7 @@ public final class GameShell extends JPanel {
 		}
 		private boolean nothing() { return (!pad && key.isEmpty()) || (of != null && !of.isVisible()); }
 		@Override public Dimension getPreferredSize() { if (nothing()) return new Dimension(0, 26); return new Dimension(Math.max(26,
-				getFontMetrics(font(11.5f, true)).stringWidth(pad ? padName : key) + 16), 26); }
+				getFontMetrics(font(11.5f, true)).stringWidth(pad ? printed(padName) : key) + 16), 26); }
 		@Override protected void paintComponent(Graphics g0) { if (nothing()) return; Graphics2D g = smooth(g0); int w = glyphWidth(g,
 				padName, key); glyph(g, padName, key, (getWidth() - w) / 2, getHeight() / 2); g.dispose(); }
 	}
@@ -116,7 +152,7 @@ public final class GameShell extends JPanel {
 		public Hint(String padName, String key, String label) { this.padName = padName; this.key = key; this.label = label; }
 		public void label(String l) { label = l; revalidate(); repaint(); }
 		@Override public Dimension getPreferredSize() { return new Dimension(Math.max(26, getFontMetrics(font(11.5f,
-				true)).stringWidth(padName.length() > key.length() ? padName : key) + 14) + 8 + getFontMetrics(font(13.5f, false)).stringWidth(label) + 4, 30); }
+				true)).stringWidth(printed(padName).length() > key.length() ? printed(padName) : key) + 14) + 8 + getFontMetrics(font(13.5f, false)).stringWidth(label) + 4, 30); }
 		@Override protected void paintComponent(Graphics g0) {
 			Graphics2D g = smooth(g0);
 			int x = glyph(g, padName, key, 0, getHeight() / 2) + 8;

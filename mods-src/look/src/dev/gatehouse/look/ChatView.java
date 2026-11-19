@@ -451,7 +451,8 @@ public final class ChatView extends JPanel {
 				box.remove(shownPic);
 				box.add(holder, BorderLayout.CENTER);
 				view.putClientProperty("player", holder); view.setText("Close player");
-				try { holder.add(MediaEngine.embed(temp(m, bytes), m.fileName(), problem), BorderLayout.CENTER); }
+				// (R93: held at its own size, the size of what it plays, not stretched across the chat)
+				try { JPanel own = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); own.setOpaque(false); own.add(MediaEngine.embed(temp(m, bytes), m.fileName(), problem)); holder.add(own, BorderLayout.CENTER); }
 				catch (Throwable ex) { problem.accept("the player didn't start (" + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()) + ")"); }
 				box.revalidate(); box.repaint(); list.revalidate();
 			}, () -> view.setEnabled(true)));

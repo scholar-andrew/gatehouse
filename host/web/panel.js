@@ -483,6 +483,7 @@ const PICONS = {
   play: 'M8 5v14l11-7z', pause: 'M7 5h4v14H7zm6 0h4v14h-4z',
   vol: 'M4 9v6h4l5 4V5L8 9zm12 3a4 4 0 0 0-2.2-3.6v7.2A4 4 0 0 0 16 12z',
   muted: 'M4 9v6h4l5 4V5L8 9zm11.3.3 1.4-1.4 2 2 2-2 1.4 1.4-2 2 2 2-1.4 1.4-2-2-2 2-1.4-1.4 2-2z',
+  skip: 'M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z',
   theater: 'M2 6h20v12H2zm2 2v8h16V8z', full: 'M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z'
 };
 const clock = s => { s = Math.floor(s || 0); const h = Math.floor(s / 3600), mm = Math.floor(s / 60) % 60, ss = String(s % 60).padStart(2, '0'); return h ? h + ':' + String(mm).padStart(2, '0') + ':' + ss : mm + ':' + ss; };
@@ -491,7 +492,9 @@ function player(url, name, bytes) {
   m.preload = 'none'; m.src = url; m.setAttribute('playsinline', '');
   const box = el('div', 'player ' + (video ? 'video' : 'sound')); box.tabIndex = 0; box.setAttribute('aria-label', 'Player: ' + name);
   const ib = (d, label, fn) => { const b = button(null, fn, 'pbtn'); b.appendChild(icon(d)); b.setAttribute('aria-label', label); b.title = label; return b; };
-  const tb = (t, label, fn) => { const b = button(t, fn, 'pbtn txt'); b.setAttribute('aria-label', label); b.title = label; return b; };
+  // (R92: the skip keys are the standard round arrow with the seconds inside, the forward one turned the other way)
+  const sk = (label, fwd, fn) => { const b = ib(PICONS.skip, label, fn), s = b.firstChild; if (fwd) s.querySelector('path').setAttribute('transform', 'matrix(-1 0 0 1 24 0)');
+    const t = document.createElementNS(SVGNS, 'text'); t.setAttribute('x', '12'); t.setAttribute('y', '16'); t.setAttribute('text-anchor', 'middle'); t.setAttribute('class', 'skipn'); t.textContent = '10'; s.appendChild(t); return b; };
   const swap = (b, d, label) => { b.replaceChildren(icon(d)); b.setAttribute('aria-label', label); b.title = label; };
   const toggle = () => { if (m.paused) m.play().catch(() => {}); else m.pause(); };
   const fullscreen = () => {
@@ -500,8 +503,8 @@ function player(url, name, bytes) {
     else if (m.webkitEnterFullscreen) m.webkitEnterFullscreen();
   };
   const play = ib(PICONS.play, 'Play (Space)', toggle);
-  const back = tb('\u221210', 'Back 10 seconds (Left)', () => { m.currentTime = Math.max(0, m.currentTime - 10); });
-  const fwd = tb('+10', 'Forward 10 seconds (Right)', () => { if (m.duration) m.currentTime = Math.min(m.duration, m.currentTime + 10); });
+  const back = sk('Back 10 seconds (Left)', false, () => { m.currentTime = Math.max(0, m.currentTime - 10); });
+  const fwd = sk('Forward 10 seconds (Right)', true, () => { if (m.duration) m.currentTime = Math.min(m.duration, m.currentTime + 10); });
   const seek = el('input', 'seek'); seek.type = 'range'; seek.min = 0; seek.max = 1000; seek.value = 0; seek.setAttribute('aria-label', 'Position');
   const at = el('span', 'ptime', bytes ? size(bytes) : '0:00');
   const mute = ib(PICONS.vol, 'Mute (M)', () => { m.muted = !m.muted; });
@@ -524,6 +527,8 @@ function player(url, name, bytes) {
   const show = () => { if (!held) seek.value = m.duration ? Math.round(m.currentTime / m.duration * 1000) : 0; at.textContent = clock(m.currentTime) + ' / ' + clock(m.duration); };
   m.addEventListener('timeupdate', show);
   m.addEventListener('loadedmetadata', show);
+  // R93: a video's player is as wide as its picture (at most 270 high and 640 wide, never enlarged), not the chat's width
+  if (video) m.addEventListener('loadedmetadata', () => { const w = m.videoWidth, h = m.videoHeight; if (!w || !h) return; let ph = Math.min(270, h), pw = ph * w / h; if (pw > 640) pw = 640; box.style.setProperty('--pw', Math.round(pw) + 'px'); });
   m.addEventListener('play', () => swap(play, PICONS.pause, 'Pause (Space)'));
   m.addEventListener('pause', () => swap(play, PICONS.play, 'Play (Space)'));
   m.addEventListener('volumechange', () => swap(mute, m.muted || m.volume === 0 ? PICONS.muted : PICONS.vol, m.muted ? 'Unmute (M)' : 'Mute (M)'));

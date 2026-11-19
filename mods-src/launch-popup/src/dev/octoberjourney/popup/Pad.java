@@ -46,14 +46,21 @@ final class Pad {
 		} catch (Throwable t) { source = "none (this Java can't read XInput: " + t.getClass().getSimpleName() + ")"; }
 		else { linux(); deckPad(listener); }
 		java.util.function.Supplier<int[]> xi = xinput;
+		java.lang.reflect.Method[] maker = {null};   // (R90: PadWin.family(), looked up by name like PadWin itself)
+		if (xi != null) try { maker[0] = xi.getClass().getMethod("family"); } catch (ReflectiveOperationException | RuntimeException e) { Quiet.seen(e); }
 		Thread t = new Thread(() -> {
 			boolean[] was = new boolean[COUNT];
 			long[] since = new long[COUNT], last = new long[COUNT];
+			long makerLooked = 0;
 			while (true) {
 				try {
 					boolean showing = false;
 					for (java.awt.Window w : java.awt.Window.getWindows()) if (w.isShowing()) showing = true;
 					if (!showing && System.getenv("OJ_PAD_TEST") == null) { Thread.sleep(400); java.util.Arrays.fill(was, false); continue; }
+					if (maker[0] != null && System.currentTimeMillis() - makerLooked > 3000) {
+						makerLooked = System.currentTimeMillis();
+						try { family(String.valueOf(maker[0].invoke(xi))); } catch (ReflectiveOperationException | RuntimeException e) { Quiet.seen(e); }
+					}
 					if (xi != null) {
 						int[] s = xi.get();   // {buttons, right trigger 0-255, left stick x, left stick y} or null
 						synchronized (held) {
@@ -90,6 +97,24 @@ final class Pad {
 		t.setDaemon(true);
 		t.start();
 	}
+
+	/** R90: which maker's buttons to show: PlayStation while a Sony controller is connected, Nintendo while a Nintendo
+	 *  one is, else Xbox's (Xbox pads, the Steam Deck's own controls, a Steam Controller). */
+	static String familyOf(boolean sony, boolean nintendo) { return sony ? "playstation" : nintendo ? "nintendo" : "xbox"; }
+	/** Linux: the makers of the input devices the kernel has (/sys/class/input/input*): a PlayStation controller Steam
+	 *  passes on as its own virtual pad is still listed there under Sony (054c). */
+	static String linuxFamily(Path sys) {
+		boolean sony = false, nintendo = false;
+		try (java.util.stream.Stream<Path> s = Files.list(sys)) {
+			for (Path d : (Iterable<Path>) s::iterator) {
+				if (!d.getFileName().toString().startsWith("input")) continue;
+				String v = readSmall(d.resolve("id/vendor")).strip().toLowerCase(java.util.Locale.ROOT);
+				sony |= v.equals("054c"); nintendo |= v.equals("057e");
+			}
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+		return familyOf(sony, nintendo);
+	}
+	private static void family(String f) { try { dev.gatehouse.look.GameShell.family(f); } catch (Throwable t) { Quiet.seen(t); } }
 
 	/** Pixels to scroll this tick for a stick pushed this far past its dead zone: faster the further it is pushed. */
 	static int speed(int v) {
@@ -176,6 +201,7 @@ final class Pad {
 		Thread finder = new Thread(() -> {
 			while (true) {
 				try {
+					family(linuxFamily(Path.of(System.getenv().getOrDefault("OJ_PAD_SYS", "/sys/class/input"))));   // (R90)
 					List<Path> devs = new ArrayList<>();
 					String only = System.getenv("OJ_PAD_DEV");   // (testing: a file of recorded events)
 					if (only != null) devs.add(Path.of(only));

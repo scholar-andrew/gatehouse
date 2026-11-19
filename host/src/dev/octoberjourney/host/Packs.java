@@ -77,9 +77,12 @@ final class Packs {
 	/** The Fabric loader a server's folder runs ("" when it isn't a Fabric server): the client's has to be the same. */
 	static String fabricLoader(Path serverDir) {
 		Path l = serverDir.resolve("libraries/net/fabricmc/fabric-loader");
-		if (!Files.isDirectory(l)) return "";
-		try (java.util.stream.Stream<Path> s = Files.list(l)) { return s.filter(Files::isDirectory).map(p -> p.getFileName().toString()).filter(v -> v.matches("[\\w.+\\-]{1,32}")).sorted().reduce((a, b) -> b).orElse(""); }
-		catch (IOException e) { return ""; }
+		if (Files.isDirectory(l)) try (java.util.stream.Stream<Path> s = Files.list(l)) {
+			String v = s.filter(Files::isDirectory).map(p -> p.getFileName().toString()).filter(x -> x.matches("[\\w.+\\-]{1,32}")).sorted().reduce((a, b) -> b).orElse("");
+			if (!v.isEmpty()) return v;
+		} catch (IOException e) { dev.gatehouse.look.Quiet.seen(e); }
+		// R91: a server that hasn't started yet has no libraries; Fabric's launcher is named for what it will run
+		return Minecraft.fabricLauncher(serverDir)[1];
 	}
 	private static String gameAddress(Map<String, Object> s) {
 		String b = Net.reachable(), p = Json.str(s.get("minecraft")).replaceAll(".*:", "");

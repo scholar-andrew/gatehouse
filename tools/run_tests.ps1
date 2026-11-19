@@ -7,6 +7,8 @@
 # started; a throwaway signing key is made and wiped):
 #   1. signatures: a good file passes, a changed one is refused, a missing signature is "unsigned"
 #   2. notes and icons: boxes, the what's-new summary, a list opening at its top, the shortcut icon
+#   2b. server folders: a never-started Fabric server is read as Fabric, with its Minecraft and loader versions
+#   2c. controller makers: the button pictures follow a PlayStation or Nintendo controller that is connected
 #   3. a frozen Gatekeeper: one made to lock up the way it did on 2026-11-17 is noticed and restarted by its watchdog
 #   4. a busy Gatekeeper: many calls at once for a while, and it still answers, with no freeze noticed
 #   4b. its doors: requests from web pages (Origin, Sec-Fetch-*, another host name) are refused, oversized and deeply
@@ -44,6 +46,13 @@ try {
     # 2. notes and icons
     & "$jdk\java.exe" -cp "$jar;$work\c" dev.gatehouse.TestLook
     Result 'notes and icons' ($LASTEXITCODE -eq 0)
+
+    # 2b. server folders (R91): a Fabric server that hasn't started yet is still a Fabric server of its version
+    & "$jdk\java.exe" -cp "$jar;$work\c" dev.octoberjourney.host.TestServers
+    Result 'server folders' ($LASTEXITCODE -eq 0)
+    # 2c. controller makers (R90): PlayStation or Nintendo buttons while such a controller is connected
+    & "$jdk\java.exe" '-Djava.awt.headless=true' -cp "$jar;$work\c" dev.octoberjourney.popup.TestPad
+    Result 'controller makers' ($LASTEXITCODE -eq 0)
 
     # 3 and 4: a stand-in Gatekeeper
     function Keeper($port, $extra) {

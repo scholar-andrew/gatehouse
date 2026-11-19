@@ -7,6 +7,12 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.55.0 - 2026-11-19
+
+- The chat's player uses the usual media icons for its buttons, and is as wide as the video it plays (or, for a sound, its name) instead of the whole chat, never so narrow that a button is hidden. The same in the web panel.
+- A Fabric server that hasn't been started yet is now seen as a Fabric server of its version straight away, so making its pack and finding mods for it work before its first start.
+- With a PlayStation controller connected, the button pictures are its shapes (Cross, Circle, Square, Triangle) and L1, R1 and Options; with a Nintendo one, its names. On a Steam Deck and on a PC, also when Steam passes the controller on.
+
 ## 3.54.0 - 2026-11-19
 
 - A server's Pack tab is split into four: Pack (its state and versions), Mods, Who it's for (visibility and invites) and Pictures.

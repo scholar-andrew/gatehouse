@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.54.0",
+ "version": "3.55.0",
  "changes": [
+  {"version": "3.55.0", "date": "2026-11-19", "notes": [
+   "The chat's player uses the usual media icons for its buttons, and is as wide as the video it plays (or, for a sound, its name) instead of the whole chat, never so narrow that a button is hidden. The same in the web panel.",
+   "A Fabric server that hasn't been started yet is now seen as a Fabric server of its version straight away, so making its pack and finding mods for it work before its first start.",
+   "With a PlayStation controller connected, the button pictures are its shapes (Cross, Circle, Square, Triangle) and L1, R1 and Options; with a Nintendo one, its names. On a Steam Deck and on a PC, also when Steam passes the controller on."
+  ]},
   {"version": "3.54.0", "date": "2026-11-19", "notes": [
    "A server's Pack tab is split into four: Pack (its state and versions), Mods, Who it's for (visibility and invites) and Pictures.",
    "The menu's Play or Host is now the other program's own button: Open Gatehouse (yellow castle) in Gatekeeper, Open Gatekeeper (blue castle) in Gatehouse. Where that program isn't set up yet, it opens the first screen to set it up."

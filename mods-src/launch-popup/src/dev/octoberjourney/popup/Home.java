@@ -2171,6 +2171,7 @@ final class Home {
 								"") + "-" + suffix + ".png")); } catch (IOException ex) { throw new java.io.UncheckedIOException(ex); }
 					};
 					dev.gatehouse.look.GameShell.pad(System.getenv("OJ_SHOT_PAD") != null);
+					if (System.getenv("OJ_SHOT_PAD") != null) dev.gatehouse.look.GameShell.family(System.getenv("OJ_SHOT_PAD"));   // (R90: playstation, nintendo or xbox)
 					showKeepers[0].run(); snap.accept("");
 					if (!keepers.isEmpty()) {
 						showServers.accept(keepers.get(0)[0]);

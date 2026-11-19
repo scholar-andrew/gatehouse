@@ -100,22 +100,38 @@ public final class Player {
 	}
 	private static Text text(String s, double size, Color c) { Text t = new Text(s); t.setFont(Font.font(size)); t.setFill(c); return t; }
 
-	/** A button: words on a rounded key. */
+	// R92: the standard media icons (Material Design's shapes, 24 by 24), in place of words on the keys.
+	private static final String PLAY = "M8 5v14l11-7z", PAUSE = "M6 19h4V5H6v14zm8-14v14h4V5h-4z",
+			SKIP = "M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z",
+			SOUND = "M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z",
+			MUTED_ICON = "M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z",
+			THEATER = "M19 6H5c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H5V8h14v8z",
+			SMALLER = "M17 8H7c-1.1 0-2 .9-2 2v4c0 1.1.9 2 2 2h10c1.1 0 2-.9 2-2v-4c0-1.1-.9-2-2-2zm0 6H7v-4h10v4z",
+			FULL = "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z",
+			LEAVE_FULL = "M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z";
+
+	/** A button: an icon on a rounded key (its name is read out by screen readers). */
 	private static final class Key extends StackPane {
-		final Text label;
-		Key(String words, Runnable run) {
-			label = text(words, 13, TEXT);
+		final javafx.scene.shape.SVGPath icon = new javafx.scene.shape.SVGPath();
+		Key(String name, String shape, Runnable run) { this(name, shape, null, false, run); }
+		/** A skip key: the round arrow with the seconds inside, turned the other way for forward. */
+		Key(String name, String shape, String inside, boolean mirror, Runnable run) {
 			Rectangle back = new Rectangle(); back.setArcWidth(10); back.setArcHeight(10); back.setFill(KEY);
-			getChildren().addAll(back, label);
-			setPadding(new Insets(5, 10, 5, 10));
+			icon.setContent(shape); icon.setFill(TEXT);
+			if (mirror) icon.setScaleX(-1);
+			getChildren().addAll(back, icon);
+			if (inside != null) { Text t = text(inside, 7, TEXT); t.setFont(Font.font(null, javafx.scene.text.FontWeight.BOLD, 7)); t.setTranslateY(2); getChildren().add(t); }
+			setPadding(new Insets(4, 5, 4, 5));
 			back.widthProperty().bind(widthProperty()); back.heightProperty().bind(heightProperty());
 			back.setManaged(false);
 			setCursor(Cursor.HAND);
+			name(name);
 			setOnMouseEntered(e -> back.setFill(KEY_LIT));
 			setOnMouseExited(e -> back.setFill(KEY));
 			setOnMouseClicked(e -> run.run());
 		}
-		void say(String s) { label.setText(s); }
+		void show(String name, String shape) { icon.setContent(shape); name(name); }
+		private void name(String n) { setAccessibleText(n); setAccessibleRole(javafx.scene.AccessibleRole.BUTTON); }
 	}
 	/** A slider: a track, the part filled, and a knob; dragging or clicking sets it (0..max). */
 	private static final class Bar extends Pane {
@@ -182,6 +198,42 @@ public final class Player {
 		mp.setOnStalled(() -> stalls[0]++);
 	}
 
+	/** R93: the largest a picture is shown in the chat (it is never made bigger than it is). */
+	private static final int PIC_H = 270, MAX_W = 640;
+	/**
+	 * R93: sizes the player to what it plays, on JavaFX's thread once the media is ready: a video as wide as its picture
+	 * (at most PIC_H tall and MAX_W wide), a sound as wide as its name; never narrower than the controls need, nor wider
+	 * than the chat. That size is also what Theater's "Smaller" goes back to.
+	 */
+	private static void fit(JFXPanel panel, HBox bar, StackPane screen, Media media, boolean video, Dimension[] base, double[] aspect, boolean[] wide, boolean[] full) {
+		bar.applyCss();
+		double barH = Math.ceil(bar.prefHeight(-1)), need = Math.ceil(bar.prefWidth(-1));
+		int w, h;
+		if (video) {
+			double mw = media.getWidth(), mh = media.getHeight();
+			if (mw > 0 && mh > 0) aspect[0] = mw / mh;
+			double ph = Math.min(PIC_H, mh > 0 ? mh : PIC_H), pw = ph * aspect[0];
+			if (pw > MAX_W) { pw = MAX_W; ph = pw / aspect[0]; }
+			w = (int) Math.ceil(Math.max(need, pw)); h = (int) Math.ceil(ph + barH);
+		} else {
+			double named = 0;
+			for (javafx.scene.Node n : screen.getChildren()) if (n instanceof Text t && n.isVisible()) named = Math.max(named, t.getLayoutBounds().getWidth() + 24);
+			w = (int) Math.ceil(Math.max(need, Math.min(MAX_W, named))); h = SOUND_H;
+		}
+		int fw = w, fh = h;
+		SwingUtilities.invokeLater(() -> {
+			int most = Integer.MAX_VALUE;
+			Container chat = panel.getParent();
+			while (chat != null && !(chat instanceof javax.swing.JViewport)) chat = chat.getParent();
+			if (chat != null && chat.getWidth() > 0) most = Math.max(Math.min(fw, (int) Math.ceil(need)), chat.getWidth() - 40);
+			Dimension d = new Dimension(Math.min(fw, most), fh);
+			base[0] = d;
+			if (wide[0] || full[0]) return;
+			panel.setPreferredSize(d); panel.setMaximumSize(d);
+			panel.revalidate(); if (panel.getParent() != null) { panel.getParent().revalidate(); panel.getParent().repaint(); }
+		});
+	}
+
 	/** The scene, on JavaFX's thread. */
 	private static MediaPlayer build(JFXPanel panel, Path file, String title, boolean video, Consumer<String> problem, Dimension small) {
 		Media media = new Media(file.toUri().toString());
@@ -212,6 +264,8 @@ public final class Player {
 
 		// Theater and full screen move the Swing side; the scene just follows its size.
 		boolean[] wide = {false}, full = {false};
+		Dimension[] base = {small};   // (R93: the player's own size, set to its media's once that is known)
+		double[] aspect = {16 / 9.0};
 		Key[] th = new Key[1], fs = new Key[1];
 		JFrame[] fullFrame = {null};
 		Container[] home = {null};
@@ -225,11 +279,11 @@ public final class Player {
 			Container chat = panel.getParent();
 			while (chat != null && !(chat instanceof javax.swing.JViewport)) chat = chat.getParent();
 			int w = chat == null ? W * 2 : Math.max(W, chat.getWidth() - 40);
-			Dimension d = wide[0] ? new Dimension(w, video ? Math.max(VIDEO_H, (int) (w * 9 / 16.0) + 40) : SOUND_H) : small;
+			Dimension d = wide[0] ? new Dimension(w, video ? Math.max(VIDEO_H, (int) (w / aspect[0]) + 40) : SOUND_H) : base[0];
 			panel.setPreferredSize(d); panel.setMaximumSize(d);
 			panel.revalidate(); if (panel.getParent() != null) panel.getParent().revalidate();
 			panel.scrollRectToVisible(new java.awt.Rectangle(0, 0, d.width, d.height));
-			Platform.runLater(() -> th[0].say(wide[0] ? "Smaller" : "Theater"));
+			Platform.runLater(() -> th[0].show(wide[0] ? "Smaller" : "Theater", wide[0] ? SMALLER : THEATER));
 		});
 		Runnable fullScreen = () -> SwingUtilities.invokeLater(() -> {
 			java.awt.GraphicsDevice dev = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
@@ -259,17 +313,17 @@ public final class Player {
 					full[0] = false; fullFrame[0] = null;
 				}
 			} finally { panel.putClientProperty("moving", null); }
-			Platform.runLater(() -> fs[0].say(full[0] ? "Leave full screen" : "Full screen"));
+			Platform.runLater(() -> fs[0].show(full[0] ? "Leave full screen" : "Full screen", full[0] ? LEAVE_FULL : FULL));
 		});
 
-		Key play = new Key("Pause", toggle), back = new Key("- 10 s", bk), fwd = new Key("+ 10 s", fw);
-		Key mute = new Key("Mute", () -> mp.setMute(!mp.isMute()));
-		th[0] = new Key("Theater", theater); fs[0] = new Key("Full screen", fullScreen);
-		Bar seek = new Bar(160, v -> mp.seek(Duration.seconds(v))), vol = new Bar(60, v -> {});
+		Key play = new Key("Pause", PAUSE, toggle), back = new Key("Back 10 seconds", SKIP, "10", false, bk), fwd = new Key("Forward 10 seconds", SKIP, "10", true, fw);
+		Key mute = new Key("Mute", SOUND, () -> mp.setMute(!mp.isMute()));
+		th[0] = new Key("Theater", THEATER, theater); fs[0] = new Key("Full screen", FULL, fullScreen);
+		Bar seek = new Bar(50, v -> mp.seek(Duration.seconds(v))), vol = new Bar(50, v -> {});
 		vol.value.set(0.8);
 		HBox.setHgrow(seek, Priority.ALWAYS);
 		Text at = text("0:00 / 0:00", 12, MUTED);
-		HBox bar = new HBox(6, play, back, fwd, seek, at, mute, vol);
+		HBox bar = new HBox(5, play, back, fwd, seek, at, mute, vol);
 		if (video) bar.getChildren().addAll(th[0], fs[0]);
 		bar.setAlignment(Pos.CENTER_LEFT);
 		bar.setPadding(new Insets(6, 8, 6, 8));
@@ -277,13 +331,18 @@ public final class Player {
 
 		mp.setVolume(vol.value.get());
 		vol.value.addListener((o, a, b) -> { mp.setVolume(b.doubleValue()); if (b.doubleValue() > 0) mp.setMute(false); });
-		mp.muteProperty().addListener((o, a, b) -> mute.say(b ? "Unmute" : "Mute"));
+		mp.muteProperty().addListener((o, a, b) -> mute.show(b ? "Unmute" : "Mute", b ? MUTED_ICON : SOUND));
 		mp.currentTimeProperty().addListener((o, a, b) -> {
 			if (!seek.held) seek.value.set(b.toSeconds());
 			at.setText(time(b) + " / " + time(mp.getTotalDuration()));
 		});
-		mp.setOnReady(() -> { Duration d = media.getDuration(); seek.max.set(Math.max(1, d.toSeconds())); at.setText("0:00 / " + time(d)); mp.play(); });
-		mp.statusProperty().addListener((o, a, b) -> play.say(b == MediaPlayer.Status.PLAYING ? "Pause" : "Play"));
+		mp.setOnReady(() -> {
+			Duration d = media.getDuration(); seek.max.set(Math.max(1, d.toSeconds()));
+			at.setText(time(d) + " / " + time(d));   // (the widest the time gets, for the size below)
+			fit(panel, bar, screen, media, video, base, aspect, wide, full);
+			at.setText("0:00 / " + time(d)); mp.play();
+		});
+		mp.statusProperty().addListener((o, a, b) -> play.show(b == MediaPlayer.Status.PLAYING ? "Pause" : "Play", b == MediaPlayer.Status.PLAYING ? PAUSE : PLAY));
 		mp.setOnEndOfMedia(() -> { mp.pause(); mp.seek(Duration.ZERO); });
 		screen.setOnMouseClicked(e -> { if (e.getClickCount() == 2 && video) fullScreen.run(); else if (e.getClickCount() == 1) toggle.run(); });
 

@@ -79,6 +79,20 @@ public final class PadWin implements java.util.function.Supplier<int[]> {
 					info.get(ValueLayout.JAVA_INT, 12), info.get(ValueLayout.JAVA_INT, 16), info.get(ValueLayout.JAVA_INT, 20));
 		} catch (Throwable t) { joyId = -1; return null; }
 	}
+	/** R90: the maker of the controllers Windows has ("playstation", "nintendo" or "xbox"), for the button pictures. A
+	 *  PlayStation controller that Steam turns into an Xbox one for XInput is still listed here under its own maker. */
+	public String family() {
+		if (joyPos == null) return "xbox";
+		boolean sony = false, nintendo = false;
+		try {
+			for (int id = 0; id < 16; id++) {
+				if (!pos(id) || (int) joyCaps.invokeExact((long) id, caps, 728) != 0) continue;
+				int v = caps.get(ValueLayout.JAVA_SHORT, 0) & 0xFFFF;
+				sony |= v == 0x054C; nintendo |= v == 0x057E;
+			}
+		} catch (Throwable t) { return "xbox"; }
+		return Pad.familyOf(sony, nintendo);
+	}
 	private boolean pos(int id) throws Throwable {
 		info.set(ValueLayout.JAVA_INT, 0, 52);    // dwSize
 		info.set(ValueLayout.JAVA_INT, 4, 0xFF);  // dwFlags: JOY_RETURNALL

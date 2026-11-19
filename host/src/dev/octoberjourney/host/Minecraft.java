@@ -24,6 +24,16 @@ final class Minecraft implements Game {
 
 	// ------------------------------------------------------------------ its server's folder and program
 
+	/** R91: the Minecraft and Fabric loader versions in the name of Fabric's server launcher in a folder
+	 *  (fabric-server-mc.26.3-loader.0.20.1-launcher.1.1.2.jar), or {"", ""}: all a new, never-started server has. */
+	static String[] fabricLauncher(Path d) {
+		Pattern named = Pattern.compile("(?i)fabric-server-mc\\.([\\w.\\-]{1,32}?)-loader\\.([\\w.+\\-]{1,32}?)-launcher\\.[\\w.\\-]+\\.jar");
+		try (java.util.stream.Stream<Path> s = Files.list(d)) {
+			return s.map(p -> named.matcher(p.getFileName().toString())).filter(Matcher::matches).map(m -> new String[] {m.group(1), m.group(2)})
+					.sorted((a, b) -> a[0].compareTo(b[0])).reduce((a, b) -> b).orElse(new String[] {"", ""});
+		} catch (IOException | RuntimeException e) { return new String[] {"", ""}; }
+	}
+
 	/** The server jar in a folder, or null. */
 	static Path serverJar(Path d) {
 		List<Path> jars = new ArrayList<>();
@@ -116,6 +126,7 @@ final class Minecraft implements Game {
 			if (version.isEmpty()
 					&& Files.isDirectory(dir.resolve("versions"))) try (java.util.stream.Stream<Path> s = Files.list(dir.resolve("versions"))) { version = s.filter(Files::isDirectory).map(p -> p.getFileName().toString()).sorted().reduce((a, b) -> b).orElse(""); }
 		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+		if (version.isEmpty()) version = fabricLauncher(dir)[0];   // (R91: a Fabric server that hasn't started yet)
 		return new String[] {modded ? "modded" : "vanilla", version};
 	}
 	/** A running server holds a lock on session.lock in its world folder. */
