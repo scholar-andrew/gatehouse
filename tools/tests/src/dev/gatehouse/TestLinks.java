@@ -19,6 +19,15 @@ public final class TestLinks {
 		t.check("not a video: a channel", LinkPreview.youtubeId("https://www.youtube.com/@someone") == null);
 		t.check("not YouTube at all", LinkPreview.youtubeId("https://example.com/watch?v=dQw4w9WgXcQ") == null);
 		t.check("an odd id is refused", LinkPreview.youtubeId("https://youtu.be/abc%22onload") == null);
+		// R121: an X post that quotes another: the quoted one's author, words and video come along
+		var xq = LinkPreview.xParse("{\"id_str\":\"111\",\"text\":\"Look at this https://t.co/abc\",\"user\":{\"name\":\"Outer\",\"screen_name\":\"outer\"},"
+				+ "\"quoted_tweet\":{\"id_str\":\"222\",\"text\":\"The quoted words\",\"user\":{\"name\":\"Inner\",\"screen_name\":\"inner\"},"
+				+ "\"mediaDetails\":[{\"type\":\"video\",\"media_url_https\":\"https://pbs.twimg.com/t.jpg\",\"video_info\":{\"variants\":[{\"content_type\":\"video/mp4\",\"bitrate\":832000,\"url\":\"https://video.twimg.com/v.mp4\"}]}}]}}", "111");
+		t.check("an X post's words, without its own media link", "Look at this".equals(xq.text()) && "outer".equals(xq.handle()));
+		t.check("the post it quotes comes along", xq.quoted() != null && "inner".equals(xq.quoted().handle()) && "222".equals(xq.quoted().id()) && "The quoted words".equals(xq.quoted().text()));
+		t.check("with the quoted post's video", xq.quoted() != null && "https://video.twimg.com/v.mp4".equals(xq.quoted().video()) && xq.video() == null);
+		var xg = LinkPreview.xParse("{\"id_str\":\"333\",\"text\":\"x\",\"user\":{},\"quoted_tweet\":{\"__typename\":\"TweetTombstone\"},\"quoted_tweet_id_str\":\"444\"}", "333");
+		t.check("a quoted post X won't give: known as missing, with its number", xg.quoted() != null && !xg.quoted().known() && "444".equals(xg.quoted().id()));
 		// R85: X posts
 		t.check("an X post's number", "1585341984679469056".equals(LinkPreview.xPostId("https://x.com/someone/status/1585341984679469056?s=20")));
 		t.check("a twitter.com post's number", "20".equals(LinkPreview.xPostId("https://twitter.com/jack/status/20")));

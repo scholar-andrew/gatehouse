@@ -22,7 +22,7 @@ Palworld, and more games to come. It is one program with two halves:
 Devices talk over the host's private [Tailscale](https://tailscale.com/) network, so nothing is opened to the
 internet. Every update is checked against its published checksum and release signature.
 
-Current version: **Gatehouse 3.59.1**, both halves.
+Current version: **Gatehouse 3.60.0**, both halves.
 
 <table>
   <tr>

@@ -724,6 +724,7 @@ final class Home {
 			subRow.add(keeperChips, BorderLayout.SOUTH);
 			top.add(headRow, BorderLayout.NORTH); top.add(subRow, BorderLayout.CENTER); top.add(ownUpdate, BorderLayout.SOUTH);
 			p.add(top, BorderLayout.NORTH);
+			JPanel[] southHold = {null};   // (R122: the strip along the bottom, hidden on the Chat page)
 			for (javax.swing.JComponent clear : new javax.swing.JComponent[] {p, top, headRow, headButtons, subRow}) clear.setOpaque(false);
 			// The window is laid out like a game's menu (GameShell): the sections across the top, this page in the
 			// middle, and the prompts along the bottom. Which Gatekeeper is open, and whether its servers are showing:
@@ -1905,6 +1906,10 @@ final class Home {
 			// ---- the sections: what each name in the top bar shows
 			java.util.function.Consumer<String> pickSection = s -> {
 				if (guide[0] != null) guide[0].stop();
+				// (R122: the Chat page gives its whole height to the chat: no heading, no strip along the bottom)
+				boolean chatNow = "CHAT".equals(s);
+				headRow.setVisible(!chatNow); subRow.setVisible(!chatNow);
+				if (southHold[0] != null) southHold[0].setVisible(!chatNow);
 				switch (s) {
 					case "SERVERS" -> {
 						String to = openUrl[0] != null ? openUrl[0] : firstKeeper[0].get();
@@ -2006,6 +2011,7 @@ final class Home {
 					+ "'s Steam config", f, () -> { if (!shell[0].menuOpen()) shell[0].toggleMenu(); shell[0].menuLight("quit"); }), BorderLayout.NORTH);
 			south.setOpaque(false);
 			p.add(south, BorderLayout.SOUTH);
+			southHold[0] = south;
 			f.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent ev) { closed.countDown(); } });
 			f.setContentPane(shell[0]);
 			// It always opens on Servers: on the Gatekeeper it was on last (or the only one). After an update, Updates is

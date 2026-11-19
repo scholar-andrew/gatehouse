@@ -7,6 +7,12 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.60.0 - 2026-11-19
+
+- Chat on a wide screen (the Steam Deck, a PC) has its rooms in a column down the left, with Clear chat media and the sound switch under them, so the messages get the whole height; the page heading and the Steam config strip are gone from the Chat page. On a narrow window the rooms are one row that scrolls sideways.
+- An X post's link has one button, Show post: it shows the post in the chat, who wrote it, what, and its photos and video (a video plays in Gatehouse's player), with the post it quotes as a card of its own under it, its photos and video too. When X won't give the quoted post, it's a plain link.
+- Web panel: links in chat get Open link and Show preview (fetched by your Gatekeeper, only when pressed), Show picture or Play for a picture or video link, Play here for YouTube, and Show post for X (the post with its photos and video, and the quoted post with its own). On a phone the chat gets more room, with smaller pictures and players.
+
 ## 3.59.1 - 2026-11-19
 
 - On Linux and the Steam Deck, a YouTube video played in chat (Play here) says that some videos' sound plays slow and low there (a fault in Java's web view), and that Watch on YouTube plays it right.

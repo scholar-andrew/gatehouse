@@ -3612,6 +3612,8 @@ public final class HostHelper {
 				if (!aside && !inServer[0]) { String hd = at == 0 ? "Gatekeeper" : at == 6 ? "Chat" : at == 1 || at == 2 || at == 9 ? "Updates"
 						: at == 3 ? "Host setup" : at == 4 ? "Web panel" : at == 7 ? "Players" : at == 8 ? "Activity log" : at == 10 ? "Systems"
 						: at == 11 ? "History of servers" : at == 12 ? "New server" : at == 13 ? "Gatekeepers" : "Constellation"; if (!hd.equals(head.getText())) head.setText(hd); }
+				boolean chatPage = !aside && !inServer[0] && item.isEmpty() && at == 6;   // (R122: the Chat page gives its height to the chat)
+				if (head.isVisible() == chatPage) head.setVisible(!chatPage);
 				if (!item.isEmpty()) { if (!item.equals(shell.menuLit())) shell.menuLight(item); }
 				else if (!lit.equals(shell.lit())) shell.light(lit);
 				// (R17, R18: notes not seen yet put a red dot on UPDATES and on their page; looking at the page marks them

@@ -40,9 +40,10 @@ import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 
 /**
- * Chat, as the launcher and Gatekeeper both show it: the rooms as cards across the top (each with its picture, its name
- * and a red count of messages not seen yet), what was said in the one chosen, and a line to write in with Send, Paste
- * and Attach.
+ * Chat, as the launcher and Gatekeeper both show it: the rooms as cards (each with its picture, its name and a red
+ * count of messages not seen yet), what was said in the one chosen, and a line to write in with Send, Paste and Attach.
+ * R122: on a wide enough window the rooms are a column down the left, with Clear chat media and the sound switch under
+ * them, so what was said gets the whole height; on a narrow one they are one row across the top that scrolls sideways.
  *
  * A message that offers a file shows the file's name, kind and size with View and Save a copy. Nothing is fetched until
  * one of those is pressed. View shows a picture in the chat; Play plays a video or a sound in Gatehouse's own player
@@ -84,6 +85,13 @@ public final class ChatView extends JPanel {
 	private final JTextField line = new JTextField();
 	private final JLabel said = new JLabel(" ");
 	private final JCheckBox sound = new JCheckBox("Sound for new messages");
+	// (R122: where the rooms and the two switches go, by the window's width)
+	private static final int WIDE = 760;
+	private final JPanel roomsHold = new JPanel(new BorderLayout()), side = new JPanel(new BorderLayout(0, 8)), tools = new JPanel(),
+			top = new JPanel(new BorderLayout(0, 2)), east = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+	private final JScrollPane roomsScroll;
+	private JButton purgeB;
+	private Boolean wide = null;
 	private final Map<String, RoomCard> cards = new LinkedHashMap<>();
 	private final Map<String, Long> heard = new java.util.concurrent.ConcurrentHashMap<>();   // (newest message number at the last look, per room)
 	private volatile List<Room> rooms = new ArrayList<>();
@@ -93,7 +101,7 @@ public final class ChatView extends JPanel {
 	private Thread loop;
 
 	public ChatView(Backend backend, Store store, BooleanSupplier onScreen, IntConsumer unread, JComponent... extra) {
-		super(new BorderLayout(0, 8));
+		super(new BorderLayout(10, 8));
 		this.backend = backend; this.store = store; this.onScreen = onScreen; this.unread = unread;
 		setOpaque(false);
 		strip.setOpaque(false);
@@ -102,8 +110,12 @@ public final class ChatView extends JPanel {
 		sound.setSelected(!"off".equals(store.get("sound")));
 		sound.setToolTipText("A short sound when a message arrives in a room you aren't reading here");
 		sound.addActionListener(e -> store.put("sound", sound.isSelected() ? "on" : "off"));
-		JPanel top = new JPanel(new BorderLayout(0, 2)); top.setOpaque(false);
-		top.add(strip, BorderLayout.CENTER);
+		top.setOpaque(false); side.setOpaque(false); tools.setOpaque(false); east.setOpaque(false); roomsHold.setOpaque(false);
+		tools.setLayout(new BoxLayout(tools, BoxLayout.Y_AXIS));
+		roomsHold.add(strip, BorderLayout.NORTH);
+		roomsScroll = new JScrollPane(roomsHold, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+		roomsScroll.setBorder(BorderFactory.createEmptyBorder()); roomsScroll.setOpaque(false); roomsScroll.getViewport().setOpaque(false);
+		roomsScroll.getVerticalScrollBar().setUnitIncrement(16); roomsScroll.getHorizontalScrollBar().setUnitIncrement(24);
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
 		list.setOpaque(false);
 		list.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
@@ -134,16 +146,50 @@ public final class ChatView extends JPanel {
 		bottom.add(line, BorderLayout.CENTER); bottom.add(buttons, BorderLayout.EAST);
 		JPanel under = new JPanel(new BorderLayout()); under.setOpaque(false);
 		said.setForeground(GameShell.DIM);
-		JButton purgeB = new JButton("Clear chat media");   // (R102)
+		purgeB = new JButton("Clear chat media");   // (R102)
 		purgeB.setToolTipText("Deletes the chat pictures, videos and sounds this device has fetched (they stay in the chat)");
 		purgeB.addActionListener(e -> purge());
-		JPanel east = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0)); east.setOpaque(false); east.add(purgeB); east.add(sound);
 		under.add(said, BorderLayout.CENTER); under.add(east, BorderLayout.EAST);
 		bottom.add(under, BorderLayout.SOUTH);
-		add(top, BorderLayout.NORTH); add(scroll, BorderLayout.CENTER); add(bottom, BorderLayout.SOUTH);
+		add(scroll, BorderLayout.CENTER); add(bottom, BorderLayout.SOUTH);
+		arrange(true);
+		addComponentListener(new java.awt.event.ComponentAdapter() {
+			@Override public void componentResized(java.awt.event.ComponentEvent e) { if (getWidth() > 0) arrange(getWidth() >= WIDE); }
+		});
 		empty("Looking for rooms…");
 	}
 	private static String nz(String s) { return s == null ? "" : s; }
+	/** R122: the rooms down the left (wide), or in one row across the top that scrolls sideways (narrow). */
+	private void arrange(boolean w) {
+		if (wide != null && wide == w) return;
+		wide = w;
+		remove(top); remove(side); side.removeAll(); top.removeAll(); tools.removeAll(); east.removeAll();
+		if (w) {
+			strip.setLayout(new java.awt.GridLayout(0, 1, 0, 6));
+			roomsScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+			roomsScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+			roomsScroll.setPreferredSize(null);
+			side.add(roomsScroll, BorderLayout.CENTER);
+			purgeB.setAlignmentX(LEFT_ALIGNMENT); sound.setAlignmentX(LEFT_ALIGNMENT);
+			tools.add(purgeB); tools.add(javax.swing.Box.createVerticalStrut(4)); tools.add(sound);
+			side.add(tools, BorderLayout.SOUTH);
+			side.setPreferredSize(new Dimension(236, 10));
+			add(side, BorderLayout.WEST);
+		} else {
+			strip.setLayout(new FlowLayout(FlowLayout.LEFT, 6, 0));
+			roomsScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_NEVER);
+			roomsScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+			roomsScroll.setPreferredSize(new Dimension(10, 46 + 14));
+			top.add(roomsScroll, BorderLayout.CENTER);
+			east.add(purgeB); east.add(sound);
+			add(top, BorderLayout.NORTH);
+		}
+		for (RoomCard c : cards.values()) c.invalidate();
+		strip.revalidate(); revalidate(); repaint();
+		SwingUtilities.invokeLater(this::showChosen);
+	}
+	/** Keeps the chosen room's card in view in its column or row. */
+	private void showChosen() { RoomCard c = cards.get(chosen); if (c != null && c.isShowing()) c.scrollRectToVisible(new Rectangle(0, 0, c.getWidth(), c.getHeight())); }
 	/** The room being read ("" for none). */
 	public String chosen() { return chosen; }
 	/** Shows what is told under the line. */
@@ -213,7 +259,7 @@ public final class ChatView extends JPanel {
 		if (key.equals(chosen)) return;
 		chosen = key; shown = 0;
 		store.put("chosen", key);
-		Runnable ui = () -> { list.removeAll(); list.revalidate(); list.repaint(); for (RoomCard c : cards.values()) c.repaint(); };
+		Runnable ui = () -> { list.removeAll(); list.revalidate(); list.repaint(); for (RoomCard c : cards.values()) c.repaint(); showChosen(); };
 		if (SwingUtilities.isEventDispatchThread()) ui.run(); else SwingUtilities.invokeLater(ui);
 		if (look) poke();
 	}
@@ -274,7 +320,7 @@ public final class ChatView extends JPanel {
 			getAccessibleContext().setAccessibleName(r.name());
 			addActionListener(e -> choose(room.key(), true));
 		}
-		@Override public Dimension getPreferredSize() { return new Dimension(216, 58); }
+		@Override public Dimension getPreferredSize() { return Boolean.FALSE.equals(wide) ? new Dimension(176, 46) : new Dimension(216, 54); }   // (R122: smaller in the one-row strip)
 		@Override protected void paintComponent(Graphics g0) {
 			if (!asked && room.picture() != null) {
 				asked = true;
@@ -308,8 +354,8 @@ public final class ChatView extends JPanel {
 			long n = room.last() > seen(room.key()) && !(sel && onScreen.getAsBoolean()) ? Math.max(1, room.last() - seen(room.key())) : 0;
 			if (n > 0) room2 -= 26;
 			g.setFont(GameShell.font(14f, true)); g.setColor(GameShell.TEXT);
-			g.drawString(fit(g, room.name(), room2), tx, group ? 26 : 34);
-			if (group) { g.setFont(GameShell.font(12f, false)); g.setColor(GameShell.DIM); g.drawString(fit(g, room.group(), room2), tx, 43); }
+			g.drawString(fit(g, room.name(), room2), tx, group ? h / 2 - 3 : h / 2 + 5);
+			if (group) { g.setFont(GameShell.font(12f, false)); g.setColor(GameShell.DIM); g.drawString(fit(g, room.group(), room2), tx, h / 2 + 14); }
 			if (n > 0) {
 				String t = n > 99 ? "99" : String.valueOf(n);
 				g.setColor(GameShell.RED); g.fill(new Ellipse2D.Double(w - 30, h / 2.0 - 10, 20, 20));
@@ -399,47 +445,38 @@ public final class ChatView extends JPanel {
 		card.setAlignmentX(LEFT_ALIGNMENT); under.add(card);
 		box.add(under, BorderLayout.SOUTH);
 		String xid = LinkPreview.xPostId(link);
-		if (xid != null) {   // (R85: an X post's photos and video, from X's own embed service, only when pressed)
-			JButton media = new JButton("Show media");
-			media.setToolTipText("Fetches the post's photos and video from X and shows them here; a video plays in Gatehouse's player");
-			JPanel shown = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6)); shown.setOpaque(false); shown.setVisible(false); shown.setAlignmentX(LEFT_ALIGNMENT);
-			under.add(shown);
-			media.addActionListener(e -> {
-				if (shown.isVisible()) { shown.setVisible(false); media.setText("Show media"); box.revalidate(); list.revalidate(); return; }
-				if (shown.getComponentCount() > 0) { shown.setVisible(true); media.setText("Hide media"); box.revalidate(); list.revalidate(); return; }
-				media.setEnabled(false); tell("Asking X for the post's media…");
+		if (xid != null) {   // (R85, R121: an X post, shown here whole when asked: from X's own embed service, only when pressed)
+			row.remove(show);   // (one button for X: the post itself, with its media, and the post it quotes with its media)
+			JButton post = new JButton("Show post");
+			post.setToolTipText("Fetches the post from X and shows it here: who wrote it, what, its photos and video (a video plays in Gatehouse's player), and the post it quotes");
+			JPanel hold = new JPanel(new BorderLayout()); hold.setOpaque(false); hold.setVisible(false); hold.setAlignmentX(LEFT_ALIGNMENT);
+			under.add(hold);
+			post.addActionListener(e -> {
+				if (hold.isVisible()) { hold.setVisible(false); post.setText("Show post"); box.revalidate(); list.revalidate(); return; }
+				if (hold.getComponentCount() > 0) { hold.setVisible(true); post.setText("Hide post"); box.revalidate(); list.revalidate(); return; }
+				post.setEnabled(false); tell("Asking X for the post…");
 				Thread t = new Thread(() -> {
 					try {
 						LinkPreview.XMedia xm = LinkPreview.xMedia(xid);
 						List<Image> pics = new ArrayList<>();
 						for (String u : xm.photos()) pics.add(small(u));
 						Image thumb = xm.video() != null && xm.videoThumb() != null ? small(xm.videoThumb()) : null;
+						LinkPreview.XMedia q = xm.quoted();
+						List<Image> qpics = new ArrayList<>();
+						if (q != null) for (String u : q.photos()) qpics.add(small(u));
+						Image qthumb = q != null && q.video() != null && q.videoThumb() != null ? small(q.videoThumb()) : null;
 						tell(" ");
 						SwingUtilities.invokeLater(() -> {
-							media.setEnabled(true);
-							if (pics.isEmpty() && xm.video() == null) { tell("That post has no photos or video."); return; }
-							for (Image im : pics) if (im != null) shown.add(new JLabel(new javax.swing.ImageIcon(im)));
-							if (xm.video() != null && MediaEngine.available()) {
-								String id = "url-x" + xid;
-								linked.put(id, xm.video());
-								Msg as = new Msg(m.n(), m.when(), m.who(), m.text(), id, "x-" + xid + ".mp4", 0);
-								JPanel vbox = new JPanel(new BorderLayout(0, 6)); vbox.setOpaque(false);
-								JLabel vpic = thumb == null ? new JLabel() : new JLabel(new javax.swing.ImageIcon(thumb));
-								JButton play = new JButton("Play video");
-								play.setToolTipText("Fetches the video from X (up to 200 MB) and plays it here in Gatehouse's player");
-								play.addActionListener(ev -> play(r, as, play, vbox, vpic));
-								JPanel pr = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); pr.setOpaque(false); pr.add(play);
-								vbox.add(pr, BorderLayout.NORTH); vbox.add(vpic, BorderLayout.CENTER);
-								shown.add(vbox);
-							}
-							shown.setVisible(true); media.setText("Hide media");
+							post.setEnabled(true);
+							hold.add(postCard(r, m, xm, pics, thumb, false, q == null ? null : postCard(r, m, q, qpics, qthumb, true, null)), BorderLayout.WEST);
+							hold.setVisible(true); post.setText("Hide post");
 							box.revalidate(); list.revalidate();
 						});
-					} catch (Exception ex) { tell("No media for that post: " + why(ex)); SwingUtilities.invokeLater(() -> media.setEnabled(true)); }
+					} catch (Exception ex) { tell("X didn't give that post: " + why(ex)); SwingUtilities.invokeLater(() -> post.setEnabled(true)); }
 				}, "chat-x");
 				t.setDaemon(true); t.start();
 			});
-			row.add(media);
+			row.add(post);
 		}
 		show.addActionListener(e -> {
 			if (card.isVisible()) { card.setVisible(false); show.setText("Show preview"); box.revalidate(); list.revalidate(); return; }
@@ -447,10 +484,17 @@ public final class ChatView extends JPanel {
 			show.setEnabled(false); tell("Fetching the preview…");
 			Thread t = new Thread(() -> {
 				try {
-					LinkPreview.Card c = LinkPreview.full(link);
+					// (an X post: who wrote it and what, from X's embed service, and the post it quotes under it: R121)
+					LinkPreview.XMedia xp = null;
+					if (xid != null) try { xp = LinkPreview.xMedia(xid); } catch (Exception ex) { Quiet.seen(ex); }
+					LinkPreview.XMedia xq = xp;
+					Image xpic = xp == null ? null : !xp.photos().isEmpty() ? small(xp.photos().get(0)) : xp.videoThumb() != null ? small(xp.videoThumb()) : null;
+					LinkPreview.Card c = xp != null ? new LinkPreview.Card(link, xp.name().isEmpty() ? "A post on X" : xp.name() + " (@" + xp.handle() + ")", xp.text(), "X", null) : LinkPreview.full(link);
 					tell(" ");
 					SwingUtilities.invokeLater(() -> {
 						if (c.picture() != null) card.add(new JLabel(new javax.swing.ImageIcon(c.picture())), BorderLayout.WEST);
+						else if (xpic != null) card.add(new JLabel(new javax.swing.ImageIcon(xpic)), BorderLayout.WEST);
+						if (xq != null && xq.quoted() != null) card.add(postCard(r, m, xq.quoted(), null, null, true, null), BorderLayout.SOUTH);
 						JLabel words = new JLabel("<html><body style='width:360px'><b>" + esc(c.title().isEmpty() ? link : c.title()) + "</b><br><span style='color:#A9B5C1'>"
 								+ esc(c.site()) + "</span>" + (c.description().isEmpty() ? "" : "<br>" + esc(c.description())) + "</body></html>");
 						words.setForeground(GameShell.TEXT); words.setVerticalAlignment(javax.swing.SwingConstants.TOP);
@@ -467,6 +511,50 @@ public final class ChatView extends JPanel {
 		return box;
 	}
 	private static String esc(String s) { return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;"); }
+	/** An X post's photos, and its video with Play video (Gatehouse's player), into a row. */
+	private void addXMedia(JPanel into, Room r, Msg m, LinkPreview.XMedia xm, List<Image> pics, Image thumb) {
+		for (Image im : pics) if (im != null) into.add(new JLabel(new javax.swing.ImageIcon(im)));
+		if (xm.video() == null || !MediaEngine.available()) return;
+		String id = "url-x" + xm.id();
+		linked.put(id, xm.video());
+		Msg as = new Msg(m.n(), m.when(), m.who(), m.text(), id, "x-" + xm.id() + ".mp4", 0);
+		JPanel vbox = new JPanel(new BorderLayout(0, 6)); vbox.setOpaque(false);
+		JLabel vpic = thumb == null ? new JLabel() : new JLabel(new javax.swing.ImageIcon(thumb));
+		JButton play = new JButton("Play video");
+		play.setToolTipText("Fetches the video from X (up to 200 MB) and plays it here in Gatehouse's player");
+		play.addActionListener(ev -> play(r, as, play, vbox, vpic));
+		JPanel pr = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); pr.setOpaque(false); pr.add(play);
+		vbox.add(pr, BorderLayout.NORTH); vbox.add(vpic, BorderLayout.CENTER);
+		into.add(vbox);
+	}
+	/** R85, R121: an X post as a card: who wrote it and what, its photos and video (pics given), and under it (nested)
+	 *  the post it quotes. A quoted post X wouldn't give (deleted or private) is a plain link to it instead. */
+	private JComponent postCard(Room r, Msg m, LinkPreview.XMedia q, List<Image> pics, Image thumb, boolean quote, JComponent nested) {
+		JPanel c = new JPanel(); c.setLayout(new BoxLayout(c, BoxLayout.Y_AXIS)); c.setOpaque(false);
+		c.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(quote ? 8 : 2, 0, 2, 0), BorderFactory.createCompoundBorder(
+				BorderFactory.createMatteBorder(0, 3, 0, 0, quote ? GameShell.a(GameShell.TEXT, 70) : GameShell.a(GameShell.ACC, 160)), BorderFactory.createEmptyBorder(4, 10, 4, 4))));
+		String link = q.id().isEmpty() ? null : "https://x.com/i/status/" + q.id();
+		java.awt.event.MouseAdapter opens = new java.awt.event.MouseAdapter() { @Override public void mouseClicked(java.awt.event.MouseEvent ev) { try { LinkPreview.browse(link); } catch (Exception ex) { tell("Couldn't open the link: " + why(ex)); } } };
+		if (!q.known()) {
+			JLabel gone = new JLabel("<html><span style='color:#A9B5C1'>" + (quote ? "Quoting a post" : "A post") + " X didn't give" + (link == null ? " (it may be deleted or private)." : ": ") + "</span>"
+					+ (link == null ? "" : esc(link)) + "</html>");
+			gone.setForeground(GameShell.TEXT); gone.setAlignmentX(LEFT_ALIGNMENT); c.add(gone);
+			if (link != null) { gone.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)); gone.addMouseListener(opens); }
+			return c;
+		}
+		JLabel words = new JLabel("<html><body style='width:" + (quote ? 330 : 360) + "px'>" + (quote ? "<span style='color:#A9B5C1'>Quoting</span> " : "") + "<b>" + esc(q.name())
+				+ "</b> <span style='color:#A9B5C1'>@" + esc(q.handle()) + "</span>" + (q.text().isEmpty() ? "" : "<br>" + esc(q.text()).replace("\n", "<br>")) + "</body></html>");
+		words.setForeground(GameShell.TEXT); words.setAlignmentX(LEFT_ALIGNMENT);
+		if (link != null) { words.setToolTipText("Opens the post on X"); words.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR)); words.addMouseListener(opens); }
+		c.add(words);
+		if (pics != null && (!pics.isEmpty() || q.video() != null)) {
+			JPanel mrow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6)); mrow.setOpaque(false); mrow.setAlignmentX(LEFT_ALIGNMENT);
+			addXMedia(mrow, r, m, q, pics, thumb);
+			c.add(mrow);
+		}
+		if (nested != null) { nested.setAlignmentX(LEFT_ALIGNMENT); c.add(nested); }
+		return c;
+	}
 	private JComponent attachment(Room r, Msg m) {
 		String k = kind(m.fileName());
 		JPanel box = new JPanel(new BorderLayout(0, 6)); box.setOpaque(false);

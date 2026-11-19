@@ -241,7 +241,7 @@ final class WebPanel {
 		x.getResponseHeaders().set("X-Content-Type-Options", "nosniff");
 		x.getResponseHeaders().set("X-Frame-Options", "DENY");
 		x.getResponseHeaders().set("Referrer-Policy", "no-referrer");
-		x.getResponseHeaders().set("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+		x.getResponseHeaders().set("Content-Security-Policy", "default-src 'self'; img-src 'self' data: https:; media-src 'self' https:; frame-src https://www.youtube-nocookie.com; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
 		x.sendResponseHeaders(code, body.length);
 		try (OutputStream o = x.getResponseBody()) { o.write(body); }
 	}
@@ -304,6 +304,13 @@ final class WebPanel {
 				if (!may(Json.map(users().get(s.user)), "access")) { json(x, 403, m("result", "refused", "message", "Your account isn't allowed to do that (access).")); return; }
 				String q = x.getRequestURI().getQuery() == null ? "" : x.getRequestURI().getQuery();
 				Share.panel(x, q.startsWith("id=") ? q.substring(3).replaceAll("[^\\w.\\-]", "") : ""); return;
+			}
+			// (R120: a link's preview for the panel's chat, fetched by this Gatekeeper; see PanelPreview)
+			if (path.equals("/panel/preview") && method.equals("GET")) {
+				if (!may(Json.map(users().get(s.user)), "access")) { json(x, 403, m("result", "refused", "message", "Your account isn't allowed to do that (access).")); return; }
+				String q = x.getRequestURI().getRawQuery() == null ? "" : x.getRequestURI().getRawQuery();
+				String u = q.startsWith("u=") ? java.net.URLDecoder.decode(q.substring(2), StandardCharsets.UTF_8) : "";
+				json(x, 200, PanelPreview.answer(u)); return;
 			}
 			if (!path.startsWith("/panel/api/")) { json(x, 404, m("result", "refused", "message", "No such page.")); return; }
 			String call = path.substring(11), need = ALLOWED.get(method + " " + call);

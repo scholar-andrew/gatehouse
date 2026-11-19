@@ -489,8 +489,97 @@ function linked(text) {
   if (at < text.length) out.push(document.createTextNode(text.slice(at)));
   return out;
 }
+// R120: a message's first link gets the buttons Gatehouse's chat has. Nothing is fetched until one is pressed. Show
+// preview asks this Gatekeeper to fetch the page (it never fetches this machine, the home network or Tailscale
+// addresses) and shows its title, site, description and picture; a picture or a video straight from the link, X's
+// photos and video, and YouTube's player (its privacy-enhanced one) come from their own sites, once pressed.
+const LINKRE = /https?:\/\/[^\s<>"']+/i, PICLINK = /\.(png|jpe?g|gif|webp)$/i;
+function firstLink(t) { const m = LINKRE.exec(t || ''); if (!m) return null; let u = m[0]; while (/[.,;:!?)\]}'"]$/.test(u)) u = u.slice(0, -1); return u; }
+function ytId(u) {
+  try {
+    const x = new URL(u), h = x.hostname.replace(/^(www|m|music)\./, '');
+    if (h === 'youtu.be') { const v = x.pathname.slice(1, 12); return /^[\w-]{11}$/.test(v) ? v : null; }
+    if (h === 'youtube.com' || h === 'youtube-nocookie.com') { const v = x.searchParams.get('v') || (x.pathname.match(/^\/(?:shorts|embed|live)\/([\w-]{11})/) || [])[1]; return v && /^[\w-]{11}$/.test(v) ? v : null; }
+  } catch (e) {}
+  return null;
+}
+function xPost(u) { try { const x = new URL(u), h = x.hostname.replace(/^(www|mobile)\./, ''); if (h !== 'x.com' && h !== 'twitter.com') return null; const m = x.pathname.match(/^\/[^/]+\/status(?:es)?\/(\d{1,25})/); return m ? m[1] : null; } catch (e) { return null; } }
+function linkTools(link) {
+  const box = el('div', 'linkbox'), row = el('div', 'linkrow'), out = el('div', 'linkout');
+  const yt = ytId(link), xid = xPost(link), https = /^https:/i.test(link), path = link.split(/[?#]/)[0], name = decodeURIComponent(path.split('/').pop() || 'link');
+  const site = yt ? 'YouTube' : xid ? 'X' : /^https?:\/\/(www\.)?vimeo\.com\//i.test(link) ? 'Vimeo' : null;
+  const open = el('a', 'linkbtn', site ? 'Watch on ' + site : 'Open link'); open.href = link; open.target = '_blank'; open.rel = 'noopener noreferrer';
+  const shown = {};
+  // (a part shown under the buttons, or taken away again, by the same button)
+  const part = (b, key, label, make) => {
+    if (shown[key]) { shown[key].remove(); delete shown[key]; b.textContent = label; return; }
+    const p = make(); if (!p) return; shown[key] = p; out.appendChild(p); b.textContent = 'Hide ' + label.replace(/^Show /, '').replace(/^Play here$/, 'player').replace(/^Play$/, 'player');
+  };
+  const add = (label, make, key) => { const b = button(label, () => part(b, key, label, make), 'quiet small'); row.appendChild(b); return b; };
+  if (https && MEDIA.test(path)) add('Play', () => player(link, name, 0), 'play');
+  else if (https && PICLINK.test(path)) add('Show picture', () => { const i = el('img', 'shot'); i.src = link; i.alt = 'A picture from the link'; i.referrerPolicy = 'no-referrer'; return i; }, 'pic');
+  if (yt) add('Play here', () => { const f = el('iframe', 'ytframe'); f.src = 'https://www.youtube-nocookie.com/embed/' + yt + '?autoplay=1&rel=0&playsinline=1'; f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'; f.allowFullscreen = true; f.title = 'YouTube video'; f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin'); return f; }, 'yt');
+  row.appendChild(open);
+  // Show preview (Show post for an X post): asked of this Gatekeeper once, then shown or hidden
+  let asked = null;
+  const ask = () => asked || (asked = ask0());
+  const ask0 = async () => { const r = await ask0Fetch(); if (!r || r.result !== 'ok') { asked = null; say(r || { result: 'failed', message: "Gatekeeper didn't answer." }); return null; } return r; };
+  const ask0Fetch = async () => { try { const res = await fetch('/panel/preview?u=' + encodeURIComponent(link), { credentials: 'same-origin' }); if (res.status === 401) { showSignin(); return null; } return await res.json(); } catch (e) { return { result: 'failed', message: "Gatekeeper didn't answer." }; } };
+  // (an X post: one button, Show post: the post itself with its photos and video, and the post it quotes with its own)
+  if (xid) {
+    const xb = button('Show post', async () => {
+      if (shown.post) { shown.post.remove(); delete shown.post; xb.textContent = 'Show post'; return; }
+      xb.disabled = true; const r = await ask(); xb.disabled = false; if (!r) return;
+      const c = r.kind === 'x' ? xCard(r.post, r.quoted, true) : pageCard(r, link);
+      shown.post = c; out.appendChild(c); xb.textContent = 'Hide post';
+    }, 'quiet small');
+    row.appendChild(xb);
+  } else {
+    const pv = button('Show preview', async () => {
+      if (shown.prev) { shown.prev.remove(); delete shown.prev; pv.textContent = 'Show preview'; return; }
+      pv.disabled = true; const r = await ask(); pv.disabled = false; if (!r) return;
+      const c = r.kind === 'x' ? xCard(r.post, r.quoted, true) : pageCard(r, link);
+      shown.prev = c; out.appendChild(c); pv.textContent = 'Hide preview';
+    }, 'quiet small');
+    row.appendChild(pv);
+  }
+  box.appendChild(row); box.appendChild(out);
+  return box;
+}
+function pageCard(r, link) {
+  const c = el('a', 'lcard'); c.href = link; c.target = '_blank'; c.rel = 'noopener noreferrer';
+  if (r.picture) { const i = el('img', 'lpic'); i.src = r.picture; i.alt = ''; c.appendChild(i); }
+  const t = el('div', 'ltext'); t.appendChild(el('b', '', r.title || link)); if (r.site) t.appendChild(el('div', 'lsite', r.site)); if (r.description) t.appendChild(el('div', 'ldesc', r.description));
+  c.appendChild(t); return c;
+}
+// (an X post's photos, and its video in the panel's player: straight from X's own servers)
+function xMediaInto(c, p) {
+  if (!p) return;
+  const row = el('div', 'xpics');
+  (p.photos || []).forEach(u => { const i = el('img', 'shot'); i.src = u; i.alt = 'A photo from the post'; i.referrerPolicy = 'no-referrer'; row.appendChild(i); });
+  if (row.childNodes.length) c.appendChild(row);
+  if (p.video) { const pl = player(p.video, 'x-' + (p.id || 'video') + '.mp4', 0), v = pl.querySelector('video'); if (v && p.thumb) v.poster = p.thumb; c.appendChild(pl); }   // (its still picture until Play)
+}
+// R121: who wrote an X post and what, and (as a card of its own, under it) the post it quotes
+function xCard(p, quoted, media, isQuote) {
+  const c = el('div', isQuote ? 'lcard xquote' : 'lcard xpost');
+  if (!p || !p.known) {
+    const id = p && p.id; const a = el('a', 'msglink', id ? 'Quoting a post X didn\'t give: https://x.com/i/status/' + id : 'Quoting a post X didn\'t give (it may be deleted or private).');
+    if (id) { a.href = 'https://x.com/i/status/' + id; a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+    c.appendChild(a); return c;
+  }
+  const t = el('div', 'ltext');
+  const head = el('div', '', null, [isQuote ? el('span', 'lsite', 'Quoting ') : null, el('b', '', p.name || 'A post on X'), el('span', 'lsite', ' @' + (p.handle || ''))].filter(Boolean));
+  t.appendChild(head);
+  if (p.text) t.appendChild(el('div', 'ldesc', p.text));
+  c.appendChild(t);
+  if (media) xMediaInto(c, p);
+  if (quoted) c.appendChild(xCard(quoted, null, media, true));
+  return c;
+}
 function bubble(m) {
   const mine = m.who === 'Host', b = el('div', 'bubble', null, m.file ? null : linked(String(m.text || '')));
+  if (!m.file) { const lk = firstLink(String(m.text || '')); if (lk) b.appendChild(linkTools(lk)); }   // (R120)
   if (m.file) {
     const f = m.file, url = '/panel/file?id=' + encodeURIComponent(f.id || '');
     b.appendChild(el('div', '', mine ? 'Offered a file' : 'Offers a file'));

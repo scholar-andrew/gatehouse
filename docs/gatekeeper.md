@@ -222,7 +222,7 @@ along the bottom, within thumb's reach, and wide tables become cards. On a wide 
 the window. A section the account may not use is shown greyed; the rest is in the menu at the top left. Since 3.58.0
 the browser tab is named after the Gatekeeper ("PC · Gatekeeper"), and on **Systems** each machine's castle is in its
 programs' colours: yellow for a Gatehouse, blue for a Gatekeeper, half of each (split on a slant) for a machine with
-both; chat times show in the phone's own time. A phone can
+both; chat times show in the phone's own time. Since 3.60.0 a link in a chat message gets **Open link** and **Show preview**: only when that is pressed does Gatekeeper fetch the page (never this machine, the home network or Tailscale addresses; at most 30 a minute) and the panel show its title, site, description and a small picture. A link straight to a picture or a video or sound file gets **Show picture** or **Play**, a YouTube video **Play here** (YouTube's privacy-enhanced player), and an X post **Show post** (the post with its photos and video, and the post it quotes as a card under it with its own); those come from their own sites to the phone, once pressed. On a phone the chat area is taller, and pictures and players smaller. A phone can
 keep it on its home screen (Share, Add to Home Screen; or the browser's menu, Install), where it opens like an app.
 
 | Section | What is there |

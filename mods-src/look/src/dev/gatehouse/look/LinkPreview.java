@@ -67,18 +67,28 @@ public final class LinkPreview {
 		try { Matcher m = Pattern.compile("^/[^/]+/status(?:es)?/(\\d{1,25})").matcher(URI.create(url).getPath()); return m.find() ? m.group(1) : null; }
 		catch (RuntimeException e) { return null; }
 	}
-	/** An X post's pictures (their addresses) and its video (an MP4 the chat's player can play), if any. */
-	public record XMedia(java.util.List<String> photos, String video, String videoThumb) {}
-	/** Asks X's own embed service (cdn.syndication.twimg.com, as X's embedded posts do) what media a post has. */
+	/** An X post: its pictures (their addresses), its video (an MP4 the chat's player can play), who wrote it and what,
+	 *  its number, and the post it quotes (R121: null when it quotes none; one with no words and no media, only its
+	 *  number if known, when X won't give it: deleted or private). */
+	public record XMedia(java.util.List<String> photos, String video, String videoThumb, String name, String handle, String text, String id, XMedia quoted) {
+		/** Whether X gave anything of it. */
+		public boolean known() { return !text.isEmpty() || !photos.isEmpty() || video != null; }
+	}
+	/** Asks X's own embed service (cdn.syndication.twimg.com, as X's embedded posts do) about a post. */
 	public static XMedia xMedia(String id) throws IOException {
 		if (!id.matches("\\d{1,25}")) throw new IOException("that isn't an X post's address");
 		Object[] got = get("https://cdn.syndication.twimg.com/tweet-result?id=" + id + "&lang=en&token=" + xToken(id), 512 * 1024, 8);
 		String j = new String((byte[]) got[0], StandardCharsets.UTF_8);
 		if (j.isBlank() || j.trim().equals("{}")) throw new IOException("X didn't say (the post may be gone or private)");
+		return xPost(map(new Parse(j).value()), id, true);
+	}
+	/** X's answer, as text, read into a post (tests: no network). */
+	public static XMedia xParse(String json, String id) { return xPost(map(new Parse(json).value()), id, true); }
+	/** One post of X's answer (the post, or the one it quotes). */
+	static XMedia xPost(java.util.Map<String, Object> root, String id, boolean outer) {
 		java.util.List<String> photos = new java.util.ArrayList<>();
 		String video = null, thumb = null; long best = -1;
-		Object root = new Parse(j).value();
-		for (Object o : list(map(root).get("mediaDetails"))) {
+		for (Object o : list(root.get("mediaDetails"))) {
 			java.util.Map<String, Object> m = map(o);
 			String type = str(m.get("type")), pic = str(m.get("media_url_https"));
 			if (type.equals("photo")) { if (pic.startsWith("https://pbs.twimg.com/") && !photos.contains(pic) && photos.size() < 4) photos.add(pic); continue; }
@@ -96,7 +106,17 @@ public final class LinkPreview {
 			}
 			if (video == null) video = small;
 		}
-		return new XMedia(photos, video, thumb);
+		java.util.Map<String, Object> user = map(root.get("user"));
+		String text = str(root.get("text")).replaceAll("\\s*https://t\\.co/\\w+\\s*$", "").trim();   // (the link to its own media, at the end)
+		String own = str(root.get("id_str")).matches("\\d{1,25}") ? str(root.get("id_str")) : id;
+		XMedia quoted = null;
+		if (outer && root.containsKey("quoted_tweet")) {   // (R121)
+			java.util.Map<String, Object> q = map(root.get("quoted_tweet"));
+			String qid = str(q.get("id_str"));
+			if (qid.isEmpty()) qid = str(root.get("quoted_tweet_id_str"));
+			quoted = xPost(q, qid.matches("\\d{1,25}") ? qid : "", false);
+		}
+		return new XMedia(photos, video, thumb, str(user.get("name")), str(user.get("screen_name")), text, own, quoted);
 	}
 	@SuppressWarnings("unchecked") private static java.util.Map<String, Object> map(Object o) { return o instanceof java.util.Map<?, ?> m ? (java.util.Map<String, Object>) m : java.util.Map.of(); }
 	private static java.util.List<Object> list(Object o) { return o instanceof java.util.List<?> l ? new java.util.ArrayList<>(l) : java.util.List.of(); }
