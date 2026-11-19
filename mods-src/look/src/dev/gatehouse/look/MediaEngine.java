@@ -17,40 +17,59 @@ import java.util.Locale;
 import java.util.function.Consumer;
 
 /**
- * The media engine for chat's videos and sounds (R62): OpenJFX 21.0.6 (base, graphics, media), Java's own media
- * player, fetched once per device from Maven Central the first time someone presses Play, and kept. Each file is
+ * The media engine for chat's videos and sounds (R62): OpenJFX (base, graphics, media, swing), Java's own media
+ * player, fetched once per device from Maven Central the first time someone presses Play, and kept. Which OpenJFX
+ * depends on the Java the program runs on: 23.0.2 on Java 21 or newer (it plays video with FFmpeg 7, which a handheld's
+ * Flatpak runtime has), 21.0.6 on older Java (FFmpeg up to 6). Each file is
  * checked against the SHA-256 written here, inside the signed program, before it is kept and again before it is used,
  * so what runs is exactly what was checked when this version was made.
  *
- * Where it is kept: Windows %LOCALAPPDATA%\Gatehouse\media-engine\21.0.6; Linux and SteamOS
- * ~/.local/share/gatehouse/media-engine/21.0.6 (XDG_DATA_HOME if set). About 7.8 MB on Windows, 6.9 MB on Linux.
+ * Where it is kept: Windows %LOCALAPPDATA%\Gatehouse\media-engine\<version>; Linux and SteamOS
+ * ~/.local/share/gatehouse/media-engine/<version> (XDG_DATA_HOME if set; inside a Flatpak, the Flatpak's own data
+ * folder). About 7.5 MB on Windows, 6.9 MB on Linux.
+ * What went wrong when something can't play is written to player.log in that folder (the chat shows it too).
  * Only Windows and Linux on x86-64 have one; elsewhere a video or sound opens with the device's own program, as before.
  *
  * The player (dev.gatehouse.media.Player, built against OpenJFX) is inside the program as media-player.jar and is
- * loaded with the engine in a class loader of their own, so nothing of OpenJFX is touched until Play is pressed.
+ * loaded with the engine in a class loader of their own, so nothing of OpenJFX is touched until Play is pressed. It is a
+ * Swing component placed in the chat message itself (no window of its own).
  * For tests only: GATEHOUSE_MEDIA_DIR (where it is kept) and GATEHOUSE_MEDIA_SITE (where it is fetched from; the
  * checksums still decide what is kept).
  */
 public final class MediaEngine {
 	private MediaEngine() {}
-	public static final String VERSION = "21.0.6";
+	/** 23.0.2 needs Java 21; older Java keeps 21.0.6. */
+	public static final String VERSION = Runtime.version().feature() >= 21 ? "23.0.2" : "21.0.6";
 	private static final String SITE = "https://repo1.maven.org/maven2/org/openjfx";
 	private record Part(String module, String file, long size, String sha256) {}
 	private static final List<Part> WIN = List.of(
 			new Part("javafx-base", "javafx-base-21.0.6-win.jar", 753980, "618a1149089d1459cc569cc10eac05c5589a532473d09f35c1e9ea2c5b6de50e"),
 			new Part("javafx-graphics", "javafx-graphics-21.0.6-win.jar", 5942324, "4b0981384551f39a0ca9679672f2abbedd9d0966763205534fca230b1cf314a5"),
-			new Part("javafx-media", "javafx-media-21.0.6-win.jar", 1123076, "59fbb279c303eb9a4598ca88228884bbc267f287769b6d22af8e65b923af25a6"));
+			new Part("javafx-media", "javafx-media-21.0.6-win.jar", 1123076, "59fbb279c303eb9a4598ca88228884bbc267f287769b6d22af8e65b923af25a6"),
+			new Part("javafx-swing", "javafx-swing-21.0.6-win.jar", 89706, "51ca5c40ef4189f3aebdee2a6ebd3b9276bfa496cf2bbe2aeabffc6eb8ca8b1d"));
 	private static final List<Part> LINUX = List.of(
 			new Part("javafx-base", "javafx-base-21.0.6-linux.jar", 753988, "6477356238dd9aa77cf3dae4481269dab97582008d2ccabd90d88b5045e7c4c0"),
 			new Part("javafx-graphics", "javafx-graphics-21.0.6-linux.jar", 4697444, "8961089f35014d104d20a246f534cf82cfb377d07630ac3cdb742102082215e3"),
-			new Part("javafx-media", "javafx-media-21.0.6-linux.jar", 1511576, "2a65dfc998dc898a8ca15984d2861084fd03e093dc910778a10715109d0d8255"));
+			new Part("javafx-media", "javafx-media-21.0.6-linux.jar", 1511576, "2a65dfc998dc898a8ca15984d2861084fd03e093dc910778a10715109d0d8255"),
+			new Part("javafx-swing", "javafx-swing-21.0.6-linux.jar", 89706, "bf56964326859dea8b9d302cf57e8a9f5f72741dea27f0887cbc029641f7e38c"));
+	private static final List<Part> WIN23 = List.of(
+			new Part("javafx-base", "javafx-base-23.0.2-win.jar", 756716, "72f8958b4a552fca14ab3628c672f399aa68bbe6b4cd45107fe174b4670c7cb6"),
+			new Part("javafx-graphics", "javafx-graphics-23.0.2-win.jar", 6034746, "6b5b3041f2735508a8aad23c5795e745d5bf78a0a6aa920bae43ab41ec22d8c2"),
+			new Part("javafx-media", "javafx-media-23.0.2-win.jar", 1137676, "eb2ae99397333094172ad73c7689b6a48ae59b2b7a0d80d571521214f4a770ec"),
+			new Part("javafx-swing", "javafx-swing-23.0.2-win.jar", 91164, "875d14a5c2cf8ce04e5c48c39b5c9a3ff1d794820b8a473ec010af1c631afcb3"));
+	private static final List<Part> LINUX23 = List.of(
+			new Part("javafx-base", "javafx-base-23.0.2-linux.jar", 756716, "93cf67fe6f0e2c0b6f6b3134aa218b576b144cb5e114d210651b2594a9d15640"),
+			new Part("javafx-graphics", "javafx-graphics-23.0.2-linux.jar", 4839668, "809376faff637c5bbbacbdff710e2e1f9d523c1e344020124a2735aca04daa28"),
+			new Part("javafx-media", "javafx-media-23.0.2-linux.jar", 1555185, "b842a02e08221793615bac8bc3bfeb1be5e079474fbf6e815b45571fdf0c4a34"),
+			new Part("javafx-swing", "javafx-swing-23.0.2-linux.jar", 91164, "c55286b39f996e53390920a9839293c74eb360650ed38bbe6ecc7fb74ea5160c"));
 	private static ClassLoader loaded;
 
 	/** This device's parts, or null where there is no engine (another system, or not x86-64). */
 	private static List<Part> parts() {
 		String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT), arch = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
 		if (!(arch.equals("amd64") || arch.equals("x86_64"))) return null;
-		return os.startsWith("windows") ? WIN : os.startsWith("linux") ? LINUX : null;
+		boolean newer = VERSION.equals("23.0.2");
+		return os.startsWith("windows") ? (newer ? WIN23 : WIN) : os.startsWith("linux") ? (newer ? LINUX23 : LINUX) : null;
 	}
 	/** Can this device have the engine at all? */
 	public static boolean available() { return parts() != null && Player.class.getResource("media-player.jar") != null; }
@@ -65,16 +84,17 @@ public final class MediaEngine {
 	}
 	public static boolean isVideo(String name) { return name != null && name.toLowerCase(Locale.ROOT).matches(".*\\.(mp4|m4v)$"); }
 
-	private static Path home() {
+	private static Path home() { return home(VERSION); }
+	private static Path home(String version) {
 		String set = System.getenv("GATEHOUSE_MEDIA_DIR");
-		if (set != null && !set.isEmpty()) return Path.of(set, VERSION);
+		if (set != null && !set.isEmpty()) return Path.of(set, version);
 		String h = System.getProperty("user.home", "");
 		if (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows")) {
 			String la = System.getenv("LOCALAPPDATA");
-			return Path.of(la == null || la.isEmpty() ? h : la, "Gatehouse", "media-engine", VERSION);
+			return Path.of(la == null || la.isEmpty() ? h : la, "Gatehouse", "media-engine", version);
 		}
 		String xd = System.getenv("XDG_DATA_HOME");
-		return Path.of(xd == null || xd.isEmpty() ? Path.of(h, ".local", "share").toString() : xd, "gatehouse", "media-engine", VERSION);
+		return Path.of(xd == null || xd.isEmpty() ? Path.of(h, ".local", "share").toString() : xd, "gatehouse", "media-engine", version);
 	}
 	private static String sha256(Path f) throws IOException {
 		try (InputStream in = Files.newInputStream(f)) {
@@ -92,6 +112,17 @@ public final class MediaEngine {
 		if (ps == null) return false;
 		try { for (Part p : ps) if (Files.size(home().resolve(p.file())) != p.size()) return false; return true; }
 		catch (IOException e) { return false; }
+	}
+
+	/** Has this device fetched the player before (some of its parts are here)? Then a missing new part is fetched without asking again. */
+	public static boolean fetchedBefore() {
+		List<Part> ps = parts();
+		if (ps == null) return false;
+		for (Part p : ps) if (Files.isRegularFile(home().resolve(p.file()))) return true;
+		// (an earlier engine fetched with the owner's yes counts too: the newer one replaces it without asking again)
+		try (var old = Files.list(home("21.0.6"))) { if (!VERSION.equals("21.0.6") && old.anyMatch(f -> f.getFileName().toString().startsWith("javafx-"))) return true; }
+		catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+		return false;
 	}
 
 	/** Fetches what is missing; progress gets short sentences. Blocking: call it off the window's thread. */
@@ -123,24 +154,56 @@ public final class MediaEngine {
 		}
 	}
 
-	/** Loads the engine and the player once (checksums checked), and opens a player window for a file. */
-	public static synchronized void play(Path file, String title, Runnable failed) throws Exception {
-		if (loaded == null) {
-			List<URL> urls = new ArrayList<>();
-			Path d = home();
-			for (Part p : parts()) {
-				Path f = d.resolve(p.file());
-				if (!sha256(f).equals(p.sha256())) { Files.deleteIfExists(f); throw new IOException(p.file() + " changed since it was fetched, so it was removed: press Play again to fetch it afresh"); }
-				urls.add(f.toUri().toURL());
+	/** Loads the engine and the player once (checksums checked). */
+	private static synchronized ClassLoader load() throws Exception {
+		if (loaded != null) return loaded;
+		List<URL> urls = new ArrayList<>();
+		Path d = home();
+		for (Part p : parts()) {
+			Path f = d.resolve(p.file());
+			if (!Files.isRegularFile(f) || !sha256(f).equals(p.sha256())) {
+				Files.deleteIfExists(f);
+				throw new IOException(p.file() + " is missing or changed since it was fetched: press Play again to fetch it afresh");
 			}
-			Path pj = d.resolve("media-player-" + Integer.toHexString(java.util.Arrays.hashCode(own())) + ".jar");
-			if (!Files.isRegularFile(pj)) Files.write(pj, own());
-			urls.add(pj.toUri().toURL());
-			System.setProperty("javafx.cachedir", d.resolve("cache").toString());
-			loaded = new URLClassLoader(urls.toArray(new URL[0]), MediaEngine.class.getClassLoader());
+			urls.add(f.toUri().toURL());
 		}
-		Class<?> c = Class.forName("dev.gatehouse.media.Player", true, loaded);
-		c.getMethod("open", Path.class, String.class, boolean.class, Runnable.class).invoke(null, file, title, isVideo(title), failed);
+		Path pj = d.resolve("media-player-" + Integer.toHexString(java.util.Arrays.hashCode(own())) + ".jar");
+		if (!Files.isRegularFile(pj)) Files.write(pj, own());
+		urls.add(pj.toUri().toURL());
+		System.setProperty("javafx.cachedir", d.resolve("cache").toString());
+		log("loading the player: Java " + System.getProperty("java.version") + ", " + System.getProperty("os.name") + " " + System.getProperty("os.version")
+				+ " " + System.getProperty("os.arch") + ", display " + System.getenv("DISPLAY") + ", wayland " + System.getenv("WAYLAND_DISPLAY"));
+		loaded = new URLClassLoader(urls.toArray(new URL[0]), MediaEngine.class.getClassLoader());
+		return loaded;
+	}
+
+	/**
+	 * A player for a file, to put in the chat message (call on Swing's thread). problem gets a sentence when it can't
+	 * play there; the reason is also written to player.log beside the engine.
+	 */
+	public static java.awt.Component embed(Path file, String name, Consumer<String> problem) throws Exception {
+		try {
+			Class<?> c = Class.forName("dev.gatehouse.media.Player", true, load());
+			Consumer<String> told = why -> { log("can't play " + name + ": " + why); problem.accept(why); };
+			return (java.awt.Component) c.getMethod("embed", Path.class, String.class, boolean.class, Consumer.class).invoke(null, file, name, isVideo(name), told);
+		} catch (Throwable e) {
+			Throwable t = e instanceof java.lang.reflect.InvocationTargetException && e.getCause() != null ? e.getCause() : e;
+			java.io.StringWriter sw = new java.io.StringWriter();
+			t.printStackTrace(new java.io.PrintWriter(sw));
+			log("the player didn't start for " + name + ":\n" + sw);
+			throw t instanceof Exception x ? x : new Exception(t.toString(), t);
+		}
+	}
+
+	/** One line (or a stack trace) in player.log beside the engine; the log is kept under 256 KB. */
+	public static void log(String line) {
+		try {
+			Path d = home(), f = d.resolve("player.log");
+			Files.createDirectories(d);
+			if (Files.isRegularFile(f) && Files.size(f) > 256 * 1024) Files.move(f, d.resolve("player.old.log"), StandardCopyOption.REPLACE_EXISTING);
+			Files.writeString(f, java.time.OffsetDateTime.now().withNano(0) + " " + line + System.lineSeparator(), java.nio.charset.StandardCharsets.UTF_8,
+					java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND);
+		} catch (IOException | RuntimeException ignored) { Quiet.seen(ignored); }
 	}
 	private static byte[] own() throws IOException {
 		try (InputStream in = Player.class.getResourceAsStream("media-player.jar")) {

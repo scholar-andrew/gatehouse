@@ -368,7 +368,7 @@ public final class ChatView extends JPanel {
 		box.add(row, BorderLayout.NORTH);
 		JLabel shownPic = new JLabel(); box.add(shownPic, BorderLayout.CENTER);
 		view.addActionListener(e -> {
-			if (playable) { play(r, m, view); return; }
+			if (playable) { play(r, m, view, box, shownPic); return; }
 			view.setEnabled(false);
 			fetch(r, m, bytes -> {
 				if (k.equals("picture")) {
@@ -410,8 +410,16 @@ public final class ChatView extends JPanel {
 		t.setDaemon(true); t.start();
 	}
 	/** Plays a video or a sound in Gatehouse's player (R62), fetching the player first if this device hasn't it (asked). */
-	private void play(Room r, Msg m, JButton view) {
-		if (!MediaEngine.ready()) {
+	private void play(Room r, Msg m, JButton view, JPanel box, JLabel shownPic) {
+		// (a player already in this message: the button closes it)
+		Object shown = view.getClientProperty("player");
+		if (shown instanceof Component c) {
+			box.remove(c); box.add(shownPic, BorderLayout.CENTER);
+			view.putClientProperty("player", null); view.setText("Play");
+			box.revalidate(); box.repaint(); list.revalidate();
+			return;
+		}
+		if (!MediaEngine.ready() && !MediaEngine.fetchedBefore()) {
 			int a = javax.swing.JOptionPane.showConfirmDialog(this, "<html><body style='width:380px'>Videos and sounds play in Gatehouse's own player, which this device "
 					+ "fetches once: " + MediaEngine.size() + " of OpenJFX (Java's media player) from Maven Central, checked before it is kept.<br><br>Fetch it now? "
 					+ "No opens this one with this device's own program instead.</body></html>", "Gatehouse's player", javax.swing.JOptionPane.YES_NO_CANCEL_OPTION);
@@ -428,13 +436,24 @@ public final class ChatView extends JPanel {
 			}
 			SwingUtilities.invokeLater(() -> fetch(r, m, bytes -> {
 				view.setEnabled(true);
-				Runnable instead = () -> SwingUtilities.invokeLater(() -> open(m, bytes));
-				try { MediaEngine.play(temp(m, bytes), m.fileName(), instead); }
-				catch (Throwable ex) {
-					Throwable c = ex instanceof java.lang.reflect.InvocationTargetException && ex.getCause() != null ? ex.getCause() : ex;
-					tell("Gatehouse's player couldn't start here (" + why(c instanceof Exception ce ? ce : new Exception(String.valueOf(c))) + "): opening it with this device's own program.");
-					open(m, bytes);
-				}
+				// The player goes into this message; anything that stops it is said right here, in the message.
+				JPanel holder = new JPanel(new BorderLayout(0, 4)); holder.setOpaque(false);
+				JLabel trouble = new JLabel(); trouble.setForeground(new Color(0xE9B949)); trouble.setVisible(false);
+				JButton other = new JButton("Open with this device's program"); other.setVisible(false);
+				other.addActionListener(e -> open(m, bytes));
+				JPanel south = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)); south.setOpaque(false); south.add(trouble); south.add(other);
+				holder.add(south, BorderLayout.SOUTH);
+				java.util.function.Consumer<String> problem = why -> {
+					trouble.setText("<html><body style='width:420px'>It can't be played here: " + esc(why) + ". Save a copy, or open it with this device's own program.</body></html>");
+					trouble.setVisible(true); other.setVisible(true);
+					holder.revalidate(); list.revalidate();
+				};
+				box.remove(shownPic);
+				box.add(holder, BorderLayout.CENTER);
+				view.putClientProperty("player", holder); view.setText("Close player");
+				try { holder.add(MediaEngine.embed(temp(m, bytes), m.fileName(), problem), BorderLayout.CENTER); }
+				catch (Throwable ex) { problem.accept("the player didn't start (" + (ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()) + ")"); }
+				box.revalidate(); box.repaint(); list.revalidate();
 			}, () -> view.setEnabled(true)));
 		}, "chat-player");
 		t.setDaemon(true); t.start();

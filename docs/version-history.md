@@ -7,6 +7,12 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.44.0 - 2026-11-18
+
+- Video now plays on the Steam Deck too: on Java 21 or newer the player uses OpenJFX 23.0.2, which supports the FFmpeg 7 in the Deck's Prism Flatpak (21.0.6 supported only up to FFmpeg 6). Devices that already fetched the player get the newer one without being asked again.
+- Videos and sounds now play right in the chat message, not in a window of their own: Theater makes the player as wide as the chat, Full screen fills the screen and Esc brings it back. Close player puts the message back.
+- When a video or sound can't be played, the message says why in plain words and offers Open with this device's program; the reason is also kept in player.log beside the player's files.
+
 ## 3.43.0 - 2026-11-18
 
 - Videos and sounds in chat (R62): Play plays one in Gatehouse's own player, in Gatehouse and Gatekeeper: pause, a seek bar, back and forward 10 seconds, volume, theater and full screen, with keys. It plays MP4, M4A, MP3, WAV and AIFF; the player (OpenJFX, about 7.5 MB from Maven Central, checked against checksums in the signed program) is fetched once, the first time you press Play, if you say yes.

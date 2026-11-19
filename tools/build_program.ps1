@@ -31,7 +31,7 @@ if ($LASTEXITCODE) { throw 'javac (Java 22 part) failed' }
 # OpenJFX itself the first time they play something (dev.gatehouse.look.MediaEngine). Building needs OpenJFX's Windows
 # parts in tools\cache\openjfx-21.0.6 (not in the repository); they are fetched once from Maven Central and checked.
 $fx = Join-Path $root 'tools\cache\openjfx-21.0.6'
-$fxParts = [ordered]@{ 'javafx-base' = '618a1149089d1459cc569cc10eac05c5589a532473d09f35c1e9ea2c5b6de50e'; 'javafx-graphics' = '4b0981384551f39a0ca9679672f2abbedd9d0966763205534fca230b1cf314a5'; 'javafx-media' = '59fbb279c303eb9a4598ca88228884bbc267f287769b6d22af8e65b923af25a6' }
+$fxParts = [ordered]@{ 'javafx-base' = '618a1149089d1459cc569cc10eac05c5589a532473d09f35c1e9ea2c5b6de50e'; 'javafx-graphics' = '4b0981384551f39a0ca9679672f2abbedd9d0966763205534fca230b1cf314a5'; 'javafx-media' = '59fbb279c303eb9a4598ca88228884bbc267f287769b6d22af8e65b923af25a6'; 'javafx-swing' = '51ca5c40ef4189f3aebdee2a6ebd3b9276bfa496cf2bbe2aeabffc6eb8ca8b1d' }
 New-Item -ItemType Directory -Force $fx | Out-Null
 $fxJars = @()
 foreach ($m in $fxParts.Keys) {

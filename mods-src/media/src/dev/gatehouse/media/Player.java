@@ -1,14 +1,19 @@
 package dev.gatehouse.media;
 
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
 import java.nio.file.Path;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleDoubleProperty;
+import javafx.embed.swing.JFXPanel;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.geometry.Rectangle2D;
 import javafx.scene.Cursor;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
@@ -26,40 +31,68 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextAlignment;
-import javafx.stage.Screen;
-import javafx.stage.Stage;
 import javafx.util.Duration;
+import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 
 /**
- * The chat's video and sound player (R62), a window of its own: play/pause, a seek bar with the time, back and forward
- * ten seconds, mute and volume, theater (a large window) and full screen. Keys: Space or K play/pause, Left/Right or
- * J/L ten seconds, Up/Down volume, M mute, T theater, F full screen, Esc leaves full screen. A click on the picture
- * plays or pauses it; a double click is full screen.
+ * The chat's video and sound player (R62), shown inside the chat message itself (no window of its own: a second window
+ * never appeared in a handheld's game mode, and the owner wanted media in the chat). Play/pause, a seek bar with the
+ * time, back and forward ten seconds, mute and volume, Theater (the player as wide as the chat and taller) and Full
+ * screen (the player alone on the screen; Esc or the button brings it back into the chat). Keys while it has focus:
+ * Space or K, Left/Right or J/L, Up/Down, M, T, F, Esc. A click on the picture plays or pauses; a double click is full
+ * screen.
  *
- * Built against OpenJFX's base, graphics and media parts only (its buttons and sliders are drawn here, so devices fetch
- * less), and shipped inside the program as media-player.jar; dev.gatehouse.look.MediaEngine loads it, with the parts it
- * fetched once, in a class loader of their own, and calls open() by name.
+ * It is a JFXPanel (OpenJFX's Swing bridge) holding a JavaFX scene, so it sits in Gatehouse's and Gatekeeper's Swing
+ * chat like any other component. Built against OpenJFX's base, graphics, media and swing parts (its buttons and sliders
+ * are drawn here), shipped inside the program as media-player.jar, and loaded by dev.gatehouse.look.MediaEngine with
+ * the parts it fetched, in a class loader of their own; MediaEngine calls embed() by name.
  */
 public final class Player {
 	private Player() {}
-	private static final AtomicBoolean started = new AtomicBoolean();
-	private static final Color BG = Color.web("#121b28"), BAR = Color.web("#1b2838"), KEY = Color.web("#2b3d52"), KEY_LIT = Color.web("#3a5370"),
+	private static final Color BG = Color.web("#121b28"), KEY = Color.web("#2b3d52"), KEY_LIT = Color.web("#3a5370"),
 			TEXT = Color.web("#e6edf5"), MUTED = Color.web("#9fb0c3"), ACCENT = Color.web("#5bb8f0"), TRACK = Color.web("#33475e");
+	private static final int W = 480, VIDEO_H = 300, SOUND_H = 96;
 
-	/** Opens a player window for a file; failed runs when this file can't be played here (the caller opens it otherwise). */
-	public static void open(Path file, String title, boolean video, Runnable failed) throws Exception {
-		if (started.compareAndSet(false, true)) {
-			java.util.concurrent.CountDownLatch up = new java.util.concurrent.CountDownLatch(1);
-			Platform.startup(up::countDown);
-			Platform.setImplicitExit(false);
-			if (!up.await(20, java.util.concurrent.TimeUnit.SECONDS)) throw new IllegalStateException("the player didn't start");
-		}
+	/**
+	 * A player for a file, to put in the chat (call on Swing's thread). problem gets a sentence when the file can't be
+	 * played here (on Swing's thread); the caller shows it and offers the device's own program.
+	 */
+	public static Component embed(Path file, String title, boolean video, Consumer<String> problem) {
+		JFXPanel panel = new JFXPanel();   // (starts JavaFX the first time)
+		Platform.setImplicitExit(false);
+		Dimension small = new Dimension(W, video ? VIDEO_H : SOUND_H);
+		panel.setPreferredSize(small);
+		panel.setMaximumSize(small);
+		panel.setAlignmentX(Component.LEFT_ALIGNMENT);
+		MediaPlayer[] holder = new MediaPlayer[1];
 		Platform.runLater(() -> {
-			try { show(file, title, video, failed); }
-			catch (RuntimeException e) { failed.run(); }
+			try { holder[0] = build(panel, file, title, video, problem, small); }
+			catch (RuntimeException e) { SwingUtilities.invokeLater(() -> problem.accept(why(e))); }
 		});
+		// (stops and frees the player when the message leaves the screen for good: another room, the window closed)
+		panel.addHierarchyListener(e -> {
+			if ((e.getChangeFlags() & java.awt.event.HierarchyEvent.DISPLAYABILITY_CHANGED) != 0 && !panel.isDisplayable() && !Boolean.TRUE.equals(panel.getClientProperty("moving")))
+				Platform.runLater(() -> { if (holder[0] != null) holder[0].dispose(); });
+		});
+		return panel;
 	}
 
+	private static String why(Throwable e) {
+		String m = e.getMessage();
+		return m == null || m.isBlank() ? e.getClass().getSimpleName() : m;
+	}
+	/** A media failure in plain words. */
+	private static String plain(javafx.scene.media.MediaException e) {
+		if (e == null) return "the player stopped";
+		return switch (e.getType()) {
+			case MEDIA_CORRUPTED, MEDIA_INACCESSIBLE -> "the file isn't one this player can read";
+			case MEDIA_UNSUPPORTED, MEDIA_UNAVAILABLE, MEDIA_UNSPECIFIED -> "this device's player can't play this kind of video or sound"
+					+ (System.getProperty("os.name", "").toLowerCase().startsWith("linux") ? " (on Linux, video needs the system's ffmpeg libraries)" : "");
+			case OPERATION_UNSUPPORTED -> "this device can't do that with this file";
+			default -> "the player stopped (" + e.getType() + ")";
+		};
+	}
 	private static String time(Duration d) {
 		if (d == null || d.isUnknown() || d.isIndefinite()) return "0:00";
 		long s = (long) Math.floor(d.toSeconds());
@@ -71,10 +104,10 @@ public final class Player {
 	private static final class Key extends StackPane {
 		final Text label;
 		Key(String words, Runnable run) {
-			label = text(words, 14, TEXT);
+			label = text(words, 13, TEXT);
 			Rectangle back = new Rectangle(); back.setArcWidth(10); back.setArcHeight(10); back.setFill(KEY);
 			getChildren().addAll(back, label);
-			setPadding(new Insets(6, 12, 6, 12));
+			setPadding(new Insets(5, 10, 5, 10));
 			back.widthProperty().bind(widthProperty()); back.heightProperty().bind(heightProperty());
 			back.setManaged(false);
 			setCursor(Cursor.HAND);
@@ -94,7 +127,7 @@ public final class Player {
 			fill.setArcWidth(6); fill.setArcHeight(6); fill.setFill(ACCENT);
 			knob.setArcWidth(4); knob.setArcHeight(4); knob.setFill(TEXT);
 			getChildren().addAll(track, fill, knob);
-			setPrefSize(width, 22); setMinSize(60, 22); setMaxHeight(22);
+			setPrefSize(width, 22); setMinSize(50, 22); setMaxHeight(22);
 			track.widthProperty().bind(widthProperty());
 			Runnable draw = () -> {
 				double f = max.get() <= 0 ? 0 : Math.max(0, Math.min(1, value.get() / max.get())), w = getWidth() <= 0 ? width : getWidth();
@@ -112,19 +145,13 @@ public final class Player {
 		}
 	}
 
-	private static void show(Path file, String title, boolean video, Runnable failed) {
+	/** The scene, on JavaFX's thread. */
+	private static MediaPlayer build(JFXPanel panel, Path file, String title, boolean video, Consumer<String> problem, Dimension small) {
 		Media media = new Media(file.toUri().toString());
 		MediaPlayer mp = new MediaPlayer(media);
-		Stage st = new Stage();
-		st.setTitle(title + " — Gatehouse player");
 
-		// what is shown: the picture, or for a sound its name on a quiet background
 		StackPane screen = new StackPane();
 		screen.setStyle("-fx-background-color: " + (video ? "black" : "#121b28") + ";");
-		Text problem = text("", 15, TEXT);
-		problem.setTextAlignment(TextAlignment.CENTER);
-		problem.wrappingWidthProperty().bind(screen.widthProperty().subtract(40));
-		problem.setVisible(false);
 		if (video) {
 			MediaView mv = new MediaView(mp);
 			mv.setPreserveRatio(true);
@@ -132,42 +159,80 @@ public final class Player {
 			mv.fitHeightProperty().bind(screen.heightProperty());
 			screen.getChildren().add(mv);
 		} else {
-			VBox v = new VBox(8, text("♫", 64, ACCENT), text(title, 17, TEXT));
-			v.setAlignment(Pos.CENTER);
-			screen.getChildren().add(v);
+			Text name = text("♫  " + title, 14, TEXT);
+			screen.getChildren().add(name);
+			StackPane.setAlignment(name, Pos.CENTER_LEFT);
+			StackPane.setMargin(name, new Insets(0, 12, 0, 12));
 		}
-		screen.getChildren().add(problem);
+		Text trouble = text("", 13, TEXT);
+		trouble.setTextAlignment(TextAlignment.CENTER);
+		trouble.wrappingWidthProperty().bind(screen.widthProperty().subtract(24));
+		trouble.setVisible(false);
+		screen.getChildren().add(trouble);
 
-		// the controls
+		// Theater and full screen move the Swing side; the scene just follows its size.
+		boolean[] wide = {false}, full = {false};
+		Key[] th = new Key[1], fs = new Key[1];
+		JFrame[] fullFrame = {null};
+		Container[] home = {null};
+		int[] homeIndex = {-1};
 		Runnable toggle = () -> { if (mp.getStatus() == MediaPlayer.Status.PLAYING) mp.pause(); else mp.play(); };
 		Runnable bk = () -> mp.seek(Duration.seconds(Math.max(0, mp.getCurrentTime().toSeconds() - 10)));
 		Runnable fw = () -> mp.seek(Duration.seconds(Math.min(media.getDuration().toSeconds(), mp.getCurrentTime().toSeconds() + 10)));
-		Rectangle2D[] before = {null};
-		Key[] th = new Key[1], fs = new Key[1];
-		Runnable theater = () -> {
-			if (st.isFullScreen()) st.setFullScreen(false);
-			if (before[0] == null) {
-				before[0] = new Rectangle2D(st.getX(), st.getY(), st.getWidth(), st.getHeight());
-				Rectangle2D s = Screen.getScreensForRectangle(before[0]).stream().findFirst().orElse(Screen.getPrimary()).getVisualBounds();
-				st.setX(s.getMinX() + s.getWidth() * 0.04); st.setY(s.getMinY() + s.getHeight() * 0.04);
-				st.setWidth(s.getWidth() * 0.92); st.setHeight(s.getHeight() * 0.92);
-				th[0].say("Smaller");
-			} else {
-				st.setX(before[0].getMinX()); st.setY(before[0].getMinY()); st.setWidth(before[0].getWidth()); st.setHeight(before[0].getHeight());
-				before[0] = null; th[0].say("Theater");
-			}
-		};
-		Runnable full = () -> st.setFullScreen(!st.isFullScreen());
+		Runnable theater = () -> SwingUtilities.invokeLater(() -> {
+			if (full[0]) return;
+			wide[0] = !wide[0];
+			Container chat = panel.getParent();
+			while (chat != null && !(chat instanceof javax.swing.JViewport)) chat = chat.getParent();
+			int w = chat == null ? W * 2 : Math.max(W, chat.getWidth() - 40);
+			Dimension d = wide[0] ? new Dimension(w, video ? Math.max(VIDEO_H, (int) (w * 9 / 16.0) + 40) : SOUND_H) : small;
+			panel.setPreferredSize(d); panel.setMaximumSize(d);
+			panel.revalidate(); if (panel.getParent() != null) panel.getParent().revalidate();
+			panel.scrollRectToVisible(new java.awt.Rectangle(0, 0, d.width, d.height));
+			Platform.runLater(() -> th[0].say(wide[0] ? "Smaller" : "Theater"));
+		});
+		Runnable fullScreen = () -> SwingUtilities.invokeLater(() -> {
+			java.awt.GraphicsDevice dev = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getDefaultScreenDevice();
+			panel.putClientProperty("moving", Boolean.TRUE);
+			try {
+				if (!full[0]) {
+					home[0] = panel.getParent();
+					homeIndex[0] = home[0] == null ? -1 : java.util.Arrays.asList(home[0].getComponents()).indexOf(panel);
+					JFrame f = new JFrame(title);
+					f.setUndecorated(true);
+					f.getContentPane().setBackground(java.awt.Color.BLACK);
+					f.getContentPane().add(panel, BorderLayout.CENTER);
+					panel.setMaximumSize(null);
+					java.awt.Rectangle b = dev.getDefaultConfiguration().getBounds();
+					f.setBounds(b);
+					if (dev.isFullScreenSupported()) dev.setFullScreenWindow(f); else { f.setExtendedState(JFrame.MAXIMIZED_BOTH); f.setVisible(true); }
+					fullFrame[0] = f; full[0] = true;
+					panel.requestFocusInWindow();
+				} else {
+					JFrame f = fullFrame[0];
+					if (dev.getFullScreenWindow() == f) dev.setFullScreenWindow(null);
+					f.getContentPane().remove(panel);
+					f.dispose();
+					Dimension d = panel.getPreferredSize();
+					panel.setMaximumSize(d);
+					if (home[0] != null) { home[0].add(panel, Math.min(homeIndex[0] < 0 ? home[0].getComponentCount() : homeIndex[0], home[0].getComponentCount())); home[0].revalidate(); home[0].repaint(); }
+					full[0] = false; fullFrame[0] = null;
+				}
+			} finally { panel.putClientProperty("moving", null); }
+			Platform.runLater(() -> fs[0].say(full[0] ? "Leave full screen" : "Full screen"));
+		});
+
 		Key play = new Key("Pause", toggle), back = new Key("- 10 s", bk), fwd = new Key("+ 10 s", fw);
 		Key mute = new Key("Mute", () -> mp.setMute(!mp.isMute()));
-		th[0] = new Key("Theater", theater); fs[0] = new Key("Full screen", full);
-		Bar seek = new Bar(240, v -> mp.seek(Duration.seconds(v))), vol = new Bar(80, v -> {});
+		th[0] = new Key("Theater", theater); fs[0] = new Key("Full screen", fullScreen);
+		Bar seek = new Bar(160, v -> mp.seek(Duration.seconds(v))), vol = new Bar(60, v -> {});
 		vol.value.set(0.8);
 		HBox.setHgrow(seek, Priority.ALWAYS);
-		Text at = text("0:00 / 0:00", 13, MUTED);
-		HBox bar = new HBox(8, play, back, fwd, seek, at, mute, vol, th[0], fs[0]);
+		Text at = text("0:00 / 0:00", 12, MUTED);
+		HBox bar = new HBox(6, play, back, fwd, seek, at, mute, vol);
+		if (video) bar.getChildren().addAll(th[0], fs[0]);
 		bar.setAlignment(Pos.CENTER_LEFT);
-		bar.setPadding(new Insets(8, 10, 8, 10));
+		bar.setPadding(new Insets(6, 8, 6, 8));
 		bar.setStyle("-fx-background-color: #1b2838;");
 
 		mp.setVolume(vol.value.get());
@@ -180,21 +245,27 @@ public final class Player {
 		mp.setOnReady(() -> { Duration d = media.getDuration(); seek.max.set(Math.max(1, d.toSeconds())); at.setText("0:00 / " + time(d)); mp.play(); });
 		mp.statusProperty().addListener((o, a, b) -> play.say(b == MediaPlayer.Status.PLAYING ? "Pause" : "Play"));
 		mp.setOnEndOfMedia(() -> { mp.pause(); mp.seek(Duration.ZERO); });
-		st.fullScreenProperty().addListener((o, a, b) -> fs[0].say(b ? "Leave full screen" : "Full screen"));
-		screen.setOnMouseClicked(e -> { if (e.getClickCount() == 2 && video) full.run(); else if (e.getClickCount() == 1) toggle.run(); });
+		screen.setOnMouseClicked(e -> { if (e.getClickCount() == 2 && video) fullScreen.run(); else if (e.getClickCount() == 1) toggle.run(); });
 
+		boolean[] told = {false};
 		Runnable cant = () -> {
-			String why = mp.getError() != null ? mp.getError().getMessage() : media.getError() != null ? media.getError().getMessage() : "";
-			problem.setText("This can't be played here" + (why == null || why.isEmpty() ? "." : ": " + why) + "\nIt opens with this device's own program instead.");
-			problem.setVisible(true);
-			failed.run();
+			if (told[0]) return;   // (the media and the player both report the same failure)
+			told[0] = true;
+			javafx.scene.media.MediaException e = mp.getError() != null ? mp.getError() : media.getError();
+			String why = plain(e);
+			// (the chat says it under the message, with a way to open it elsewhere; the empty player is hidden)
+			SwingUtilities.invokeLater(() -> {
+				panel.setVisible(false);
+				if (panel.getParent() != null) panel.getParent().revalidate();
+				problem.accept(why + (e == null ? "" : " [" + e.getType() + "]"));
+			});
 		};
 		mp.setOnError(cant);
 		media.setOnError(cant);
 
 		BorderPane root = new BorderPane(screen);
 		root.setBottom(bar);
-		Scene sc = new Scene(root, video ? 960 : 720, video ? 600 : 260, BG);
+		Scene sc = new Scene((Parent) root, BG);
 		sc.setOnKeyPressed(e -> {
 			KeyCode k = e.getCode();
 			if (k == KeyCode.SPACE || k == KeyCode.K) toggle.run();
@@ -203,15 +274,13 @@ public final class Player {
 			else if (k == KeyCode.UP) vol.value.set(Math.min(1, vol.value.get() + 0.1));
 			else if (k == KeyCode.DOWN) vol.value.set(Math.max(0, vol.value.get() - 0.1));
 			else if (k == KeyCode.M) mp.setMute(!mp.isMute());
-			else if (k == KeyCode.T) theater.run();
-			else if (k == KeyCode.F) full.run();
+			else if (k == KeyCode.T && video) theater.run();
+			else if (k == KeyCode.F && video) fullScreen.run();
+			else if (k == KeyCode.ESCAPE && full[0]) fullScreen.run();
 			else return;
 			e.consume();
 		});
-		st.setScene(sc);
-		st.setMinWidth(560); st.setMinHeight(200);
-		st.setOnHidden(e -> mp.dispose());
-		st.show();
-		st.toFront();
+		panel.setScene(sc);
+		return mp;
 	}
 }
