@@ -296,7 +296,8 @@ final class PackUi {
 						model.addElement("<html><b>" + esc(Json.str(mod.get("title"))) + "</b> \u00b7 " + (dl >= 1_000_000 ? dl / 1_000_000 + "M" : dl >= 1000 ? dl / 1000 + "k" : String.valueOf(dl))
 								+ " downloads" + (Boolean.TRUE.equals(mod.get("players")) ? "" : " \u00b7 server only") + "<br><span style='color:#A9B5C1'>" + esc(Json.str(mod.get("summary"))) + "</span></html>");
 					}
-					said.setText(ids.isEmpty() ? "Nothing on Modrinth fits that for Minecraft " + Json.str(r.get("version")) + " with Fabric." : ids.size() + " mods for Minecraft " + Json.str(r.get("version")) + " with Fabric. Choose one, then Add to the server.");
+					said.setText(ids.isEmpty() ? (w.isEmpty() ? "Modrinth has no Fabric mods for Minecraft " : "Nothing on Modrinth fits that for Minecraft ") + Json.str(r.get("version")) + " with Fabric."
+							: (w.isEmpty() ? "The " + ids.size() + " most downloaded" : ids.size()) + " mods for Minecraft " + Json.str(r.get("version")) + " with Fabric" + (w.isEmpty() ? " (type words to look for others)" : "") + ". Choose one, then Add to the server.");
 				});
 			});
 		};
@@ -317,6 +318,8 @@ final class PackUi {
 		p.add(new javax.swing.JScrollPane(list), BorderLayout.CENTER);
 		JPanel bottom = new JPanel(new BorderLayout(0, 6)); bottom.add(said, BorderLayout.NORTH); bottom.add(line(add), BorderLayout.SOUTH); p.add(bottom, BorderLayout.SOUTH);
 		p.setPreferredSize(new java.awt.Dimension(640, 460));
+		words.setToolTipText("Words to look for, like 'map' or 'storage'. Empty: the most downloaded mods that fit this server");
+		doSearch.run();   // (R78: something to choose from straight away)
 		javax.swing.JOptionPane.showMessageDialog(over, p, "Find mods on Modrinth", javax.swing.JOptionPane.PLAIN_MESSAGE);
 	}
 

@@ -117,8 +117,9 @@ between machines.
 **Find mods on Modrinth…** (3.41.0) searches Modrinth for Fabric mods that fit the server's Minecraft version, shows
 how many people use each and whether players need it too, and **Add to the server** puts the chosen one in the
 server's `mods` folder, with the mods it says it requires. Each file comes from Modrinth's own file server and is kept
-only if it matches the checksum Modrinth publishes. It works for Fabric servers Gatekeeper runs itself (for an MCSS
-server, add mods in MCSS). Nothing reaches players until the server has restarted and you use **Mods players get…** and
+only if it matches the checksum Modrinth publishes. It opens on the most downloaded mods that fit; words narrow it
+down. It works for every Fabric server whose folder Gatekeeper knows, MCSS's too (3.48.2); a mod added to an MCSS
+server is loaded the next time MCSS starts it. Nothing reaches players until the server has restarted and you use **Mods players get…** and
 **New version…**. Only the search words and the Minecraft version are sent to Modrinth.
 
 ## The AI helper

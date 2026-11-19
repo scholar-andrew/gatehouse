@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.48.1",
+ "version": "3.48.2",
  "changes": [
+  {"version": "3.48.2", "date": "2026-11-19", "notes": [
+   "Find mods on Modrinth works for servers MC Server Soft runs too (it found nothing for them before), and opens on the most downloaded mods that fit the server before you type anything."
+  ]},
   {"version": "3.48.1", "date": "2026-11-19", "notes": [
    "The Gatekeepers page shows each other Gatekeeper's kind of machine (a PC, a Steam Deck...) instead of its initials, once that Gatekeeper has 3.48.1 too."
   ]},

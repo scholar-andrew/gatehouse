@@ -1,4 +1,7 @@
 [
+ {"version": "1.81.2", "date": "2026-11-19", "notes": [
+  "Gatehouse 3.48.2: the mod browser works for MCSS servers. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.81.1", "date": "2026-11-19", "notes": [
   "Gatehouse 3.48.1: machine pictures on the Gatekeepers page. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

@@ -47,7 +47,8 @@ final class ModBrowser {
 	static String blocker(Map<String, Object> s) {
 		Game g = Game.of(s);
 		if (g == null || !g.id().equals("minecraft")) return "Mods from Modrinth are for Minecraft servers.";
-		if (!isNative()) return "Gatekeeper adds mods only to servers it runs itself: for an MCSS server, add them in MCSS.";
+		// (R78: an MC Server Soft server too: its mods folder is an ordinary folder, read at its next start)
+		if (Json.str(s.get("dir")).isEmpty() || !Files.isDirectory(Path.of(Json.str(s.get("dir"))))) return "This server's folder isn't known here yet: Server setup.";
 		Path d = Path.of(Json.str(s.get("dir")));
 		if (Packs.fabricLoader(d).isEmpty()) return "This server isn't a Fabric server, and the mod browser finds Fabric mods.";
 		if (serverFacts(d)[1].isEmpty()) return "This server's Minecraft version isn't known yet: start it once first.";
@@ -58,7 +59,9 @@ final class ModBrowser {
 	/** Mods that fit the server: [{id, slug, title, summary, downloads, players}]. */
 	static List<Object> search(Map<String, Object> s, String words) throws IOException {
 		String facets = "[[\"project_type:mod\"],[\"categories:fabric\"],[\"versions:" + version(s) + "\"]]";
-		Map<String, Object> r = Json.map(Json.parse(get(ModList.site() + "/search?limit=20&query=" + enc(words) + "&facets=" + enc(facets))));
+		// (R78: with no words, the most downloaded mods that fit; with words, the best matches)
+		Map<String, Object> r = Json.map(Json.parse(get(ModList.site() + "/search?limit=" + (words.isEmpty() ? 30 : 20) + "&index=" + (words.isEmpty() ? "downloads" : "relevance")
+				+ "&query=" + enc(words) + "&facets=" + enc(facets))));
 		List<Object> out = new ArrayList<>();
 		for (Object o : Json.list(r.get("hits"))) {
 			Map<String, Object> h = Json.map(o);
@@ -107,7 +110,7 @@ final class ModBrowser {
 			}
 			if (added.isEmpty()) return new String[] {"ok", already.isEmpty() ? "Nothing to add." : "That mod is in the server's mods folder already."};
 			log("mod browser: added " + String.join(", ", added) + " to " + serverName());
-			return new String[] {"ok", "Added to " + serverName() + "'s mods folder: " + String.join(", ", added) + ". It takes effect when the server starts again; "
+			return new String[] {"ok", "Added to " + serverName() + "'s mods folder: " + String.join(", ", added) + ". It takes effect when the server starts again" + (isNative() ? "" : " (MC Server Soft starts it)") + "; "
 					+ "then Mods players get... (to choose which players need) and New version... to send them."};
 		} catch (IOException | RuntimeException e) { return new String[] {"failed", "The mod wasn't added: " + e.getMessage()}; }
 	}

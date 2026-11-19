@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.48.2 - 2026-11-19
+
+- Find mods on Modrinth works for servers MC Server Soft runs too (it found nothing for them before), and opens on the most downloaded mods that fit the server before you type anything.
+
 ## 3.48.1 - 2026-11-19
 
 - The Gatekeepers page shows each other Gatekeeper's kind of machine (a PC, a Steam Deck...) instead of its initials, once that Gatekeeper has 3.48.1 too.
