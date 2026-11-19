@@ -40,13 +40,14 @@ final class PairingUi {
 		// Share pairing: what to give someone so their launcher can find this Gatekeeper. The address by itself, a
 		// link that carries its name too (pasted into the launcher's Add Gatekeeper), or the same as a small file to
 		// send. None of them lets a launcher do anything: it still introduces itself and waits to be allowed.
-		String[] shareLink = {"", "", ""};   // (the invite link, and this Gatekeeper's name, as the running Gatekeeper has them)
+		String[] shareLink = {"", "", "", ""};   // (the invite link, and this Gatekeeper's name, as the running Gatekeeper has them)
 		pairB.addActionListener(e -> {
 			String addr, name;
 			try {
 				Map<String, Object> r = Json.map(Json.parse(call("POST", "/admin/setup/scan", "{}")));
 				if (Json.str(r.get("bind")).isEmpty()) { pairNote.setText("No Tailscale address yet: use Server setup first."); return; }
-				addr = Json.str(r.get("bind")) + ":" + Json.str(r.get("port"));
+				addr = (Json.str(r.get("pair_address")).isEmpty() ? Json.str(r.get("bind")) : Json.str(r.get("pair_address"))) + ":" + Json.str(r.get("port"));
+				shareLink[3] = Json.str(r.get("join_key"));   // (R79 stage 3: facing the internet, the key a new launcher brings)
 				shareLink[2] = ServerTools.yes(r.get("https")) ? Json.str(r.get("fingerprint")) : "";   // (R79)
 				shareLink[0] = Json.str(r.get("share_link"));
 				shareLink[1] = Json.str(r.get("name"));
@@ -57,7 +58,7 @@ final class PairingUi {
 			String share = shareLink[0];
 			String link = "gatehouse://pair/" + addr + "?name=" + java.net.URLEncoder.encode(name, StandardCharsets.UTF_8)
 					+ (share.isEmpty() ? "" : "&ts=" + java.net.URLEncoder.encode(share, StandardCharsets.UTF_8))
-					+ (shareLink[2].isEmpty() ? "" : "&fp=" + shareLink[2]), nm = name;
+					+ (shareLink[2].isEmpty() ? "" : "&fp=" + shareLink[2]) + (shareLink[3].isEmpty() ? "" : "&k=" + shareLink[3]), nm = name;
 			javax.swing.JTextField addrF = new javax.swing.JTextField(addr, 34), linkF = new javax.swing.JTextField(link, 34);
 			addrF.setEditable(false); linkF.setEditable(false);
 			JButton copyA = new JButton("Copy"), copyL = new JButton("Copy"), save = new JButton("Save pairing file\u2026");
@@ -75,6 +76,7 @@ final class PairingUi {
 				Map<String, Object> pf = m("gatehouse_pairing", 1, "name", nm, "address", addr);
 				if (!share.isEmpty()) pf.put("tailscale_share", share);
 				if (!shareLink[2].isEmpty()) pf.put("fingerprint", shareLink[2]);   // (R79)
+				if (!shareLink[3].isEmpty()) pf.put("join_key", shareLink[3]);
 				try { Files.writeString(fc.getSelectedFile().toPath(), Json.write(pf)
 						+ "\n", StandardCharsets.UTF_8); said.setText("Saved " + fc.getSelectedFile().getName() + "."); }
 				catch (IOException ex) { said.setForeground(new Color(0xFF7B72)); said.setText("Couldn't save: " + ex.getMessage()); }

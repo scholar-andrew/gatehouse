@@ -125,7 +125,7 @@ final class Connect {
 		JLabel intro = new JLabel("<html><div style='width:520px'>" + esc(who)
 				+ (ts0 ? " is reached over Tailscale, a private network between its owner's machine and the devices they let in. "
 				: homeAddress(url) ? " is on its owner's home network: this device has to be on the same one (the same Wi-Fi or cable). "
-				: " is on its owner's own private network: this device has to be on it too (ask the owner which one, and to let you in). ")
+				: " is reached over the internet, or over its owner's own private network (then this device has to be on it too). ")
 				+ "These are the steps; each one ticks by itself when it's done.</div></html>");
 		intro.setAlignmentX(Component.LEFT_ALIGNMENT);
 		list.add(intro);
@@ -179,7 +179,7 @@ final class Connect {
 			if (!ts0) { s1.setVisible(false); b1.setVisible(false); s2.setVisible(false); b2.setVisible(false);   // (R79: no Tailscale steps)
 				s3.setText(line(reach, false, "This device can reach " + who, reach ? shown : homeAddress(url)
 						? "Not yet. Is this device on the same network as the owner's machine, and is that machine on?"
-						: "Not yet. Is this device on the owner's private network, and is their machine on?")); }
+						: "Not yet. Is the owner's machine on, and their router letting it through (or this device on their private network)?")); }
 			list.revalidate(); list.repaint();
 		};
 		JPanel p = new JPanel(new BorderLayout());

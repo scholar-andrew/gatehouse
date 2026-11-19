@@ -82,8 +82,8 @@ final class HostSetupUi {
 		nameRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); shareRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		// R79: how devices reach this Gatekeeper: Tailscale, the home network, or another private network, and which of
 		// this machine's addresses on it. Chosen here, at the machine.
-		String[][] nets = {{"tailscale", "Tailscale"}, {"home", "Home network (only devices at home)"}, {"private", "Another private network (ZeroTier, NetBird...)"}};
-		javax.swing.JComboBox<String> netBox = new javax.swing.JComboBox<>(new String[] {nets[0][1], nets[1][1], nets[2][1]});
+		String[][] nets = {{"tailscale", "Tailscale"}, {"home", "Home network (only devices at home)"}, {"private", "Another private network (ZeroTier, NetBird...)"}, {"internet", "The internet, through your router"}};
+		javax.swing.JComboBox<String> netBox = new javax.swing.JComboBox<>(new String[] {nets[0][1], nets[1][1], nets[2][1], nets[3][1]});
 		javax.swing.JComboBox<String> addrBox = new javax.swing.JComboBox<>();
 		JButton netSave = new JButton("Save");
 		netBox.setToolTipText("<html>Tailscale: a private, encrypted network between this machine and the devices you let in (as before).<br>Home network: devices on the same Wi-Fi or cable as this machine, nothing from outside the home. The web panel stays off in this mode.<br>Another private network: one you run yourself instead of Tailscale (ZeroTier, NetBird, Headscale, Radmin VPN...).<br>Nothing is opened to the internet in any of them.</html>");
@@ -102,6 +102,15 @@ final class HostSetupUi {
 		httpsRow.add(httpsBox); httpsRow.add(renewB); httpsRow.add(fpLab);
 		httpsRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		boolean[] httpsFilling = {false};
+		// R79 stage 3: facing the internet, the name players use, and a new join key when one got out
+		javax.swing.JTextField pubF = new javax.swing.JTextField(22);
+		pubF.setToolTipText("The name or address players use from outside your home: a free dynamic name that follows your home's address (DuckDNS, No-IP, your router's own), or the address itself");
+		JButton pubSave = new JButton("Save"), newKey = new JButton("New join key\u2026");
+		newKey.setToolTipText("Pairings made before then no longer let NEW launchers in (launchers already in stay in). For when a pairing got to someone it shouldn't have.");
+		JLabel pubLab = new JLabel("Public name:"); pubLab.setFont(pubLab.getFont().deriveFont(Font.BOLD));
+		JPanel pubRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+		pubRow.add(pubLab); pubRow.add(pubF); pubRow.add(pubSave); pubRow.add(newKey);
+		pubRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		java.util.List<Object> netAddrs = new java.util.ArrayList<>();
 		boolean[] netFilling = {false};
 		Runnable netFill = () -> {
@@ -116,6 +125,8 @@ final class HostSetupUi {
 			if (addrBox.getItemCount() == 0) addrBox.addItem(mode.equals("tailscale") ? "(no Tailscale address: is Tailscale connected?)" : "(this machine has no address on such a network)");
 			for (int i = 0; i < addrBox.getItemCount(); i++) if (addrBox.getItemAt(i).equals(keep)) addrBox.setSelectedIndex(i);
 			shareRow.setVisible(mode.equals("tailscale"));   // (the Tailscale invite link only matters on Tailscale)
+			pubRow.setVisible(mode.equals("internet"));
+			httpsBox.setToolTipText(mode.equals("internet") ? "Always on facing the internet" : httpsBox.getToolTipText());
 			netFilling[0] = false;
 		};
 		Runnable netLoad = () -> new Thread(() -> {
@@ -130,6 +141,7 @@ final class HostSetupUi {
 					netFill.run();
 					for (int i = 0; i < addrBox.getItemCount(); i++) if (addrBox.getItemAt(i).startsWith(bind + " ")) addrBox.setSelectedIndex(i);
 					httpsFilling[0] = true; httpsBox.setSelected(Boolean.TRUE.equals(r.get("https"))); httpsFilling[0] = false;
+					if (!pubF.isFocusOwner()) pubF.setText(Json.str(r.get("public")));
 					String fpNow = Json.str(r.get("fingerprint"));
 					renewB.setVisible(!fpNow.isEmpty());
 					fpLab.setText(fpNow.isEmpty() ? "" : "Fingerprint " + fpNow.substring(0, 16) + "\u2026");
@@ -156,10 +168,13 @@ final class HostSetupUi {
 			SwingUtilities.invokeLater(() -> { shareSaid.setText("<html><div style='width:860px'>" + msg.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); netLoad.run(); });
 		}, "https").start();
 		httpsBox.addActionListener(e -> { if (!httpsFilling[0]) httpsPost.accept(m("https", httpsBox.isSelected())); });
+		pubSave.addActionListener(e -> httpsPost.accept(m("public", pubF.getText().trim())));
+		newKey.addActionListener(e -> { if (JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Make a new join key? Pairings and packs handed out before then no longer let new launchers in; launchers already in stay in.</div></html>",
+				"New join key", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) httpsPost.accept(m("join_key", "new")); });
 		renewB.addActionListener(e -> { if (JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Make a new certificate? Every launcher and Gatekeeper that knows this one needs the new pairing afterwards.</div></html>",
 				"New certificate", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) httpsPost.accept(m("renew", true)); });
 		netLoad.run();
-		fieldRows.add(netRow); fieldRows.add(httpsRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4));
+		fieldRows.add(netRow); fieldRows.add(httpsRow); fieldRows.add(pubRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4));
 		fieldRows.add(nameRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4)); fieldRows.add(shareRow);
 		JPanel shareBox = new JPanel(new BorderLayout(0, 2));
 		shareBox.add(checkedLab, BorderLayout.NORTH);

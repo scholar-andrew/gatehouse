@@ -197,7 +197,7 @@ final class WebPanel {
 			if (post) {
 				Map<String, Object> b = body(x);
 				boolean want = ServerTools.yes(b.get("on"));
-				if (want && !Net.panelAllowed()) { reply(x, 200, m("result", "refused", "message", "On a home network the web panel stays off until Gatekeeper has HTTPS: its passwords would cross the network readable.")); return true; }
+				if (want && !Net.panelAllowed()) { reply(x, 200, m("result", "refused", "message", Net.internet() ? "Facing the internet, the web panel stays off: it would put a sign-in page in front of everyone." : "On a home network the web panel stays off unless HTTPS is on: its passwords would cross the network readable.")); return true; }
 				cfg.put("web_panel", want ? "true" : "false"); ServerTools.saveCfg();
 				if (!want) sessions.clear();
 				log("web panel turned " + (want ? "on" : "off"));

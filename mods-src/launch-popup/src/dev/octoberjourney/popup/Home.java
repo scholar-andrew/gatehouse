@@ -114,10 +114,12 @@ final class Home {
 			String fpf = str(m.get("fingerprint"));
 			String a = norm((fpf.isEmpty() ? "" : "https://") + str(m.get("address")));
 			if (!a.isEmpty() && !fpf.isEmpty()) Pins.pin(Pins.hostPort(a), fpf);   // (R79: a Gatekeeper with HTTPS, checked by this)
+			if (!a.isEmpty() && !str(m.get("join_key")).isEmpty()) Pins.joinKey(Pins.hostPort(a), str(m.get("join_key")));
 			return a.isEmpty() ? null : new String[] {a, str(m.get("name")), Connect.invite(str(m.get("tailscale_share")))};
 		}
-		String name = "", share = "", fp = "";
+		String name = "", share = "", fp = "", key = "";
 		// (an invite to a server names its Gatekeeper the same way: gatehouse://invite/<address>?code=...&name=...)
+		String inviteKey = inviteCode(t);   // (R79 stage 3: an invite's code also lets this device introduce itself)
 		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://invite/")) t = "gatehouse://pair/" + t.substring("gatehouse://invite/".length());
 		if (t.toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://pair/")) {
 			t = t.substring("gatehouse://pair/".length());
@@ -126,6 +128,7 @@ final class Home {
 				for (String kv : t.substring(q + 1).split("&")) try {
 					if (kv.startsWith("name=")) name = java.net.URLDecoder.decode(kv.substring(5), StandardCharsets.UTF_8);
 					else if (kv.startsWith("fp=")) fp = kv.substring(3).replaceAll("[^0-9A-Fa-f]", "");   // (R79: its certificate's fingerprint)
+					else if (kv.startsWith("k=")) key = kv.substring(2).replaceAll("[^0-9A-Fa-f]", "");   // (R79 stage 3: its join key)
 					else if (kv.startsWith("ts=")) share = Connect.invite(java.net.URLDecoder.decode(kv.substring(3),
 							StandardCharsets.UTF_8));   // (the owner's Tailscale invite)
 				} catch (RuntimeException ignored) { Quiet.seen(ignored); }
@@ -134,6 +137,8 @@ final class Home {
 		}
 		String a = norm((fp.isEmpty() || t.matches("(?i)https?://.*") ? "" : "https://") + t);
 		if (!a.isEmpty() && !fp.isEmpty()) Pins.pin(Pins.hostPort(a), fp);
+		if (!a.isEmpty() && !key.isEmpty()) Pins.joinKey(Pins.hostPort(a), key);
+		else if (!a.isEmpty() && !inviteKey.isEmpty() && Pins.joinKey(Pins.hostPort(a)).isEmpty()) Pins.joinKey(Pins.hostPort(a), inviteKey);
 		return a.isEmpty() ? null : new String[] {a, name, share};
 	}
 

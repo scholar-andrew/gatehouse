@@ -43,7 +43,7 @@ final class Manage {
 		if (!leadMay() || setting("bind", "").isEmpty()) return m();
 		if (setting("manage_token", "").isEmpty()) { cfg.put("manage_token",
 				WebPanel.random(32)); try { ServerTools.saveCfg(); } catch (IOException e) { return m(); } }
-		return m("url", Tls.scheme() + "://" + setting("bind", "") + ":" + port(), "token", setting("manage_token", ""), "fp", Tls.on() ? Tls.fingerprint() : "");
+		return m("url", Tls.scheme() + "://" + Net.reachable() + ":" + port(), "token", setting("manage_token", ""), "fp", Tls.on() ? Tls.fingerprint() : "");
 	}
 	/** The Gatekeeper that leads keeps (or forgets) what a member said about managing it. */
 	static void noted(String id, Map<String, Object> said) {

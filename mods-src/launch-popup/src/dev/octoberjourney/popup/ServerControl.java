@@ -105,6 +105,7 @@ final class ServerControl {
 		minecraft = str(c.get("minecraft"));
 		packHelperUrl = str(c.get("helper_url"));
 		if (packHelperUrl.startsWith("https:")) Pins.pin(Pins.hostPort(packHelperUrl), str(c.get("helper_fp")));   // (R79)
+		if (!str(c.get("join_key")).isEmpty()) Pins.joinKey(Pins.hostPort(packHelperUrl), str(c.get("join_key")));   // (R79 stage 3)
 		mac = str(w.get("mac"));
 		serverKey = str(c.get("server")).replaceAll("[^\\w.-]", "");
 		if (w.get("broadcasts") instanceof List<?> l) for (Object o : l) broadcasts.add(str(o));
@@ -532,7 +533,8 @@ final class ServerControl {
 		String name = "", os = systemName();
 		try { name = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) { Quiet.seen(ignored); }
 		return str(helper("POST", "/v1/hello", "{\"id\":\"" + jsonEsc(deviceId) + "\",\"token\":\"" + jsonEsc(deviceToken)
-				+ "\",\"name\":\"" + jsonEsc(name) + "\",\"os\":\"" + jsonEsc(os) + "\"}").get("state"));
+				+ "\",\"name\":\"" + jsonEsc(name) + "\",\"os\":\"" + jsonEsc(os)
+				+ "\",\"join\":\"" + jsonEsc(Pins.joinKey(Pins.hostPort(str(helperUrl)))) + "\"}").get("state"));   // (R79 stage 3: the pairing's join key or an invite's code)
 	}
 
 	/** {state (granted, pending, unknown), mcss running, minecraft running}; introduces itself again if forgotten. */

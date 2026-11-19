@@ -61,7 +61,7 @@ final class Packs {
 	static boolean defined(String id) { return okId(id) && Files.isRegularFile(def(id).resolve("source/mods.json")); }
 	static boolean has(String id) { return okId(id) && Files.isRegularFile(built(id).resolve("main/pack.toml")); }
 	/** Where launchers fetch a server's pack from: this Gatekeeper, at the address launchers reach it. */
-	static String base(String id) { String b = setting("bind", ""); return (b.isEmpty() ? "http" : Tls.scheme()) + "://" + (b.isEmpty() ? "127.0.0.1" : b) + ":" + port() + "/v1/pack/" + id; }
+	static String base(String id) { String b = Net.reachable(); return (b.isEmpty() ? "http" : Tls.scheme()) + "://" + (b.isEmpty() ? "127.0.0.1" : b) + ":" + port() + "/v1/pack/" + id; }
 	private static String[] no(String why) { return new String[] {"refused", why}; }
 	private static Map<String, Object> info(String id) {
 		try { return Json.map(Json.parse(Files.readString(home(id).resolve("pack.json"),
@@ -82,7 +82,7 @@ final class Packs {
 		catch (IOException e) { return ""; }
 	}
 	private static String gameAddress(Map<String, Object> s) {
-		String b = setting("bind", ""), p = Json.str(s.get("minecraft")).replaceAll(".*:", "");
+		String b = Net.reachable(), p = Json.str(s.get("minecraft")).replaceAll(".*:", "");
 		return (b.isEmpty() ? "127.0.0.1" : b) + ":" + (p.isEmpty() ? "25565" : p);
 	}
 
@@ -175,7 +175,8 @@ final class Packs {
 					Json.str(config.get("pack_name")), "address", gameAddress(s)))));
 			Map<String, Object> control = config.get("server_control") instanceof Map<?, ?> ? Json.map(config.get("server_control")) : new LinkedHashMap<>();
 			control.put("server", id);
-			control.put("helper_url", (setting("bind", "").isEmpty() ? "http" : Tls.scheme()) + "://" + (setting("bind", "").isEmpty() ? "127.0.0.1" : setting("bind", "")) + ":" + port());
+			control.put("helper_url", (Net.reachable().isEmpty() ? "http" : Tls.scheme()) + "://" + (Net.reachable().isEmpty() ? "127.0.0.1" : Net.reachable()) + ":" + port());
+			if (Net.internet()) control.put("join_key", Net.joinKey());   // (R79 stage 3: a launcher installing the pack can introduce itself)
 			if (Tls.on() && !setting("bind", "").isEmpty()) control.put("helper_fp", Tls.fingerprint());   // (R79: launchers check its certificate by this)
 			if (Json.str(control.get("minecraft")).isEmpty()) control.put("minecraft", gameAddress(s));
 			config.put("server_control", control);

@@ -35,6 +35,18 @@ the pairing link and file and in the packs Gatekeeper builds; between Gatekeeper
 An address that was given a fingerprint and then shows a different certificate is refused. Every other site (GitHub,
 Modrinth...) is checked as usual. Launchers older than 3.50.0 can't use a Gatekeeper with HTTPS.
 
+**Open to the internet** (3.51.0, **The internet, through your router**; off unless chosen) is the one mode that
+faces everyone. The owner forwards the ports in their router (Gatekeeper never changes router or firewall settings)
+and gives the public name players use (a dynamic DNS name, say). In that mode:
+
+- **HTTPS is always on**, with Gatekeeper's own certificate, checked by fingerprint as above.
+- **A new launcher needs a key to introduce itself**: the pairing's join key (a random secret in the pairing link and
+  file, and in packs Gatekeeper builds) or a live invite's code. Without one it is refused before it is written
+  anywhere. **New join key** makes the old pairings useless for newcomers; launchers already in stay in.
+- **Requests are limited per address**: 240 a minute, 20 introductions a minute; more is told to wait.
+- **The web panel and the status page stay off**: neither is put in front of the whole internet.
+- Everything a launcher asks after that carries its own secret, as on any network.
+
 A host shares **only the one machine** with players (Tailscale's Share, a reusable invite link), not the rest of
 their network. A Tailscale address belongs to one device, which is why Gatekeeper can match a request to a launcher
 by the address it comes from.
@@ -162,6 +174,9 @@ Microsoft password.
 
 ## Known limits
 
+- **Pack files go to the address of a known launcher** (as on any network). Facing the internet, someone else behind
+  the same public address as a known launcher (the same home, or a mobile carrier's shared address) could fetch a
+  pack's files: its mods and settings, nothing else.
 - **Unsigned updates are still accepted** from the owner's own sources by default, because GitHub signs a minute or
   two after each publish. A Gatekeeper with `require_signed` set takes only signed program updates; requiring
   signatures everywhere is planned.

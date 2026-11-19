@@ -35,7 +35,7 @@ final class Tls {
 	private static volatile SSLContext ctx;
 	private static volatile String fp = "";
 
-	static boolean on() { return setting("https", "false").equals("true"); }
+	static boolean on() { return setting("https", "false").equals("true") || "internet".equals(setting("network", "")); }
 	/** "https" or "http", for the addresses Gatekeeper hands out. */
 	static String scheme() { return on() ? "https" : "http"; }
 	static String fingerprint() { try { load(); } catch (IOException e) { return ""; } return fp; }

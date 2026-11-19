@@ -134,7 +134,9 @@ final class Invites {
 			StandardCharsets.UTF_8); } catch (IOException e) { log("invites: couldn't be saved: " + e.getMessage()); } }
 	private static String tidy(String code) { return code == null ? "" : code.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", ""); }
 	private static String shown(String code) { return code.substring(0, 5) + "-" + code.substring(5); }
-	private static String address() { String b = setting("bind", ""); return (b.isEmpty() ? "127.0.0.1" : b) + ":" + port(); }
+	/** Is this an invite's code that hasn't run out? (R79 stage 3: it lets a new launcher introduce itself) */
+	static boolean isLive(String code) { String c = tidy(code); if (c.length() < 10) return false; for (Object o : live()) if (c.equals(tidy(Json.str(Json.map(o).get("code"))))) return true; return false; }
+	private static String address() { String b = Net.reachable(); return (b.isEmpty() ? "127.0.0.1" : b) + ":" + port(); }
 
 	/** Makes an invite to a server. by: "host", or the inviting launcher's id. */
 	static synchronized Map<String, Object> make(Map<String, Object> s, String by, String byName) {

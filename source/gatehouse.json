@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.50.0",
+ "version": "3.51.0",
  "changes": [
+  {"version": "3.51.0", "date": "2026-11-19", "notes": [
+   "Gatekeeper can be reached over the internet through your router (Host setup, The internet, through your router; off unless chosen). HTTPS is always on, a new launcher needs the pairing's join key or an invite to introduce itself, requests are limited per address, and the web panel and status page stay off. You forward the ports in your router; the setup steps say which."
+  ]},
   {"version": "3.50.0", "date": "2026-11-19", "notes": [
    "Gatekeeper can use HTTPS with a certificate of its own (Host setup, Use HTTPS; off unless chosen), on Tailscale, a home network or another private network. Gatehouse checks it by the fingerprint the pairing carries; launchers need the new pairing after turning it on. With HTTPS on, the web panel can be used on a home network too."
   ]},

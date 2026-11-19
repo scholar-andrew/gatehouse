@@ -18,7 +18,7 @@ import com.sun.net.httpserver.HttpExchange;
 final class StatusPage {
 	private StatusPage() {}
 
-	static boolean on() { return setting("status_page", "false").equals("true"); }
+	static boolean on() { return setting("status_page", "false").equals("true") && !Net.internet(); }   // (R79: never facing the internet: it needs no sign-in)
 
 	static void page(HttpExchange x) throws IOException {
 		try {
@@ -71,7 +71,7 @@ final class StatusPage {
 			log("status page for friends: " + (on() ? "on" : "off"));
 		}
 		String bind = setting("bind", "");
-		reply(x, 200, m("on", on(), "url", bind.isEmpty() ? "" : Tls.scheme() + "://" + bind + ":" + port() + "/status"));
+		reply(x, 200, m("on", on(), "url", bind.isEmpty() ? "" : Tls.scheme() + "://" + Net.reachable() + ":" + port() + "/status"));
 		return true;
 	}
 }

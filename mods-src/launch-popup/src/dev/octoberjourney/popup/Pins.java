@@ -59,6 +59,14 @@ public final class Pins {
 		return u.contains(":") ? u.toLowerCase(java.util.Locale.ROOT) : u.toLowerCase(java.util.Locale.ROOT) + ":443";
 	}
 	public static String of(String hostPort) { return pins.getOrDefault(hostPort.toLowerCase(java.util.Locale.ROOT), ""); }
+	/** R79 stage 3: a Gatekeeper facing the internet takes a new launcher only with its join key (from the pairing). */
+	public static String joinKey(String hostPort) { return pins.getOrDefault("join@" + hostPort.toLowerCase(java.util.Locale.ROOT), ""); }
+	public static synchronized void joinKey(String hostPort, String key) {
+		String k = key == null ? "" : key.replaceAll("[^0-9A-Za-z]", "");
+		if (k.length() < 6 || hostPort == null || hostPort.isBlank() || k.equals(pins.get("join@" + hostPort.toLowerCase(java.util.Locale.ROOT)))) return;
+		pins.put("join@" + hostPort.toLowerCase(java.util.Locale.ROOT), k);
+		save();
+	}
 
 	public static synchronized void pin(String hostPort, String fp) {
 		String f = clean(fp);
@@ -78,7 +86,7 @@ public final class Pins {
 	private static void load(Path f) {
 		try {
 			if (!Files.isRegularFile(f)) return;
-			java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"([0-9a-f]{64})\"").matcher(Files.readString(f, StandardCharsets.UTF_8));
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("\"([^\"]+)\"\\s*:\\s*\"([0-9A-Za-z]{6,64})\"").matcher(Files.readString(f, StandardCharsets.UTF_8));
 			while (m.find()) pins.put(m.group(1).toLowerCase(java.util.Locale.ROOT), m.group(2));
 		} catch (IOException e) { Quiet.seen(e); }
 	}

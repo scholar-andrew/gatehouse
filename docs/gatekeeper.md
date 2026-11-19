@@ -312,6 +312,13 @@ of the three networks. Launchers need the new pairing afterwards (it carries the
 Gatehouse checks), and launchers older than 3.50.0 can't use it. **New certificate...** makes another (every launcher
 then pairs again). [Security](security.md#the-network-tailscale-or-your-own) says what is checked.
 
+**The internet, through your router** (3.51.0) lets players reach Gatekeeper without Tailscale or a private network.
+Choose it and this machine's home-network address, fill in **Public name** (your home's internet address, or better a
+free dynamic name that follows it, such as DuckDNS or No-IP, untried here), and forward the ports in your router: the
+setup steps list them (Gatekeeper's port and each Minecraft server's) and the address to forward them to. HTTPS is
+always on, new launchers need the pairing (it carries a join key) or an invite, requests are limited per address, and
+the web panel and status page stay off. **New join key...** stops old pairings letting newcomers in.
+
 ## Options, ending and removing it
 
 **Options** is in sub-tabs (3.46.0): **General** (about, the pictures for this Gatekeeper and each server shown on

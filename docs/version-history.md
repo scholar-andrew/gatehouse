@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.51.0 - 2026-11-19
+
+- Gatekeeper can be reached over the internet through your router (Host setup, The internet, through your router; off unless chosen). HTTPS is always on, a new launcher needs the pairing's join key or an invite to introduce itself, requests are limited per address, and the web panel and status page stay off. You forward the ports in your router; the setup steps say which.
+
 ## 3.50.0 - 2026-11-19
 
 - Gatekeeper can use HTTPS with a certificate of its own (Host setup, Use HTTPS; off unless chosen), on Tailscale, a home network or another private network. Gatehouse checks it by the fingerprint the pairing carries; launchers need the new pairing after turning it on. With HTTPS on, the web panel can be used on a home network too.

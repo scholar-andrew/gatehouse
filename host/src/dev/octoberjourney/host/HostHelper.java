@@ -449,6 +449,17 @@ public final class HostHelper {
 				"Open Server setup and save the new address. Paired launchers need the new pairing.", "server_setup", "Server setup…", ""});
 		else add.accept(new String[] {listens, remote != null ? "ok" : "todo", bind + ":" + port()
 				+ (remote != null ? "" : " (not answering yet)"), remote != null ? "" : "It keeps trying; Tailscale may still be starting."});
+		// ---- R79 stage 3: facing the internet, the public name and the router's forwarding (the owner's to set up)
+		if (Net.internet()) {
+			String pub = setting("public_host", "");
+			if (pub.isEmpty()) add.accept(new String[] {"Players have a name or address for this Gatekeeper", "todo", "No public name yet.",
+					"Host setup, Public name: your home's internet address, or better a free dynamic name that follows it (DuckDNS, No-IP, or your router's own), and Save."});
+			else add.accept(new String[] {"Players have a name or address for this Gatekeeper", "ok", pub + ":" + port()});
+			StringBuilder ports = new StringBuilder("TCP " + port() + " (Gatekeeper)");
+			for (Object o : servers()) { String mp = Json.str(Json.map(o).get("minecraft")).replaceAll(".*:", ""); if (!mp.isEmpty() && ports.indexOf(" " + mp + " ") < 0) ports.append(", TCP ").append(mp).append(" (").append(Json.str(Json.map(o).get("name"))).append(")"); }
+			add.accept(new String[] {"Your router forwards the ports to this machine", "na", "Gatekeeper can't see your router from here; a player outside your home finds out by connecting.",
+					"In your router's settings (often under Port forwarding, NAT or Virtual server): forward " + ports + " to " + bind + ". Gatekeeper never changes router or firewall settings. Windows may also ask whether Java may use the network: that is yours to answer."});
+		}
 		// ---- the servers' host: MCSS, or Gatekeeper itself
 		String exe = setting("mcss_exe", "");
 		if (builtin()) {
@@ -1357,6 +1368,8 @@ public final class HostHelper {
 			// (is this Gatekeeper answering? Asked by its watchdog and its window; answered before anything takes a lock)
 			if (path.equals("/v1/alive")) { byte[] ok = "ok".getBytes(StandardCharsets.UTF_8); x.sendResponseHeaders(200,
 					ok.length); try (java.io.OutputStream o = x.getResponseBody()) { o.write(ok); } return; }
+			// (R79 stage 3: facing the internet, an address that asks too often is told to wait)
+			if (Net.tooMany(ip, path.equals("/v1/hello"))) { reply(x, 429, m("error", "too many requests: wait a minute")); return; }
 			Map<String, Object> devs = devices();
 			// (the program file this Gatekeeper holds or runs: the published program, given to whoever asks)
 			if (path.startsWith("/v1/program/") && x.getRequestMethod().equals("GET")) { Peer.serve(x, path); return; }
@@ -1373,6 +1386,13 @@ public final class HostHelper {
 				if (!d.isEmpty() && !sha256(token).equals(d.get("token_sha256"))) { reply(x, 403, m("state", "mismatch", "error",
 						"this device id is already known with another secret")); log("rejected hello for " + id + " from " + ip + ": wrong secret"); return; }
 				boolean fresh = d.isEmpty();
+				// (R79 stage 3: facing the internet, a new launcher brings the pairing's join key or an invite's code)
+				if (fresh && Net.internet() && !(x.getRemoteAddress().getAddress().isLoopbackAddress() && System.getenv("OJ_TEST_NO_LOCAL") == null)
+						&& !java.security.MessageDigest.isEqual(Json.str(b.get("join")).getBytes(StandardCharsets.UTF_8), Net.joinKey().getBytes(StandardCharsets.UTF_8))
+						&& !Invites.isLive(Json.str(b.get("join")))) {
+					reply(x, 403, m("state", "join", "error", "This Gatekeeper takes new launchers only with its pairing or an invite."));
+					log("refused a new launcher from " + ip + ": no join key or invite"); return;
+				}
 				if (fresh) { d.put("token_sha256", sha256(token)); d.put("granted", false); d.put("first_seen", LocalDateTime.now().format(TIME)); }
 				d.put("name", Json.str(b.get("name")).replaceAll("[^\\w .()\\-]", "").trim());
 				d.put("os", Json.str(b.get("os")).replaceAll("[^\\w .()\\-]", "").trim());
@@ -2360,7 +2380,8 @@ public final class HostHelper {
 			} else if (path.equals("/admin/setup/scan")) {
 				Map<String, Object> scan = new LinkedHashMap<>(setupScan(Json.str(body(x).get("mcss_exe")).trim()));
 				scan.put("share_link", setting("tailscale_share_link", ""));   // (for the pairing)
-				scan.put("https", Tls.on()); scan.put("fingerprint", Tls.on() ? Tls.fingerprint() : "");   // (R79: the pairing carries the certificate's fingerprint)
+				scan.put("https", Tls.on()); scan.put("fingerprint", Tls.on() ? Tls.fingerprint() : "");
+				if (Net.internet()) { scan.put("pair_address", Net.reachable()); scan.put("join_key", Net.joinKey()); }   // (R79 stage 3)   // (R79: the pairing carries the certificate's fingerprint)
 				scan.put("name", setting("name", ""));
 				reply(x, 200, scan);
 			} else if (path.equals("/admin/wizard")) {
