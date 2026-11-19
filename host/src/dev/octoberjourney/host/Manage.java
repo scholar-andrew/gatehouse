@@ -121,10 +121,12 @@ final class Manage {
 				String[] h = (String[]) w[3];
 				for (int i = 0; i + 1 < h.length; i += 2) c.setRequestProperty(h[i], h[i + 1]);
 				if (c.getResponseCode() == 200) {
-					List<Object> sv = Json.list(Json.map(Json.parse(new String(c.getInputStream().readAllBytes(), StandardCharsets.UTF_8))).get("servers"));
+					String body = new String(c.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+					List<Object> sv = Json.list(Json.map(Json.parse(body)).get("servers"));
 					int on = 0;
 					for (Object o : sv) { Map<String, Object> s = Json.map(o); if (ServerTools.yes(s.get("running"))) on += (int) Double.parseDouble(String.valueOf(s.getOrDefault("players", 0))); }
 					out.put("answered", true); out.put("servers", sv.size()); out.put("online", on);
+					out.put("device", Json.str(Json.map(Json.parse(body)).get("device")));   // (R74: "" from a Gatekeeper older than 3.48.1)
 				} else out.put("why", c.getResponseCode() == 403 ? "it no longer lets this one manage it" : "it answered " + c.getResponseCode());
 			} catch (IOException | RuntimeException ex) { out.put("why", "it isn't answering"); }
 			return out;

@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.48.0",
+ "version": "3.48.1",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.48.1", "date": "2026-11-19", "notes": [
+   "The Gatekeepers page shows each other Gatekeeper's kind of machine (a PC, a Steam Deck...) instead of its initials, once that Gatekeeper has 3.48.1 too."
+  ]},
   {"version": "3.48.0", "date": "2026-11-19", "notes": [
    "A server's picture (or this Gatekeeper's) can be an animated GIF: it plays on the card while the card is under the pointer or chosen with a controller, in Gatekeeper and in Gatehouse, and stands still otherwise.",
    "Add a Gatekeeper on the Gatekeepers page walks you through putting another Gatekeeper there, a step at a time, moving on by itself as each step is done."

@@ -2443,7 +2443,7 @@ public final class HostHelper {
 				});
 				reply(x, 200, m("mcss_exe", builtin() ? serversDir() : setting("mcss_exe", ""), "mcss", host.running(), "mcss_phase",
 						mcssPhase(), "has_key", host.hasAccess(), "servers", list, "host", builtin() ? "builtin" : "mcss", "native_ok",
-						nativeOk(), "native_folder", serversDir()));
+						nativeOk(), "native_folder", serversDir(), "device", Device.kind()));   // (device, R74: the kind of machine, for the card of a Gatekeeper managing this one)
 			} else if (path.equals("/admin/pulls")) {
 				reply(x, 200, m("pulls", pullsFor()));
 			} else if (path.equals("/admin/log")) {

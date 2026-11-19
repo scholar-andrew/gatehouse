@@ -81,7 +81,7 @@ final class GatekeepersUi {
 				card.state.setText(Json.str(g.get("address")) + ": " + (answered ? servers + (servers.equals("1") ? " server, " : " servers, ")
 						+ online + " online" : Json.str(g.get("why"))));
 				card.state.setForeground(answered ? new Color(0x8BD46E) : new Color(0xE9B949));
-				card.device("");   // (what kind of machine it is on is only known there)
+				card.device(Json.str(g.get("device")));   // (R74: what kind of machine it is on, as that Gatekeeper says; its initials when it says nothing)
 				grid.add(card);
 			}
 			said.setText(list.isEmpty() ? (ServerTools.yes(r.get("joined"))

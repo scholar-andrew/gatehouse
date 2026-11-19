@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.48.1 - 2026-11-19
+
+- The Gatekeepers page shows each other Gatekeeper's kind of machine (a PC, a Steam Deck...) instead of its initials, once that Gatekeeper has 3.48.1 too.
+
 ## 3.48.0 - 2026-11-19
 
 - A server's picture (or this Gatekeeper's) can be an animated GIF: it plays on the card while the card is under the pointer or chosen with a controller, in Gatekeeper and in Gatehouse, and stands still otherwise.
