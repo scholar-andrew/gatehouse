@@ -84,12 +84,22 @@ final class Connect {
 	/** One look at everything: {tailscale, reach, paired}. "hello" introduces this device to the Gatekeeper and says
 	 *  how it answered (empty or an error: it didn't). */
 	static boolean[] look(String url, Callable<String> hello) {
-		boolean ts = tailscaleUp(), reach = reaches(url), paired = false;
+		boolean ts = !onTailscale(url) || tailscaleUp(), reach = reaches(url), paired = false;   // (R79: off Tailscale, its step doesn't apply)
 		String fake = System.getenv("OJ_CONNECT_FAKE");
 		if (fake != null && fake.length() > 2) paired = fake.charAt(2) == '1';
 		else if (reach) try { String st = hello.call(); paired = st != null && !st.isEmpty(); } catch (Exception ignored) { Quiet.seen(ignored); }
 		return new boolean[] {ts || reach, reach, paired};   // (reaching it over Tailscale proves Tailscale, however it's installed)
 	}
+
+	/** R79: is the Gatekeeper at a Tailscale address (100.64.0.0/10)? Otherwise it is on a home or another private
+	 *  network, and Tailscale's steps don't apply. */
+	static boolean onTailscale(String url) {
+		java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(?:[a-z]+://)?100\\.(\\d{1,3})\\.").matcher(url.toLowerCase(java.util.Locale.ROOT));
+		if (!m.find()) return false;
+		int y = Integer.parseInt(m.group(1));
+		return y >= 64 && y <= 127;
+	}
+	static boolean homeAddress(String url) { return url.replaceFirst("(?i)^[a-z]+://", "").matches("(10|192\\.168|172\\.(1[6-9]|2\\d|3[01]))\\..*"); }
 
 	private static JLabel row(String html) {
 		JLabel l = new JLabel(html);
@@ -111,8 +121,11 @@ final class Connect {
 		boolean windows = System.getProperty("os.name", "").startsWith("Windows");
 		JPanel list = new JPanel();
 		list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+		boolean ts0 = onTailscale(url);
 		JLabel intro = new JLabel("<html><div style='width:520px'>" + esc(who)
-				+ " is reached over Tailscale, a private network between its owner's machine and the devices they let in. "
+				+ (ts0 ? " is reached over Tailscale, a private network between its owner's machine and the devices they let in. "
+				: homeAddress(url) ? " is on its owner's home network: this device has to be on the same one (the same Wi-Fi or cable). "
+				: " is on its owner's own private network: this device has to be on it too (ask the owner which one, and to let you in). ")
 				+ "These are the steps; each one ticks by itself when it's done.</div></html>");
 		intro.setAlignmentX(Component.LEFT_ALIGNMENT);
 		list.add(intro);
@@ -163,6 +176,10 @@ final class Connect {
 			s4.setText(line(paired, !reach, who + " knows this device",
 					paired ? "It's on the owner's list now. What this device may do there is up to them (Access Manager in Gatekeeper)."
 							: reach ? "It answers, but didn't take this device's introduction. Try again in a moment." : ""));
+			if (!ts0) { s1.setVisible(false); b1.setVisible(false); s2.setVisible(false); b2.setVisible(false);   // (R79: no Tailscale steps)
+				s3.setText(line(reach, false, "This device can reach " + who, reach ? shown : homeAddress(url)
+						? "Not yet. Is this device on the same network as the owner's machine, and is that machine on?"
+						: "Not yet. Is this device on the owner's private network, and is their machine on?")); }
 			list.revalidate(); list.repaint();
 		};
 		JPanel p = new JPanel(new BorderLayout());

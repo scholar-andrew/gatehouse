@@ -297,6 +297,16 @@ constellation is left; each side decides for itself, and it gives the other noth
 new pack version. Gatekeepers that join pass their lines on, so a new one learns the history by joining. It holds no
 folders, player names or keys.
 
+## Without Tailscale (3.49.0)
+
+Host setup has **Devices reach this Gatekeeper over**: **Tailscale** (as before), **Home network** (only devices at
+home, on the same Wi-Fi or cable), or **Another private network** (ZeroTier, NetBird, Headscale, Radmin VPN and the
+like, untried here). Choose it and one of this machine's addresses on it (listed with its network adapter), and Save;
+launchers paired before need the new pairing (Share pairing). Off Tailscale, Tailscale's own setup steps and its
+invite link are left out, and Gatehouse's Connect steps skip Tailscale. On a home network the web panel stays off
+until Gatekeeper has HTTPS (planned next), and Gatehouse's hand-outs between devices only run over Tailscale for now:
+devices update from the Gatekeeper or GitHub instead.
+
 ## Options, ending and removing it
 
 **Options** is in sub-tabs (3.46.0): **General** (about, the pictures for this Gatekeeper and each server shown on

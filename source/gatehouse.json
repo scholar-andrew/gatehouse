@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.48.2",
+ "version": "3.49.0",
  "changes": [
+  {"version": "3.49.0", "date": "2026-11-19", "notes": [
+   "Gatekeeper can be reached without Tailscale: Host setup, Devices reach this Gatekeeper over, Home network (only devices at home) or Another private network (ZeroTier, NetBird, Headscale...). Tailscale stays the default, and nothing is opened to the internet. On a home network the web panel stays off until Gatekeeper has HTTPS.",
+   "Gatehouse's Connect steps skip Tailscale for a Gatekeeper on a home or another private network."
+  ]},
   {"version": "3.48.2", "date": "2026-11-19", "notes": [
    "Find mods on Modrinth works for servers MC Server Soft runs too (it found nothing for them before), and opens on the most downloaded mods that fit the server before you type anything."
   ]},

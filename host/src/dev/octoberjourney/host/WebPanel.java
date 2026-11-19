@@ -81,7 +81,7 @@ final class WebPanel {
 	static final Map<String, Session> sessions = new ConcurrentHashMap<>();   // (SHA-256 of the cookie -> who)
 	static final Map<String, long[]> wrong = new ConcurrentHashMap<>();       // (account|address -> {how many, locked until})
 
-	static boolean on() { return setting("web_panel", "false").equals("true"); }
+	static boolean on() { return setting("web_panel", "false").equals("true") && Net.panelAllowed(); }   // (R79: never on a home network before HTTPS)
 	static String address() { return setting("bind", "").isEmpty() ? "" : "http://" + setting("bind", "") + ":" + port() + "/panel/"; }
 
 	// ------------------------------------------------------------------ accounts
@@ -197,12 +197,13 @@ final class WebPanel {
 			if (post) {
 				Map<String, Object> b = body(x);
 				boolean want = ServerTools.yes(b.get("on"));
+				if (want && !Net.panelAllowed()) { reply(x, 200, m("result", "refused", "message", "On a home network the web panel stays off until Gatekeeper has HTTPS: its passwords would cross the network readable.")); return true; }
 				cfg.put("web_panel", want ? "true" : "false"); ServerTools.saveCfg();
 				if (!want) sessions.clear();
 				log("web panel turned " + (want ? "on" : "off"));
 				reply(x, 200, m("result", "ok", "message", want ? (address().isEmpty()
-						? "On. It needs this machine's Tailscale address first (Server setup)." : "On: " + address()
-						+ " (from a device on your Tailscale network).") : "Off. Everyone is signed out."));
+						? "On. It needs this machine's address first (Host setup)." : "On: " + address()
+						+ " (from a device on " + Net.word() + ").") : "Off. Everyone is signed out."));
 				return true;
 			}
 			List<Object> list = new ArrayList<>();

@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.49.0 - 2026-11-19
+
+- Gatekeeper can be reached without Tailscale: Host setup, Devices reach this Gatekeeper over, Home network (only devices at home) or Another private network (ZeroTier, NetBird, Headscale...). Tailscale stays the default, and nothing is opened to the internet. On a home network the web panel stays off until Gatekeeper has HTTPS.
+- Gatehouse's Connect steps skip Tailscale for a Gatekeeper on a home or another private network.
+
 ## 3.48.2 - 2026-11-19
 
 - Find mods on Modrinth works for servers MC Server Soft runs too (it found nothing for them before), and opens on the most downloaded mods that fit the server before you type anything.

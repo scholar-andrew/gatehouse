@@ -2,7 +2,7 @@
 
 What Gatehouse and Gatekeeper open, who can reach what, how files are checked, and what leaves your machine.
 
-- [The network: Tailscale only](#the-network-tailscale-only)
+- [The network: Tailscale, or your own](#the-network-tailscale-or-your-own)
 - [Who may do what](#who-may-do-what)
 - [Gatekeeper's doors](#gatekeepers-doors)
 - [Checking what is installed](#checking-what-is-installed)
@@ -12,13 +12,20 @@ What Gatehouse and Gatekeeper open, who can reach what, how files are checked, a
 - [What is kept, and where](#what-is-kept-and-where)
 - [Known limits](#known-limits)
 
-## The network: Tailscale only
+## The network: Tailscale, or your own
 
 Launchers, Gatekeepers, the web panel, the status page and the pack server talk over
 [Tailscale](https://tailscale.com/), a private network between the host's machine and the devices the host lets in.
 Gatekeeper listens on two places only: this machine's Tailscale address (port 25570 by default), and 127.0.0.1 for
 its own window and the launcher on the same machine. Nothing is opened to the internet, no router settings change,
 and nothing here installs, signs in to or configures Tailscale for you.
+
+Since 3.49.0 the host can choose another network instead, at the machine (Host setup, **Devices reach this Gatekeeper
+over**): the **home network** (only devices on the same Wi-Fi or cable; nothing from outside the home) or **another
+private network** they run themselves (ZeroTier, NetBird, Headscale, Radmin VPN and the like). Gatekeeper then
+listens on this machine's address on that network instead of its Tailscale one, and still nothing is opened to the
+internet. A home network isn't encrypted the way Tailscale is, so the web panel stays off in that mode until
+Gatekeeper has HTTPS of its own; launchers still prove who they are with their secret, never only by their address.
 
 A host shares **only the one machine** with players (Tailscale's Share, a reusable invite link), not the rest of
 their network. A Tailscale address belongs to one device, which is why Gatekeeper can match a request to a launcher

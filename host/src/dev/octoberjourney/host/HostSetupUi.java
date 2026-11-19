@@ -80,6 +80,61 @@ final class HostSetupUi {
 		JPanel fieldRows = new JPanel();
 		fieldRows.setLayout(new javax.swing.BoxLayout(fieldRows, javax.swing.BoxLayout.Y_AXIS));
 		nameRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); shareRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		// R79: how devices reach this Gatekeeper: Tailscale, the home network, or another private network, and which of
+		// this machine's addresses on it. Chosen here, at the machine.
+		String[][] nets = {{"tailscale", "Tailscale"}, {"home", "Home network (only devices at home)"}, {"private", "Another private network (ZeroTier, NetBird...)"}};
+		javax.swing.JComboBox<String> netBox = new javax.swing.JComboBox<>(new String[] {nets[0][1], nets[1][1], nets[2][1]});
+		javax.swing.JComboBox<String> addrBox = new javax.swing.JComboBox<>();
+		JButton netSave = new JButton("Save");
+		netBox.setToolTipText("<html>Tailscale: a private, encrypted network between this machine and the devices you let in (as before).<br>Home network: devices on the same Wi-Fi or cable as this machine, nothing from outside the home. The web panel stays off in this mode.<br>Another private network: one you run yourself instead of Tailscale (ZeroTier, NetBird, Headscale, Radmin VPN...).<br>Nothing is opened to the internet in any of them.</html>");
+		addrBox.setToolTipText("This machine's address on that network, with the network adapter it belongs to");
+		JLabel netLab = new JLabel("Devices reach this Gatekeeper over:"); netLab.setFont(netLab.getFont().deriveFont(Font.BOLD));
+		JPanel netRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0));
+		netRow.add(netLab); netRow.add(netBox); netRow.add(addrBox); netRow.add(netSave);
+		netRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		java.util.List<Object> netAddrs = new java.util.ArrayList<>();
+		boolean[] netFilling = {false};
+		Runnable netFill = () -> {
+			netFilling[0] = true;
+			String mode = nets[Math.max(0, netBox.getSelectedIndex())][0], keep = addrBox.getSelectedItem() == null ? "" : String.valueOf(addrBox.getSelectedItem());
+			addrBox.removeAllItems();
+			for (Object o : netAddrs) {
+				Map<String, Object> a = Json.map(o);
+				if (!Net.fits(mode, Json.str(a.get("kind")))) continue;
+				addrBox.addItem(Json.str(a.get("address")) + "  (" + Json.str(a.get("adapter")) + ")");
+			}
+			if (addrBox.getItemCount() == 0) addrBox.addItem(mode.equals("tailscale") ? "(no Tailscale address: is Tailscale connected?)" : "(this machine has no address on such a network)");
+			for (int i = 0; i < addrBox.getItemCount(); i++) if (addrBox.getItemAt(i).equals(keep)) addrBox.setSelectedIndex(i);
+			shareRow.setVisible(mode.equals("tailscale"));   // (the Tailscale invite link only matters on Tailscale)
+			netFilling[0] = false;
+		};
+		Runnable netLoad = () -> new Thread(() -> {
+			try {
+				Map<String, Object> r = Json.map(Json.parse(call("GET", "/admin/network", null)));
+				SwingUtilities.invokeLater(() -> {
+					netAddrs.clear(); netAddrs.addAll(Json.list(r.get("addresses")));
+					String mode = Json.str(r.get("network")), bind = Json.str(r.get("bind"));
+					netFilling[0] = true;
+					for (int i = 0; i < nets.length; i++) if (nets[i][0].equals(mode)) netBox.setSelectedIndex(i);
+					netFilling[0] = false;
+					netFill.run();
+					for (int i = 0; i < addrBox.getItemCount(); i++) if (addrBox.getItemAt(i).startsWith(bind + " ")) addrBox.setSelectedIndex(i);
+				});
+			} catch (Exception ignored) { Quiet.seen(ignored); }
+		}, "network").start();
+		netBox.addActionListener(e -> { if (!netFilling[0]) netFill.run(); });
+		netSave.addActionListener(e -> {
+			String mode = nets[Math.max(0, netBox.getSelectedIndex())][0], pick = addrBox.getSelectedItem() == null ? "" : String.valueOf(addrBox.getSelectedItem()).replaceAll("\\s.*$", "");
+			new Thread(() -> {
+				String said;
+				try { said = Json.str(Json.map(Json.parse(call("POST", "/admin/network", Json.write(m("network", mode, "bind", pick))))).get("message")); }
+				catch (Exception ex) { said = "Couldn't ask Gatekeeper: is it running?"; }
+				String msg = said;
+				SwingUtilities.invokeLater(() -> { shareSaid.setText("<html><div style='width:860px'>" + msg.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); netLoad.run(); });   // (the steps look again by themselves)
+			}, "network-save").start();
+		});
+		netLoad.run();
+		fieldRows.add(netRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4));
 		fieldRows.add(nameRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4)); fieldRows.add(shareRow);
 		JPanel shareBox = new JPanel(new BorderLayout(0, 2));
 		shareBox.add(checkedLab, BorderLayout.NORTH);

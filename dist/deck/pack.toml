@@ -1,12 +1,12 @@
 name = "October Journey (Steam Deck)"
 author = "Andrew"
-version = "1.81.2"
+version = "1.82.0"
 pack-format = "packwiz:1.1.0"
 
 [index]
 file = "index.toml"
 hash-format = "sha256"
-hash = "211864391547f89d27d743bf537f3ac0be8419e392f2cbceb834503d1653f81c"
+hash = "6918740548ba91db4a9c50a08483020831a8070247e5d06120f89cb4ba9972fc"
 
 [versions]
 minecraft = "26.3"

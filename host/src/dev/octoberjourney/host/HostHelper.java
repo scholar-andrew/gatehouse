@@ -377,6 +377,8 @@ public final class HostHelper {
 	 *  ("ok", "todo": not done, "warn": works but worth changing) and, when it isn't ok, what to do. Nothing is changed
 	 *  by looking. The invite link players need (host.json "tailscale_share_link") is the owner's to make, in
 	 *  Tailscale's admin page; Gatekeeper only carries it in the pairing. */
+	/** The setup line about Gatekeeper's address, named after the network it is on (R79). */
+	static String listensTitle() { return Net.tailscale() ? "Gatekeeper listens on the Tailscale address" : "Gatekeeper listens on " + Net.word(); }
 	static Map<String, Object> checklist() {
 		List<Object> steps = new ArrayList<>();
 		java.util.function.Consumer<String[]> add = s -> steps.add(m("title", s[0], "state", s[1], "detail", s[2], "how", s.length > 3 ? s[3] : "",
@@ -388,12 +390,13 @@ public final class HostHelper {
 		else add.accept(new String[] {"Gatekeeper is up to date", "ok", ownVersion() + (newestKeeper.isEmpty()
 				? " (nowhere to compare with could be reached)" : "")});
 		// ---- Tailscale on this machine
-		String raw = tailscaleSays("status", "--json");
+		String raw = Net.tailscale() ? tailscaleSays("status", "--json") : "";
 		Map<String, Object> ts = raw == null || raw.isEmpty() ? new LinkedHashMap<>() : Json.map(Json.parse(raw.substring(Math.max(0, raw.indexOf('{')))));
 		Map<String, Object> self = Json.map(ts.get("Self"));
 		List<String> ips = new ArrayList<>();
 		for (Object o : Json.list(self.get("TailscaleIPs"))) ips.add(Json.str(o));
 		String state = Json.str(ts.get("BackendState")), tsName = Json.str(self.get("DNSName")).replaceAll("\\.$", "");
+		if (Net.tailscale()) {   // (R79: on a home or another private network, Tailscale's steps don't apply)
 		if (raw == null) add.accept(new String[] {"Tailscale is installed", "todo", "Not found on this machine.",
 				say("Install Tailscale from tailscale.com/download and sign in with your account. (Installed somewhere unusual? Put the path of tailscale.exe in host.json as \"tailscale_exe\".)",
 				"Install Tailscale from tailscale.com/download/linux, then in a terminal: sudo tailscale up, and sign in on the page it gives." + (STEAMOS ? " Tailscale doesn't officially support SteamOS, and a SteamOS update can remove it." : "") + " (Installed somewhere unusual? Put the path of the tailscale program in host.json as \"tailscale_exe\".)")});
@@ -429,18 +432,21 @@ public final class HostHelper {
 				}
 			}
 		}
+		}
 		// ---- what this system can't do, said where it would otherwise be
 		if (!sleepSupported()) add.accept(new String[] {"Launchers can put this machine to sleep", "na", STEAMOS
 				? "A Steam Deck that is asleep can't be woken from another device, so Gatekeeper doesn't put it to sleep. Keep it plugged in and awake while it serves."
 				: "Gatekeeper sleeps a Linux machine through systemd (systemctl suspend), which isn't on this one."});
 		// ---- Gatekeeper's own address
-		String bind = setting("bind", "");
-		if (bind.isEmpty()) add.accept(new String[] {"Gatekeeper listens on the Tailscale address", "todo", "No address chosen yet.",
-				"Server setup fills the address in when Tailscale is connected.", "server_setup", "Server setup…", ""});
-		else if (!ips.isEmpty() && !ips.contains(bind)) add.accept(new String[] {"Gatekeeper listens on the Tailscale address", "warn",
+		String bind = setting("bind", ""), listens = listensTitle();
+		if (bind.isEmpty()) add.accept(new String[] {listens, "todo", "No address chosen yet.",
+				Net.tailscale() ? "Server setup fills the address in when Tailscale is connected." : "Host setup: How devices reach this Gatekeeper, choose the address and Save.", "server_setup", "Server setup…", ""});
+		else if (!Net.tailscale()) add.accept(new String[] {listens, remote != null ? "ok" : "todo", bind + ":" + port() + " (" + Net.word() + ")"
+				+ (remote != null ? "" : " (not answering yet: is this machine still on that network?)")});
+		else if (!ips.isEmpty() && !ips.contains(bind)) add.accept(new String[] {listens, "warn",
 				"It listens on " + bind + ", but Tailscale now gives this machine " + ips.get(0) + ".",
 				"Open Server setup and save the new address. Paired launchers need the new pairing.", "server_setup", "Server setup…", ""});
-		else add.accept(new String[] {"Gatekeeper listens on the Tailscale address", remote != null ? "ok" : "todo", bind + ":" + port()
+		else add.accept(new String[] {listens, remote != null ? "ok" : "todo", bind + ":" + port()
 				+ (remote != null ? "" : " (not answering yet)"), remote != null ? "" : "It keeps trying; Tailscale may still be starting."});
 		// ---- the servers' host: MCSS, or Gatekeeper itself
 		String exe = setting("mcss_exe", "");
@@ -539,7 +545,8 @@ public final class HostHelper {
 						+ say("Windows Firewall has to allow Java for Gatekeeper on private networks (Windows asks the first time; otherwise Windows Security, Firewall, Allow an app).", "a firewall on this machine, if it has one, has to let Gatekeeper's port in on the Tailscale network (most desktop Linux systems, and SteamOS, have none switched on)."), "share_pairing", "Share pairing…", ""});
 		// ---- the invite players need
 		String share = setting("tailscale_share_link", "");
-		if (!share.isEmpty()) add.accept(new String[] {"Players have a way into Tailscale", "ok", "Your invite link goes out with the pairing link and file."});
+		if (!Net.tailscale()) { }   // (R79: off Tailscale, players join the home or private network instead: nothing to invite to here)
+		else if (!share.isEmpty()) add.accept(new String[] {"Players have a way into Tailscale", "ok", "Your invite link goes out with the pairing link and file."});
 		else add.accept(new String[] {"Players have a way into Tailscale", "todo",
 				"No invite link yet: a player's device has to be able to reach this machine over Tailscale.",
 				"In Tailscale's admin page (login.tailscale.com): Machines, this machine's \u2026 menu, Share, and make a reusable invite link. That shares only this machine, not the rest of your network. Paste the link below."});
@@ -1199,7 +1206,7 @@ public final class HostHelper {
 	/** Saves Server setup: MCSS's program, this machine's Tailscale address, and the servers Gatekeeper looks after.
 	 *  Servers it already had keep their place and their id (permissions are filed under them); new ones go after. */
 	static synchronized String[] setupSave(Map<String, Object> b) {
-		String exe = Json.str(b.get("mcss_exe")).trim(), bind = Json.str(b.get("bind")).trim();
+		String exe = Json.str(b.get("mcss_exe")).trim(), bind = Net.tailscale() ? Json.str(b.get("bind")).trim() : "";   // (R79: off Tailscale, Host setup chooses the address)
 		if (!exe.isEmpty() && builtin() && !Files.isDirectory(Path.of(exe))) return new String[] {"refused", "There's no folder at " + exe};
 		if (!exe.isEmpty() && !builtin() && !Files.isRegularFile(Path.of(exe))) return new String[] {"refused", "There's no file at " + exe};
 		if (!bind.isEmpty() && !bind.matches("\\d{1,3}(\\.\\d{1,3}){3}")) return new String[] {"refused", "The Tailscale address should look like 100.x.y.z"};
@@ -2451,7 +2458,7 @@ public final class HostHelper {
 			} else if (!Notify.admin(x, path) && !StatusPage.admin(x, path) && !ServerTools.admin(x, path) && !WebPanel.admin(x, path)
 					&& !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path)
 					&& !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x,
-					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path) && !Ai.admin(x, path) && !Ai.builtinAdmin(x, path) && !ModBrowser.admin(x, path)) reply(x, 404, m("error", "no such call"));
+					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path) && !Ai.admin(x, path) && !Ai.builtinAdmin(x, path) && !ModBrowser.admin(x, path) && !Net.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
@@ -2491,14 +2498,14 @@ public final class HostHelper {
 
 		add.apply(new Object[] {"welcome", "Welcome", "info",
 				"This guide takes a machine from nothing to a game server your friends can join with the Gatehouse launcher.\n\nTailscale is a private network between this machine and the devices you let in, so nothing is opened to the internet." + (builtin() ? " Gatekeeper, this program, runs the servers itself on this machine, and stands between them and the launchers: " : " MC Server Soft (MCSS) runs the Minecraft servers. Gatekeeper, this program, sits between them: ") + "it lets the launchers you allow see, start and stop your servers.\n\nEach step says what to do and checks by itself whether it's done. You can leave the guide and come back to it from Options (the wheel at the top right).", ""});
-		add.apply(new Object[] {"tailscale", "Install Tailscale", ts ? "ok" : "todo",
+		if (Net.tailscale()) add.apply(new Object[] {"tailscale", "Install Tailscale", ts ? "ok" : "todo",
 				"Tailscale makes the private network. Download it from its own site, install it, and sign in with an account (Google, Microsoft, GitHub and others work; it's free for personal use)." + (STEAMOS ? "\n\nTailscale doesn't officially support SteamOS: it can be installed (Desktop Mode, Konsole), but a SteamOS update can remove it, and then this step shows as not done again." : "") + "\n\nThis step is done when Tailscale is installed on this machine.", dt.apply("Tailscale is installed"),
 				"Open Tailscale's download page", say("open:https://tailscale.com/download", "open:https://tailscale.com/download/linux")});
-		add.apply(new Object[] {"tailscale_on", "Sign in to Tailscale", !ts ? "wait" : tsOn ? "ok" : "todo",
+		if (Net.tailscale()) add.apply(new Object[] {"tailscale_on", "Sign in to Tailscale", !ts ? "wait" : tsOn ? "ok" : "todo",
 				say("Open Tailscale (its icon is by the clock), sign in, and make sure it says Connected.",
 				"In a terminal, run: sudo tailscale up, and sign in on the page it gives.")
 				+ "\n\nThis step is done when this machine has a Tailscale address.", dt.apply("Tailscale is connected")});
-		add.apply(new Object[] {"tailscale_stay", "Keep this machine signed in", !tsOn ? "wait"
+		if (Net.tailscale()) add.apply(new Object[] {"tailscale_stay", "Keep this machine signed in", !tsOn ? "wait"
 				: st.apply("This machine stays signed in to Tailscale", "todo"),
 				"By default Tailscale signs a machine out after some months, and players would lose the server until you signed in again. For a server, turn that off: in Tailscale's admin page, under Machines, open this machine's \u2026 menu and choose Disable key expiry.\n\n" + say("In Tailscale's own menu by the clock, also turn on Run unattended (under Preferences), so players can reach the machine before anyone has signed in to Windows.", "Tailscale's service should also start with the machine, so players can reach it after a restart. Host setup shows whether it does; in a terminal: sudo systemctl enable --now tailscaled"), dt.apply("This machine stays signed in to Tailscale"),
 				"Open Tailscale's admin page", "open:https://login.tailscale.com/admin/machines"});
@@ -2512,9 +2519,9 @@ public final class HostHelper {
 				"In MCSS: Add Server, give it a name, pick the server type and Minecraft version (Vanilla is the plain game; Fabric or Forge are for mods), and create it. Start it once in MCSS and accept Minecraft's EULA when asked, so its files are made, then stop it again.\n\nThis step is done when MCSS has at least one server.", inMcss > 0 ? inMcss + (inMcss == 1 ? " server" : " servers") + " in MCSS" : ""});
 		if (!builtin()) add.apply(new Object[] {"mcss_api", "Turn on MCSS's web API", !mcss ? "wait" : api ? "ok" : "todo",
 				"Gatekeeper talks to MCSS through MCSS's own web API, on this machine only. In MCSS: Options, then Web API (or Web Panel), switch it on, and leave the port at 25560. MCSS has to be running for this.\n\nThis step is done when MCSS answers on that port.", api ? "MCSS answers" : mcss ? "No answer on " + setting("mcss_panel", "http://127.0.0.1:25560").replaceFirst("^https?://", "") + " (is MCSS running?)" : ""});
-		String addr = st.apply("Gatekeeper listens on the Tailscale address", "todo"), chosen = st.apply("Servers are chosen", "todo");
-		add.apply(new Object[] {"setup", "Choose the servers", inMcss == 0 || !tsOn ? "wait" : addr.equals("ok") && chosen.equals("ok")
-				? "ok" : "todo", "Server setup tells Gatekeeper " + (builtin() ? "where the servers' folders are" : "where MCSS is") + ", which address to listen on (this machine's Tailscale address, filled in for you), and which " + (builtin() ? "servers" : "of MCSS's servers") + " players should see: tick them and Save.\n\nThis step is done when Gatekeeper listens on the Tailscale address and at least one server is chosen.", dt.apply("Servers are chosen").isEmpty() ? dt.apply("Gatekeeper listens on the Tailscale address") : dt.apply("Servers are chosen"),
+		String addr = st.apply(listensTitle(), "todo"), chosen = st.apply("Servers are chosen", "todo");
+		add.apply(new Object[] {"setup", "Choose the servers", inMcss == 0 || (Net.tailscale() && !tsOn) ? "wait" : addr.equals("ok") && chosen.equals("ok")
+				? "ok" : "todo", "Server setup tells Gatekeeper " + (builtin() ? "where the servers' folders are" : "where MCSS is") + ", which address to listen on (this machine's Tailscale address, filled in for you), and which " + (builtin() ? "servers" : "of MCSS's servers") + " players should see: tick them and Save.\n\nThis step is done when Gatekeeper listens on the Tailscale address and at least one server is chosen.", dt.apply("Servers are chosen").isEmpty() ? dt.apply(listensTitle()) : dt.apply("Servers are chosen"),
 				"Server setup\u2026", "setup"});
 		if (builtin()) {
 			if (anyMc) add.apply(new Object[] {"eula", "Accept Minecraft's EULA", !chosen.equals("ok") ? "wait"
@@ -2538,7 +2545,7 @@ public final class HostHelper {
 				: st.apply("Only whitelisted players can join", "todo"),
 				"With the whitelist on, only players you have allowed can join a server, even if someone else gets onto your Tailscale network. Gatekeeper adds a player to it when you allow them in Access Manager.\n\nHost setup has a button that turns it on for you. This step is done when every chosen server has its whitelist on.", dt.apply("Only whitelisted players can join"),
 				"Go to Host setup", "hostsetup"});
-		add.apply(new Object[] {"invite", "Make an invite for players", !tsOn ? "wait" : st.apply("Players have a way into Tailscale",
+		if (Net.tailscale()) add.apply(new Object[] {"invite", "Make an invite for players", !tsOn ? "wait" : st.apply("Players have a way into Tailscale",
 				"todo"), "A player's device has to be able to reach this machine over Tailscale. Share just this machine with them: in Tailscale's admin page, under Machines, open this machine's \u2026 menu, choose Share, and make a reusable invite link. That gives access to this one machine, not the rest of your network.\n\nPaste the link into Host setup (Tailscale invite link for players) and Save. It then travels with the pairing you hand out.\n\nThis step is done when an invite link is saved.", dt.apply("Players have a way into Tailscale"),
 				"Open Tailscale's admin page", "open:https://login.tailscale.com/admin/machines", "Go to Host setup", "hostsetup"});
 		add.apply(new Object[] {"pairing", "Invite a player", !addr.equals("ok") ? "wait"
@@ -3376,7 +3383,7 @@ public final class HostHelper {
 								? "Closes MCSS. A Minecraft server is running: it's stopped first (the world is saved), then MCSS closes."
 								: "Starts MCSS on this machine, or closes it.");
 						state.setForeground(new Color(0x8BD46E));
-						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over Tailscale).");
+						state.setText("Running on " + r.get("bind") + ":" + r.get("port") + " (launchers reach it over " + Net.word() + ").");
 						boolean mBusy = mph.equals("starting") || mph.equals("closing"), sBusy = sph.equals("starting") || sph.equals("stopping");
 						mcssState.setForeground(mBusy ? new Color(0xE9B949) : Boolean.TRUE.equals(r.get("mcss")) ? new Color(0x8BD46E) : new Color(0xA9B5C1));
 						if (builtin()) mcssState.setForeground(new Color(0xA9B5C1));
