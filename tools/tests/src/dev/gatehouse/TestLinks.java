@@ -12,6 +12,18 @@ public final class TestLinks {
 		t.check("a video file link can be played", LinkPreview.media("https://cdn.example.com/clips/run.MP4?x=1"));
 		t.check("a page isn't", !LinkPreview.media("https://example.com/watch"));
 		t.check("YouTube's links are YouTube's", "YouTube".equals(LinkPreview.videoSite("https://youtu.be/abc")) && "YouTube".equals(LinkPreview.videoSite("https://www.youtube.com/watch?v=abc")));
+		// R85: which YouTube video a link is, for Play here
+		t.check("a watch link's video", "dQw4w9WgXcQ".equals(LinkPreview.youtubeId("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s")));
+		t.check("a short link's video", "dQw4w9WgXcQ".equals(LinkPreview.youtubeId("https://youtu.be/dQw4w9WgXcQ?si=abc")));
+		t.check("a Shorts link's video", "dQw4w9WgXcQ".equals(LinkPreview.youtubeId("https://youtube.com/shorts/dQw4w9WgXcQ")));
+		t.check("not a video: a channel", LinkPreview.youtubeId("https://www.youtube.com/@someone") == null);
+		t.check("not YouTube at all", LinkPreview.youtubeId("https://example.com/watch?v=dQw4w9WgXcQ") == null);
+		t.check("an odd id is refused", LinkPreview.youtubeId("https://youtu.be/abc%22onload") == null);
+		// R85: X posts
+		t.check("an X post's number", "1585341984679469056".equals(LinkPreview.xPostId("https://x.com/someone/status/1585341984679469056?s=20")));
+		t.check("a twitter.com post's number", "20".equals(LinkPreview.xPostId("https://twitter.com/jack/status/20")));
+		t.check("X's links are X's", "X".equals(LinkPreview.videoSite("https://x.com/someone/status/123")));
+		t.check("an X profile isn't a post", LinkPreview.xPostId("https://x.com/someone") == null);
 		t.check("Vimeo's are Vimeo's", "Vimeo".equals(LinkPreview.videoSite("https://vimeo.com/123")));
 		t.check("another site is neither", LinkPreview.videoSite("https://notyoutube.com.example.org/") == null);
 		var c = LinkPreview.parse("https://www.example.org/x", "<html><head><title>Plain title</title><meta property=\"og:title\" content=\"The &amp; title\">"

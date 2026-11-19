@@ -377,10 +377,62 @@ public final class ChatView extends JPanel {
 			play.addActionListener(e -> play(r, as, play, box, shownPic));
 			row.add(play, 0);
 		}
+		String yt = LinkPreview.youtubeId(link);
+		if (yt != null && MediaEngine.webAvailable()) {   // (R85: YouTube plays right here, in the web view)
+			JButton here = new JButton("Play here");
+			here.setToolTipText("Plays it right here in the message, in YouTube's own player (its privacy-enhanced one)");
+			here.addActionListener(e -> playYouTube(yt, link, here, box, shownPic));
+			row.add(here, 0);
+		}
 		box.add(row, BorderLayout.NORTH);
 		JPanel card = new JPanel(new BorderLayout(10, 0)); card.setOpaque(false); card.setVisible(false);
 		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, GameShell.a(GameShell.ACC, 160)), BorderFactory.createEmptyBorder(4, 10, 4, 4)));
-		box.add(card, BorderLayout.SOUTH);
+		JPanel under = new JPanel(); under.setLayout(new BoxLayout(under, BoxLayout.Y_AXIS)); under.setOpaque(false);
+		card.setAlignmentX(LEFT_ALIGNMENT); under.add(card);
+		box.add(under, BorderLayout.SOUTH);
+		String xid = LinkPreview.xPostId(link);
+		if (xid != null) {   // (R85: an X post's photos and video, from X's own embed service, only when pressed)
+			JButton media = new JButton("Show media");
+			media.setToolTipText("Fetches the post's photos and video from X and shows them here; a video plays in Gatehouse's player");
+			JPanel shown = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6)); shown.setOpaque(false); shown.setVisible(false); shown.setAlignmentX(LEFT_ALIGNMENT);
+			under.add(shown);
+			media.addActionListener(e -> {
+				if (shown.isVisible()) { shown.setVisible(false); media.setText("Show media"); box.revalidate(); list.revalidate(); return; }
+				if (shown.getComponentCount() > 0) { shown.setVisible(true); media.setText("Hide media"); box.revalidate(); list.revalidate(); return; }
+				media.setEnabled(false); tell("Asking X for the post's media…");
+				Thread t = new Thread(() -> {
+					try {
+						LinkPreview.XMedia xm = LinkPreview.xMedia(xid);
+						List<Image> pics = new ArrayList<>();
+						for (String u : xm.photos()) pics.add(small(u));
+						Image thumb = xm.video() != null && xm.videoThumb() != null ? small(xm.videoThumb()) : null;
+						tell(" ");
+						SwingUtilities.invokeLater(() -> {
+							media.setEnabled(true);
+							if (pics.isEmpty() && xm.video() == null) { tell("That post has no photos or video."); return; }
+							for (Image im : pics) if (im != null) shown.add(new JLabel(new javax.swing.ImageIcon(im)));
+							if (xm.video() != null && MediaEngine.available()) {
+								String id = "url-x" + xid;
+								linked.put(id, xm.video());
+								Msg as = new Msg(m.n(), m.when(), m.who(), m.text(), id, "x-" + xid + ".mp4", 0);
+								JPanel vbox = new JPanel(new BorderLayout(0, 6)); vbox.setOpaque(false);
+								JLabel vpic = thumb == null ? new JLabel() : new JLabel(new javax.swing.ImageIcon(thumb));
+								JButton play = new JButton("Play video");
+								play.setToolTipText("Fetches the video from X (up to 200 MB) and plays it here in Gatehouse's player");
+								play.addActionListener(ev -> play(r, as, play, vbox, vpic));
+								JPanel pr = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); pr.setOpaque(false); pr.add(play);
+								vbox.add(pr, BorderLayout.NORTH); vbox.add(vpic, BorderLayout.CENTER);
+								shown.add(vbox);
+							}
+							shown.setVisible(true); media.setText("Hide media");
+							box.revalidate(); list.revalidate();
+						});
+					} catch (Exception ex) { tell("No media for that post: " + why(ex)); SwingUtilities.invokeLater(() -> media.setEnabled(true)); }
+				}, "chat-x");
+				t.setDaemon(true); t.start();
+			});
+			row.add(media);
+		}
 		show.addActionListener(e -> {
 			if (card.isVisible()) { card.setVisible(false); show.setText("Show preview"); box.revalidate(); list.revalidate(); return; }
 			if (card.getComponentCount() > 0) { card.setVisible(true); show.setText("Hide preview"); box.revalidate(); list.revalidate(); return; }
@@ -513,6 +565,54 @@ public final class ChatView extends JPanel {
 				box.revalidate(); box.repaint(); list.revalidate();
 			}, () -> view.setEnabled(true)));
 		}, "chat-player");
+		t.setDaemon(true); t.start();
+	}
+	/** A picture from a link, at most 240 by 180, or null when it can't be had. */
+	private static Image small(String url) {
+		try {
+			BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream((byte[]) LinkPreview.get(url, 4 * 1024 * 1024, 8)[0]));
+			if (img == null) return null;
+			double sc = Math.min(1.0, Math.min(240.0 / img.getWidth(), 180.0 / img.getHeight()));
+			return img.getScaledInstance(Math.max(1, (int) (img.getWidth() * sc)), Math.max(1, (int) (img.getHeight() * sc)), Image.SCALE_SMOOTH);
+		} catch (Exception e) { return null; }
+	}
+	/** R85: plays a YouTube video in the message, fetching the web view first if this device hasn't it (asked). */
+	private void playYouTube(String id, String link, JButton here, JPanel box, JLabel shownPic) {
+		Object shown = here.getClientProperty("player");
+		if (shown instanceof Component c) {   // (playing: the button closes it)
+			box.remove(c); box.add(shownPic, BorderLayout.CENTER);
+			here.putClientProperty("player", null); here.setText("Play here");
+			box.revalidate(); box.repaint(); list.revalidate();
+			return;
+		}
+		if (!MediaEngine.webReady()) {
+			int a = InWindow.showConfirmDialog(this, "<html><body style='width:380px'>YouTube videos play here in a web view, which this device fetches once: "
+					+ MediaEngine.webSize() + " of OpenJFX (Java's web view and media player) from Maven Central, checked before it is kept.<br><br>Fetch it now? "
+					+ "No opens this video in the browser instead.</body></html>", "Play YouTube here", javax.swing.JOptionPane.YES_NO_CANCEL_OPTION);
+			if (a == javax.swing.JOptionPane.CANCEL_OPTION || a == javax.swing.JOptionPane.CLOSED_OPTION) return;
+			if (a == javax.swing.JOptionPane.NO_OPTION) { try { LinkPreview.browse(link); } catch (Exception ex) { tell("Couldn't open the link: " + why(ex)); } return; }
+		}
+		here.setEnabled(false);
+		Thread t = new Thread(() -> {
+			try { MediaEngine.fetchWeb(this::tell); tell(" "); }
+			catch (Exception e) { tell("The web view couldn't be fetched: " + why(e) + ". Watch on YouTube still works."); SwingUtilities.invokeLater(() -> here.setEnabled(true)); return; }
+			SwingUtilities.invokeLater(() -> {
+				here.setEnabled(true);
+				JPanel holder = new JPanel(new BorderLayout(0, 4)); holder.setOpaque(false);
+				JLabel trouble = new JLabel(); trouble.setForeground(new Color(0xE9B949)); trouble.setVisible(false);
+				holder.add(trouble, BorderLayout.SOUTH);
+				java.util.function.Consumer<String> problem = why -> {
+					trouble.setText("<html><body style='width:420px'>It can't be played here: " + esc(why) + ". Watch on YouTube still works.</body></html>");
+					trouble.setVisible(true); holder.revalidate(); list.revalidate();
+				};
+				box.remove(shownPic);
+				box.add(holder, BorderLayout.CENTER);
+				here.putClientProperty("player", holder); here.setText("Close player");
+				try { JPanel own = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0)); own.setOpaque(false); own.add(MediaEngine.embedYouTube(id, problem)); holder.add(own, BorderLayout.CENTER); }
+				catch (Throwable ex) { problem.accept(ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage()); }
+				box.revalidate(); box.repaint(); list.revalidate();
+			});
+		}, "chat-youtube");
 		t.setDaemon(true); t.start();
 	}
 	/** A fetched file in a folder of its own in the temporary files. */

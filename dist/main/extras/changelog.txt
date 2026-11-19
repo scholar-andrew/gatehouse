@@ -1,3 +1,5 @@
+== 1.90.0 | 2026-11-19
+- Gatehouse 3.57.0: YouTube videos play in the chat, and X posts show their photos and videos. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.89.0 | 2026-11-19
 - Gatehouse 3.56.0: everything inside the window, chat link previews, a modpack helper, new icons, and controller pictures that follow the last one pressed. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.88.0 | 2026-11-19

@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.56.0",
+ "version": "3.57.0",
  "changes": [
+  {"version": "3.57.0", "date": "2026-11-19", "notes": [
+   "YouTube videos play right in the chat: a YouTube link gets Play here, in YouTube's own privacy-enhanced player. The web view it needs is fetched once, the first time, asked first (about 35 MB on Windows, 45 MB on Linux and the Steam Deck). Vimeo still opens in the browser.",
+   "X (Twitter) posts in chat: Show preview shows the post's author and words, and Show media its photos and its video, which plays in the chat's own player."
+  ]},
   {"version": "3.56.0", "date": "2026-11-19", "notes": [
    "Nothing opens a window of its own any more: questions, messages, choosing a file, and pages like Connect, Files, New server, a server's pack and Add a Gatekeeper open on a dimmed layer inside the window. Close, Esc or B goes back; a controller moves only among their buttons while they're open.",
    "Links in chat: Open link (Watch on YouTube or Vimeo), and Show preview, which fetches the page from its own site only when pressed and shows its title, picture and description. A link straight to a video or sound file can be played in the chat. Links to your own networks are never fetched. In the web panel, links can be opened.",

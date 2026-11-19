@@ -127,6 +127,7 @@ if (-not $Quick -and -not $failed) {
     $out = & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'update_check.ps1') 2>&1 | Out-String
     $ok5 = $out -match 'All \d+ got to'
     Write-Host ("  " + $(if ($ok5) { 'ok      ' } else { 'FAILED  ' }) + (($out -split "`n" | Where-Object { $_ -match 'got to|FAIL|failed' }) -join ' / ').Trim())
+    if (-not $ok5) { Write-Host '  (its last lines:)'; ($out -split "`n" | Where-Object { $_.Trim() } | Select-Object -Last 8) | ForEach-Object { Write-Host ('    ' + $_.TrimEnd()) } }
     Result 'the update check' $ok5
 }
 Write-Host ''

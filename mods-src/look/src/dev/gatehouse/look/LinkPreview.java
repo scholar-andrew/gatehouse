@@ -57,7 +57,108 @@ public final class LinkPreview {
 		String h = host(url);
 		if (h.equals("youtu.be") || h.equals("youtube.com") || h.endsWith(".youtube.com")) return "YouTube";
 		if (h.equals("vimeo.com") || h.endsWith(".vimeo.com")) return "Vimeo";
+		if (xPostId(url) != null) return "X";
 		return null;
+	}
+	/** R85: an X (Twitter) post's number from its link (x.com or twitter.com, /someone/status/123...), or null. */
+	public static String xPostId(String url) {
+		String h = host(url);
+		if (!(h.equals("x.com") || h.endsWith(".x.com") || h.equals("twitter.com") || h.endsWith(".twitter.com"))) return null;
+		try { Matcher m = Pattern.compile("^/[^/]+/status(?:es)?/(\\d{1,25})").matcher(URI.create(url).getPath()); return m.find() ? m.group(1) : null; }
+		catch (RuntimeException e) { return null; }
+	}
+	/** An X post's pictures (their addresses) and its video (an MP4 the chat's player can play), if any. */
+	public record XMedia(java.util.List<String> photos, String video, String videoThumb) {}
+	/** Asks X's own embed service (cdn.syndication.twimg.com, as X's embedded posts do) what media a post has. */
+	public static XMedia xMedia(String id) throws IOException {
+		if (!id.matches("\\d{1,25}")) throw new IOException("that isn't an X post's address");
+		Object[] got = get("https://cdn.syndication.twimg.com/tweet-result?id=" + id + "&lang=en&token=" + xToken(id), 512 * 1024, 8);
+		String j = new String((byte[]) got[0], StandardCharsets.UTF_8);
+		if (j.isBlank() || j.trim().equals("{}")) throw new IOException("X didn't say (the post may be gone or private)");
+		java.util.List<String> photos = new java.util.ArrayList<>();
+		String video = null, thumb = null; long best = -1;
+		Object root = new Parse(j).value();
+		for (Object o : list(map(root).get("mediaDetails"))) {
+			java.util.Map<String, Object> m = map(o);
+			String type = str(m.get("type")), pic = str(m.get("media_url_https"));
+			if (type.equals("photo")) { if (pic.startsWith("https://pbs.twimg.com/") && !photos.contains(pic) && photos.size() < 4) photos.add(pic); continue; }
+			if (!(type.equals("video") || type.equals("animated_gif")) || video != null) continue;
+			thumb = pic.startsWith("https://pbs.twimg.com/") ? pic : null;
+			// (an MP4 of moderate size: the highest bitrate up to about 2.3 Mbit/s, else the smallest there is)
+			String small = null; long smallest = Long.MAX_VALUE;
+			for (Object vo : list(map(map(m.get("video_info"))).get("variants"))) {
+				java.util.Map<String, Object> v = map(vo);
+				String u = str(v.get("url"));
+				if (!"video/mp4".equals(str(v.get("content_type"))) || !u.startsWith("https://video.twimg.com/")) continue;
+				long br = v.get("bitrate") instanceof Number n ? n.longValue() : 0;
+				if (br <= 2_300_000 && br > best) { best = br; video = u; }
+				if (br < smallest) { smallest = br; small = u; }
+			}
+			if (video == null) video = small;
+		}
+		return new XMedia(photos, video, thumb);
+	}
+	@SuppressWarnings("unchecked") private static java.util.Map<String, Object> map(Object o) { return o instanceof java.util.Map<?, ?> m ? (java.util.Map<String, Object>) m : java.util.Map.of(); }
+	private static java.util.List<Object> list(Object o) { return o instanceof java.util.List<?> l ? new java.util.ArrayList<>(l) : java.util.List.of(); }
+	private static String str(Object o) { return o == null ? "" : String.valueOf(o); }
+	/** Just enough JSON for X's answer: objects, arrays, strings, numbers, true, false, null. */
+	private static final class Parse {
+		private final String s; private int i;
+		Parse(String s) { this.s = s; }
+		Object value() {
+			ws();
+			if (i >= s.length()) throw new IllegalArgumentException("the answer ended early");
+			char c = s.charAt(i);
+			if (c == '{') { i++; java.util.Map<String, Object> m = new java.util.LinkedHashMap<>(); ws(); if (peek('}')) { i++; return m; }
+				while (true) { ws(); String k = string(); ws(); expect(':'); m.put(k, value()); ws(); if (peek(',')) { i++; continue; } expect('}'); return m; } }
+			if (c == '[') { i++; java.util.List<Object> l = new java.util.ArrayList<>(); ws(); if (peek(']')) { i++; return l; }
+				while (true) { l.add(value()); ws(); if (peek(',')) { i++; continue; } expect(']'); return l; } }
+			if (c == '"') return string();
+			if (s.startsWith("true", i)) { i += 4; return Boolean.TRUE; }
+			if (s.startsWith("false", i)) { i += 5; return Boolean.FALSE; }
+			if (s.startsWith("null", i)) { i += 4; return null; }
+			int st = i; while (i < s.length() && "+-.eE0123456789".indexOf(s.charAt(i)) >= 0) i++;
+			if (st == i) throw new IllegalArgumentException("not JSON at " + i);
+			String n = s.substring(st, i);
+			return n.matches("-?[0-9]{1,18}") ? (Object) Long.parseLong(n) : (Object) Double.parseDouble(n);
+		}
+		private String string() {
+			expect('"'); StringBuilder b = new StringBuilder();
+			while (i < s.length()) {
+				char c = s.charAt(i++);
+				if (c == '"') return b.toString();
+				if (c != (char) 92) { b.append(c); continue; }   // (92: the backslash)
+				char e = s.charAt(i++);
+				switch (e) { case 'n' -> b.append('\n'); case 't' -> b.append('\t'); case 'r' -> b.append('\r'); case 'b' -> b.append('\b'); case 'f' -> b.append('\f');
+					case 'u' -> { b.append((char) Integer.parseInt(s.substring(i, i + 4), 16)); i += 4; } default -> b.append(e); }
+			}
+			throw new IllegalArgumentException("a string didn't end");
+		}
+		private void ws() { while (i < s.length() && Character.isWhitespace(s.charAt(i))) i++; }
+		private boolean peek(char c) { return i < s.length() && s.charAt(i) == c; }
+		private void expect(char c) { if (!peek(c)) throw new IllegalArgumentException("expected " + c + " at " + i); i++; }
+	}
+	/** The token X's embeds send with the request: (id / 1e15 * pi) in base 36, without its zeros and point. */
+	static String xToken(String id) {
+		double x = Double.parseDouble(id) / 1e15 * Math.PI;
+		StringBuilder s = new StringBuilder(Long.toString((long) x, 36));
+		double f = x - Math.floor(x);
+		s.append('.');
+		for (int i = 0; i < 12 && f > 0; i++) { f *= 36; int dgt = (int) f; s.append(Character.forDigit(dgt, 36)); f -= dgt; }
+		String t = s.toString().replaceAll("(0+|\\.)", "");
+		return t.isEmpty() ? "a" : t;
+	}
+	/** R85: a YouTube video's 11-letter id from its link (watch?v=, youtu.be/, shorts/, embed/, live/), or null. */
+	public static String youtubeId(String url) {
+		if (!"YouTube".equals(videoSite(url))) return null;
+		try {
+			URI u = URI.create(url);
+			String p = u.getPath() == null ? "" : u.getPath(), q = u.getRawQuery() == null ? "" : u.getRawQuery(), id = null;
+			if (host(url).equals("youtu.be")) id = p.replaceFirst("^/", "").replaceAll("/.*", "");
+			else if (p.equals("/watch")) { for (String kv : q.split("&")) if (kv.startsWith("v=")) id = kv.substring(2); }
+			else { Matcher m = Pattern.compile("^/(?:shorts|embed|live|v)/([^/?#]+)").matcher(p); if (m.find()) id = m.group(1); }
+			return id != null && id.matches("[A-Za-z0-9_-]{11}") ? id : null;
+		} catch (RuntimeException e) { return null; }
 	}
 	static String host(String url) {
 		try { String h = URI.create(url).getHost(); return h == null ? "" : h.toLowerCase(Locale.ROOT); } catch (RuntimeException e) { return ""; }
@@ -151,7 +252,7 @@ public final class LinkPreview {
 	/** Fetches a page and its picture together: the whole card. */
 	public static Card full(String url) throws IOException {
 		String vs = videoSite(url);
-		if (vs != null) return oembed(url, vs);
+		if ("YouTube".equals(vs) || "Vimeo".equals(vs)) return oembed(url, vs);
 		Object[] got = get(url, 768 * 1024, 8);
 		String type = ((String) got[1]).toLowerCase(Locale.ROOT);
 		if (!type.isEmpty() && !type.contains("html")) throw new IOException("it isn't a web page (" + type.replaceAll(";.*", "") + ")");

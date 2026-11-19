@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.57.0 - 2026-11-19
+
+- YouTube videos play right in the chat: a YouTube link gets Play here, in YouTube's own privacy-enhanced player. The web view it needs is fetched once, the first time, asked first (about 35 MB on Windows, 45 MB on Linux and the Steam Deck). Vimeo still opens in the browser.
+- X (Twitter) posts in chat: Show preview shows the post's author and words, and Show media its photos and its video, which plays in the chat's own player.
+
 ## 3.56.0 - 2026-11-19
 
 - Nothing opens a window of its own any more: questions, messages, choosing a file, and pages like Connect, Files, New server, a server's pack and Add a Gatekeeper open on a dimmed layer inside the window. Close, Esc or B goes back; a controller moves only among their buttons while they're open.

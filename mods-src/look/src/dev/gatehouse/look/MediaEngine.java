@@ -62,7 +62,16 @@ public final class MediaEngine {
 			new Part("javafx-graphics", "javafx-graphics-23.0.2-linux.jar", 4839668, "809376faff637c5bbbacbdff710e2e1f9d523c1e344020124a2735aca04daa28"),
 			new Part("javafx-media", "javafx-media-23.0.2-linux.jar", 1555185, "b842a02e08221793615bac8bc3bfeb1be5e079474fbf6e815b45571fdf0c4a34"),
 			new Part("javafx-swing", "javafx-swing-23.0.2-linux.jar", 91164, "c55286b39f996e53390920a9839293c74eb360650ed38bbe6ecc7fb74ea5160c"));
+	// R85: the web view (OpenJFX's web and controls parts), for playing YouTube in the chat. Only with 23.0.2 (Java 21 or
+	// newer), fetched once, when a YouTube video is first played here, asked first; the media player's parts come too.
+	private static final List<Part> WEB_WIN = List.of(
+			new Part("javafx-controls", "javafx-controls-23.0.2-win.jar", 2605863, "874daf48b0ec01e4eb0caf24cdb85b32d951999837f8e1c285f6d1e1e34870ba"),
+			new Part("javafx-web", "javafx-web-23.0.2-win.jar", 32582307, "a18008ae0d3df1b8046a99d44f761dd01cce279ae1539a7e4685263aec2ea5fc"));
+	private static final List<Part> WEB_LINUX = List.of(
+			new Part("javafx-controls", "javafx-controls-23.0.2-linux.jar", 2605899, "2c10d1e7e9354e1cd573bde2e47a16c72cfb8e86604830ac29cd2b65523fd1ec"),
+			new Part("javafx-web", "javafx-web-23.0.2-linux.jar", 42838508, "c06f091ee6413efe1deb707f0487c99a254661ded162dc13a96b3f36ef578605"));
 	private static ClassLoader loaded;
+	private static boolean loadedWithWeb;
 
 	/** This device's parts, or null where there is no engine (another system, or not x86-64). */
 	private static List<Part> parts() {
@@ -70,6 +79,34 @@ public final class MediaEngine {
 		if (!(arch.equals("amd64") || arch.equals("x86_64"))) return null;
 		boolean newer = VERSION.equals("23.0.2");
 		return os.startsWith("windows") ? (newer ? WIN23 : WIN) : os.startsWith("linux") ? (newer ? LINUX23 : LINUX) : null;
+	}
+	/** R85: the web view's parts here, or null where there is none (older Java, another system). */
+	private static List<Part> webParts() {
+		if (!VERSION.equals("23.0.2") || parts() == null) return null;
+		return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows") ? WEB_WIN : WEB_LINUX;
+	}
+	/** Can YouTube be played in the chat on this device (once the web view is fetched)? */
+	public static boolean webAvailable() { return webParts() != null && Player.class.getResource("web-player.jar") != null; }
+	/** Is the web view here, whole, with the media player's parts? */
+	public static boolean webReady() {
+		List<Part> ps = webParts();
+		if (ps == null || !ready()) return false;
+		try { for (Part p : ps) if (Files.size(home().resolve(p.file())) != p.size()) return false; return true; }
+		catch (IOException e) { return false; }
+	}
+	/** How much fetching the web view (and the media player, if it isn't here yet) is, for asking first. */
+	public static String webSize() {
+		long n = 0;
+		for (Part p : webParts()) if (!Files.isRegularFile(home().resolve(p.file()))) n += p.size();
+		if (!ready()) for (Part p : parts()) if (!Files.isRegularFile(home().resolve(p.file()))) n += p.size();
+		return String.format(Locale.ROOT, "%.0f MB", n / 1048576.0);
+	}
+	/** Fetches the media player's parts and the web view's (what is missing). Blocking: off the window's thread. */
+	public static void fetchWeb(Consumer<String> progress) throws IOException {
+		fetch(progress);
+		List<Part> ps = webParts();
+		if (ps == null) throw new IOException("YouTube can't be played in the chat on this device (it needs Java 21 or newer)");
+		fetchParts(ps, "the web view", progress);
 	}
 	/** Can this device have the engine at all? */
 	public static boolean available() { return parts() != null && Player.class.getResource("media-player.jar") != null; }
@@ -129,6 +166,9 @@ public final class MediaEngine {
 	public static void fetch(Consumer<String> progress) throws IOException {
 		List<Part> ps = parts();
 		if (ps == null) throw new IOException("there is no media player for this system");
+		fetchParts(ps, "the media player", progress);
+	}
+	private static void fetchParts(List<Part> ps, String what, Consumer<String> progress) throws IOException {
 		Path d = home();
 		Files.createDirectories(d);
 		String site = System.getenv().getOrDefault("GATEHOUSE_MEDIA_SITE", SITE).replaceAll("/+$", "");
@@ -137,7 +177,7 @@ public final class MediaEngine {
 			i++;
 			Path to = d.resolve(p.file());
 			if (Files.isRegularFile(to) && Files.size(to) == p.size() && sha256(to).equals(p.sha256())) continue;
-			progress.accept("Fetching the media player (" + i + " of " + ps.size() + ", " + (p.size() / 1048576 + 1) + " MB)…");
+			progress.accept("Fetching " + what + " (" + i + " of " + ps.size() + ", " + (p.size() / 1048576 + 1) + " MB)…");
 			Path part = d.resolve(p.file() + ".part");
 			try {
 				HttpURLConnection c = (HttpURLConnection) URI.create(site + "/" + p.module() + "/" + VERSION + "/" + p.file()).toURL().openConnection();
@@ -170,6 +210,20 @@ public final class MediaEngine {
 		Path pj = d.resolve("media-player-" + Integer.toHexString(java.util.Arrays.hashCode(own())) + ".jar");
 		if (!Files.isRegularFile(pj)) Files.write(pj, own());
 		urls.add(pj.toUri().toURL());
+		// (R85: the web view joins when it has been fetched: JavaFX can be loaded only once in a run, so both go together)
+		if (webAvailable() && webReady()) {
+			boolean whole = true;
+			List<URL> web = new ArrayList<>();
+			for (Part p : webParts()) { Path f = d.resolve(p.file()); if (!sha256(f).equals(p.sha256())) { Files.deleteIfExists(f); whole = false; } else web.add(f.toUri().toURL()); }
+			if (whole) {
+				byte[] wj = ownWeb();
+				Path wp = d.resolve("web-player-" + Integer.toHexString(java.util.Arrays.hashCode(wj)) + ".jar");
+				if (!Files.isRegularFile(wp)) Files.write(wp, wj);
+				web.add(wp.toUri().toURL());
+				urls.addAll(web);
+				loadedWithWeb = true;
+			}
+		}
 		System.setProperty("javafx.cachedir", d.resolve("cache").toString());
 		// R80: on Linux (the Steam Deck) the player's picture is drawn off-screen and copied into the window every frame,
 		// often by the processor alone; video then slowed and its sound broke up. Fewer copies (30 a second, which a
@@ -213,6 +267,22 @@ public final class MediaEngine {
 		}
 	}
 
+	/**
+	 * R85: a YouTube video playing in the chat message, in the web view (call on Swing's thread). id: its 11-letter id.
+	 * problem gets a sentence when it can't. If the media player was started earlier in this run without the web view
+	 * (it was fetched afterwards), the web view can't join until Gatehouse starts again: that is said.
+	 */
+	public static java.awt.Component embedYouTube(String id, Consumer<String> problem) throws Exception {
+		if (!id.matches("[A-Za-z0-9_-]{11}")) throw new IOException("that isn't a YouTube video's address");
+		ClassLoader l = load();
+		if (!loadedWithWeb) throw new IOException("the web view was fetched after the player started in this run: close this program and open it again, then press Play here");
+		try {
+			Class<?> c = Class.forName("dev.gatehouse.web.WebPlayer", true, l);
+			Consumer<String> told = why -> { log("can't play YouTube " + id + ": " + why); problem.accept(why); };
+			return (java.awt.Component) c.getMethod("youtube", String.class, Consumer.class).invoke(null, id, told);
+		} catch (java.lang.reflect.InvocationTargetException e) { Throwable t = e.getCause(); log("the web view didn't start: " + t); throw t instanceof Exception x ? x : new Exception(String.valueOf(t), t); }
+	}
+
 	/** R80: told each measurement the player makes (Gatehouse sends it to its Gatekeepers, for the owner's log). */
 	public static volatile Consumer<String> onReport;
 	/** Called by the player (by name, from its own class loader): one line about how a video played. */
@@ -235,6 +305,12 @@ public final class MediaEngine {
 	private static byte[] own() throws IOException {
 		try (InputStream in = Player.class.getResourceAsStream("media-player.jar")) {
 			if (in == null) throw new IOException("the player isn't in this copy of the program");
+			return in.readAllBytes();
+		}
+	}
+	private static byte[] ownWeb() throws IOException {
+		try (InputStream in = Player.class.getResourceAsStream("web-player.jar")) {
+			if (in == null) throw new IOException("the web view's part isn't in this copy of the program");
 			return in.readAllBytes();
 		}
 	}

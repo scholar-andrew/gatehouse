@@ -45,6 +45,24 @@ $media = Join-Path $out 'media'
 if ($LASTEXITCODE) { throw 'javac (media player) failed' }
 & (Join-Path $jdk 'jar.exe') --create --file (Join-Path $classes 'dev\gatehouse\look\media-player.jar') -C $media .
 if ($LASTEXITCODE) { throw 'jar (media player) failed' }
+# The chat's YouTube player (R85), built against OpenJFX 23.0.2's web view and put inside as web-player.jar: devices
+# fetch the web view the first time they play a YouTube video here. Building needs OpenJFX 23.0.2's Windows parts in
+# tools\cache\openjfx-23.0.2 (not in the repository); they are fetched once from Maven Central and checked.
+$fx23 = Join-Path $root 'tools\cache\openjfx-23.0.2'
+$fx23Parts = [ordered]@{ 'javafx-base' = '72f8958b4a552fca14ab3628c672f399aa68bbe6b4cd45107fe174b4670c7cb6'; 'javafx-graphics' = '6b5b3041f2735508a8aad23c5795e745d5bf78a0a6aa920bae43ab41ec22d8c2'; 'javafx-controls' = '874daf48b0ec01e4eb0caf24cdb85b32d951999837f8e1c285f6d1e1e34870ba'; 'javafx-web' = 'a18008ae0d3df1b8046a99d44f761dd01cce279ae1539a7e4685263aec2ea5fc'; 'javafx-swing' = '875d14a5c2cf8ce04e5c48c39b5c9a3ff1d794820b8a473ec010af1c631afcb3' }
+New-Item -ItemType Directory -Force $fx23 | Out-Null
+$fx23Jars = @()
+foreach ($m in $fx23Parts.Keys) {
+    $f = Join-Path $fx23 "$m-23.0.2-win.jar"
+    if (-not (Test-Path $f)) { Invoke-WebRequest -UseBasicParsing "https://repo1.maven.org/maven2/org/openjfx/$m/23.0.2/$m-23.0.2-win.jar" -OutFile $f }
+    if ((Get-FileHash $f -Algorithm SHA256).Hash.ToLower() -ne $fx23Parts[$m]) { Remove-Item $f; throw "$f didn't match its checksum" }
+    $fx23Jars += $f
+}
+$web = Join-Path $out 'webplayer'
+& (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 21 -cp ($fx23Jars -join ';') -d $web @(Get-ChildItem (Join-Path $root 'mods-src\webplayer\src') -Recurse -Filter *.java | ForEach-Object FullName)
+if ($LASTEXITCODE) { throw 'javac (web player) failed' }
+& (Join-Path $jdk 'jar.exe') --create --file (Join-Path $classes 'dev\gatehouse\look\web-player.jar') -C $web .
+if ($LASTEXITCODE) { throw 'jar (web player) failed' }
 # The built-in AI's bridge (R66), built against llama.cpp's Java binding and put inside as ai-engine.jar: a Gatekeeper
 # fetches the binding and a model only when its owner opts in (dev.octoberjourney.host.BuiltinAi). Building needs the
 # binding in tools\cache\llama-4.2.0 (not in the repository); it is fetched once from Maven Central and checked.
