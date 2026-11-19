@@ -1,3 +1,5 @@
+== 1.78.1 | 2026-11-19
+- Gatehouse 3.45.1: clearer AI helper status on machines without an AI of their own. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.78.0 | 2026-11-18
 - Gatehouse 3.45.0: the AI helper reads chat rooms, passes questions to the Gatekeeper it joined, and has an opt-in built-in AI. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.77.0 | 2026-11-18

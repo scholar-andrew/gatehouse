@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.45.1 - 2026-11-19
+
+- On a machine with no AI of its own, like a Steam Deck, the AI helper now says first that @ai questions in its chat rooms are answered by the Gatekeeper it joined, instead of only that Ollama isn't answering.
+
 ## 3.45.0 - 2026-11-18
 
 - Gatekeeper AI reads the chat room it is asked in: it can say who has shared files, how many messages someone sent, or how many people mentioned a word. Gatekeeper counts these itself and hands the AI the exact numbers.

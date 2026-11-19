@@ -355,6 +355,11 @@ final class Ai {
 			ServerTools.saveCfg();
 		}
 		String problem = ready();
+		// (a machine with no AI of its own, like a Steam Deck: say first that @ai still gets answered, by the Gatekeeper it joined)
+		if (!problem.isEmpty() && forward() && !setting("constellation_lead", "").isEmpty())
+			problem = "No AI on this machine, so @ai questions in its chat rooms are answered by "
+					+ (AutoUpdate.leadName.isBlank() ? "the Gatekeeper it joined" : AutoUpdate.leadName + ", the Gatekeeper it joined")
+					+ ". Nothing to set up here. (" + problem + ")";
 		reply(x, 200, m("on", on(), "model", model(), "url", url(), "local", local(url()), "models", new java.util.ArrayList<>(models),
 				"problem", problem, "said", said, "facts", facts(), "engine", builtinChosen() ? "builtin" : "ollama", "forward", forward(),
 				"lead", !setting("constellation_lead", "").isEmpty(), "builtin", BuiltinAi.state()));

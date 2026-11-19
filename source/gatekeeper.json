@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.45.0",
+ "version": "3.45.1",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.45.1", "date": "2026-11-19", "notes": [
+   "On a machine with no AI of its own, like a Steam Deck, the AI helper now says first that @ai questions in its chat rooms are answered by the Gatekeeper it joined, instead of only that Ollama isn't answering."
+  ]},
   {"version": "3.45.0", "date": "2026-11-18", "notes": [
    "Gatekeeper AI reads the chat room it is asked in: it can say who has shared files, how many messages someone sent, or how many people mentioned a word. Gatekeeper counts these itself and hands the AI the exact numbers.",
    "@ai is never left unanswered: when this Gatekeeper's own AI is off (as on a Steam Deck), the question goes to the Gatekeeper it joined, if that one's AI is on. Otherwise it says the helper is off here. The passing can be unticked under AI helper.",

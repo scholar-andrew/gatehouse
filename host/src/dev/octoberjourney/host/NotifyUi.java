@@ -181,7 +181,7 @@ final class NotifyUi {
 			for (Object o : Json.list(a.get("models"))) aiModel.addItem(Json.str(o));
 			aiModel.setSelectedItem(want);
 			String problem = Json.str(a.get("problem")), said = Json.str(a.get("said"));
-			aiSaid.setText("<html>" + esc(!said.isEmpty() ? said : problem.isEmpty() ? "Ready: " + want + " answers"
+			aiSaid.setText("<html><body style='width:560px'>" + esc(!said.isEmpty() ? said : problem.isEmpty() ? "Ready: " + want + " answers"
 					+ (Boolean.TRUE.equals(a.get("local")) ? " on this machine." : " at " + Json.str(a.get("url")) + " (questions go to that machine).") : problem) + "</html>");
 		});
 		aiShowRef = aiShow;
