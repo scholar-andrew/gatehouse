@@ -1,3 +1,5 @@
+== 1.85.0 | 2026-11-19
+- Gatehouse 3.52.0: smoother chat videos on the Steam Deck. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.84.0 | 2026-11-19
 - Gatehouse 3.51.0: Gatekeeper over the internet through your router. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.83.0 | 2026-11-19

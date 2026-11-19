@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.51.0",
+ "version": "3.52.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.52.0", "date": "2026-11-19", "notes": [
+   "Videos and sounds in chat should play more smoothly on the Steam Deck and other Linux machines: the player draws fewer frames there (30 a second), uses the graphics chip when it can, and scales the picture more cheaply."
+  ]},
   {"version": "3.51.0", "date": "2026-11-19", "notes": [
    "Gatekeeper can be reached over the internet through your router (Host setup, The internet, through your router; off unless chosen). HTTPS is always on, a new launcher needs the pairing's join key or an invite to introduce itself, requests are limited per address, and the web panel and status page stay off. You forward the ports in your router; the setup steps say which."
   ]},

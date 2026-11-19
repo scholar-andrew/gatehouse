@@ -155,6 +155,8 @@ public final class Player {
 		if (video) {
 			MediaView mv = new MediaView(mp);
 			mv.setPreserveRatio(true);
+			// (R80: on Linux, scaling each frame smoothly cost the processor more than it could spare on a Steam Deck)
+			if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).startsWith("linux")) mv.setSmooth(false);
 			mv.fitWidthProperty().bind(screen.widthProperty());
 			mv.fitHeightProperty().bind(screen.heightProperty());
 			screen.getChildren().add(mv);

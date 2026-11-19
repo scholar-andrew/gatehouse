@@ -171,6 +171,15 @@ public final class MediaEngine {
 		if (!Files.isRegularFile(pj)) Files.write(pj, own());
 		urls.add(pj.toUri().toURL());
 		System.setProperty("javafx.cachedir", d.resolve("cache").toString());
+		// R80: on Linux (the Steam Deck) the player's picture is drawn off-screen and copied into the window every frame,
+		// often by the processor alone; video then slowed and its sound broke up. Fewer copies (30 a second, which a
+		// chat video doesn't need more than), the graphics chip first when it can, and a log line saying which it used.
+		if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).startsWith("linux")) {
+			if (System.getProperty("javafx.animation.pulse") == null) System.setProperty("javafx.animation.pulse", "30");
+			if (System.getProperty("prism.order") == null) System.setProperty("prism.order", "es2,sw");
+			if (System.getProperty("prism.vsync") == null) System.setProperty("prism.vsync", "false");
+			System.setProperty("prism.verbose", "true");   // (says which pipeline it chose, on the program's own output)
+		}
 		log("loading the player: Java " + System.getProperty("java.version") + ", " + System.getProperty("os.name") + " " + System.getProperty("os.version")
 				+ " " + System.getProperty("os.arch") + ", display " + System.getenv("DISPLAY") + ", wayland " + System.getenv("WAYLAND_DISPLAY"));
 		loaded = new URLClassLoader(urls.toArray(new URL[0]), MediaEngine.class.getClassLoader());

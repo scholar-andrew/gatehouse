@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.52.0 - 2026-11-19
+
+- Videos and sounds in chat should play more smoothly on the Steam Deck and other Linux machines: the player draws fewer frames there (30 a second), uses the graphics chip when it can, and scales the picture more cheaply.
+
 ## 3.51.0 - 2026-11-19
 
 - Gatekeeper can be reached over the internet through your router (Host setup, The internet, through your router; off unless chosen). HTTPS is always on, a new launcher needs the pairing's join key or an invite to introduce itself, requests are limited per address, and the web panel and status page stay off. You forward the ports in your router; the setup steps say which.
