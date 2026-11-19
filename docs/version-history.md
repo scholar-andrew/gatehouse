@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.59.1 - 2026-11-19
+
+- On Linux and the Steam Deck, a YouTube video played in chat (Play here) says that some videos' sound plays slow and low there (a fault in Java's web view), and that Watch on YouTube plays it right.
+
 ## 3.59.0 - 2026-11-19
 
 - Every time Gatehouse and Gatekeeper keep or send is now a unix time (the exact moment, the same everywhere), and every screen shows it in that device's own time: server history, the update log, launchers' first and last seen, pulls, requests, invites, systems, web panel users, backups and pack versions. Before, most were the Gatekeeper machine's clock written as text.

@@ -1,4 +1,7 @@
 [
+ {"version": "1.93.0", "date": "2026-11-19", "notes": [
+  "Gatehouse 3.59.1: a note on Play here for YouTube on Linux and the Steam Deck. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.92.0", "date": "2026-11-19", "notes": [
   "Gatehouse 3.59.0: every time kept as a unix time and shown in your own time. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

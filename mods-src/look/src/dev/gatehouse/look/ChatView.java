@@ -387,7 +387,8 @@ public final class ChatView extends JPanel {
 		String yt = LinkPreview.youtubeId(link);
 		if (yt != null && MediaEngine.webAvailable()) {   // (R85: YouTube plays right here, in the web view)
 			JButton here = new JButton("Play here");
-			here.setToolTipText("Plays it right here in the message, in YouTube's own player (its privacy-enhanced one)");
+			here.setToolTipText("Plays it right here in the message, in YouTube's own player (its privacy-enhanced one)"
+					+ (linux() ? ". On Linux and the Steam Deck some videos' sound plays slow and low here: Watch on YouTube plays it right" : ""));
 			here.addActionListener(e -> playYouTube(yt, link, here, box, shownPic));
 			row.add(here, 0);
 		}
@@ -600,6 +601,7 @@ public final class ChatView extends JPanel {
 		} catch (Exception e) { return null; }
 	}
 	/** R85: plays a YouTube video in the message, fetching the web view first if this device hasn't it (asked). */
+	private static boolean linux() { return System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("linux"); }
 	private void playYouTube(String id, String link, JButton here, JPanel box, JLabel shownPic) {
 		Object shown = here.getClientProperty("player");
 		if (shown instanceof Component c) {   // (playing: the button closes it)
@@ -624,6 +626,9 @@ public final class ChatView extends JPanel {
 				JPanel holder = new JPanel(new BorderLayout(0, 4)); holder.setOpaque(false);
 				JLabel trouble = new JLabel(); trouble.setForeground(new Color(0xE9B949)); trouble.setVisible(false);
 				holder.add(trouble, BorderLayout.SOUTH);
+				// (R80: on Linux, OpenJFX's player sets HE-AAC sound up at its core rate, so some YouTube videos' sound plays an
+				// octave low and slow here; the video comes straight from YouTube, so it can't be corrected the way a file is)
+				if (linux()) { trouble.setText("<html><body style='width:420px'>On Linux and the Steam Deck some videos' sound plays slow and low here (a fault in Java's web view). If it does, Watch on YouTube plays it right.</body></html>"); trouble.setVisible(true); }
 				java.util.function.Consumer<String> problem = why -> {
 					trouble.setText("<html><body style='width:420px'>It can't be played here: " + esc(why) + ". Watch on YouTube still works.</body></html>");
 					trouble.setVisible(true); holder.revalidate(); list.revalidate();
