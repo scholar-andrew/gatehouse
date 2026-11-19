@@ -1433,6 +1433,11 @@ public final class HostHelper {
 			if (path.equals("/v1/ai/ask") && x.getRequestMethod().equals("POST")) { Ai.forwarded(x, who(d), d); return; }
 			if (path.equals("/v1/icon") && x.getRequestMethod().equals("GET")) { Icons.serve(x); return; }
 			if (path.equals("/v1/history") && x.getRequestMethod().equals("POST")) { History.take(x, who(d), d); return; }
+			if (path.equals("/v1/diag") && x.getRequestMethod().equals("POST")) {   // (R80: how a chat video played on that device)
+				String text = Json.str(body(x).get("text")).replaceAll("[\\r\\n\\t]+", " ");
+				log("diagnostics from " + who(d) + ": " + (text.length() > 700 ? text.substring(0, 700) + "..." : text));
+				reply(x, 200, m("ok", true)); return;
+			}
 			if ((path.equals("/v1/invite") || path.equals("/v1/invite/accept"))
 					&& x.getRequestMethod().equals("POST")) { Invites.launcher(x, path, id, d, devs); return; }
 			if ((path.equals("/v1/systems") || path.equals("/v1/systems/remember"))

@@ -145,10 +145,43 @@ public final class Player {
 		}
 	}
 
+	/** R80: how a video plays here, measured once after ten seconds of playing, for the engine's log and the owner's. */
+	private static void measure(MediaPlayer mp, Media media, String title, int[] stalls) {
+		long[] start = {0}; double[] from = {0}; boolean[] done = {false};
+		mp.statusProperty().addListener((o, was, now) -> {
+			if (now == MediaPlayer.Status.PLAYING && start[0] == 0) {
+				start[0] = System.nanoTime(); from[0] = mp.getCurrentTime().toSeconds();
+				javafx.animation.PauseTransition wait = new javafx.animation.PauseTransition(Duration.seconds(10));
+				wait.setOnFinished(e -> {
+					if (done[0] || mp.getStatus() != MediaPlayer.Status.PLAYING) return;
+					done[0] = true;
+					double wall = (System.nanoTime() - start[0]) / 1e9, played = mp.getCurrentTime().toSeconds() - from[0];
+					String pipe = "?";
+					try { Object p = Class.forName("com.sun.prism.GraphicsPipeline").getMethod("getPipeline").invoke(null); pipe = p == null ? "none" : p.getClass().getSimpleName(); } catch (Throwable t) { pipe = "unknown"; }
+					StringBuilder tracks = new StringBuilder();
+					for (javafx.scene.media.Track t : media.getTracks()) tracks.append(tracks.length() == 0 ? "" : ", ").append(t.getClass().getSimpleName().replace("Track", "")).append(' ').append(t.getMetadata().getOrDefault("encoding", ""));
+					String line = "media playback: " + title.replaceAll(".*\\.", ".") + " " + media.getWidth() + "x" + media.getHeight()
+							+ String.format(java.util.Locale.ROOT, ", played %.1f s of it in %.1f s (%.0f%% speed)", played, wall, wall <= 0 ? 0 : 100 * played / wall)
+							+ ", stalls " + stalls[0] + ", drawing " + pipe + ", pulse " + System.getProperty("javafx.animation.pulse", "60")
+							+ ", tracks [" + tracks + "], java " + System.getProperty("java.version") + " (" + System.getProperty("java.home", "").replaceAll(".*[/\\\\](?=[^/\\\\]+$)", "") + ")"
+							+ ", " + System.getProperty("os.name") + " " + System.getProperty("os.version")
+							+ ", flatpak " + (System.getenv("FLATPAK_ID") == null ? "no" : System.getenv("FLATPAK_ID"))
+							+ ", PIPEWIRE_LATENCY " + System.getenv("PIPEWIRE_LATENCY") + ", PULSE_LATENCY_MSEC " + System.getenv("PULSE_LATENCY_MSEC")
+							+ ", XDG_SESSION " + System.getenv("XDG_SESSION_TYPE") + ", gamescope " + (System.getenv("GAMESCOPE_WAYLAND_DISPLAY") != null || System.getenv("SteamGamepadUI") != null);
+					try { Class.forName("dev.gatehouse.look.MediaEngine", true, Player.class.getClassLoader().getParent()).getMethod("report", String.class).invoke(null, line); }
+					catch (Throwable t) { System.err.println(line); }
+				});
+				wait.play();
+			}
+		});
+		mp.setOnStalled(() -> stalls[0]++);
+	}
+
 	/** The scene, on JavaFX's thread. */
 	private static MediaPlayer build(JFXPanel panel, Path file, String title, boolean video, Consumer<String> problem, Dimension small) {
 		Media media = new Media(file.toUri().toString());
 		MediaPlayer mp = new MediaPlayer(media);
+		measure(mp, media, title, new int[] {0});   // (R80)
 
 		StackPane screen = new StackPane();
 		screen.setStyle("-fx-background-color: " + (video ? "black" : "#121b28") + ";");

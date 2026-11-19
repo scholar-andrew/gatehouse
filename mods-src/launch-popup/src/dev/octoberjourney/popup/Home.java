@@ -1777,6 +1777,11 @@ final class Home {
 				}
 			};
 			java.util.function.Function<String, Long> numOf = sv -> { try { return (long) Double.parseDouble(sv); } catch (RuntimeException e) { return 0L; } };
+			// (R80: how a chat video played on this device, sent to its Gatekeepers for the owner's activity log)
+			dev.gatehouse.look.MediaEngine.onReport = line -> { Thread t = new Thread(() -> {
+				for (String[] k : new ArrayList<>(keepers)) try { client(home, k[0], packs).helper("POST", "/v1/diag", "{\"text\":\"" + ServerControl.jsonEsc(line) + "\"}"); }
+				catch (IOException | RuntimeException notNow) { /* that Gatekeeper isn't answering, or is from before 3.53.0 */ }
+			}, "media-report"); t.setDaemon(true); t.start(); };
 			ChatView.Backend chatBack = new ChatView.Backend() {
 				private String[] split(ChatView.Room r) { int i = r.key().lastIndexOf('|'); return new String[] {r.key().substring(0, i), r.key().substring(i + 1)}; }
 				@Override public List<ChatView.Room> rooms() {

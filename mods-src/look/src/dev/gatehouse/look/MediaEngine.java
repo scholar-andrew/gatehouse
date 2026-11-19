@@ -204,6 +204,15 @@ public final class MediaEngine {
 		}
 	}
 
+	/** R80: told each measurement the player makes (Gatehouse sends it to its Gatekeepers, for the owner's log). */
+	public static volatile Consumer<String> onReport;
+	/** Called by the player (by name, from its own class loader): one line about how a video played. */
+	public static void report(String line) {
+		log(line);
+		Consumer<String> r = onReport;
+		if (r != null) try { r.accept(line); } catch (RuntimeException e) { Quiet.seen(e); }
+	}
+
 	/** One line (or a stack trace) in player.log beside the engine; the log is kept under 256 KB. */
 	public static void log(String line) {
 		try {

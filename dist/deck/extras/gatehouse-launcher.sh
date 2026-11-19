@@ -46,6 +46,11 @@ main() {
   # The launcher ends with 12 when a newer copy of itself is in place (it updated itself): the newest is then opened
   # in its place, each time that happens (GATEHOUSE_RELAUNCH tells the launcher that this script does that).
   export GATEHOUSE_RELAUNCH=loop
+  # (R80: the chat's video player sends its sound through ALSA, which SteamOS hands to PipeWire; with PipeWire's small
+  # default buffer it crackled and dragged the video with it. A larger one, for Gatehouse's own sound only; whatever
+  # the device already sets wins.)
+  export PIPEWIRE_LATENCY="${PIPEWIRE_LATENCY:-2048/48000}"
+  export PULSE_LATENCY_MSEC="${PULSE_LATENCY_MSEC:-60}"
   if [ "$1" = "--choose" ]; then
     if [ -n "$OJ_HOME_DRY" ]; then echo "would open the first screen: $java -jar $jar --choose"; exit 0; fi   # (testing)
     exec "$java" -jar "$jar" --choose

@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.53.0 - 2026-11-19
+
+- Chat video on the Steam Deck, second try: Gatehouse asks for a larger sound buffer on Linux, since the player's sound goes through PipeWire there and crackled, dragging the video with it.
+- Ten seconds into a chat video, Gatehouse notes how well it is playing (how fast, and what the player runs on) and tells its Gatekeepers, which write it in their activity log, so a problem on a device can be seen from the host's machine.
+
 ## 3.52.0 - 2026-11-19
 
 - Videos and sounds in chat should play more smoothly on the Steam Deck and other Linux machines: the player draws fewer frames there (30 a second), uses the graphics chip when it can, and scales the picture more cheaply.
