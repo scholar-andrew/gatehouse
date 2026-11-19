@@ -55,11 +55,12 @@ final class UpdateLog {
 		String sa = Json.str(a.get("system")).toLowerCase(java.util.Locale.ROOT).split("[^a-z]+")[0],
 				sb = Json.str(b.get("system")).toLowerCase(java.util.Locale.ROOT).split("[^a-z]+")[0];
 		if (!sa.isEmpty() && !sb.isEmpty() && !sa.equals(sb)) return 0;
-		try { if (Math.abs(java.time.Duration.between(LocalDateTime.parse(Json.str(a.get("when")), TIME),
-				LocalDateTime.parse(Json.str(b.get("when")), TIME)).toMinutes()) > 15) return 0; }
-		catch (RuntimeException noTime) { /* a line with no time that can be read: the rest decides */ }
+		long ta = at(a), tb = at(b);   // (a line with no time that can be read: the rest decides)
+		if (ta > 0 && tb > 0 && Math.abs(ta - tb) > 15 * 60_000) return 0;
 		return 1;
 	}
+	/** R100: a line's moment (its unix time; a line from before it, its text time read as this machine's clock). */
+	static long at(Map<String, Object> e) { return dev.gatehouse.look.Times.of(e.get("at"), e.get("when")); }
 	static synchronized void add(Map<String, Object> line) {
 		try {
 			List<Object> l = new ArrayList<>(all());
@@ -119,8 +120,7 @@ final class UpdateLog {
 					Map<String, Object> b = Json.map(o);
 					if (b == a || !Json.str(b.get("kind")).equals("Gatekeeper") || via(b).isEmpty() || !device(a).equals(device(b))) continue;
 					if (!Json.str(a.get("from")).equals(Json.str(b.get("from"))) || !Json.str(a.get("to")).equals(Json.str(b.get("to")))) continue;
-					try { if (Math.abs(java.time.Duration.between(LocalDateTime.parse(Json.str(a.get("when")), TIME),
-							LocalDateTime.parse(Json.str(b.get("when")), TIME)).toMinutes()) > 15) continue; } catch (RuntimeException noTime) { continue; }
+					if (at(a) <= 0 || at(b) <= 0 || Math.abs(at(a) - at(b)) > 15 * 60_000) continue;
 					l.remove(i);
 					break;
 				}
@@ -151,7 +151,7 @@ final class UpdateLog {
 	/** install: the id a client keeps for its install ("" when it has none), so the same client's same update, heard
 	 *  of two ways (from it, and through a Gatekeeper that joined), is one line. */
 	static void record(String client, String kind, String player, String system, String from, String to, String mode, String info, String source, String install) {
-		add(m("id", java.util.UUID.randomUUID().toString(), "when", LocalDateTime.now().format(TIME), "client", word(client, 60), "kind",
+		add(m("id", java.util.UUID.randomUUID().toString(), "at", dev.gatehouse.look.Times.now(), "when", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now()), "client", word(client, 60), "kind",
 				kind.equals("gatekeeper") ? "Gatekeeper" : "Gatehouse (launcher)",
 				"player", word(player, 16), "system", word(system, 40), "from", word(from, 20), "to", word(to, 20), "how", word(mode, 90),
 						"info", word(info, 120), "via", "", "source", where(source), "install", word(install, 64)));
@@ -200,7 +200,7 @@ final class UpdateLog {
 			Map<String, Object> e = Json.map(o);
 			String id = Json.str(e.get("id"));
 			if (!id.matches("[0-9a-fA-F\\-]{16,64}")) continue;
-			add(m("id", id, "when", word(e.get("when"), 19), "client", word(e.get("client"), 60), "kind",
+			add(m("id", id, "at", at(e), "when", word(e.get("when"), 19), "client", word(e.get("client"), 60), "kind",
 					Json.str(e.get("kind")).equals("Gatekeeper") ? "Gatekeeper" : "Gatehouse (launcher)", "player", word(e.get("player"), 16).replaceAll("\\W", ""),
 					"system", word(e.get("system"), 40), "from", word(e.get("from"), 20), "to", word(e.get("to"), 20), "how",
 							word(e.get("how"), 90), "info", word(e.get("info"), 120), "source", word(e.get("source"), 160), "install", word(e.get("install"), 64),

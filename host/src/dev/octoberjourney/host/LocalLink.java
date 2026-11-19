@@ -81,7 +81,7 @@ final class LocalLink {
 		List<Object> all = servers();
 		for (int i = 0; i < Math.max(1, all.size()); i++) d.put(i == 0 ? "server" : "server:" + Json.str(Json.map(all.get(i)).get("id")), true);
 		boolean named = player.matches("\\w{1,16}");
-		if (named) { d.put("player", player); d.put("player_confirmed", true); d.put("player_seen", LocalDateTime.now().format(TIME)); }
+		if (named) { d.put("player", player); d.put("player_confirmed", true); long seen = dev.gatehouse.look.Times.now(); d.put("player_seen", dev.gatehouse.look.Times.oldText(seen)); d.put("player_seen_at", seen); }
 		saveDevices(devs);
 		List<String> listed = new ArrayList<>(), not = new ArrayList<>();
 		if (named) {

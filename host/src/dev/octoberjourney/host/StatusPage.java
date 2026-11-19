@@ -39,9 +39,12 @@ final class StatusPage {
 							+ " playing: " + esc(String.join(", ", who))).append("</p>");
 					b.append("</section>");
 			});
+			// (R100: the moment goes out as a unix time; the viewer's browser shows it in its own time, this machine's text without script)
+			long at = dev.gatehouse.look.Times.now();
 			String when = java.time.LocalTime.now().withNano(0).toString();
 			send(x, 200, html(AutoUpdate.myName(), (b.length() == 0 ? "<p class=dim>No servers here.</p>" : b.toString())
-					+ "<p class=dim>As of " + when + ". This page looks again every 30 seconds.</p>"));
+					+ "<p class=dim>As of <time id=asof data-at=" + at + ">" + when + "</time>. This page looks again every 30 seconds.</p>"
+					+ "<script>var t=document.getElementById('asof');t.textContent=new Date(+t.dataset.at).toLocaleTimeString();</script>"));
 		} catch (RuntimeException e) { send(x, 500, html("Not available", "<p class=dim>The status couldn't be read just now.</p>")); }
 	}
 

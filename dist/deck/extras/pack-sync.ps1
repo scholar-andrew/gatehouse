@@ -7,7 +7,9 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $packName = 'The pack'
 try { $n = (Get-Content (Join-Path $here 'extras/profile.json') -Raw -ErrorAction Stop | ConvertFrom-Json).name; if ($n) { $packName = $n } } catch { }
 $log = Join-Path $here 'pack-sync.log'
-function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $text); Write-Host "Pack sync: $text" }
+# R100: log lines start with the unix time (milliseconds since 1970, UTC), then this machine's time for reading.
+function Stamp { '{0} {1}' -f [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds(), (Get-Date -Format 'yyyy-MM-dd HH:mm:ss') }
+function Note($text) { Add-Content -Path $log -Value ("{0}  {1}" -f (Stamp), $text); Write-Host "Pack sync: $text" }
 # For the pop-up: what this launch checked and how it went (pack-sync-status.txt, started afresh each launch), one line
 # each: "check|<ok, updated, off, warn or failed>|<what>|<detail>", "switch|<on or off>|<mod>" or "note|<text>". And
 # packwiz-installer's record of the installed files as it was before this launch's update (packwiz-before.json; "{}" on
@@ -134,7 +136,7 @@ function HasMods { [bool](Get-ChildItem (Join-Path $here 'mods') -Filter '*.jar'
 # Safety net: an unexpected error anywhere below never stops a launch that already has its mods (Prism would refuse to
 # start the game on a non-zero exit); it's noted, and the game starts with what's installed.
 trap {
-    try { Add-Content -Path $log -Value ("{0}  unexpected error: {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $_.Exception.Message) } catch { }
+    try { Add-Content -Path $log -Value ("{0}  unexpected error: {1}" -f (Stamp), $_.Exception.Message) } catch { }
     StopProgress
     if (HasMods) { exit 0 } else { exit 1 }
 }

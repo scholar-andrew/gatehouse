@@ -419,7 +419,7 @@ final class AutoUpdate {
 			clients.add(m("id", e.getKey(), "type", keeper ? "Gatekeeper" : "Gatehouse (launcher)", "name", nm, "player",
 					Json.str(d.get("player")), "system", r != null && !r.system.isEmpty() ? r.system : Json.str(d.get("os")),
 					"version", r == null ? Json.str(d.get("version")) : r.own, "mode", r == null ? Json.str(d.get("update_mode")) : r.mode,
-							"open", open, "last_seen", Json.str(d.get("last_seen")),
+							"open", open, "last_seen", Json.str(d.get("last_seen")), "last_seen_at", HostHelper.seenAt(d, "last_seen"),
 					"here", ServerTools.yes(d.get("local")), "via", "", "hands_out", Handout.words(e.getKey()), "manage", ServerTools.yes(d.get("manage")), "manageable",
 							!Json.str(d.get("manage_url")).isEmpty(), "membership", !keeper ? "" : in ? "member" : "asked", "install",
 							r != null && !r.install.isEmpty() ? r.install : Json.str(d.get("install"))));

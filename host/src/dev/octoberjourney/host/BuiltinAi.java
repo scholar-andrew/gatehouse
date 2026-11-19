@@ -167,7 +167,7 @@ final class BuiltinAi {
 		// goes the next time Gatekeeper starts (sweep()), and until then the built-in AI counts as removed.
 		if (sweep()) log("AI helper: the built-in AI was removed");
 		else {
-			Files.writeString(folder().resolve(PENDING), "removed " + java.time.LocalDateTime.now() + "\n");
+			Files.writeString(folder().resolve(PENDING), "removed " + dev.gatehouse.look.Times.logStamp() + "\n");
 			log("AI helper: the built-in AI was removed (its last files go when Gatekeeper next starts)");
 		}
 	}

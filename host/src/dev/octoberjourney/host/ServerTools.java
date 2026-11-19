@@ -416,6 +416,7 @@ final class ServerTools {
 		out.put("backup_dir", backupDir().toString());
 		out.put("backups", backups());
 		out.put("backup_state", backing.getOrDefault(id, ""));
+		if (backing.getOrDefault(id, "").startsWith("Backed up ")) out.put("backup_at", backedAt.getOrDefault(id, 0L));
 		out.put("tasks", Json.list(s.get("tasks")));
 		return out;
 	}
@@ -554,6 +555,7 @@ final class ServerTools {
 
 	// ------------------------------------------------------------------ backups
 
+	static final Map<String, Long> backedAt = new ConcurrentHashMap<>();   // (R100: server id -> when its last backup was made, unix time)
 	static final Map<String, String> backing = new ConcurrentHashMap<>();   // (server id -> how its backup is going, or went)
 
 	static Path backupDir() {
@@ -633,7 +635,8 @@ final class ServerTools {
 				List<Path> mine = new ArrayList<>();
 				try (java.util.stream.Stream<Path> l = Files.list(bd)) { l.filter(q -> q.getFileName().toString().matches("backup_.*\\.zip")).sorted(java.util.Comparator.reverseOrder()).forEach(mine::add); }
 				for (int i = keepN; i < mine.size(); i++) Files.deleteIfExists(mine.get(i));
-				String done = "Backed up " + LocalDateTime.now().format(TIME) + ": " + zip.getFileName() + " (" + Math.max(1,
+				long doneAt = dev.gatehouse.look.Times.now(); backedAt.put(id, doneAt);
+				String done = "Backed up " + dev.gatehouse.look.Times.oldText(doneAt) + ": " + zip.getFileName() + " (" + Math.max(1,
 						Files.size(zip) / 1048576) + " MB, " + files + " files)";
 				backing.put(id, done);
 				log("backup of " + name + " (asked by " + by + "): " + zip + (mine.size() > keepN ? "; " + (mine.size() - keepN) + " older removed" : ""));

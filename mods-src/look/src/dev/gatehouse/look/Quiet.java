@@ -34,7 +34,7 @@ public final class Quiet {
 		try {
 			StackTraceElement[] st = new Throwable().getStackTrace();
 			String where = st.length > 1 ? st[1].getClassName().replaceAll("^.*\\.", "") + "." + st[1].getMethodName() + ":" + st[1].getLineNumber() : "?";
-			String line = java.time.LocalDateTime.now().withNano(0) + "  [" + Thread.currentThread().getName() + "] " + where + "  " + t + "\n";
+			String line = Times.logStamp() + "  [" + Thread.currentThread().getName() + "] " + where + "  " + t + "\n";
 			synchronized (Quiet.class) {
 				if (Files.isRegularFile(log) && Files.size(log) > 1_000_000) Files.delete(log);
 				Files.writeString(log, line, StandardCharsets.UTF_8, StandardOpenOption.CREATE, StandardOpenOption.APPEND);

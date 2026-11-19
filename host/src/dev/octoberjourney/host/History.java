@@ -81,7 +81,7 @@ final class History {
 		String id = Json.str(s.get("id")), kind = "", version = "";
 		try { String[] f = serverFacts(Path.of(Json.str(s.get("dir")))); kind = Packs.fabricLoader(Path.of(Json.str(s.get("dir")))).isEmpty() ? f[0] : "fabric"; version = f[1]; } catch (RuntimeException ignored) { Quiet.seen(ignored); }
 		lines.add(m("key", me() + ":" + Long.toString(now, 36) + ":" + Integer.toString(lines.size(), 36), "at", String.valueOf(now),
-				"when", LocalDateTime.now().format(TIME), "what", what,
+				"when", dev.gatehouse.look.Times.oldText(now), "what", what,
 				"server", word(id, 64), "name", word(s.get("name"), 60), "kind", kind, "version", word(version, 32), "port",
 						word(Json.str(s.get("minecraft")).replaceAll(".*:", ""), 5), "pack", word(pack, 24),
 				"gatekeeper", word(AutoUpdate.myName(), 60), "install", me(), "address", ownAddress(), "system", word(systemName(), 40)));
@@ -131,7 +131,7 @@ final class History {
 			took++;
 		}
 		if (took > 0) {
-			lines.sort(java.util.Comparator.comparing(o -> Json.str(Json.map(o).get("at"))));
+			lines.sort(java.util.Comparator.comparingLong(o -> dev.gatehouse.look.Times.num(Json.map(o).get("at"))));
 			save();
 			changed = true;   // (and what was taken is handed on to the Gatekeeper this one joined, if it has one)
 		}
@@ -183,7 +183,7 @@ final class History {
 			String in = Json.str(e.get("install"));
 			had.computeIfAbsent(in, k -> new java.util.TreeSet<>()).add(Json.str(e.get("server")));
 			if (!keepers.containsKey(in)) keepers.put(in, m("install", in, "name", e.get("gatekeeper"), "address", e.get("address"),
-					"system", e.get("system"), "last", e.get("when"), "this", in.equals(me())));
+					"system", e.get("system"), "last", e.get("when"), "last_at", e.get("at"), "this", in.equals(me())));
 		}
 		List<Object> list = new ArrayList<>();
 		for (Map<String, Object> k : keepers.values()) { k.put("servers", String.valueOf(had.get(Json.str(k.get("install"))).size())); list.add(k); }

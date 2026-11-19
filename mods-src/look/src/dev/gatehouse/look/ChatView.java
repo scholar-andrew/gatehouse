@@ -64,15 +64,7 @@ public final class ChatView extends JPanel {
 	public record Batch(List<Msg> msgs, long next, String said) {}
 	/** R100: a message's time as this device shows it: its moment ("at", milliseconds since 1970 UTC) in this device's
 	 *  own time zone, today as just the time; else the text Gatekeeper sent (older Gatekeepers, in their own time). */
-	public static String localTime(Object at, String when) {
-		long ms;
-		try { ms = at instanceof Number n ? n.longValue() : at == null || String.valueOf(at).isBlank() ? -1 : (long) Double.parseDouble(String.valueOf(at)); }
-		catch (NumberFormatException e) { ms = -1; }
-		if (ms <= 0) return when == null ? "" : when;
-		java.time.ZonedDateTime t = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault());
-		boolean today = t.toLocalDate().equals(java.time.LocalDate.now());
-		return t.format(java.time.format.DateTimeFormatter.ofPattern(today ? "HH:mm" : t.getYear() == java.time.LocalDate.now().getYear() ? "d MMM, HH:mm" : "d MMM yyyy, HH:mm", java.util.Locale.ENGLISH));
-	}
+	public static String localTime(Object at, String when) { return Times.show(at, when); }
 	public interface Backend {
 		List<Room> rooms() throws Exception;
 		Batch talk(Room room, long after, String text) throws Exception;

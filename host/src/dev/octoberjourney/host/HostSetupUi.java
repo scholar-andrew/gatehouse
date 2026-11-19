@@ -228,7 +228,7 @@ final class HostSetupUi {
 				stepWas.put(title, st);
 				sig.append(title).append('|').append(st).append('|').append(Json.str(s.get("detail"))).append('|').append(Json.str(s.get("how"))).append('|').append(stepDoneAt.containsKey(title) && nowMs - stepDoneAt.get(title) < 60_000).append('|').append(Json.str(s.get("action"))).append('|').append(Json.str(s.get("action_ask"))).append('\n');
 			}
-			String checked = Json.str(r.get("checked"));
+			String checked = dev.gatehouse.look.Times.num(r.get("checked_at")) > 0 ? dev.gatehouse.look.Times.clock(dev.gatehouse.look.Times.num(r.get("checked_at"))) : Json.str(r.get("checked"));
 			boolean same = sig.toString().equals(drawn[0]);
 			drawn[0] = sig.toString();
 			if (!same) stepList.removeAll();

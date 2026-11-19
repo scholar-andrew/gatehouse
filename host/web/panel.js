@@ -4,6 +4,15 @@
 'use strict';
 let me = null, timer = null, current = '';
 const $ = id => document.getElementById(id);
+// R100: every time Gatekeeper sends is a unix time (milliseconds since 1970, UTC) in a field named "at" or ending "_at";
+// this shows it in this device's own time: today's as just the time, older ones with the date. A record from before R100
+// has only its text time (the Gatekeeper machine's clock), shown as it is.
+function shownTime(at, text) {
+  const ms = Number(at);
+  if (!(ms > 0)) return text || '';
+  const t = new Date(ms);
+  return t.toLocaleString([], t.toDateString() === new Date().toDateString() ? { timeStyle: 'short' } : { dateStyle: 'medium', timeStyle: 'short' });
+}
 function el(tag, cls, text, kids) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -249,7 +258,7 @@ const views = {
   updates: { name: 'Update log', section: 'UPDATES', needs: 'updates', every: 15000, async draw() {
     const r = await api('GET', 'updates');
     if (current !== 'updates' || !r.entries) { if (r.message) say(r); return; }
-    const rows = r.entries.map(e => [e.client + ': ' + e.from + ' → ' + e.to, e.when, e.kind, e.player, e.system + (e.info ? ' (' + e.info + ')' : ''), e.how, e.source || 'not said', e.via || (e.also ? '(also heard through ' + e.also + ')' : '')]);
+    const rows = r.entries.map(e => [e.client + ': ' + e.from + ' → ' + e.to, shownTime(e.at, e.when), e.kind, e.player, e.system + (e.info ? ' (' + e.info + ')' : ''), e.how, e.source || 'not said', e.via || (e.also ? '(also heard through ' + e.also + ')' : '')]);
     const v = el('div', 'card sheet scroll', null, [table(['Update', 'When', 'Kind', 'Player', 'System', 'How', 'Fetched from', 'Through'], rows)]);
     if (!r.entries.length) v.appendChild(el('div', 'empty', 'No updates recorded yet. A line is added each time a client of this constellation goes from one version to another.'));
     v.appendChild(el('p', 'note small', r.total + ' recorded in all; the newest ' + r.entries.length + ' are shown.'));
@@ -422,7 +431,7 @@ function machineCard(m) {
   if (ping) f.appendChild(pingFact(ping));
   if (m.battery) f.appendChild(batteryFact(m.battery));
   if (m.hands_out) f.appendChild(fact(m.hands_out, 'info', ICONS.share));
-  if (offline(m) && m.last_seen) f.appendChild(fact('Last seen ' + m.last_seen, '', ICONS.clock));
+  if (offline(m) && (m.last_seen_at || m.last_seen)) f.appendChild(fact('Last seen ' + shownTime(m.last_seen_at, m.last_seen), '', ICONS.clock));
   if (f.children.length) c.appendChild(f);
   return c;
 }
@@ -496,9 +505,7 @@ function bubble(m) {
       b.appendChild(chip(url, f));
     }
   }
-  // (R100: the message's moment in this device's own time; the Gatekeeper's text for older messages)
-  const at = Number(m.at) > 0 ? new Date(Number(m.at)) : null;
-  const when = at ? at.toLocaleString([], at.toDateString() === new Date().toDateString() ? { timeStyle: 'short' } : { dateStyle: 'medium', timeStyle: 'short' }) : m.when;
+  const when = shownTime(m.at, m.when);
   return el('div', 'msg' + (mine ? ' mine' : ''), null, [el('div', 'meta', (mine ? 'You (Host)' : m.who) + ' · ' + when), b]);
 }
 function chip(url, f) {
@@ -609,7 +616,7 @@ function openServer(id, name) {
     stats.textContent = (s.phase === 'online' ? 'On' : s.phase === 'starting' ? 'Starting…' : s.phase === 'stopping' ? 'Shutting down…' : 'Off') + (s.running ? ' · up ' + Math.floor(s.uptime / 60) + ' min · memory ' + s.memory_used + ' MB of ' + s.memory + ' · ' + s.players + ' playing' : '') + ' · port ' + s.port;
     if (can('manage') && !drewExtra) {
       drewExtra = true;
-      const tasks = el('div', 'card', null, [el('h3', '', 'Backups and tasks'), el('div', 'note', s.backup_state || ((s.backups || []).length + ' backup(s) kept in ' + s.backup_dir)),
+      const tasks = el('div', 'card', null, [el('h3', '', 'Backups and tasks'), el('div', 'note', (s.backup_at && /^Backed up .*?: /.test(s.backup_state || '') ? s.backup_state.replace(/^Backed up .*?: /, 'Backed up ' + shownTime(s.backup_at) + ': ') : s.backup_state) || ((s.backups || []).length + ' backup(s) kept in ' + s.backup_dir)),
         el('div', 'row', null, [button('Back up now', () => act('tools/backup', {}, id), 'primary')].concat((s.tasks || []).map((t, i) => button('Run: ' + t.name, () => act('tools/task', { index: i }, id), 'quiet'))))]);
       extra.replaceChildren(tasks, el('p', 'note small', 'Settings, game settings and the list of tasks are changed in Gatekeeper\'s own window (Manage).'));
     }

@@ -15,6 +15,7 @@ server.properties. Never the world seed, passwords, keys, player lists (whitelis
 this repository is public. tools/build_pack.py refuses to build when server/state.json changed without a new
 changelog entry (each entry records the checksum of the state it describes).
 """
+import time
 import argparse, datetime, hashlib, json, os, re, sys, zipfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -150,7 +151,7 @@ def main() -> None:
     log = json.load(open(LOG, encoding="utf-8")) if os.path.exists(LOG) else []
     today = datetime.date.today().isoformat()
     n = sum(1 for e in log if e["date"] == today) + 1
-    log.insert(0, {"id": "%s.%d" % (today, n), "date": today, "state": state_hash(new), "notes": a.note})
+    log.insert(0, {"id": "%s.%d" % (today, n), "date": today, "at": int(time.time() * 1000), "state": state_hash(new), "notes": a.note})  # (R100: the moment as a unix time; "date" stays the day it names)
     with open(LOG, "w", encoding="utf-8", newline="\n") as f:
         json.dump(log, f, indent=1, ensure_ascii=False); f.write("\n")
     print("Recorded %s.%d. Build and publish the pack to send it to players." % (today, n))

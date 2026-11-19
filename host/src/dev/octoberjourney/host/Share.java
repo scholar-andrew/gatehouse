@@ -79,7 +79,7 @@ final class Share {
 		try { Files.createDirectories(folder()); Files.write(folder().resolve(id), b); } catch (IOException e) { return m("result",
 				"failed", "message", "Couldn't keep it: " + e.getMessage()); }
 		List<Object> l = index();
-		l.add(m("id", id, "room", room, "name", clean, "size", b.length, "who", who, "when", LocalDateTime.now().format(TIME), "at", System.currentTimeMillis()));
+		l.add(m("id", id, "room", room, "name", clean, "size", b.length, "who", who, "when", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now()), "at", dev.gatehouse.look.Times.now()));
 		save(l);
 		Chat.say(room, who, key + "/file", "offers a file: " + clean + " (" + size(b.length) + "). Files… saves a copy.", m("id", id,
 				"name", clean, "size", b.length));

@@ -145,7 +145,7 @@ final class Systems {
 			if (now - contact.getOrDefault(e.getKey(), 0L) < 30_000) r.put("open", true);
 			if (t != null) addAll(r, t.get("remembers"));
 			// (a Gatekeeper that joined also tells of the systems on its side: its own launchers)
-			if (Json.str(r.get("last_seen")).compareTo(Json.str(d.get("last_seen"))) < 0) r.put("last_seen", Json.str(d.get("last_seen")));
+			if (HostHelper.seenAt(r, "last_seen") < HostHelper.seenAt(d, "last_seen")) { r.put("last_seen", Json.str(d.get("last_seen"))); r.put("last_seen_at", HostHelper.seenAt(d, "last_seen")); }
 			if (keeper && in && t != null) subs(out, mine, sid, nm, t, same);
 		}
 		// what the Gatekeeper this one joined counts as its constellation (while this one is a member there, and it answered lately)
@@ -174,7 +174,7 @@ final class Systems {
 			boolean neighbor = ServerTools.yes(r.get("neighbor")), theyDo = Json.list(r.get("remembers")).contains(mine);
 			r.put("unknown", !neighbor && !kept.containsKey(sid));
 			if (neighbor) {   // (seen now: what is kept about it is brought up to date)
-				if (theyDo && !by.containsKey(sid)) { by.put(sid, m("name", r.get("name"), "since", LocalDateTime.now().format(TIME))); changed = true; }
+				if (theyDo && !by.containsKey(sid)) { by.put(sid, m("name", r.get("name"), "since", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now()), "since_at", dev.gatehouse.look.Times.now())); changed = true; }
 				if (!theyDo && by.containsKey(sid)) { by.remove(sid); changed = true; }
 				if (kept.containsKey(sid)) { Map<String, Object> k = Json.map(kept.get(sid)); String sig = Json.str(k.get("name")) + "|"
 						+ Json.str(k.get("address")) + "|" + Json.str(k.get("device")); fill(k, r); if (!sig.equals(Json.str(k.get("name"))
@@ -191,7 +191,9 @@ final class Systems {
 			r.put("remembered", true);
 			r.put("remembers_you", by.containsKey(e.getKey()));
 			r.put("since", Json.str(k.get("since")));
+			r.put("since_at", HostHelper.seenAt(k, "since"));
 			r.put("last_seen", Json.str(k.get("last_seen")));
+			r.put("last_seen_at", HostHelper.seenAt(k, "last_seen"));
 			out.put(e.getKey(), r);
 		}
 		if (changed) save(store);
@@ -227,7 +229,8 @@ final class Systems {
 	private static void fill(Map<String, Object> k, Map<String, Object> r) {
 		k.put("name", r.get("name")); k.put("device", r.get("device")); k.put("gatehouse", r.get("gatehouse")); k.put("gatekeeper", r.get("gatekeeper"));
 		if (!Json.str(r.get("address")).isEmpty()) k.put("address", r.get("address"));
-		k.put("last_seen", LocalDateTime.now().format(TIME).substring(0, 10));   // (to the day: this is written often)
+		long day = dev.gatehouse.look.Times.now() / 86_400_000 * 86_400_000;   // (to the day, UTC: this is written often, and saved only when it changes)
+		k.put("last_seen", dev.gatehouse.look.Times.oldText(day).substring(0, 10)); k.put("last_seen_at", day);
 	}
 	static String status(Map<String, Object> r) {
 		if (ServerTools.yes(r.get("this"))) return "This system";
@@ -253,7 +256,7 @@ final class Systems {
 				"A system can be remembered while it is in a constellation with this one. " + Json.str(r.get("name")) + " isn't right now."};
 		if (kept.containsKey(sid)) return new String[] {"ok", Json.str(r.get("name")) + " is already remembered."};
 		if (kept.size() >= 300) return new String[] {"refused", "There are already 300 remembered systems: forget one first."};
-		Map<String, Object> k = m("since", LocalDateTime.now().format(TIME));
+		Map<String, Object> k = m("since", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now()), "since_at", dev.gatehouse.look.Times.now());
 		fill(k, r);
 		kept.put(sid, k);
 		save(store);

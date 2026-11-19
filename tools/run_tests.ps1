@@ -54,6 +54,9 @@ try {
     # 2d. links in chat (R85): which link a message offers, what a page says, and the addresses never fetched
     & "$jdk\java.exe" -cp "$jar;$work\c" dev.gatehouse.TestLinks
     Result 'links in chat' ($LASTEXITCODE -eq 0)
+    # 2e. unix times (R100): the shared helper, and no new code storing the machine's clock as text
+    & "$jdk\java.exe" -cp "$jar;$work\c" dev.gatehouse.TestTimes (Split-Path $PSScriptRoot)
+    Result 'unix times' ($LASTEXITCODE -eq 0)
     # 2c. controller makers (R90): PlayStation or Nintendo buttons while such a controller is connected
     & "$jdk\java.exe" '-Djava.awt.headless=true' -cp "$jar;$work\c" dev.octoberjourney.popup.TestPad
     Result 'controller makers' ($LASTEXITCODE -eq 0)

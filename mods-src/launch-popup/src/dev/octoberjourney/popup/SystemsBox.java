@@ -193,7 +193,8 @@ final class SystemsBox {
 		k.put("gatehouse", row.get("gatehouse"));
 		k.put("gatekeeper", row.get("gatekeeper"));
 		k.put("address", row.get("address"));
-		k.put("since", java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+		k.put("since", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now()));
+		k.put("since_at", dev.gatehouse.look.Times.now());
 		kept.put(id, k);
 		saveOwn(home, kept);
 		return name + " is remembered. It stays in this list after the constellation is left. It gives that system nothing: no permission, no whitelist, no pack.";

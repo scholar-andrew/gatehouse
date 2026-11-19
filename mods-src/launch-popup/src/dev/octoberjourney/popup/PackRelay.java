@@ -215,7 +215,7 @@ final class PackRelay {
 		}
 
 		void say(String line) {
-			try { Files.writeString(log, java.time.LocalDateTime.now().withNano(0) + "  " + line + "\n", StandardCharsets.UTF_8,
+			try { Files.writeString(log, dev.gatehouse.look.Times.logStamp() + "  " + line + "\n", StandardCharsets.UTF_8,
 					java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
 	}

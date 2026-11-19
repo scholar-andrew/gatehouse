@@ -415,6 +415,9 @@ final class ServerToolsUi {
 			made.clear();
 			for (Object o : Json.list(s.get("backups"))) made.addElement(Json.str(Json.map(o).get("file")) + "     " + num(Json.map(o).get("mb")) + " MB");
 			String st = Json.str(s.get("backup_state"));
+			// (R100: the backup's moment in this device's time, when Gatekeeper sends it)
+			if (st.startsWith("Backed up ") && st.contains(": ") && dev.gatehouse.look.Times.num(s.get("backup_at")) > 0)
+				st = "Backed up " + dev.gatehouse.look.Times.show(dev.gatehouse.look.Times.num(s.get("backup_at"))) + st.substring(st.indexOf(": "));
 			if (!st.isEmpty()) { backSaid.setForeground(st.startsWith("Backing up") ? AMBER : st.startsWith("Backed up") ? GREEN
 					: RED); backSaid.setText(wrap(st, 560)); }
 		};

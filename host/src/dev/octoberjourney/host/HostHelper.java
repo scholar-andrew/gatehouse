@@ -245,7 +245,7 @@ public final class HostHelper {
 		String tag = "";
 		try { if (cfg != null && servers().size() > 1 && !SERVER.get().isEmpty()) tag = "[" + serverName()
 				+ "] "; } catch (RuntimeException ignored) { Quiet.seen(ignored); }
-		try { Files.writeString(dir.resolve("host.log"), LocalDateTime.now().format(TIME) + "  " + tag + s + "\n", StandardCharsets.UTF_8,
+		try { Files.writeString(dir.resolve("host.log"), dev.gatehouse.look.Times.logStamp() + "  " + tag + s + "\n", StandardCharsets.UTF_8,
 				java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
 		catch (IOException ignored) { Quiet.seen(ignored); }
 	}
@@ -282,7 +282,7 @@ public final class HostHelper {
 	static List<Object> logFor(int max) {
 		String[] lines = read(dir.resolve("host.log")).split("\\R");
 		String mine = "[" + serverName() + "] ";
-		java.util.regex.Pattern tagged = java.util.regex.Pattern.compile("^\\S+ \\S+  (\\[[^\\]]+\\] )");
+		java.util.regex.Pattern tagged = java.util.regex.Pattern.compile("^(?:\\d{10,16} )?\\S+ \\S+  (\\[[^\\]]+\\] )");   // (R100: lines since 3.59.0 start with the unix time)
 		List<Object> out = new ArrayList<>();
 		for (int i = lines.length - 1; i >= 0 && out.size() < max; i--) {
 			if (lines[i].isBlank()) continue;
@@ -307,6 +307,8 @@ public final class HostHelper {
 		return Json.str(d.get("name")) + (ts.isEmpty() ? "" : " / " + ts);
 	}
 
+	/** R100: a record's moment for a key: its "<key>_at" unix time, else its older "<key>" text read as this machine's clock. */
+	static long seenAt(Map<String, Object> d, String key) { return dev.gatehouse.look.Times.of(d.get(key + "_at"), d.get(key)); }
 	static String sha256(String s) {
 		try {
 			StringBuilder b = new StringBuilder();
@@ -548,9 +550,9 @@ public final class HostHelper {
 					"Set online-mode=true in that server's server.properties unless you mean it to be off."});
 		}
 		// ---- seen from outside
-		int reached = 0; String last = "";
-		for (Object o : devices().values()) { String ls = Json.str(Json.map(o).get("last_seen")); if (!ls.isEmpty()) { reached++; if (ls.compareTo(last) > 0) last = ls; } }
-		if (reached > 0) add.accept(new String[] {"A launcher has reached this Gatekeeper", "ok", reached + " so far; the latest on " + last + "."});
+		int reached = 0; long last = 0;
+		for (Object o : devices().values()) { long ls = seenAt(Json.map(o), "last_seen"); if (ls > 0) { reached++; last = Math.max(last, ls); } }
+		if (reached > 0) add.accept(new String[] {"A launcher has reached this Gatekeeper", "ok", reached + " so far; the latest at " + dev.gatehouse.look.Times.show(last) + "."});
 		else add.accept(new String[] {"A launcher has reached this Gatekeeper", "todo",
 				"None yet. Everything above can look right from here and still be blocked from outside.",
 				"Pair a launcher on another device (Share pairing) and open it. If it can't connect: "
@@ -565,7 +567,7 @@ public final class HostHelper {
 		String machine = "";
 		try { machine = java.net.InetAddress.getLocalHost().getHostName(); } catch (IOException ignored) { Quiet.seen(ignored); }
 		return m("steps", steps, "share_link", share, "name", setting("name", ""), "machine", machine, "java",
-				System.getProperty("java.version", ""), "checked", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")));
+				System.getProperty("java.version", ""), "checked", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm:ss")), "checked_at", dev.gatehouse.look.Times.now());
 	}
 
 	/** The Tailscale device a request came from, as Tailscale names it (empty if unknown). */
@@ -1393,14 +1395,14 @@ public final class HostHelper {
 					reply(x, 403, m("state", "join", "error", "This Gatekeeper takes new launchers only with its pairing or an invite."));
 					log("refused a new launcher from " + ip + ": no join key or invite"); return;
 				}
-				if (fresh) { d.put("token_sha256", sha256(token)); d.put("granted", false); d.put("first_seen", LocalDateTime.now().format(TIME)); }
+				if (fresh) { d.put("token_sha256", sha256(token)); d.put("granted", false); long first = dev.gatehouse.look.Times.now(); d.put("first_seen_at", first); d.put("first_seen", dev.gatehouse.look.Times.oldText(first)); }
 				d.put("name", Json.str(b.get("name")).replaceAll("[^\\w .()\\-]", "").trim());
 				d.put("os", Json.str(b.get("os")).replaceAll("[^\\w .()\\-]", "").trim());
 				d.put("ip", ip);
 				String ts = tailscaleName(ip);
 				if (!ts.isEmpty()) d.put("tailscale", ts);
-				d.put("last_seen", LocalDateTime.now().format(TIME));
-				contact.put(id, System.currentTimeMillis());
+				long seen = dev.gatehouse.look.Times.now(); d.put("last_seen_at", seen); d.put("last_seen", dev.gatehouse.look.Times.oldText(seen));
+				contact.put(id, seen);
 				devs.put(id, d);
 				saveDevices(devs);
 				if (fresh) log("new launcher asked for MCSS control: " + who(d) + " (" + ip + ")");
@@ -1510,7 +1512,8 @@ public final class HostHelper {
 				Map<String, Object> b = body(x);
 				java.util.function.Function<String,
 						Long> num = k -> { try { return (long) Double.parseDouble(Json.str(b.get(k))); } catch (NumberFormatException e) { return 0L; } };
-				Map<String, Object> rec = m("time", LocalDateTime.now().format(TIME), "id", id, "name", Json.str(d.get("name")), "player",
+				long at = dev.gatehouse.look.Times.now();
+				Map<String, Object> rec = m("at", at, "time", dev.gatehouse.look.Times.oldText(at), "id", id, "name", Json.str(d.get("name")), "player",
 						Json.str(d.get("player")), "os", Json.str(d.get("os")),
 						"from", clean(Json.str(b.get("from")), 24), "to", clean(Json.str(b.get("to")), 24), "pack",
 								clean(Json.str(b.get("pack")), 60), "server", Json.str(server().get("id")),
@@ -1825,7 +1828,7 @@ public final class HostHelper {
 					if (!ip.equals(Json.str(d.get("ip")))) continue;
 					boolean fresh = !name.equals(Json.str(d.get("player"))) || !Boolean.TRUE.equals(d.get("player_confirmed"));
 					if (!fresh && when.equals(Json.str(d.get("player_seen")))) continue;
-					d.put("player", name); d.put("player_confirmed", true); d.put("player_seen", when);
+					d.put("player", name); d.put("player_confirmed", true); d.put("player_seen", when); d.put("player_seen_at", dev.gatehouse.look.Times.of(null, when));
 					changed = true;
 					if (!fresh) continue;
 					log("player " + name + " joined from " + who(d) + ": that launcher is now theirs");
@@ -1866,7 +1869,7 @@ public final class HostHelper {
 			boolean ok = Boolean.TRUE.equals(d.get("player_confirmed"));
 			Json.list(p.get("devices")).add(Json.str(d.get("name")) + (ok ? "" : " (not confirmed)"));
 			p.put(ok ? "confirmed" : "unconfirmed", ((Number) p.get(ok ? "confirmed" : "unconfirmed")).intValue() + 1);
-			if (ok && Json.str(d.get("player_seen")).compareTo(Json.str(p.get("last_seen"))) > 0) p.put("last_seen", Json.str(d.get("player_seen")));
+			if (ok && seenAt(d, "player_seen") > dev.gatehouse.look.Times.num(p.get("last_seen_at"))) { p.put("last_seen", Json.str(d.get("player_seen"))); p.put("last_seen_at", seenAt(d, "player_seen")); }
 			if (ok) for (String[] pm : PERMS) if (Boolean.TRUE.equals(d.get(dkey(pm)))) p.put("has_" + pm[0], (p.get("has_"
 					+ pm[0]) instanceof Number n ? n.intValue() : 0) + 1);
 		}
@@ -2064,7 +2067,7 @@ public final class HostHelper {
 		requests.removeIf(o -> id.equals(Json.str(Json.map(o).get("id"))) && type.equals(Json.str(Json.map(o).get("type"))));
 		requests.add(m("id", id, "type", type, "who", who(d), "player", player, "server", servers().size() > 1 ? serverName() : "",
 				"server_id", Json.str(server().get("id")),
-				"time", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")), "message", clean(message, 300)));
+				"time", java.time.LocalTime.now().format(java.time.format.DateTimeFormatter.ofPattern("HH:mm")), "at", now, "message", clean(message, 300)));
 		while (requests.size() > 12) requests.remove(0);
 		requestSeq++;
 		log(who(d) + (player.isEmpty() ? "" : " (" + player + ")") + " asked for " + requestWords(type) + (clean(message, 300).isEmpty()
@@ -3298,7 +3301,7 @@ public final class HostHelper {
 									pv = Boolean.TRUE.equals(d.get("server")), pa = Boolean.TRUE.equals(d.get("admin"));
 							perms.put(e.getKey(), new boolean[] {pm, ps, pv, pa});
 							model.addRow(new Object[] {d.get("name"), Json.str(d.get("player")).isEmpty() ? "" : Json.str(d.get("player"))
-									+ (Boolean.TRUE.equals(d.get("player_confirmed")) ? "" : " (not confirmed)"), d.get("tailscale"), d.get("os"), d.get("first_seen"), d.get("last_seen"),
+									+ (Boolean.TRUE.equals(d.get("player_confirmed")) ? "" : " (not confirmed)"), d.get("tailscale"), d.get("os"), dev.gatehouse.look.Times.show(d.get("first_seen_at"), d.get("first_seen")), dev.gatehouse.look.Times.show(d.get("last_seen_at"), d.get("last_seen")),
 									word.apply(Json.str(d.get("state_server"))).equals("Not allowed") && pm ? "Allowed (with MCSS control)" : word.apply(Json.str(d.get("state_server"))),
 									word.apply(Json.str(d.get("state_mcss"))), word.apply(Json.str(d.get("state_machine"))),
 											word.apply(Json.str(d.get("state_admin"))), Json.str(d.get("access_text")), Json.str(d.get("ban_text")), Json.str(d.get("now"))});
@@ -3326,7 +3329,7 @@ public final class HostHelper {
 							StringBuilder ds = new StringBuilder();
 							for (Object o : dv) ds.append(ds.length() == 0 ? "" : ", ").append(o);
 							pmodel.addRow(new Object[] {e.getKey(), Boolean.TRUE.equals(q.get("whitelisted")), ds.length() == 0
-									? "(none yet)" : ds.toString(), Json.str(q.get("last_seen")), cell[0], cell[1], cell[2], cell[3],
+									? "(none yet)" : ds.toString(), dev.gatehouse.look.Times.show(q.get("last_seen_at"), q.get("last_seen")), cell[0], cell[1], cell[2], cell[3],
 									Json.str(q.get("ban")).isEmpty() ? "" : (Json.str(q.get("ban")).equals("blacklist") ? "Blacklisted"
 											: "Suspended") + (Json.str(q.get("ban_reason")).isEmpty() ? "" : ": " + Json.str(q.get("ban_reason"))), Json.str(q.get("now"))});
 							if (e.getKey().equals(pkeep)) ptable.setRowSelectionInterval(pnames.size() - 1, pnames.size() - 1);
@@ -3369,7 +3372,7 @@ public final class HostHelper {
 									String by = Json.str(q.get("who")) + (Json.str(q.get("player")).isEmpty() ? "" : " (" + Json.str(q.get("player")) + ")");
 									JLabel text = new JLabel("<html><b>" + (by + " asks for " + requestWords(type)
 											+ (Json.str(q.get("server")).isEmpty() ? "" : " (" + Json.str(q.get("server")) + ")")).replace("&", "&amp;").replace("<", "&lt;")
-											+ "</b>, " + Json.str(q.get("time")) + (msg.isEmpty() ? "" : " &nbsp;&ldquo;"
+											+ "</b>, " + dev.gatehouse.look.Times.show(q.get("at"), q.get("time")) + (msg.isEmpty() ? "" : " &nbsp;&ldquo;"
 													+ msg.replace("&", "&amp;").replace("<", "&lt;") + "&rdquo;") + "</html>");
 									JButton yes = new JButton(type.equals("server") ? "Start server" : type.startsWith("perm:") ? "Allow"
 											: type.equals("whitelist") ? "Add to whitelist" : type.equals("unblacklist") ? "Lift blacklist" : "Lift suspension");

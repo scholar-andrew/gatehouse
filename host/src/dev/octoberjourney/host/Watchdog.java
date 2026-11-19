@@ -88,7 +88,7 @@ final class Watchdog {
 	/** A line in host.log without going through log() (whose lock could be among those stuck). */
 	static void note(String s) {
 		try { Files.writeString(dir.resolve("host.log"),
-				LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "  " + s + "\n",
+				dev.gatehouse.look.Times.logStamp() + "  " + s + "\n",
 				StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.APPEND); }
 		catch (IOException ignored) { Quiet.seen(ignored); }
 	}

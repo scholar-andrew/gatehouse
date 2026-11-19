@@ -89,7 +89,7 @@ final class Glance {
 			if (Json.str(mc.get("system")).isEmpty() || keeper) mc.put("system", Json.str(c.get("system")));
 			if (!battery.isEmpty() && !where.equals("Offline") && (Json.str(mc.get("battery")).isEmpty() || !keeper)) mc.put("battery", battery);
 			if (!Json.str(c.get("hands_out")).isEmpty()) mc.put("hands_out", Json.str(c.get("hands_out")));
-			if (Json.str(mc.get("last_seen")).compareTo(Json.str(c.get("last_seen"))) < 0) mc.put("last_seen", Json.str(c.get("last_seen")));
+			if (HostHelper.seenAt(mc, "last_seen") < HostHelper.seenAt(c, "last_seen")) { mc.put("last_seen", Json.str(c.get("last_seen"))); mc.put("last_seen_at", HostHelper.seenAt(c, "last_seen")); }
 			if (!via.isEmpty() && Json.str(mc.get("via")).isEmpty()) mc.put("via", via);
 			if (!Json.str(c.get("membership")).isEmpty()) mc.put("membership", Json.str(c.get("membership")));
 		}

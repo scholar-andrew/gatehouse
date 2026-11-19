@@ -70,12 +70,12 @@ final class PullsUi {
 		java.util.function.Consumer<List<Object>> fillPulls = all -> {
 					pullModel.setRowCount(0);
 					long total = 0, week = 0;
-					String cutoff = LocalDateTime.now().minusDays(7).format(TIME);
+					long cutoff = dev.gatehouse.look.Times.now() - 7L * 86_400_000;
 					for (Object o : all) {
 						Map<String, Object> r = Json.map(o);
 						long bytes = 0, local = 0;
 						try { bytes = (long) Double.parseDouble(Json.str(r.get("bytes"))); local = (long) Double.parseDouble(Json.str(r.get("local_bytes"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
-						total += bytes; if (Json.str(r.get("time")).compareTo(cutoff) >= 0) week += bytes;
+						total += bytes; if (dev.gatehouse.look.Times.of(r.get("at"), r.get("time")) >= cutoff) week += bytes;
 						// (R72: named by what changed: the Gatehouse version the update brought, then the pack's own numbers)
 						String ghFrom = Json.str(r.get("gatehouse_from")), ghTo = Json.str(r.get("gatehouse_to"));
 						String packPart = (Json.str(r.get("pack")).isEmpty() ? "pack " : Json.str(r.get("pack")) + " pack ")
@@ -83,11 +83,11 @@ final class PullsUi {
 						String upd = ghTo.isEmpty() ? packPart
 								: ghFrom.equals(ghTo) ? "Pack only: " + packPart + " (Gatehouse " + ghTo + ")"
 								: "Gatehouse " + (ghFrom.isEmpty() ? "" : ghFrom + " \u2192 ") + ghTo + " (" + packPart + ")";
-						pullModel.addRow(new Object[] {r.get("time"), r.get("name"), r.get("player"), r.get("os"), upd,
+						pullModel.addRow(new Object[] {dev.gatehouse.look.Times.show(r.get("at"), r.get("time")), r.get("name"), r.get("player"), r.get("os"), upd,
 								Json.str(r.get("files")).replaceAll("\\.0$", ""), Json.str(r.get("mods")).replaceAll("\\.0$", ""), mb.apply(bytes), mb.apply(local)});
 					}
 					pullTiles[0].setText(String.valueOf(all.size())); pullTiles[1].setText(mb.apply(total)); pullTiles[2].setText(mb.apply(week));
-					pullTiles[3].setText(all.isEmpty() ? "\u2013" : Json.str(Json.map(all.get(0)).get("name")) + ", " + Json.str(Json.map(all.get(0)).get("time")));
+					pullTiles[3].setText(all.isEmpty() ? "\u2013" : Json.str(Json.map(all.get(0)).get("name")) + ", " + dev.gatehouse.look.Times.show(Json.map(all.get(0)).get("at"), Json.map(all.get(0)).get("time")));
 		};
 		Runnable loadPulls = () -> new Thread(() -> {
 			try {

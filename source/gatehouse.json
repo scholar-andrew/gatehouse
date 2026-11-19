@@ -1,7 +1,12 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.58.0",
+ "version": "3.59.0",
  "changes": [
+  {"version": "3.59.0", "date": "2026-11-19", "notes": [
+   "Every time Gatehouse and Gatekeeper keep or send is now a unix time (the exact moment, the same everywhere), and every screen shows it in that device's own time: server history, the update log, launchers' first and last seen, pulls, requests, invites, systems, web panel users, backups and pack versions. Before, most were the Gatekeeper machine's clock written as text.",
+   "Older records still show: their text time is read as the Gatekeeper machine's clock, and new records keep the text beside the unix time for older versions.",
+   "Logs (Gatekeeper's, the error log, pack sync) start each line with the unix time, then the time for reading."
+  ]},
   {"version": "3.58.0", "date": "2026-11-19", "notes": [
    "Chat times show in each device's own time (a message's moment is sent along, not just the Gatekeeper's clock).",
    "GIFs move when you View them in chat.",

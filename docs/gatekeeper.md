@@ -324,6 +324,19 @@ setup steps list them (Gatekeeper's port and each Minecraft server's) and the ad
 always on, new launchers need the pairing (it carries a join key) or an invite, requests are limited per address, and
 the web panel and status page stay off. **New join key...** stops old pairings letting newcomers in.
 
+## Times (3.59.0)
+
+Every time Gatekeeper keeps or sends is a unix time: the exact moment, in milliseconds since 1970 (UTC), in a field
+named `at` or ending `_at` (`last_seen_at`, `since_at`, `made_at`...). It is the same number on every machine, so
+comparing two times ("seen in the last 7 days", "the same update heard twice") never depends on which machine's clock
+wrote them. Only screens turn it into words, in the viewing device's own time zone: Gatekeeper's window, a Gatehouse,
+the web panel and the status page. Records written before 3.59.0 hold a text time in the Gatekeeper machine's clock;
+Gatekeeper reads those as its own clock, and other devices show them as they are. New records still carry the old
+text beside the unix time, so older Gatehouses have something to show. Log lines (`host.log`) start with the unix time,
+then the machine's time for reading. Left as they are, on purpose: file names (backups, safety copies, saved pictures),
+daily tasks (they run at the clock time you set), Minecraft's own `eula.txt` line, the certificate's dates (that
+format is fixed by the standard) and a version's day in the notes.
+
 ## Options, ending and removing it
 
 **Options** is in sub-tabs (3.46.0): **General** (about, the pictures for this Gatekeeper and each server shown on

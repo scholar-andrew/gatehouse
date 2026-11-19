@@ -103,7 +103,7 @@ final class Packs {
 			Path d = def(id);
 			write(d.resolve("source/mods.json"), m("pack", m("name", name, "author", AutoUpdate.myName(), "version", "1.0.0", "minecraft",
 					version, "fabric", loader), "mods", new ArrayList<>()));
-			write(d.resolve("source/changelog.json"), new ArrayList<>(List.of(m("version", "1.0.0", "date", LocalDate.now().toString(),
+			write(d.resolve("source/changelog.json"), new ArrayList<>(List.of(m("version", "1.0.0", "date", LocalDate.now().toString(), "at", dev.gatehouse.look.Times.now(),
 					"notes", new ArrayList<>(List.of("The first version of this pack."))))));
 			write(d.resolve("config.json"), m("pack_name", name, "instance_id", id, "instance_name", name + " " + version + " (Fabric)"));
 		} catch (IOException e) { return new String[] {"failed", "The pack couldn't be made: " + e.getMessage()}; }
@@ -199,7 +199,7 @@ final class Packs {
 			try { PackBuilder.wipe(old); } catch (IOException ignored) { Quiet.seen(ignored); }
 			String version = Json.str(pack.get("version")), was = Json.str(info(id).get("version"));
 			Files.writeString(h.resolve("pack.json"), Json.write(m("version", version, "gatehouse", gatehouse, "built_at",
-					LocalDateTime.now().format(TIME), "said", String.join("; ", said), "why", why)), StandardCharsets.UTF_8);
+					dev.gatehouse.look.Times.now(), "built", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now()), "said", String.join("; ", said), "why", why)), StandardCharsets.UTF_8);
 			if (!version.equals(was)) History.record("pack", s, version);
 			log("packs: " + name + "'s pack " + version + " was built (" + why + "): " + String.join("; ", said));
 			return new String[] {"ok", "Built " + Json.str(config.get("pack_name")) + " " + version + ": " + String.join("; ", said)
@@ -226,7 +226,7 @@ final class Packs {
 			String next = mt.matches() ? mt.group(1) + (Long.parseLong(mt.group(2)) + 1) : v.isEmpty() ? "1.0.0" : v + ".1";
 			pack.put("version", next);
 			List<Object> entries = arr(log);
-			entries.add(0, m("version", next, "date", LocalDate.now().toString(), "notes", notes));
+			entries.add(0, m("version", next, "date", LocalDate.now().toString(), "at", dev.gatehouse.look.Times.now(), "notes", notes));
 			write(mods, src); write(log, entries);
 		} catch (IOException | RuntimeException e) { return new String[] {"failed", "The new version wasn't made: " + e.getMessage()}; }
 		return build(s, "a new version");

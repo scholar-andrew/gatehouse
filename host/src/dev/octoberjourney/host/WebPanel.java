@@ -119,7 +119,7 @@ final class WebPanel {
 			byte[] salt = new byte[16]; RANDOM.nextBytes(salt);
 			u.put("salt", hex(salt)); u.put("rounds", ROUNDS); u.put("hash", hash(password.toCharArray(), salt, ROUNDS));
 		}
-		if (key == null) u.put("made", LocalDateTime.now().format(TIME));
+		if (key == null) { u.put("made", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now())); u.put("made_at", dev.gatehouse.look.Times.now()); }
 		if (b.containsKey("admin") || key == null) u.put("admin", ServerTools.yes(b.get("admin")));
 		if (b.containsKey("enabled") || key == null) u.put("enabled", !b.containsKey("enabled") || ServerTools.yes(b.get("enabled")));
 		if (b.containsKey("perms") || key == null) {
@@ -211,7 +211,7 @@ final class WebPanel {
 				Map<String, Object> u = Json.map(e.getValue());
 				int in = 0; for (Session s : sessions.values()) if (s.user.equals(e.getKey())) in++;
 				list.add(m("name", e.getKey(), "admin", ServerTools.yes(u.get("admin")), "enabled", ServerTools.yes(u.get("enabled")),
-						"perms", Json.list(u.get("perms")), "made", Json.str(u.get("made")), "last_in", Json.str(u.get("last_in")), "signed_in", in));
+						"perms", Json.list(u.get("perms")), "made", Json.str(u.get("made")), "made_at", HostHelper.seenAt(u, "made"), "last_in", Json.str(u.get("last_in")), "last_in_at", HostHelper.seenAt(u, "last_in"), "signed_in", in));
 			}
 			List<Object> perms = new ArrayList<>();
 			for (String[] p : PERMS) perms.add(m("id", p[0], "name", p[1]));
@@ -382,7 +382,7 @@ final class WebPanel {
 		s.user = key; s.csrf = random(16); s.from = from;
 		sessions.put(sha(token), s);
 		synchronized (WebPanel.class) { Map<String, Object> again = users(); Map<String,
-				Object> me = Json.map(again.get(key)); if (!me.isEmpty()) { me.put("last_in", LocalDateTime.now().format(TIME)); saveUsers(again); } }
+				Object> me = Json.map(again.get(key)); if (!me.isEmpty()) { me.put("last_in", dev.gatehouse.look.Times.oldText(dev.gatehouse.look.Times.now())); me.put("last_in_at", dev.gatehouse.look.Times.now()); saveUsers(again); } }
 		log("web panel: " + key + " signed in from " + from + (tailscaleName(from).isEmpty() ? "" : " (" + tailscaleName(from) + ")"));
 		x.getResponseHeaders().add("Set-Cookie", "gk_session=" + token + "; Path=/panel; Max-Age=86400; HttpOnly; SameSite=Strict");
 		json(x, 200, who(s));

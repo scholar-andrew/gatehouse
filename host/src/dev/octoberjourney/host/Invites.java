@@ -150,14 +150,14 @@ final class Invites {
 		for (int i = 0; i < 10; i++) code.append(LETTERS.charAt(r.nextInt(LETTERS.length())));
 		long until = System.currentTimeMillis() + LASTS;
 		l.add(m("code", code.toString(), "server", Json.str(s.get("id")), "by", by, "by_name", byName, "made",
-				LocalDateTime.now().format(TIME), "until", String.valueOf(until)));
+				dev.gatehouse.look.Times.oldText(until - LASTS), "made_at", until - LASTS, "until", String.valueOf(until)));
 		save(l);
 		String name = setting("name", "");
 		String link = "gatehouse://invite/" + address() + "?code=" + shown(code.toString()) + (name.isEmpty() ? "" : "&name="
 				+ java.net.URLEncoder.encode(name, StandardCharsets.UTF_8)) + "&server=" + java.net.URLEncoder.encode(Json.str(s.get("name")), StandardCharsets.UTF_8);
 		log("invites: " + byName + " made an invite to " + Json.str(s.get("name")));
 		return m("result", "ok", "code", shown(code.toString()), "link", link, "server", Json.str(s.get("name")), "until",
-				LocalDateTime.now().plusDays(7).format(TIME),
+				dev.gatehouse.look.Times.oldText(until), "until_at", until,
 				"message", "Send this to the other person. In their Gatehouse: Add Gatekeeper, paste it. It lasts seven days, and they have to be able to reach this Gatekeeper (on its Tailscale network, or shared into it). It doesn't put them on the whitelist or give them any control.");
 	}
 
