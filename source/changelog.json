@@ -1,4 +1,7 @@
 [
+ {"version": "1.78.0", "date": "2026-11-18", "notes": [
+  "Gatehouse 3.45.0: the AI helper reads chat rooms, passes questions to the Gatekeeper it joined, and has an opt-in built-in AI. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.77.0", "date": "2026-11-18", "notes": [
   "Gatehouse 3.44.0: videos and sounds play inside the chat message. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

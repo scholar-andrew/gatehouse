@@ -7,6 +7,12 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.45.0 - 2026-11-18
+
+- Gatekeeper AI reads the chat room it is asked in: it can say who has shared files, how many messages someone sent, or how many people mentioned a word. Gatekeeper counts these itself and hands the AI the exact numbers.
+- @ai is never left unanswered: when this Gatekeeper's own AI is off (as on a Steam Deck), the question goes to the Gatekeeper it joined, if that one's AI is on. Otherwise it says the helper is off here. The passing can be unticked under AI helper.
+- New, opt-in: a built-in AI for machines without Ollama (Options, AI helper, Get the built-in AI). It is about 1.15 GB, checked before it is kept, runs on the processor, and Remove the built-in AI takes it away again. Battery machines are warned first; handheld PCs (Steam Deck, ROG Ally, Legion Go and similar) can't get it.
+
 ## 3.44.0 - 2026-11-18
 
 - Video now plays on the Steam Deck too: on Java 21 or newer the player uses OpenJFX 23.0.2, which supports the FFmpeg 7 in the Deck's Prism Flatpak (21.0.6 supported only up to FFmpeg 6). Devices that already fetched the player get the newer one without being asked again.

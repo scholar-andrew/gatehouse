@@ -1008,6 +1008,7 @@ public final class HostHelper {
 
 	static void serve() throws Exception {
 		log("helper starting (port " + port() + ")");
+		BuiltinAi.finishRemoval();
 		if (!WIN) dev.gatehouse.Shortcuts.ensure(true, null);   // (Linux: the menu entries' icons and window names, at sign-in)
 		Watchdog.start();   // (R29: a Gatekeeper that has frozen restarts itself)
 		ServerWatch.start();   // (R34: crash watch, friends joining, and an hour of each server's performance)
@@ -1395,6 +1396,7 @@ public final class HostHelper {
 			// (automatic updating: a launcher that has it on says it is open, and is told when everyone goes)
 			if (path.equals("/v1/update/state") && x.getRequestMethod().equals("POST")) { reply(x, 200, AutoUpdate.report(id, who(d), body(x))); return; }
 			if ((path.equals("/v1/program") || path.equals("/v1/program/hand")) && x.getRequestMethod().equals("POST")) { Peer.take(x, path, who(d), d); return; }
+			if (path.equals("/v1/ai/ask") && x.getRequestMethod().equals("POST")) { Ai.forwarded(x, who(d), d); return; }
 			if (path.equals("/v1/icon") && x.getRequestMethod().equals("GET")) { Icons.serve(x); return; }
 			if (path.equals("/v1/history") && x.getRequestMethod().equals("POST")) { History.take(x, who(d), d); return; }
 			if ((path.equals("/v1/invite") || path.equals("/v1/invite/accept"))
@@ -2448,7 +2450,7 @@ public final class HostHelper {
 			} else if (!Notify.admin(x, path) && !StatusPage.admin(x, path) && !ServerTools.admin(x, path) && !WebPanel.admin(x, path)
 					&& !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path)
 					&& !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x,
-					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path) && !Ai.admin(x, path) && !ModBrowser.admin(x, path)) reply(x, 404, m("error", "no such call"));
+					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path) && !Ai.admin(x, path) && !Ai.builtinAdmin(x, path) && !ModBrowser.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
@@ -3698,6 +3700,22 @@ public final class HostHelper {
 						java.awt.image.BufferedImage gi2 = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D gg2 = gi2.createGraphics(); shell.paint(gg2); gg2.dispose();
 						javax.imageio.ImageIO.write(gi2, "png", new java.io.File(shot + "-options.png"));
+						{   // (Options scrolled to the built-in AI: <file>-aihelper.png)
+							java.util.ArrayDeque<java.awt.Container> todo = new java.util.ArrayDeque<>(java.util.List.of(shell));
+							javax.swing.JComponent at = null;
+							while (!todo.isEmpty() && at == null) for (java.awt.Component c : todo.pop().getComponents()) {
+								if (c instanceof JLabel l && l.getText() != null && l.getText().contains("<b>Built-in AI</b>") && l.isVisible()) { at = l; break; }
+								if (c instanceof java.awt.Container k) todo.push(k);
+							}
+							if (at != null) {
+								java.awt.SecondaryLoop wait = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
+								javax.swing.Timer stop = new javax.swing.Timer(2500, ev2 -> wait.exit()); stop.setRepeats(false); stop.start(); wait.enter();
+								at.scrollRectToVisible(new java.awt.Rectangle(0, -40, 10, 520)); sync.run(); shell.validate();
+								java.awt.image.BufferedImage ai = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+								java.awt.Graphics2D ag = ai.createGraphics(); shell.paint(ag); ag.dispose();
+								javax.imageio.ImageIO.write(ai, "png", new java.io.File(shot + "-aihelper.png"));
+							}
+						}
 						optBack.doClick(0);
 						levels.show(stack, "wizard"); guide[0].openNow(System.getenv("OJ_WIZARD_STEP")); sync.run(); shell.validate();
 						java.awt.image.BufferedImage wi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);

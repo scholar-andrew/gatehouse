@@ -27,6 +27,9 @@ final class NotifyUi {
 	private NotifyUi() {}
 
 	/** Adds the section to the Options page. optLine adds a line of text (bold: a heading). */
+	private static java.util.function.Consumer<Map<String, Object>> aiShowRef;
+	/** Redraws the AI helper section from an /admin/ai answer (any thread). */
+	private static void refreshAi(Map<String, Object> a) { java.util.function.Consumer<Map<String, Object>> c = aiShowRef; if (c != null) c.accept(a); }
 	private static String esc(String s) { return s.replace("&", "&amp;").replace("<", "&lt;"); }
 
 	/** Help > Ask Gatekeeper AI: the owner's own questions, answered with what Gatekeeper knows, folders included (R60). */
@@ -99,7 +102,78 @@ final class NotifyUi {
 		JPanel aiSetup = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); aiSetup.setOpaque(false);
 		aiSetup.add(new JLabel("Ollama at")); aiSetup.add(aiUrl); aiSetup.add(new JLabel("model")); aiSetup.add(aiModel); aiSetup.add(aiSave); aiSetup.add(aiAsk);
 		for (javax.swing.JComponent c : new javax.swing.JComponent[] {aiOn, aiSetup, aiSaid}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
+		// (R66: the built-in AI, opt-in and opt-out; greyed with the reason on handheld PCs. R60: asking the Gatekeeper this one joined.)
+		JLabel bHead = new JLabel("<html><b>Built-in AI</b>: Gatekeeper's own small AI, for machines without Ollama. Nothing is downloaded until you get it.</html>");
+		bHead.setForeground(new Color(0xE6EDF5));
+		javax.swing.JRadioButton useOllama = new javax.swing.JRadioButton("Answers from Ollama"), useBuiltin = new javax.swing.JRadioButton("Answers from the built-in AI");
+		javax.swing.ButtonGroup engineGroup = new javax.swing.ButtonGroup(); engineGroup.add(useOllama); engineGroup.add(useBuiltin);
+		JButton getBuiltin = new JButton("Get the built-in AI…"), removeBuiltin = new JButton("Remove the built-in AI");
+		getBuiltin.setToolTipText("Downloads the engine (12.2 MB) and the model (1.12 GB) once, checked before they are kept");
+		removeBuiltin.setToolTipText("Deletes the built-in AI's files (about 1.15 GB); answers come from Ollama again");
+		JPanel bRow = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); bRow.setOpaque(false);
+		bRow.add(useOllama); bRow.add(useBuiltin); bRow.add(getBuiltin); bRow.add(removeBuiltin);
+		JLabel bSaid = new JLabel(" "); bSaid.setForeground(new Color(0xA9B5C1));
+		javax.swing.JCheckBox forwardBox = new javax.swing.JCheckBox("When this Gatekeeper has no AI of its own, ask the Gatekeeper it joined");
+		forwardBox.setToolTipText("@ai questions in this Gatekeeper's rooms are answered by the AI of the Gatekeeper it joined in a constellation");
+		for (javax.swing.JComponent c : new javax.swing.JComponent[] {bHead, bRow, bSaid, forwardBox}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); options.add(c); }
+		boolean[] filling = {false};
+		javax.swing.Timer[] poll = {null};
+		java.util.function.Consumer<Map<String, Object>> builtinShow = a -> {
+			filling[0] = true;
+			Map<String, Object> st = Json.map(a.get("builtin"));
+			String notHere = Json.str(st.get("not_here")), fetching = Json.str(st.get("fetching"));
+			boolean installed = Boolean.TRUE.equals(st.get("installed")), allowed = notHere.isEmpty();
+			useBuiltin.setSelected("builtin".equals(Json.str(a.get("engine")))); useOllama.setSelected(!useBuiltin.isSelected());
+			useBuiltin.setEnabled(allowed && installed);
+			getBuiltin.setEnabled(allowed && !installed && fetching.isEmpty());
+			getBuiltin.setVisible(!installed);
+			removeBuiltin.setVisible(installed);
+			forwardBox.setSelected(Boolean.TRUE.equals(a.get("forward")));
+			forwardBox.setVisible(Boolean.TRUE.equals(a.get("lead")));
+			bSaid.setText("<html><body style='width:560px'>" + esc(!allowed ? notHere
+					: !fetching.isEmpty() ? fetching
+					: installed ? "The built-in AI (" + Json.str(st.get("model")) + ") is on this machine." + (useBuiltin.isSelected() ? " It answers instead of Ollama." : " Choose it above to use it.")
+					: "Not downloaded. It needs " + Json.str(st.get("sizes")) + ", and about 1.5 GB of memory while it answers."
+						+ (Boolean.TRUE.equals(st.get("battery")) ? " This machine runs on a battery: plug it in before getting it, and expect the battery to drain faster while it answers." : "")) + "</body></html>");
+			if (!fetching.isEmpty() && poll[0] == null) {
+				poll[0] = new javax.swing.Timer(2000, e -> new Thread(() -> { try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/ai", null)));
+					SwingUtilities.invokeLater(() -> { if (Json.str(Json.map(again.get("builtin")).get("fetching")).isEmpty() && poll[0] != null) { poll[0].stop(); poll[0] = null; } });
+					refreshAi(again); }
+					catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "builtin-ai-poll").start());
+				poll[0].start();
+			}
+			filling[0] = false;
+		};
+		getBuiltin.addActionListener(e -> {
+			boolean battery = false;
+			try { battery = Boolean.TRUE.equals(Json.map(Json.map(Json.parse(call("GET", "/admin/ai", null))).get("builtin")).get("battery")); }
+			catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); }
+			int ok = JOptionPane.showConfirmDialog(options, "<html><body style='width:440px'>The built-in AI lets this Gatekeeper answer without Ollama. It downloads, once:"
+					+ "<br>• 12.2 MB: the engine (llama.cpp for Java), from Maven Central"
+					+ "<br>• 1.12 GB: the model (Qwen2.5 1.5B Instruct, Apache 2.0 licence), from Qwen's page on Hugging Face"
+					+ "<br>Both are checked against checksums inside the signed program before they are kept. While it answers it uses about 1.5 GB of memory and the processor."
+					+ (battery ? "<br><br><b>This machine runs on a battery.</b> Downloading 1.1 GB and running an AI use a lot of power and warm the machine: plug it in before you start, "
+							+ "and expect the battery to drain faster whenever it answers. On a metered or mobile connection, the download counts against your data." : "")
+					+ "<br><br>You can remove it again at any time (Remove the built-in AI). Download it now?</body></html>",
+					"Get the built-in AI", JOptionPane.YES_NO_OPTION, battery ? JOptionPane.WARNING_MESSAGE : JOptionPane.QUESTION_MESSAGE);
+			if (ok != JOptionPane.YES_OPTION) return;
+			getBuiltin.setEnabled(false); bSaid.setText("Starting the download…");
+			new Thread(() -> { try { call("POST", "/admin/ai/builtin", Json.write(m("action", "get"))); refreshAi(Json.map(Json.parse(call("GET", "/admin/ai", null)))); }
+				catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "builtin-ai-get").start();
+		});
+		removeBuiltin.addActionListener(e -> {
+			if (JOptionPane.showConfirmDialog(options, "Remove the built-in AI? Its files (about 1.15 GB) are deleted, and answers come from Ollama again. You can get it again later.",
+					"Remove the built-in AI", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
+			new Thread(() -> { try { call("POST", "/admin/ai/builtin", Json.write(m("action", "remove"))); refreshAi(Json.map(Json.parse(call("GET", "/admin/ai", null)))); }
+				catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "builtin-ai-remove").start();
+		});
+		java.awt.event.ActionListener engineChosen = e -> { if (filling[0]) return; String eng = useBuiltin.isSelected() ? "builtin" : "ollama";
+			new Thread(() -> { try { refreshAi(Json.map(Json.parse(call("POST", "/admin/ai", Json.write(m("engine", eng)))))); } catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "ai-engine").start(); };
+		useOllama.addActionListener(engineChosen); useBuiltin.addActionListener(engineChosen);
+		forwardBox.addActionListener(e -> { if (filling[0]) return; boolean f2 = forwardBox.isSelected();
+			new Thread(() -> { try { refreshAi(Json.map(Json.parse(call("POST", "/admin/ai", Json.write(m("forward", f2)))))); } catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "ai-forward").start(); });
 		java.util.function.Consumer<Map<String, Object>> aiShow = a -> SwingUtilities.invokeLater(() -> {
+			builtinShow.accept(a);
 			aiOn.setSelected(Boolean.TRUE.equals(a.get("on")));
 			if (!aiUrl.isFocusOwner()) aiUrl.setText(Json.str(a.get("url")));
 			String want = Json.str(a.get("model"));
@@ -110,6 +184,7 @@ final class NotifyUi {
 			aiSaid.setText("<html>" + esc(!said.isEmpty() ? said : problem.isEmpty() ? "Ready: " + want + " answers"
 					+ (Boolean.TRUE.equals(a.get("local")) ? " on this machine." : " at " + Json.str(a.get("url")) + " (questions go to that machine).") : problem) + "</html>");
 		});
+		aiShowRef = aiShow;
 		aiSave.addActionListener(e -> {
 			String u = aiUrl.getText().strip(), md = String.valueOf(aiModel.getEditor().getItem()).strip();
 			aiSaid.setText("Asking Ollama\u2026");

@@ -45,6 +45,18 @@ $media = Join-Path $out 'media'
 if ($LASTEXITCODE) { throw 'javac (media player) failed' }
 & (Join-Path $jdk 'jar.exe') --create --file (Join-Path $classes 'dev\gatehouse\look\media-player.jar') -C $media .
 if ($LASTEXITCODE) { throw 'jar (media player) failed' }
+# The built-in AI's bridge (R66), built against llama.cpp's Java binding and put inside as ai-engine.jar: a Gatekeeper
+# fetches the binding and a model only when its owner opts in (dev.octoberjourney.host.BuiltinAi). Building needs the
+# binding in tools\cache\llama-4.2.0 (not in the repository); it is fetched once from Maven Central and checked.
+$llama = Join-Path $root 'tools\cache\llama-4.2.0\llama-4.2.0.jar'
+New-Item -ItemType Directory -Force (Split-Path $llama) | Out-Null
+if (-not (Test-Path $llama)) { Invoke-WebRequest -UseBasicParsing 'https://repo1.maven.org/maven2/de/kherud/llama/4.2.0/llama-4.2.0.jar' -OutFile $llama }
+if ((Get-FileHash $llama -Algorithm SHA256).Hash.ToLower() -ne 'f8ed8a8420f0648dac695514d03bf627e8c5c8e31edcbbfd0ecee31a71dec0a9') { Remove-Item $llama; throw "$llama didn't match its checksum" }
+$aiOut = Join-Path $out 'ai'
+& (Join-Path $jdk 'javac.exe') -encoding UTF-8 --release 17 -cp $llama -d $aiOut @(Get-ChildItem (Join-Path $root 'mods-src\ai\src') -Recurse -Filter *.java | ForEach-Object FullName)
+if ($LASTEXITCODE) { throw 'javac (built-in AI) failed' }
+& (Join-Path $jdk 'jar.exe') --create --file (Join-Path $classes 'dev\octoberjourney\host\ai-engine.jar') -C $aiOut .
+if ($LASTEXITCODE) { throw 'jar (built-in AI) failed' }
 # Each half's version and notes go inside (the Gatekeeper updates and Gatehouse updates tabs).
 Copy-Item (Join-Path $root 'source\gatekeeper.json') (Join-Path $classes 'gatekeeper-notes.json')
 Copy-Item (Join-Path $root 'source\gatehouse.json') (Join-Path $classes 'gatehouse-notes.json')

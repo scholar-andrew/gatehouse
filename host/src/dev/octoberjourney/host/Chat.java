@@ -54,6 +54,8 @@ final class Chat {
 				Json.str(s.get("name")).isEmpty() ? Json.str(s.get("id")) : Json.str(s.get("name"))); }
 		return out;
 	}
+	/** A copy of a room's messages, oldest first (the AI reads it, R65). */
+	static synchronized List<Object> recent(String id) { return new ArrayList<>(room(id)); }
 	private static synchronized List<Object> room(String id) {
 		return rooms.computeIfAbsent(id,
 				k -> { try { return new ArrayList<>(Json.list(Json.parse(read(file(k))))); } catch (RuntimeException e) { return new ArrayList<>(); } });

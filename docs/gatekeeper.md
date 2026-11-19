@@ -132,6 +132,14 @@ facts about your servers sent with them, then go to that machine.
 
 - **In chat**, a message starting with `@ai` gets an answer from "Gatekeeper AI" in the same room, about the servers
   (which are on, who is on them, who may join, how to join). One question at a time per room.
+- **It reads the room it is asked in** (3.45.0): it can answer "who has shared files here?", "how many messages has Sam
+  sent?" or "how many people mentioned diamonds?". Gatekeeper counts those itself (messages per person, files shared,
+  who used a word) and gives the model the exact numbers along with the room's last 60 messages, so a small model
+  doesn't have to count. It only ever sees the room it was asked in.
+- **When this Gatekeeper's AI is off or has no model** (3.45.0), `@ai` no longer goes unanswered. If this Gatekeeper
+  joined another one (a constellation) whose AI helper is on, the question is passed to it and its answer is posted
+  here. You can untick this under AI helper: "When this Gatekeeper has no AI of its own, ask the Gatekeeper it joined".
+  Otherwise Gatekeeper AI says in the room that the helper is off here, at most once every 10 minutes.
 - **When a server Gatekeeper runs stops by itself**, the error lines at the end of its log are explained in plain words,
   in the log and in the "server went down" notification. If the log shows no error, it says so instead of guessing.
 
@@ -141,6 +149,32 @@ facts about your servers sent with them, then go to that machine.
   never for a chat room, which players read.
 
 The answers are a small model's guesses: useful as a pointer, not a diagnosis.
+
+### The built-in AI (opt-in)
+
+For a machine without Ollama, Gatekeeper can run a small AI of its own (3.45.0). Under Options, AI helper, **Built-in
+AI**:
+
+- Nothing is downloaded until you press **Get the built-in AI…**. A dialog first lists what it fetches: llama.cpp's Java
+  binding (`de.kherud:llama` 4.2.0, 12.2 MB, from Maven Central) and the model Qwen2.5 1.5B Instruct (Q4_K_M, 1.12 GB,
+  from Qwen's Hugging Face page, Apache 2.0 licence). Each file is checked against a SHA-256 written into the signed
+  program before it is kept. The model is checked again before it is first used after each start.
+- **Answers from the built-in AI** then replaces Ollama for this Gatekeeper's answers. It runs on the processor (about
+  1.5 GB of memory while answering) and is unloaded after 10 minutes without a question. **Answers from Ollama** switches
+  back.
+- **Remove the built-in AI** (opting out) deletes the engine and the model, and answers come from Ollama again. On
+  Windows, once the engine has been used its files stay locked until Gatekeeper stops. In that case the built-in AI counts
+  as removed straight away, and its last files are deleted the next time Gatekeeper starts.
+- **Battery machines** (laptops) can get it, but are warned first, under the buttons and in the dialog: plug in before
+  downloading, the download can be costly on a metered connection, and the battery drains faster while it answers.
+- **Handheld PCs can't get it.** On a Steam Deck, ROG Ally, Legion Go, MSI Claw, GPD, AYANEO, OneXPlayer, AOKZOE or
+  Zotac Gaming Zone, the controls are greyed out with the reason: the download and the work are too heavy for their
+  battery and memory. A handheld Gatekeeper can still answer `@ai` through the Gatekeeper it joined (above).
+  Gatekeeper recognises a handheld from what the machine reports about itself (maker, model, SteamOS). It also needs a
+  64-bit x86 Windows or Linux machine.
+
+Alternatives (untried here): running Ollama or LM Studio on the machine gives a choice of bigger models; llamafile is a
+single-file llama.cpp. The built-in AI needs neither but is smaller, so its answers are plainer.
 
 ## Palworld
 
