@@ -1,4 +1,7 @@
 [
+ {"version": "1.80.0", "date": "2026-11-19", "notes": [
+  "Gatehouse 3.47.0: a Gatekeepers page in Gatekeeper. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.79.0", "date": "2026-11-19", "notes": [
   "Gatehouse 3.46.0: Options in sub-tabs, server pictures from the Pack page, clearer update names in Updates pulled, and the original October Journey cover back. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

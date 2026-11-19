@@ -33,7 +33,7 @@ The **menu** at the top left has the rest:
 | **Host setup** | Every check this machine needs before players can use it, each done, to do, or worth changing, with what to do; Gatekeeper's and MCSS's own lines (Start and Close MCSS, Sign in to MCSS); **Share pairing**; the name launchers show for this Gatekeeper. A red number is steps still to do. |
 | **Activity log** | Everything Gatekeeper did and was asked, newest first. |
 | **Web panel** | Turning the panel on, and its accounts ([below](#the-web-panel-the-status-page-and-phone-notifications)). |
-| **Constellation**, **Systems**, **History of servers** | [Below](#updates-and-constellations). |
+| **Gatekeepers**, **Constellation**, **Systems**, **History of servers** | [Below](#updates-and-constellations). |
 | **Options** | Pictures, update mode, notifications, the status page, starting servers with Gatekeeper, ending and uninstalling. |
 | **Setup guide**, **Play or Host** | The steps one at a time; which halves this machine has. |
 | **User guide**, **GitHub page** | Open the [user guide](user-guide.md) or the program's GitHub page in your browser (the web panel's menu has them too). |
@@ -275,7 +275,9 @@ while it gathers: green ready, amber not seen yet, red a Gatekeeper with a serve
   over. **Share program updates with that Gatekeeper** turns this off for a Gatekeeper you joined.
 - **Managing another Gatekeeper** is off unless the owner of the one to be managed chooses it, at that machine. The
   other then gets a window on its servers, console, players and requests; never its settings, updates, web accounts
-  or the machine.
+  or the machine. The menu's **Gatekeepers** page (3.47.0) lists this Gatekeeper and every other one it may manage,
+  like Gatehouse's list: each with its address, how many servers it has and how many people are on them, and
+  **Open**.
 - **Hand out pack updates** (on unless turned off): this machine hands the published pack to the devices of this
   constellation over Tailscale ([Security](security.md#updates-from-any-gate-system)).
 - **The update log** (Updates section, or **Update log...**): every update in the constellation, when, from which

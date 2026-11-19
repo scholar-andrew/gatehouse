@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.47.0 - 2026-11-19
+
+- Gatekeeper has a Gatekeepers page (menu, Constellation): this Gatekeeper and every other one it may manage, as cards like Gatehouse's list, each with its address, its servers and who is on them, and Open.
+
 ## 3.46.0 - 2026-11-19
 
 - Options is in sub-tabs: General, Updating, Notifications, AI helper, and End or uninstall. The Back button is gone; Esc or the menu leaves Options.

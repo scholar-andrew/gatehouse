@@ -3099,6 +3099,7 @@ public final class HostHelper {
 			firstTabs.addTab("History of servers", PackUi.historyPage());   // (11: in the menu)
 			JPanel newServerPage = new JPanel(new BorderLayout());   // (12: from New server on Servers; made afresh each time)
 			firstTabs.addTab("New server", newServerPage);
+			firstTabs.addTab("Gatekeepers", GatekeepersUi.page(() -> firstTabs.setSelectedIndex(0)));   // (13: R74, in the menu)
 			ServerToolsUi.newServerPage = after -> {
 				JButton cancelNew = new JButton("\u2039 Servers");
 				cancelNew.addActionListener(ev -> firstTabs.setSelectedIndex(0));
@@ -3531,6 +3532,7 @@ public final class HostHelper {
 					case "ACTIVITY" -> { toOverview.run(); firstTabs.setSelectedIndex(8); }
 					case "SYSTEMS" -> { toOverview.run(); firstTabs.setSelectedIndex(10); }
 					case "HISTORY" -> { toOverview.run(); firstTabs.setSelectedIndex(11); }
+					case "GATEKEEPERS" -> { toOverview.run(); firstTabs.setSelectedIndex(13); }
 					case "OPTIONS" -> { if (!optionsScroll.isVisible()) { if (guide[0].isVisible()) leaveGuide.run(); gear.doClick(0); } }
 					case "GUIDE" -> { if (inServer[0]) backB.doClick(); if (optionsScroll.isVisible()) optBack.doClick(); openGuide.run(); }
 					default -> { }
@@ -3541,6 +3543,7 @@ public final class HostHelper {
 			shell.menu("This machine", "machine", "Host setup", () -> pickSection.accept("MACHINE"));
 			shell.menu("This machine", "activity", "Activity log", () -> pickSection.accept("ACTIVITY"));
 			shell.menu("This machine", "web", "Web panel", () -> pickSection.accept("WEB"));
+			shell.menu("Constellation", "gatekeepers", "Gatekeepers", () -> pickSection.accept("GATEKEEPERS"));   // (R74)
 			shell.menu("Constellation", "constellation", "Constellation", () -> pickSection.accept("CONSTELLATION"));
 			shell.menu("Constellation", "systems", "Systems", () -> pickSection.accept("SYSTEMS"));
 			shell.menu("Constellation", "history", "History of servers", () -> pickSection.accept("HISTORY"));
@@ -3560,11 +3563,11 @@ public final class HostHelper {
 				if (!inServer[0]) peopleJump[0] = false;
 				// (a page of the menu is lit there, and puts out the sections; any other page lights its section)
 				String item = optionsScroll.isVisible() ? "options" : guide[0].isVisible() ? "guide" : inServer[0] ? ""
-						: at == 3 ? "machine" : at == 4 ? "web" : at == 5 ? "constellation" : at == 8 ? "activity" : at == 10 ? "systems" : at == 11 ? "history" : "";
+						: at == 3 ? "machine" : at == 4 ? "web" : at == 5 ? "constellation" : at == 8 ? "activity" : at == 10 ? "systems" : at == 11 ? "history" : at == 13 ? "gatekeepers" : "";
 				String lit = !item.isEmpty() ? "MENU" : inServer[0] || at == 0 || at == 12 ? "SERVERS" : at == 6 ? "CHAT" : at == 7 ? "PLAYERS" : "UPDATES";
 				if (!aside && !inServer[0]) { String hd = at == 0 ? "Gatekeeper" : at == 6 ? "Chat" : at == 1 || at == 2 || at == 9 ? "Updates"
 						: at == 3 ? "Host setup" : at == 4 ? "Web panel" : at == 7 ? "Players" : at == 8 ? "Activity log" : at == 10 ? "Systems"
-						: at == 11 ? "History of servers" : at == 12 ? "New server" : "Constellation"; if (!hd.equals(head.getText())) head.setText(hd); }
+						: at == 11 ? "History of servers" : at == 12 ? "New server" : at == 13 ? "Gatekeepers" : "Constellation"; if (!hd.equals(head.getText())) head.setText(hd); }
 				if (!item.isEmpty()) { if (!item.equals(shell.menuLit())) shell.menuLight(item); }
 				else if (!lit.equals(shell.lit())) shell.light(lit);
 				// (R17, R18: notes not seen yet put a red dot on UPDATES and on their page; looking at the page marks them
@@ -3791,14 +3794,15 @@ public final class HostHelper {
 						}
 					} catch (IOException ex) { ex.printStackTrace(); }
 					try {   // (R39: Systems, History of servers and New server as pages: <file>-systemspage.png, -historypage.png, -newserverpage.png)
-						for (int pg : new int[] {10, 11, 12}) {
+						for (int pg : new int[] {10, 11, 13, 12}) {
 							if (pg == 12) ServerToolsUi.newServerPage.accept(null); else firstTabs.setSelectedIndex(pg);
+						if (pg == 13 && firstTabs.getComponentAt(13) instanceof JPanel gkp && gkp.getClientProperty("load") instanceof Runnable gkl) gkl.run();   // (offscreen, nothing is "showing")
 							java.awt.SecondaryLoop pgWait = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
 							javax.swing.Timer pgStop = new javax.swing.Timer(2500, ev4 -> pgWait.exit()); pgStop.setRepeats(false); pgStop.start(); pgWait.enter();
 							sync.run(); shell.validate();
 							java.awt.image.BufferedImage pgi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 							java.awt.Graphics2D pgg = pgi.createGraphics(); shell.paint(pgg); pgg.dispose();
-							javax.imageio.ImageIO.write(pgi, "png", new java.io.File(shot + (pg == 10 ? "-systemspage.png" : pg == 11 ? "-historypage.png" : "-newserverpage.png")));
+							javax.imageio.ImageIO.write(pgi, "png", new java.io.File(shot + (pg == 10 ? "-systemspage.png" : pg == 11 ? "-historypage.png" : pg == 13 ? "-gatekeepers.png" : "-newserverpage.png")));
 						}
 					} catch (IOException ex) { ex.printStackTrace(); }
 					ServerToolsUi.shots(shot, serverIds.isEmpty() ? "" : serverIds.get(0));

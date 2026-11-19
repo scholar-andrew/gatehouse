@@ -98,8 +98,49 @@ final class Manage {
 		try (java.io.OutputStream o = x.getResponseBody()) { o.write(out); }
 	}
 
-	/** POST /admin/manage/open: a window of this program, on the other Gatekeeper. */
+	/** R74: the Gatekeepers this one may manage: the one it joined (if that one lets it) and each that joined it and lets
+	 *  it. Each: {key ("lead" or a launcher id here), name, address, servers, online, answered}; servers and online come
+	 *  from asking that Gatekeeper (its overview, which managing may read), a couple of seconds at most, all at once. */
+	static List<Object> manageable() {
+		List<Object[]> want = new java.util.ArrayList<>();   // {key, name, url, {header, value, ...}}
+		if (!setting("constellation_lead", "").isEmpty() && leadLets)
+			want.add(new Object[] {"lead", AutoUpdate.leadName.isEmpty() ? "The Gatekeeper this one joined" : AutoUpdate.leadName,
+					setting("constellation_lead", ""), new String[] {"X-Device", setting("constellation_id", ""), "X-Token", setting("constellation_token", "")}});
+		for (Map.Entry<String, Object> e : devices().entrySet()) {
+			Map<String, Object> d = Json.map(e.getValue());
+			if (!Json.str(d.get("manage_url")).isEmpty() && !Json.str(d.get("manage_token")).isEmpty())
+				want.add(new Object[] {e.getKey(), who(d).replace(" (Gatekeeper)", ""), Json.str(d.get("manage_url")), new String[] {"X-Manage", Json.str(d.get("manage_token"))}});
+		}
+		List<java.util.concurrent.CompletableFuture<Map<String, Object>>> asks = new java.util.ArrayList<>();
+		for (Object[] w : want) asks.add(java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+			String url = ((String) w[2]).replaceAll("/+$", "");
+			Map<String, Object> out = m("key", w[0], "name", w[1], "address", url.replaceFirst("^https?://", ""), "answered", false, "servers", 0, "online", 0);
+			try {
+				java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(url + "/v1/manage/overview").openConnection();
+				c.setConnectTimeout(2000); c.setReadTimeout(2500);
+				String[] h = (String[]) w[3];
+				for (int i = 0; i + 1 < h.length; i += 2) c.setRequestProperty(h[i], h[i + 1]);
+				if (c.getResponseCode() == 200) {
+					List<Object> sv = Json.list(Json.map(Json.parse(new String(c.getInputStream().readAllBytes(), StandardCharsets.UTF_8))).get("servers"));
+					int on = 0;
+					for (Object o : sv) { Map<String, Object> s = Json.map(o); if (ServerTools.yes(s.get("running"))) on += (int) Double.parseDouble(String.valueOf(s.getOrDefault("players", 0))); }
+					out.put("answered", true); out.put("servers", sv.size()); out.put("online", on);
+				} else out.put("why", c.getResponseCode() == 403 ? "it no longer lets this one manage it" : "it answered " + c.getResponseCode());
+			} catch (IOException | RuntimeException ex) { out.put("why", "it isn't answering"); }
+			return out;
+		}));
+		List<Object> all = new java.util.ArrayList<>();
+		for (java.util.concurrent.CompletableFuture<Map<String, Object>> a : asks) all.add(a.join());
+		return all;
+	}
+
+	/** GET /admin/manage/list (R74) and POST /admin/manage/open: a window of this program, on the other Gatekeeper. */
 	static boolean admin(HttpExchange x, String path) throws IOException {
+		if (path.equals("/admin/manage/list") && x.getRequestMethod().equals("GET")) {
+			reply(x, 200, m("gatekeepers", manageable(), "name", setting("name", ""), "device", Device.kind(), "icon", Icons.tag("gatekeeper"),
+					"joined", !setting("constellation_lead", "").isEmpty()));
+			return true;
+		}
 		if (!path.equals("/admin/manage/open") || !x.getRequestMethod().equals("POST")) return false;
 		Map<String, Object> b = body(x);
 		String url, auth, name;
