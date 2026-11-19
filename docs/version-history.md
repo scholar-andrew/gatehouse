@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.53.1 - 2026-11-19
+
+- Chat video on the Steam Deck, third try: the larger sound buffer from 3.53.0 never reached Gatehouse inside Prism's Flatpak, so Gatehouse now sets it in its own process before the player starts, and its measurement says which values the sound library actually saw.
+
 ## 3.53.0 - 2026-11-19
 
 - Chat video on the Steam Deck, second try: Gatehouse asks for a larger sound buffer on Linux, since the player's sound goes through PipeWire there and crackled, dragging the video with it.

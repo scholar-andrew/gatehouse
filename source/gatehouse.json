@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.53.0",
+ "version": "3.53.1",
  "changes": [
+  {"version": "3.53.1", "date": "2026-11-19", "notes": [
+   "Chat video on the Steam Deck, third try: the larger sound buffer from 3.53.0 never reached Gatehouse inside Prism's Flatpak, so Gatehouse now sets it in its own process before the player starts, and its measurement says which values the sound library actually saw."
+  ]},
   {"version": "3.53.0", "date": "2026-11-19", "notes": [
    "Chat video on the Steam Deck, second try: Gatehouse asks for a larger sound buffer on Linux, since the player's sound goes through PipeWire there and crackled, dragging the video with it.",
    "Ten seconds into a chat video, Gatehouse notes how well it is playing (how fast, and what the player runs on) and tells its Gatekeepers, which write it in their activity log, so a problem on a device can be seen from the host's machine."

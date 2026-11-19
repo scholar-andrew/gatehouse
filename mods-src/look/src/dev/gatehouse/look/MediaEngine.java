@@ -179,6 +179,12 @@ public final class MediaEngine {
 			if (System.getProperty("prism.order") == null) System.setProperty("prism.order", "es2,sw");
 			if (System.getProperty("prism.vsync") == null) System.setProperty("prism.vsync", "false");
 			System.setProperty("prism.verbose", "true");   // (says which pipeline it chose, on the program's own output)
+			// (R80, second try: the player's sound goes through ALSA to PipeWire, whose small default buffer crackled and
+			// dragged the video. A start script's setting doesn't reach Gatehouse inside Prism's Flatpak, so Gatehouse sets
+			// it in its own process, before the sound library starts. Whatever the device already set wins.)
+			boolean pw = NativeEnv.setIfUnset("PIPEWIRE_LATENCY", "2048/48000"), pa = NativeEnv.setIfUnset("PULSE_LATENCY_MSEC", "60");
+			log("sound buffer settings: PIPEWIRE_LATENCY " + NativeEnv.get("PIPEWIRE_LATENCY") + (pw ? "" : " (couldn't be set)") + ", PULSE_LATENCY_MSEC "
+					+ NativeEnv.get("PULSE_LATENCY_MSEC") + (pa ? "" : " (couldn't be set)"));
 		}
 		log("loading the player: Java " + System.getProperty("java.version") + ", " + System.getProperty("os.name") + " " + System.getProperty("os.version")
 				+ " " + System.getProperty("os.arch") + ", display " + System.getenv("DISPLAY") + ", wayland " + System.getenv("WAYLAND_DISPLAY"));

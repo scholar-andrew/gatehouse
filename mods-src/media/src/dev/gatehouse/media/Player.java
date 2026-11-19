@@ -145,6 +145,11 @@ public final class Player {
 		}
 	}
 
+	/** What native code (the sound library) sees for a setting: through dev.gatehouse.look.NativeEnv, by name. */
+	private static String nativeEnv(String name) {
+		try { return String.valueOf(Class.forName("dev.gatehouse.look.NativeEnv", true, Player.class.getClassLoader().getParent()).getMethod("get", String.class).invoke(null, name)); }
+		catch (Throwable t) { return System.getenv(name) + " (start)"; }
+	}
 	/** R80: how a video plays here, measured once after ten seconds of playing, for the engine's log and the owner's. */
 	private static void measure(MediaPlayer mp, Media media, String title, int[] stalls) {
 		long[] start = {0}; double[] from = {0}; boolean[] done = {false};
@@ -166,7 +171,7 @@ public final class Player {
 							+ ", tracks [" + tracks + "], java " + System.getProperty("java.version") + " (" + System.getProperty("java.home", "").replaceAll(".*[/\\\\](?=[^/\\\\]+$)", "") + ")"
 							+ ", " + System.getProperty("os.name") + " " + System.getProperty("os.version")
 							+ ", flatpak " + (System.getenv("FLATPAK_ID") == null ? "no" : System.getenv("FLATPAK_ID"))
-							+ ", PIPEWIRE_LATENCY " + System.getenv("PIPEWIRE_LATENCY") + ", PULSE_LATENCY_MSEC " + System.getenv("PULSE_LATENCY_MSEC")
+							+ ", PIPEWIRE_LATENCY " + nativeEnv("PIPEWIRE_LATENCY") + ", PULSE_LATENCY_MSEC " + nativeEnv("PULSE_LATENCY_MSEC")
 							+ ", XDG_SESSION " + System.getenv("XDG_SESSION_TYPE") + ", gamescope " + (System.getenv("GAMESCOPE_WAYLAND_DISPLAY") != null || System.getenv("SteamGamepadUI") != null);
 					try { Class.forName("dev.gatehouse.look.MediaEngine", true, Player.class.getClassLoader().getParent()).getMethod("report", String.class).invoke(null, line); }
 					catch (Throwable t) { System.err.println(line); }
