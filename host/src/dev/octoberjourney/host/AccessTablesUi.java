@@ -89,7 +89,7 @@ final class AccessTablesUi {
 					body))); res = Json.str(rr.get("result")); msg = Json.str(rr.get("message")); if (!Json.str(rr.get("error")).isEmpty()) { res = "failed"; msg = Json.str(rr.get("error")); } }
 			catch (IOException ex) { res = "failed"; msg = "Gatekeeper isn't running."; }
 			String m2 = msg; boolean tell = !msg.isEmpty() && (!res.equals("ok") || path.contains("ban") || path.contains("kick"));
-			SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f, "<html><div style='width:440px'>" + m2
+			SwingUtilities.invokeLater(() -> { if (tell) dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:440px'>" + m2
 					+ "</div></html>", "Gatekeeper", JOptionPane.PLAIN_MESSAGE); refresh.run(); });
 		}, "post").start();
 		String[] devPerm = {"server", "mcss", "machine", "admin"};   // the launchers table's columns 6 to 9, the players table's 4 to 7
@@ -117,7 +117,7 @@ final class AccessTablesUi {
 		// Shutting out a launcher (this device only) or a player (every device), and letting them back.
 		java.util.function.BiConsumer<Boolean, String> shutOut = (players, kind) -> {
 			int row = (players ? ptable : table).getSelectedRow();
-			if (row < 0 || row >= (players ? pnames.size() : ids.size())) { JOptionPane.showMessageDialog(f, players
+			if (row < 0 || row >= (players ? pnames.size() : ids.size())) { dev.gatehouse.look.InWindow.showMessageDialog(f, players
 					? "Pick a player in the list first." : "Pick a launcher in the list first."); return; }
 			String who = players ? pnames.get(row) : ids.get(row);
 			String reason = "";
@@ -127,7 +127,7 @@ final class AccessTablesUi {
 						? "Blacklisted: the launcher still updates the game, but is told nothing about the machine, MCSS or the server, and can only ask to be let back."
 						: kind.equals("suspend") ? "Suspended: the launcher can't start the game or use any control until it's lifted, and can only ask for that."
 						: "Kicks them from the server now; they can come straight back.";
-				Object why = JOptionPane.showInputDialog(f, "<html><div style='width:400px'>" + what + (players
+				Object why = dev.gatehouse.look.InWindow.showInputDialog(f, "<html><div style='width:400px'>" + what + (players
 						? " this player (on every device)? " : " this launcher (this device only)? ") + explain
 						+ "<br><br>Reason (optional; they see it):</div></html>", what, JOptionPane.PLAIN_MESSAGE, null, null, "");
 				if (why == null) return;
@@ -182,7 +182,7 @@ final class AccessTablesUi {
 		}
 		mcssRun.addActionListener(e -> {
 			boolean up = mcssUp[0], force = mcssClose[0].equals("force");
-			if (up && JOptionPane.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead."
+			if (up && dev.gatehouse.look.InWindow.showConfirmDialog(f, force ? "Force close MCSS? Its X button only hides it, so it is ended instead."
 					: "Close MCSS?", "MCSS", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 			mcssRun.setEnabled(false);
 			new Thread(() -> {
@@ -204,14 +204,14 @@ final class AccessTablesUi {
 			form.add(new JLabel("<html><div style='width:380px'>Sign Gatekeeper in to MCSS with a panel account that can view, start and stop the server. MCSS hands back a key, which is kept on this PC; the password isn't kept.</div></html>"));
 			form.add(new JLabel("Username")); form.add(user);
 			form.add(new JLabel("Password")); form.add(pass);
-			if (JOptionPane.showConfirmDialog(f, form, "Sign in to MCSS", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f, form, "Sign in to MCSS", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			String body = Json.write(m("username", user.getText().trim(), "password", new String(pass.getPassword())));
 			new Thread(() -> {
 				String msg;
 				try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/signin",
 						body))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 				String m2 = msg;
-				SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "Sign in to MCSS", JOptionPane.PLAIN_MESSAGE));
+				SwingUtilities.invokeLater(() -> dev.gatehouse.look.InWindow.showMessageDialog(f, m2, "Sign in to MCSS", JOptionPane.PLAIN_MESSAGE));
 				refresh.run();
 			}, "signin").start();
 		});
@@ -226,10 +226,10 @@ final class AccessTablesUi {
 			JPanel form = new JPanel(new BorderLayout(0, 6));
 			form.add(new JLabel("<html><div style='width:420px'>An MCSS API key for Gatekeeper (make it in MCSS's web panel, under API Keys, with permission to view, start and stop the server). It's kept in host.json on this PC only. Leave empty to clear it.</div></html>"), BorderLayout.NORTH);
 			form.add(row, BorderLayout.CENTER);
-			if (JOptionPane.showConfirmDialog(f, form, "Set MCSS key", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f, form, "Set MCSS key", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			act.accept("/admin/settings", Json.write(m("mcss_api_key", new String(key.getPassword()).trim())));
 		});
-		forget.addActionListener(e -> { String id = chosen.get(); if (id != null && JOptionPane.showConfirmDialog(f,
+		forget.addActionListener(e -> { String id = chosen.get(); if (id != null && dev.gatehouse.look.InWindow.showConfirmDialog(f,
 				"Forget this launcher? It can ask again later.", "Forget",
 				JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) act.accept("/admin/forget", "{\"id\":\"" + id + "\"}"); });
 		refreshB.addActionListener(e -> refresh.run());

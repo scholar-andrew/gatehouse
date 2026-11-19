@@ -55,7 +55,7 @@ final class NotifyUi {
 		q.addActionListener(e -> go.run());
 		JPanel top = new JPanel(new BorderLayout(6, 0)); top.add(q, BorderLayout.CENTER); top.add(ask, BorderLayout.EAST);
 		JPanel p = new JPanel(new BorderLayout(0, 8)); p.add(top, BorderLayout.NORTH); p.add(new javax.swing.JScrollPane(answer), BorderLayout.CENTER);
-		javax.swing.JOptionPane.showMessageDialog(over, p, "Ask Gatekeeper AI", javax.swing.JOptionPane.PLAIN_MESSAGE);
+		dev.gatehouse.look.InWindow.showMessageDialog(over, p, "Ask Gatekeeper AI", javax.swing.JOptionPane.PLAIN_MESSAGE);
 	}
 
 	static void addTo(JPanel options, JFrame f, java.util.function.BiConsumer<String, Boolean> optLine) {
@@ -148,7 +148,7 @@ final class NotifyUi {
 			boolean battery = false;
 			try { battery = Boolean.TRUE.equals(Json.map(Json.map(Json.parse(call("GET", "/admin/ai", null))).get("builtin")).get("battery")); }
 			catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); }
-			int ok = JOptionPane.showConfirmDialog(options, "<html><body style='width:440px'>The built-in AI lets this Gatekeeper answer without Ollama. It downloads, once:"
+			int ok = dev.gatehouse.look.InWindow.showConfirmDialog(options, "<html><body style='width:440px'>The built-in AI lets this Gatekeeper answer without Ollama. It downloads, once:"
 					+ "<br>• 12.2 MB: the engine (llama.cpp for Java), from Maven Central"
 					+ "<br>• 1.12 GB: the model (Qwen2.5 1.5B Instruct, Apache 2.0 licence), from Qwen's page on Hugging Face"
 					+ "<br>Both are checked against checksums inside the signed program before they are kept. While it answers it uses about 1.5 GB of memory and the processor."
@@ -162,7 +162,7 @@ final class NotifyUi {
 				catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "builtin-ai-get").start();
 		});
 		removeBuiltin.addActionListener(e -> {
-			if (JOptionPane.showConfirmDialog(options, "Remove the built-in AI? Its files (about 1.15 GB) are deleted, and answers come from Ollama again. You can get it again later.",
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(options, "Remove the built-in AI? Its files (about 1.15 GB) are deleted, and answers come from Ollama again. You can get it again later.",
 					"Remove the built-in AI", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
 			new Thread(() -> { try { call("POST", "/admin/ai/builtin", Json.write(m("action", "remove"))); refreshAi(Json.map(Json.parse(call("GET", "/admin/ai", null)))); }
 				catch (java.io.IOException | RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); } }, "builtin-ai-remove").start();
@@ -242,7 +242,7 @@ final class NotifyUi {
 		ntUrl.addActionListener(ntSave);
 		ntUrl.addFocusListener(new java.awt.event.FocusAdapter() { @Override public void focusLost(java.awt.event.FocusEvent e) { ntSave.actionPerformed(null); } });
 		ntNew.addActionListener(ev -> {
-			if (JOptionPane.showConfirmDialog(f,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f,
 					"Make a new topic? Your phone stops getting notifications until you add the new topic in the ntfy app.", "New topic",
 					JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 			new Thread(() -> { try { call("POST", "/admin/notify/topic",

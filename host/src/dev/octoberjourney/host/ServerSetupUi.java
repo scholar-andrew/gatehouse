@@ -78,7 +78,7 @@ final class ServerSetupUi {
 						: System.getProperty("user.home", "/"));
 				if (builtin()) fc.setFileSelectionMode(javax.swing.JFileChooser.DIRECTORIES_ONLY);
 				else if (WIN) fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("MCSS (mcss.exe)", "exe"));
-				if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { exeF.setText(fc.getSelectedFile().getAbsolutePath()); scan.run(); }
+				if (dev.gatehouse.look.InWindow.showOpenDialog(fc, f) == javax.swing.JFileChooser.APPROVE_OPTION) { exeF.setText(fc.getSelectedFile().getAbsolutePath()); scan.run(); }
 			});
 			again.addActionListener(ev -> scan.run());
 			JPanel form = new JPanel();
@@ -103,7 +103,7 @@ final class ServerSetupUi {
 				t.dispose();
 				return;
 			}
-			if (JOptionPane.showConfirmDialog(f, form, "Server setup", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f, form, "Server setup", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			List<Object> picked = new ArrayList<>();
 			for (Object[] row : rows) if (((javax.swing.JCheckBox) row[0]).isSelected()) picked.add(row[1]);
 			String msg;
@@ -112,7 +112,7 @@ final class ServerSetupUi {
 						exeF.getText().trim(), "bind", Json.str(addrF.getEditor().getItem()).trim(), "servers", picked)))));
 				msg = Json.str(r.get("message"));
 			} catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
-			JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + msg + "</div></html>", "Server setup", JOptionPane.PLAIN_MESSAGE);
+			dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:380px'>" + msg + "</div></html>", "Server setup", JOptionPane.PLAIN_MESSAGE);
 		};
 		return setup;
 	}

@@ -862,7 +862,7 @@ final class Home {
 			appsList.setToolTipText("Windows Settings, Apps: where a pack that was installed with its setup program is listed");
 			appsList.setVisible(planNow[0].equals("tell") && System.getProperty("os.name", "").startsWith("Windows"));
 			appsList.addActionListener(ev -> { try { new ProcessBuilder("cmd.exe", "/c", "start", "",
-					"ms-settings:appsfeatures").start(); } catch (IOException ex) { JOptionPane.showMessageDialog(f,
+					"ms-settings:appsfeatures").start(); } catch (IOException ex) { dev.gatehouse.look.InWindow.showMessageDialog(f,
 					"<html><div style='width:380px'>Windows' list of installed apps couldn't be opened from here. It is in Settings, Apps, Installed apps.</div></html>", "Installed apps", JOptionPane.PLAIN_MESSAGE); } });
 			uninstallRow.add(appsList);
 			options.add(forget); options.add(uninstallRow);
@@ -875,9 +875,9 @@ final class Home {
 						: "This opens the uninstaller of the pack " + LaunchPopup.TOOL + " came with. ")
 						+ "Type <b>confirm</b> to go ahead.</div></html>"), BorderLayout.NORTH);
 				ask.add(typed, BorderLayout.CENTER);
-				if (JOptionPane.showConfirmDialog(f, ask, "Uninstall " + LaunchPopup.TOOL, JOptionPane.OK_CANCEL_OPTION,
+				if (dev.gatehouse.look.InWindow.showConfirmDialog(f, ask, "Uninstall " + LaunchPopup.TOOL, JOptionPane.OK_CANCEL_OPTION,
 						JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
-				if (!typed.getText().trim().equalsIgnoreCase("confirm")) { JOptionPane.showMessageDialog(f,
+				if (!typed.getText().trim().equalsIgnoreCase("confirm")) { dev.gatehouse.look.InWindow.showMessageDialog(f,
 						"Nothing was removed: the word typed wasn't \"confirm\".", "Uninstall " + LaunchPopup.TOOL, JOptionPane.PLAIN_MESSAGE); return; }
 				uninstall.setEnabled(false);
 				new Thread(() -> {
@@ -898,7 +898,7 @@ final class Home {
 					} catch (IOException | InterruptedException | RuntimeException e) { said = "Couldn't run the uninstaller: " + e.getMessage(); }
 					String msg = said; boolean done = gone;
 					SwingUtilities.invokeLater(() -> {
-						JOptionPane.showMessageDialog(f, "<html><div style='width:460px'>" + LaunchPopup.esc(msg).replace("\n", "<br>")
+						dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:460px'>" + LaunchPopup.esc(msg).replace("\n", "<br>")
 								+ (done ? "<br><br>" + LaunchPopup.TOOL + " closes now." : "") + "</div></html>", "Uninstall " + LaunchPopup.TOOL, JOptionPane.PLAIN_MESSAGE);
 						if (!done) { uninstall.setEnabled(true); return; }
 						// (on Windows this ran from a copy that is still in use: taken away a moment after closing)
@@ -984,12 +984,12 @@ final class Home {
 					if (pack != null) removeB.addActionListener(ev -> {
 						Path mcDir = Path.of(pack[3]).toAbsolutePath().normalize(), inst = mcDir.getParent();
 						if (inst == null || inst.getParent() == null
-								|| !inst.getParent().equals(instances.toAbsolutePath().normalize())) { JOptionPane.showMessageDialog(f,
+								|| !inst.getParent().equals(instances.toAbsolutePath().normalize())) { dev.gatehouse.look.InWindow.showMessageDialog(f,
 								"This server's folder isn't where Gatehouse expects it, so it isn't removed from here. Remove it in Prism Launcher (right-click, Delete)."); return; }
 						boolean prismOpen = ProcessHandle.allProcesses().anyMatch(ph -> ph.info().command().map(cm -> cm.toLowerCase(java.util.Locale.ROOT).matches(".*prism[^/\\\\]*launcher[^/\\\\]*$|.*/prismlauncher$")).orElse(false));
-						if (prismOpen) { JOptionPane.showMessageDialog(f,
+						if (prismOpen) { dev.gatehouse.look.InWindow.showMessageDialog(f,
 								"<html><div style='width:380px'>Prism Launcher is open. Close it first (and the game, if it is running), then press Remove again.</div></html>", "Remove", JOptionPane.PLAIN_MESSAGE); return; }
-						int ok = JOptionPane.showConfirmDialog(f, "<html><div style='width:430px'>Remove <b>" + LaunchPopup.esc(pack[1])
+						int ok = dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:430px'>Remove <b>" + LaunchPopup.esc(pack[1])
 								+ "</b> from this device?<br><br>This deletes its Prism Launcher instance:<br>" + LaunchPopup.esc(inst.toString())
 								+ "<br><br>Gone with it: its mods, its own settings, its screenshots, and any single-player worlds saved in it. The server and its world aren't touched, and Install sets it up again. A Steam shortcut for it, if it has one, stays: remove that in Steam.</div></html>",
 								"Remove " + pack[1], JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE);
@@ -997,7 +997,7 @@ final class Home {
 						try (java.util.stream.Stream<Path> walk = Files.walk(inst)) {
 							for (Path x : (Iterable<Path>) walk.sorted(java.util.Comparator.reverseOrder())::iterator) Files.delete(x);
 						} catch (IOException | RuntimeException ex) {
-							JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>It wasn't all removed: "
+							dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:380px'>It wasn't all removed: "
 									+ LaunchPopup.esc(ex.getMessage() == null ? ex.toString() : ex.getMessage())
 									+ ". Close anything using it and press Remove again, or remove it in Prism Launcher.</div></html>", "Remove", JOptionPane.PLAIN_MESSAGE);
 						}
@@ -1232,7 +1232,7 @@ final class Home {
 											Map<String, Object> g = got;
 											SwingUtilities.invokeLater(() -> {
 												vb.setEnabled(true);
-												if (g == null || !"ok".equals(str(g.get("result")))) { JOptionPane.showMessageDialog(f,
+												if (g == null || !"ok".equals(str(g.get("result")))) { dev.gatehouse.look.InWindow.showMessageDialog(f,
 														"<html><div style='width:380px'>" + LaunchPopup.esc(g == null
 														? "The Gatekeeper isn't answering." : str(g.get("message")).isEmpty()
 														? "The Gatekeeper didn't make an invite." : str(g.get("message"))) + "</div></html>", "Invite", JOptionPane.PLAIN_MESSAGE); return; }
@@ -1246,7 +1246,7 @@ final class Home {
 														+ LaunchPopup.esc(str(g.get("until"))) + ".<br><br>" + LaunchPopup.esc(str(g.get("message"))) + "</div></html>"), BorderLayout.NORTH);
 												JPanel ln = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); ln.add(link); ln.add(copy);
 												box.add(ln, BorderLayout.CENTER);
-												JOptionPane.showMessageDialog(f, box, "Invite", JOptionPane.PLAIN_MESSAGE);
+												dev.gatehouse.look.InWindow.showMessageDialog(f, box, "Invite", JOptionPane.PLAIN_MESSAGE);
 											});
 										}, "invite").start();
 									});
@@ -1302,7 +1302,7 @@ final class Home {
 									ib.setToolTipText("Makes a plain Minecraft " + version + " instance in Prism Launcher that joins this server");
 									String plainName = str(s.get("name")).isEmpty() ? id : str(s.get("name")), addr = str(s.get("address"));
 									ib.addActionListener(ev -> {
-										int ok = JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Set up <b>"
+										int ok = dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:420px'>Set up <b>"
 												+ LaunchPopup.esc(plainName) + "</b> on this device?<br><br>It makes a plain Minecraft " + LaunchPopup.esc(version)
 												+ " instance in Prism Launcher with this server (" + LaunchPopup.esc(addr)
 														+ ") in its server list. No mods. Prism downloads the game the first time you press Play. "
@@ -1323,7 +1323,7 @@ final class Home {
 											String[] w = what; String pr = problem;
 											SwingUtilities.invokeLater(() -> {
 												if (w == null) { ib.setEnabled(true); sub.setText("Couldn't read the pack's profile: " + pr); return; }
-												int ok = JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Install <b>"
+												int ok = dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:420px'>Install <b>"
 														+ LaunchPopup.esc(w[1])
 														+ "</b> on this device?<br><br>It makes a Prism Launcher instance (\"" + LaunchPopup.esc(w[0]) + "\") and downloads its setup files from<br>"
 														+ LaunchPopup.esc(w[2])
@@ -1382,7 +1382,7 @@ final class Home {
 									if (again2[0] != null) again2[0].run();
 								}, "connection-act").start();
 							});
-							java.util.function.BiPredicate<String, String> sure = (title, text) -> JOptionPane.showConfirmDialog(f,
+							java.util.function.BiPredicate<String, String> sure = (title, text) -> dev.gatehouse.look.InWindow.showConfirmDialog(f,
 									"<html><div style='width:380px'>" + text + "</div></html>", title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
 							// the machine
 							JButton wakeB = new JButton("Wake"), sleepB = new JButton("Sleep");
@@ -1573,7 +1573,7 @@ final class Home {
 								+ "Gatehouse forgets it and this device's link to it. " + (usedHere
 										? "Its packs stay installed and move to <b>Other packs</b>; each still updates and starts as before. " : "")
 								+ "On the owner's side nothing changes: this device stays in their Access Manager until they remove it there. You can add it again later with the same address, link or file.</div></html>";
-						if (JOptionPane.showConfirmDialog(f, ask, "Remove Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+						if (dev.gatehouse.look.InWindow.showConfirmDialog(f, ask, "Remove Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 						forgetKeeper(home, keepers, k);
 						if (usedHere) { cameBack = f.getBounds(); again[0] = "\u0000restart"; f.dispose(); }   // (the list of packs has changed: the window again, in the same place)
 						else showKeepers[0].run();
@@ -1652,23 +1652,23 @@ final class Home {
 				file.addActionListener(e2 -> {
 					javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 					fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Gatekeeper pairing file (.gatekeeper)", "gatekeeper", "json"));
-					if (fc.showOpenDialog(f) == javax.swing.JFileChooser.APPROVE_OPTION) { String[] got = parsePairing(LaunchPopup.readFile(fc.getSelectedFile().toPath())); field.setText(got == null ? "" : "gatehouse://pair/" + shown(got[0]) + "?name=" + java.net.URLEncoder.encode(got[1], StandardCharsets.UTF_8) + (got[2].isEmpty() ? "" : "&ts=" + java.net.URLEncoder.encode(got[2], StandardCharsets.UTF_8))); }
+					if (dev.gatehouse.look.InWindow.showOpenDialog(fc, f) == javax.swing.JFileChooser.APPROVE_OPTION) { String[] got = parsePairing(LaunchPopup.readFile(fc.getSelectedFile().toPath())); field.setText(got == null ? "" : "gatehouse://pair/" + shown(got[0]) + "?name=" + java.net.URLEncoder.encode(got[1], StandardCharsets.UTF_8) + (got[2].isEmpty() ? "" : "&ts=" + java.net.URLEncoder.encode(got[2], StandardCharsets.UTF_8))); }
 				});
 				JPanel form = new JPanel(new BorderLayout(0, 8));
 				form.add(new JLabel("<html><div style='width:420px'>Paste the address or pairing link the Gatekeeper's owner gave you (in Gatekeeper: Status, Share pairing), an invite to a server someone sent you, or open the pairing file they sent. If this device can't reach it yet, the next window walks through getting connected.</div></html>"), BorderLayout.NORTH);
 				JPanel line = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEFT, 6, 0)); line.add(field); line.add(file);
 				form.add(line, BorderLayout.CENTER);
-				if (JOptionPane.showConfirmDialog(f, form, "Add Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+				if (dev.gatehouse.look.InWindow.showConfirmDialog(f, form, "Add Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 				String code = inviteCode(field.getText());
 				String[] parsed = parsePairing(field.getText());
 				// (a code by itself: for the one Gatekeeper this launcher knows, if it knows just one)
 				if (!code.isEmpty() && !field.getText().trim().toLowerCase(java.util.Locale.ROOT).startsWith("gatehouse://")) parsed = keepers.size() == 1 ? new String[] {keepers.get(0)[0], keepers.get(0)[1], ""} : null;
 				String[] got = parsed;
-				if (got == null) { JOptionPane.showMessageDialog(f, !code.isEmpty()
+				if (got == null) { dev.gatehouse.look.InWindow.showMessageDialog(f, !code.isEmpty()
 						? "<html><div style='width:380px'>That is an invite's code by itself. Paste the whole invite (it starts with gatehouse://invite/), so the launcher knows which Gatekeeper it is for.</div></html>" : "That doesn't look like a Gatekeeper's address, pairing link, invite or pairing file.", "Add Gatekeeper", JOptionPane.PLAIN_MESSAGE); return; }
 				java.util.function.Consumer<String> handIn = url -> new Thread(() -> {
 					String told = useInvite(client(home, url, packs), code);
-					SwingUtilities.invokeLater(() -> { JOptionPane.showMessageDialog(f, "<html><div style='width:400px'>"
+					SwingUtilities.invokeLater(() -> { dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:400px'>"
 							+ LaunchPopup.esc(told) + "</div></html>", "Invite", JOptionPane.PLAIN_MESSAGE); showServers.accept(url); });
 				}, "invite").start();
 				for (String[] k : keepers) if (k[0].equals(got[0])) { if (code.isEmpty()) showServers.accept(k[0]); else handIn.accept(k[0]); return; }
@@ -1737,7 +1737,7 @@ final class Home {
 				return steps;
 			}, id -> {
 				if (id.startsWith("open:")) dev.gatehouse.look.Links.openChecked(f, id.substring(5));
-				else if (id.equals("prism")) { try { new ProcessBuilder(prismFor).start(); } catch (IOException ex) { JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>Prism Launcher couldn't be started from here (" + LaunchPopup.esc(String.valueOf(ex.getMessage())) + "). Open it yourself, from the Start menu or your applications.</div></html>", "Prism Launcher", JOptionPane.PLAIN_MESSAGE); } }
+				else if (id.equals("prism")) { try { new ProcessBuilder(prismFor).start(); } catch (IOException ex) { dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:380px'>Prism Launcher couldn't be started from here (" + LaunchPopup.esc(String.valueOf(ex.getMessage())) + "). Open it yourself, from the Start menu or your applications.</div></html>", "Prism Launcher", JOptionPane.PLAIN_MESSAGE); } }
 				else if (id.equals("add")) addB.doClick();
 				else if (id.equals("keepers")) leaveGuide.run();
 				else if (id.equals("connect")) {

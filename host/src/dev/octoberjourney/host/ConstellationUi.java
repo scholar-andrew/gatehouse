@@ -52,7 +52,7 @@ final class ConstellationUi {
 				lp.add(ServerToolsUi.note(ServerToolsUi.wrap(lm.getRowCount() == 0
 						? "No updates recorded yet. A line is added each time a client of this constellation, or this Gatekeeper, goes from one version to another." : "Newest first: " + lm.getRowCount() + " of " + ServerToolsUi.num(r.get("total")) + " recorded. Kept in updates.json in Gatekeeper's folder; through the web panel only an account given \"See the constellation and its update log\" can read it.", 1000)), BorderLayout.NORTH);
 				lp.add(ls, BorderLayout.CENTER);
-				javax.swing.JOptionPane.showMessageDialog(p, lp, "Update log", javax.swing.JOptionPane.PLAIN_MESSAGE);
+				dev.gatehouse.look.InWindow.showMessageDialog(p, lp, "Update log", javax.swing.JOptionPane.PLAIN_MESSAGE);
 			});
 		});
 	}

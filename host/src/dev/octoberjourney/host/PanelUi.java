@@ -94,7 +94,7 @@ final class PanelUi {
 			List<JCheckBox> boxes = new ArrayList<>();
 			for (Object[] pm : perms) { JCheckBox b = new JCheckBox(Json.str(pm[1]), !fresh
 					&& Json.list(have.get("perms")).contains(pm[0])); boxes.add(b); form.add(line(b)); }
-			if (JOptionPane.showConfirmDialog(f, form, fresh ? "New account" : "Change " + Json.str(have.get("name")),
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f, form, fresh ? "New account" : "Change " + Json.str(have.get("name")),
 					JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			String a = new String(p1.getPassword()), b2 = new String(p2.getPassword());
 			if (!a.equals(b2)) { said.setForeground(ServerToolsUi.RED); said.setText("The two passwords weren't the same: nothing was saved."); return; }
@@ -107,7 +107,7 @@ final class PanelUi {
 		changeU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i >= 0
 				&& i < users.size()) edit.accept(users.get(i)); else { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); } });
 		delU.addActionListener(e -> { int i = ut.getSelectedRow(); if (i < 0
-				|| i >= users.size()) { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); return; } String n = Json.str(users.get(i).get("name")); if (JOptionPane.showConfirmDialog(f, "Remove the account " + n + "? It is signed out everywhere.", "Remove account", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) post.accept("/admin/panel/user", m("name", n, "remove", true)); });
+				|| i >= users.size()) { said.setForeground(ServerToolsUi.GREY); said.setText("Click an account first."); return; } String n = Json.str(users.get(i).get("name")); if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "Remove the account " + n + "? It is signed out everywhere.", "Remove account", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) post.accept("/admin/panel/user", m("name", n, "remove", true)); });
 
 		JButton addW = new JButton("Add a device…"), delW = dev.gatehouse.look.SteamLook.danger(new JButton("Remove")), wakeW = new JButton("Wake it now");
 		addW.addActionListener(e -> {
@@ -115,7 +115,7 @@ final class PanelUi {
 			JPanel form = new JPanel(); form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
 			form.add(line(new JLabel("Name"), nameF)); form.add(line(new JLabel("MAC address"), macF));
 			form.add(note("The MAC address of that device's network adapter, like 1C:2D:3E:4F:5A:6B. On Windows: Settings, Network & internet, the adapter's properties, Physical address (MAC). The device has to be on the same home network as this machine and set to wake on a network signal (its adapter's Power Management in Device Manager, and often a setting in its BIOS)."));
-			if (JOptionPane.showConfirmDialog(f, form, "A device to wake", JOptionPane.OK_CANCEL_OPTION,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f, form, "A device to wake", JOptionPane.OK_CANCEL_OPTION,
 					JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION) post.accept("/admin/wake", m("add", m("name", nameF.getText().trim(), "mac", macF.getText().trim())));
 		});
 		delW.addActionListener(e -> { int i = wt.getSelectedRow(); if (i >= 0) post.accept("/admin/wake", m("remove", Json.str(wm.getValueAt(i, 0)))); });

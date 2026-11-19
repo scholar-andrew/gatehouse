@@ -92,7 +92,7 @@ final class PicturesUi {
 			javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 			fc.setDialogTitle("Choose a picture");
 			fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Pictures (PNG, JPEG, GIF, BMP)", "png", "jpg", "jpeg", "gif", "bmp"));
-			if (fc.showOpenDialog(f) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showOpenDialog(fc, f) != javax.swing.JFileChooser.APPROVE_OPTION) return;
 			try {
 				if (Files.size(fc.getSelectedFile().toPath()) > Icons.MAX) { picSaid.setText("That file is too big for a picture."); return; }
 				picSend.accept(Files.readAllBytes(fc.getSelectedFile().toPath()));

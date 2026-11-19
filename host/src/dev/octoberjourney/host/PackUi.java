@@ -59,7 +59,7 @@ final class PackUi {
 
 	/** A server's pack in a window of its own: for any server, also one MC Server Soft runs (which has no Manage window). */
 	static void pack(javax.swing.JFrame f, String id, String name) {
-		javax.swing.JDialog d = new javax.swing.JDialog(f, name + ": pack", false);
+		dev.gatehouse.look.InWindow.Sheet d = new dev.gatehouse.look.InWindow.Sheet(f, name + ": pack", false);   // (R97: inside the window)
 		d.setContentPane(HostHelper.scrolled(tab(d, "?server=" + id)));
 		d.pack(); d.setLocationRelativeTo(f); d.setVisible(true);
 	}
@@ -188,7 +188,7 @@ final class PackUi {
 		});
 		make.addActionListener(e -> post.accept("/admin/pack/start", m()));
 		whoBox.addActionListener(e -> { if (!filling[0]) post.accept("/admin/pack/visibility", m("mode", modes[Math.max(0, whoBox.getSelectedIndex())][0])); });
-		takeBackB.addActionListener(e -> { if (javax.swing.JOptionPane.showConfirmDialog(p,
+		takeBackB.addActionListener(e -> { if (dev.gatehouse.look.InWindow.showConfirmDialog(p,
 				ServerToolsUi.wrap("Take back every invite to this server? Launchers that only came in by invite are no longer given it or its pack. What they already installed stays on their device.", 420), "Take back invites", javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) post.accept("/admin/pack/invites/takeback", m()); });
 		inviteB.addActionListener(e -> ServerToolsUi.later(() -> {
 			Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/pack/invite" + q, m());
@@ -202,7 +202,7 @@ final class PackUi {
 				box.add(new JLabel(ServerToolsUi.wrap("An invite to " + Json.str(r.get("server")) + ", good until "
 						+ Json.str(r.get("until")) + ". " + Json.str(r.get("message")), 480)), BorderLayout.NORTH);
 				box.add(line(link, copy), BorderLayout.CENTER);
-				javax.swing.JOptionPane.showMessageDialog(p, box, "Invite", javax.swing.JOptionPane.PLAIN_MESSAGE);
+				dev.gatehouse.look.InWindow.showMessageDialog(p, box, "Invite", javax.swing.JOptionPane.PLAIN_MESSAGE);
 				load.run();
 			});
 		}));
@@ -213,7 +213,7 @@ final class PackUi {
 			JPanel ask = new JPanel(new BorderLayout(0, 6));
 			ask.add(new JLabel(ServerToolsUi.wrap("What changed, a line for each thing. Players read this before they update.", 420)), BorderLayout.NORTH);
 			ask.add(new JScrollPane(notes), BorderLayout.CENTER);
-			if (javax.swing.JOptionPane.showConfirmDialog(p, ask, "New version of the pack", javax.swing.JOptionPane.OK_CANCEL_OPTION,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(p, ask, "New version of the pack", javax.swing.JOptionPane.OK_CANCEL_OPTION,
 					javax.swing.JOptionPane.PLAIN_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
 			nextNotes[0] = "";
 			post.accept("/admin/pack/release", m("notes", notes.getText()));
@@ -224,8 +224,8 @@ final class PackUi {
 			javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 			fc.setDialogTitle("The folder the pack is defined in");
 			fc.setFileSelectionMode(javax.swing.JFileChooser.DIRECTORIES_ONLY);
-			if (fc.showOpenDialog(p) != javax.swing.JFileChooser.APPROVE_OPTION) return;
-			if (ServerTools.yes(now[0].get("defined")) && javax.swing.JOptionPane.showConfirmDialog(p,
+			if (dev.gatehouse.look.InWindow.showOpenDialog(fc, p) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+			if (ServerTools.yes(now[0].get("defined")) && dev.gatehouse.look.InWindow.showConfirmDialog(p,
 					ServerToolsUi.wrap("This server already has a pack. Bringing one in replaces it (the one it has now is kept beside it until the next time), and players get the new one the next time they press Play. Go on?", 420),
 					"Bring in a pack", javax.swing.JOptionPane.OK_CANCEL_OPTION) != javax.swing.JOptionPane.OK_OPTION) return;
 			post.accept("/admin/pack/import", m("folder", fc.getSelectedFile().getAbsolutePath()));
@@ -242,7 +242,7 @@ final class PackUi {
 			javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 			fc.setDialogTitle("Choose a picture");
 			fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Pictures (PNG, JPEG, GIF, BMP)", "png", "jpg", "jpeg", "gif", "bmp"));
-			if (fc.showOpenDialog(p) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showOpenDialog(fc, p) != javax.swing.JFileChooser.APPROVE_OPTION) return;
 			try {
 				if (Files.size(fc.getSelectedFile().toPath()) > Packs.MAX_ART) { said.setForeground(ServerToolsUi.RED); said.setText("That file is too big for a picture."); return; }
 				sendArt.accept(Files.readAllBytes(fc.getSelectedFile().toPath()));
@@ -271,7 +271,7 @@ final class PackUi {
 		row(picF, y++, "", preview);
 		row(picF, y++, "", artSaid);
 		javax.swing.JTabbedPane sub = new javax.swing.JTabbedPane();
-		for (Object[] t : new Object[][] {{"Pack", packF}, {"Mods", modsF}, {"Who it's for", whoF}, {"Pictures", picF}}) {
+		for (Object[] t : new Object[][] {{"Pack", packF}, {"Mods", modsF}, {"Who it's for", whoF}, {"Pictures", picF}, {"Find a modpack", finder(q)}}) {
 			JPanel holder = new JPanel(new BorderLayout()); holder.setBorder(BorderFactory.createEmptyBorder(6, 2, 4, 2));
 			holder.add((JPanel) t[1], BorderLayout.NORTH);
 			sub.addTab((String) t[0], holder);
@@ -283,6 +283,61 @@ final class PackUi {
 		show.accept(ServerToolsUi.ask("GET", "/admin/pack" + q, null));
 		opening[0] = false;
 		return p;
+	}
+
+	/** R83: the modpack helper, in its own sub-tab: say what you want, and this Gatekeeper's AI picks from Modrinth's
+	 *  Fabric modpacks with why, pros and cons. Offered only where an AI is set up and on (it says what to switch on). */
+	static JPanel finder(String q) {
+		JPanel f = new JPanel(new BorderLayout(0, 8));
+		javax.swing.JTextArea wish = new javax.swing.JTextArea(3, 46); wish.setLineWrap(true); wish.setWrapStyleWord(true);
+		wish.setToolTipText("In your own words: what kind of play, which mods or themes, how heavy it may be, a Minecraft version if you have one in mind");
+		JButton askB = new JButton("Ask the AI");
+		JLabel said = ServerToolsUi.note(ServerToolsUi.wrap("Say what you want from a modpack (\"tech and magic, light enough for a Steam Deck, 1.21\"). This Gatekeeper's AI turns it into searches on Modrinth, "
+				+ "then picks the Fabric modpacks that fit best, with why, pros and cons. It only reads Modrinth's facts about each pack, and installs nothing. Sent to Modrinth: the search words. Sent to the AI: your words and those facts.", 560));
+		JPanel results = new JPanel(); results.setLayout(new javax.swing.BoxLayout(results, javax.swing.BoxLayout.Y_AXIS));
+		JPanel top = new JPanel(new BorderLayout(0, 6)); top.add(said, BorderLayout.NORTH);
+		JPanel ask = new JPanel(new BorderLayout(8, 0)); ask.add(new javax.swing.JScrollPane(wish), BorderLayout.CENTER);
+		JPanel bw = new JPanel(new BorderLayout()); bw.add(askB, BorderLayout.NORTH); ask.add(bw, BorderLayout.EAST);
+		top.add(ask, BorderLayout.CENTER);
+		JLabel status = new JLabel(" "); top.add(status, BorderLayout.SOUTH);
+		f.add(top, BorderLayout.NORTH);
+		f.add(results, BorderLayout.CENTER);
+		askB.addActionListener(e -> {
+			String w = wish.getText().strip();
+			if (w.isEmpty()) { wish.requestFocusInWindow(); return; }
+			askB.setEnabled(false); status.setText("Asking the AI and Modrinth… (a minute or two with a small AI)");
+			results.removeAll(); results.revalidate(); results.repaint();
+			ServerToolsUi.later(() -> {
+				Map<String, Object> r = ServerToolsUi.ask("POST", "/admin/pack/finder" + q, m("wish", w));
+				javax.swing.SwingUtilities.invokeLater(() -> {
+					askB.setEnabled(true);
+					if (!"ok".equals(Json.str(r.get("result")))) { status.setText(ServerToolsUi.wrap(Json.str(r.get("message")), 560)); return; }
+					status.setText(ServerToolsUi.wrap("Searched Modrinth for: " + String.join(", ", Json.list(r.get("searched")).stream().map(Json::str).toList()), 560));
+					String advice = Json.str(r.get("advice"));
+					if (!advice.isEmpty()) { JLabel a = new JLabel("<html><div style='width:560px'><b>The AI's advice:</b> " + esc(advice) + "</div></html>"); a.setAlignmentX(0); a.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0)); results.add(a); }
+					for (Object o : Json.list(r.get("picks"))) {
+						Map<String, Object> p = Json.map(o);
+						long dl = 0; try { dl = (long) Double.parseDouble(Json.str(p.get("downloads"))); } catch (RuntimeException ignored) { dev.gatehouse.look.Quiet.seen(ignored); }
+						StringBuilder h = new StringBuilder("<html><div style='width:470px'><b>").append(esc(Json.str(p.get("title")))).append("</b> <span style='color:#A9B5C1'>· ")
+								.append(dl >= 1_000_000 ? dl / 1_000_000 + "M" : dl >= 1000 ? dl / 1000 + "k" : String.valueOf(dl)).append(" downloads · Minecraft ").append(esc(Json.str(p.get("versions"))))
+								.append(" · changed ").append(esc(Json.str(p.get("updated")))).append("</span><br>").append(esc(Json.str(p.get("summary"))));
+						if (!Json.str(p.get("why")).isEmpty()) h.append("<br><b>Why:</b> ").append(esc(Json.str(p.get("why"))));
+						if (!Json.str(p.get("pros")).isEmpty()) h.append("<br><b>Pros:</b> ").append(esc(Json.str(p.get("pros"))));
+						if (!Json.str(p.get("cons")).isEmpty()) h.append("<br><b>Cons:</b> ").append(esc(Json.str(p.get("cons"))));
+						JPanel row = new JPanel(new BorderLayout(10, 0)); row.setAlignmentX(0);
+						row.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, dev.gatehouse.look.SteamLook.ACCENT), BorderFactory.createEmptyBorder(4, 10, 8, 4)));
+						row.add(new JLabel(h.append("</div></html>").toString()), BorderLayout.CENTER);
+						String slug = Json.str(p.get("slug"));
+						JButton openB = new JButton("Open on Modrinth");
+						openB.addActionListener(ev -> { try { dev.gatehouse.look.LinkPreview.browse("https://modrinth.com/modpack/" + java.net.URLEncoder.encode(slug, java.nio.charset.StandardCharsets.UTF_8)); } catch (Exception ex) { status.setText("Couldn't open it: " + ex.getMessage()); } });
+						JPanel bp = new JPanel(new BorderLayout()); bp.add(openB, BorderLayout.NORTH); row.add(bp, BorderLayout.EAST);
+						results.add(row);
+					}
+					results.revalidate(); results.repaint();
+				});
+			});
+		});
+		return f;
 	}
 
 	/** The list of the server's mods with a switch for each. saved: told what changed (a start for the next version's notes). */
@@ -336,7 +391,7 @@ final class PackUi {
 		p.setPreferredSize(new java.awt.Dimension(640, 460));
 		words.setToolTipText("Words to look for, like 'map' or 'storage'. Empty: the most downloaded mods that fit this server");
 		doSearch.run();   // (R78: something to choose from straight away)
-		javax.swing.JOptionPane.showMessageDialog(over, p, "Find mods on Modrinth", javax.swing.JOptionPane.PLAIN_MESSAGE);
+		dev.gatehouse.look.InWindow.showMessageDialog(over, p, "Find mods on Modrinth", javax.swing.JOptionPane.PLAIN_MESSAGE);
 	}
 
 	static void mods(java.awt.Component over, String q, java.util.function.Consumer<String> saved) {
@@ -397,7 +452,7 @@ final class PackUi {
 		load.accept(false);
 		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/pack/mods" + q,
 				null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) { Quiet.seen(ignored); } t.dispose(); return; }
-		javax.swing.JOptionPane.showMessageDialog(over, lp, "Mods players get", javax.swing.JOptionPane.PLAIN_MESSAGE);
+		dev.gatehouse.look.InWindow.showMessageDialog(over, lp, "Mods players get", javax.swing.JOptionPane.PLAIN_MESSAGE);
 	}
 	private static final Map<DefaultTableModel, java.util.List<String>> rowHand = new java.util.WeakHashMap<>();
 	static String shotTo;   // (testing: a picture of the list instead of the dialog)
@@ -418,7 +473,7 @@ final class PackUi {
 		if (shotTo != null) { show.accept(ServerToolsUi.ask("GET", "/admin/systems",
 				null)); javax.swing.JFrame t = new javax.swing.JFrame(); t.setContentPane(lp); t.pack(); try { java.awt.image.BufferedImage img = new java.awt.image.BufferedImage(lp.getWidth(), lp.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB); java.awt.Graphics2D g = img.createGraphics(); lp.paint(g); g.dispose(); javax.imageio.ImageIO.write(img, "png", new java.io.File(shotTo)); } catch (IOException ignored) { Quiet.seen(ignored); } t.dispose(); return; }
 		((Runnable) parts[2]).run();
-		javax.swing.JOptionPane.showMessageDialog(over, lp, "Systems", javax.swing.JOptionPane.PLAIN_MESSAGE);
+		dev.gatehouse.look.InWindow.showMessageDialog(over, lp, "Systems", javax.swing.JOptionPane.PLAIN_MESSAGE);
 	}
 	/** The Systems panel: {the panel, what fills it from an answer, what asks again}. */
 	private static Object[] systemsParts() {
@@ -540,7 +595,7 @@ final class PackUi {
 										: "A Gatekeeper that joins this one is handed all of it, and adds its own.");
 				lp.add(ServerToolsUi.note(ServerToolsUi.wrap(head, 960)), BorderLayout.NORTH);
 				lp.add(ls, BorderLayout.CENTER);
-				javax.swing.JOptionPane.showMessageDialog(over, lp, "History of servers", javax.swing.JOptionPane.PLAIN_MESSAGE);
+				dev.gatehouse.look.InWindow.showMessageDialog(over, lp, "History of servers", javax.swing.JOptionPane.PLAIN_MESSAGE);
 			});
 		});
 	}

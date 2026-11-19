@@ -347,9 +347,64 @@ public final class ChatView extends JPanel {
 		if (m.fileId() == null || m.fileId().isEmpty()) {
 			JTextArea t = new JTextArea(m.text()); t.setEditable(false); t.setLineWrap(true); t.setWrapStyleWord(true); t.setOpaque(false);
 			t.setForeground(GameShell.TEXT); t.setBorder(null); t.setFocusable(true);
-			p.add(t, BorderLayout.CENTER);
+			String link = LinkPreview.firstLink(m.text());
+			if (link == null) p.add(t, BorderLayout.CENTER);
+			else { JPanel body = new JPanel(new BorderLayout(0, 4)); body.setOpaque(false); body.add(t, BorderLayout.CENTER); body.add(linkRow(r, m, link), BorderLayout.SOUTH); p.add(body, BorderLayout.CENTER); }
 		} else p.add(attachment(r, m), BorderLayout.CENTER);
 		return p;
+	}
+
+	// ---------------------------------------------------------------- R85: links in a message
+	private final Map<String, String> linked = new java.util.concurrent.ConcurrentHashMap<>();   // (a media link's stand-in file id -> its link)
+	/** A message's first link: Open (Watch on YouTube or Vimeo for theirs), Show preview (fetched only when pressed),
+	 *  and Play for a link straight to a video or sound file. */
+	private JComponent linkRow(Room r, Msg m, String link) {
+		JPanel box = new JPanel(new BorderLayout(0, 6)); box.setOpaque(false);
+		JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0)); row.setOpaque(false);
+		String site = LinkPreview.videoSite(link);
+		JButton open = new JButton(site != null ? "Watch on " + site : "Open link"), show = new JButton("Show preview");
+		open.setToolTipText("Opens " + link + " in this device's browser" + (site != null ? " (or " + site + "'s app)" : ""));
+		show.setToolTipText("Fetches the page from its own site and shows its title, picture and description here. Nothing is fetched before you press this.");
+		open.addActionListener(e -> { try { LinkPreview.browse(link); } catch (Exception ex) { tell("Couldn't open the link: " + why(ex)); } });
+		row.add(open); row.add(show);
+		JLabel shownPic = new JLabel(); box.add(shownPic, BorderLayout.CENTER);
+		if (LinkPreview.media(link) && MediaEngine.available() && MediaEngine.plays(LinkPreview.fileName(link))) {
+			String id = "url-" + Integer.toHexString(link.hashCode());
+			linked.put(id, link);
+			Msg as = new Msg(m.n(), m.when(), m.who(), m.text(), id, LinkPreview.fileName(link), 0);
+			JButton play = new JButton("Play");
+			play.setToolTipText("Fetches it from the link (up to 200 MB) and plays it here in Gatehouse's player");
+			play.addActionListener(e -> play(r, as, play, box, shownPic));
+			row.add(play, 0);
+		}
+		box.add(row, BorderLayout.NORTH);
+		JPanel card = new JPanel(new BorderLayout(10, 0)); card.setOpaque(false); card.setVisible(false);
+		card.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 3, 0, 0, GameShell.a(GameShell.ACC, 160)), BorderFactory.createEmptyBorder(4, 10, 4, 4)));
+		box.add(card, BorderLayout.SOUTH);
+		show.addActionListener(e -> {
+			if (card.isVisible()) { card.setVisible(false); show.setText("Show preview"); box.revalidate(); list.revalidate(); return; }
+			if (card.getComponentCount() > 0) { card.setVisible(true); show.setText("Hide preview"); box.revalidate(); list.revalidate(); return; }
+			show.setEnabled(false); tell("Fetching the preview…");
+			Thread t = new Thread(() -> {
+				try {
+					LinkPreview.Card c = LinkPreview.full(link);
+					tell(" ");
+					SwingUtilities.invokeLater(() -> {
+						if (c.picture() != null) card.add(new JLabel(new javax.swing.ImageIcon(c.picture())), BorderLayout.WEST);
+						JLabel words = new JLabel("<html><body style='width:360px'><b>" + esc(c.title().isEmpty() ? link : c.title()) + "</b><br><span style='color:#A9B5C1'>"
+								+ esc(c.site()) + "</span>" + (c.description().isEmpty() ? "" : "<br>" + esc(c.description())) + "</body></html>");
+						words.setForeground(GameShell.TEXT); words.setVerticalAlignment(javax.swing.SwingConstants.TOP);
+						words.setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+						words.addMouseListener(new java.awt.event.MouseAdapter() { @Override public void mouseClicked(java.awt.event.MouseEvent ev) { open.doClick(); } });
+						card.add(words, BorderLayout.CENTER);
+						card.setVisible(true); show.setText("Hide preview"); show.setEnabled(true);
+						box.revalidate(); list.revalidate();
+					});
+				} catch (Exception ex) { tell("No preview for that link: " + why(ex)); SwingUtilities.invokeLater(() -> show.setEnabled(true)); }
+			}, "chat-preview");
+			t.setDaemon(true); t.start();
+		});
+		return box;
 	}
 	private static String esc(String s) { return s == null ? "" : s.replace("&", "&amp;").replace("<", "&lt;"); }
 	private JComponent attachment(Room r, Msg m) {
@@ -390,7 +445,7 @@ public final class ChatView extends JPanel {
 		keep.addActionListener(e -> {
 			javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 			fc.setSelectedFile(new java.io.File(m.fileName()));
-			if (fc.showSaveDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showSaveDialog(fc, this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
 			java.io.File to = fc.getSelectedFile();
 			fetch(r, m, bytes -> { try { Files.write(to.toPath(), bytes); tell("Saved: "
 					+ to); } catch (java.io.IOException ex) { tell("Not saved: " + ex.getMessage()); } }, () -> {});
@@ -401,7 +456,8 @@ public final class ChatView extends JPanel {
 		tell("Fetching " + m.fileName() + "…");
 		Thread t = new Thread(() -> {
 			try {
-				byte[] b = backend.file(r, m.fileId());
+				String link = linked.get(m.fileId());   // (R85: a media link is fetched from its link)
+				byte[] b = link != null ? (byte[]) LinkPreview.get(link, 200 * 1024 * 1024, 30)[0] : backend.file(r, m.fileId());
 				if (b == null) throw new java.io.IOException("it is no longer kept (a file is kept for a day)");
 				tell(" ");
 				SwingUtilities.invokeLater(() -> then.accept(b));
@@ -420,7 +476,7 @@ public final class ChatView extends JPanel {
 			return;
 		}
 		if (!MediaEngine.ready() && !MediaEngine.fetchedBefore()) {
-			int a = javax.swing.JOptionPane.showConfirmDialog(this, "<html><body style='width:380px'>Videos and sounds play in Gatehouse's own player, which this device "
+			int a = dev.gatehouse.look.InWindow.showConfirmDialog(this, "<html><body style='width:380px'>Videos and sounds play in Gatehouse's own player, which this device "
 					+ "fetches once: " + MediaEngine.size() + " of OpenJFX (Java's media player) from Maven Central, checked before it is kept.<br><br>Fetch it now? "
 					+ "No opens this one with this device's own program instead.</body></html>", "Gatehouse's player", javax.swing.JOptionPane.YES_NO_CANCEL_OPTION);
 			if (a == javax.swing.JOptionPane.CANCEL_OPTION || a == javax.swing.JOptionPane.CLOSED_OPTION) return;
@@ -519,7 +575,7 @@ public final class ChatView extends JPanel {
 		javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 		fc.setMultiSelectionEnabled(true);
 		fc.setDialogTitle("Offer files to " + r.name());
-		if (fc.showOpenDialog(this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+		if (dev.gatehouse.look.InWindow.showOpenDialog(fc, this) != javax.swing.JFileChooser.APPROVE_OPTION) return;
 		for (java.io.File f : fc.getSelectedFiles()) offer(r, f.getName(), f.toPath());
 	}
 	private void offer(Room r, String name, Path f) {

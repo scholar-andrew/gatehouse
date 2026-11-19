@@ -138,7 +138,9 @@ public final class Shortcuts {
 			name = "Gatehouse"; description = "Gatehouse: play, or host";
 		}
 		Files.createDirectories(dir);
-		Path ico = dir.resolve(keeper ? "gatekeeper.ico" : "gatehouse.ico"), ps = dir.resolve("make-shortcut.ps1"),
+		// (R98: a new name for the new picture, so the shortcuts are made again and Windows doesn't keep showing the old
+		// one it remembers for that file; the old file is removed once the shortcuts point at the new one)
+		Path ico = dir.resolve(keeper ? "gatekeeper-castle.ico" : "gatehouse-castle.ico"), ps = dir.resolve("make-shortcut.ps1"),
 				done = dir.resolve(keeper ? "shortcut-gatekeeper.txt" : "shortcut-gatehouse.txt");
 		byte[] icon = ico(keeper);
 		if (!Files.isRegularFile(ico) || !java.util.Arrays.equals(Files.readAllBytes(ico), icon)) Files.write(ico, icon);
@@ -152,7 +154,10 @@ public final class Shortcuts {
 		if (Files.isRegularFile(menuLink) && want.equals(readText(done))) return;
 		boolean ok = run(ps, menuLink, target, arguments, workDir, ico, description, false);
 		run(ps, Path.of(desktop, name + ".lnk"), target, arguments, workDir, ico, description, true);   // (one on the desktop, only if there is one)
-		if (ok) Files.writeString(done, want + "\n", StandardCharsets.UTF_8);
+		if (ok) {
+			Files.writeString(done, want + "\n", StandardCharsets.UTF_8);
+			try { Files.deleteIfExists(dir.resolve(keeper ? "gatekeeper.ico" : "gatehouse.ico")); } catch (IOException ignored) { Quiet.seen(ignored); }   // (R98)
+		}
 	}
 	private static String readText(Path p) { try { return Files.readString(p, StandardCharsets.UTF_8).trim(); } catch (IOException e) { return ""; } }
 	private static boolean run(Path ps, Path link, String target, String arguments, String workDir, Path ico, String description,

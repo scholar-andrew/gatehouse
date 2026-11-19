@@ -72,7 +72,7 @@ final class PairingUi {
 			save.addActionListener(ev -> {
 				javax.swing.JFileChooser fc = new javax.swing.JFileChooser();
 				fc.setSelectedFile(new java.io.File(nm.replaceAll("[^A-Za-z0-9 ._-]", "").trim() + ".gatekeeper"));
-				if (fc.showSaveDialog(f) != javax.swing.JFileChooser.APPROVE_OPTION) return;
+				if (dev.gatehouse.look.InWindow.showSaveDialog(fc, f) != javax.swing.JFileChooser.APPROVE_OPTION) return;
 				Map<String, Object> pf = m("gatehouse_pairing", 1, "name", nm, "address", addr);
 				if (!share.isEmpty()) pf.put("tailscale_share", share);
 				if (!shareLink[2].isEmpty()) pf.put("fingerprint", shareLink[2]);   // (R79)
@@ -103,7 +103,7 @@ final class PairingUi {
 				tf.dispose();
 				return;
 			}
-			JOptionPane.showMessageDialog(f, form, "Share pairing", JOptionPane.PLAIN_MESSAGE);
+			dev.gatehouse.look.InWindow.showMessageDialog(f, form, "Share pairing", JOptionPane.PLAIN_MESSAGE);
 		});
 	}
 }

@@ -2754,14 +2754,14 @@ public final class HostHelper {
 			// Gatekeeper itself isn't running (ended, or not started yet): offered here, since nothing works without it.
 			if (!running && !GraphicsEnvironment.isHeadless()) {
 				dev.gatehouse.look.SteamLook.apply();
-				int go = JOptionPane.showConfirmDialog(null,
+				int go = dev.gatehouse.look.InWindow.showConfirmDialog(null,
 						"<html><div style='width:380px'>Gatekeeper isn't running on this machine, so this window has nothing to show.<br><br>Start it now? It runs in the background, as it does after you sign in. A server set to start with Gatekeeper starts too.</div></html>", "Gatekeeper", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 				if (go == JOptionPane.YES_OPTION) {
 					String why = dev.gatehouse.Main.startKeeper();
 					boolean up = false;
 					for (int i = 0; why.isEmpty() && i < 40 && !up; i++) { Thread.sleep(500); try { call("GET", "/admin/window?peek",
 							null); up = true; } catch (IOException | RuntimeException wait) { /* not yet */ } }
-					if (!up) JOptionPane.showMessageDialog(null, "<html><div style='width:380px'>" + (why.isEmpty()
+					if (!up) dev.gatehouse.look.InWindow.showMessageDialog(null, "<html><div style='width:380px'>" + (why.isEmpty()
 							? "Gatekeeper was asked to start but isn't answering yet. Open this window again in a moment."
 							: "Couldn't start Gatekeeper: " + why.replace("<", "&lt;")) + "</div></html>", "Gatekeeper", JOptionPane.WARNING_MESSAGE);
 				}
@@ -2859,16 +2859,16 @@ public final class HostHelper {
 			buttons.add(revokeB);
 			java.util.function.BiConsumer<String, String> ask = (path, confirm) -> {
 				int row = table.getSelectedRow();
-				if (row < 0) { JOptionPane.showMessageDialog(f, "Pick a launcher in the list first."); return; }
+				if (row < 0) { dev.gatehouse.look.InWindow.showMessageDialog(f, "Pick a launcher in the list first."); return; }
 				String id = ids.get(row);
-				if (JOptionPane.showConfirmDialog(f, "<html><div style='width:380px'>" + confirm + "</div></html>", "Gatekeeper",
+				if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:380px'>" + confirm + "</div></html>", "Gatekeeper",
 						JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 				new Thread(() -> {
 					String msg;
 					try { msg = Json.str(Json.map(Json.parse(call("POST", path, "{\"id\":\"" + id
 							+ "\"}"))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 					String m2 = "<html><div style='width:420px'>" + msg.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>";
-					SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, m2, "Gatekeeper", JOptionPane.PLAIN_MESSAGE));
+					SwingUtilities.invokeLater(() -> dev.gatehouse.look.InWindow.showMessageDialog(f, m2, "Gatekeeper", JOptionPane.PLAIN_MESSAGE));
 				}, "ask").start();
 			};
 			revokeB.addActionListener(e -> ask.accept("/admin/revoke",
@@ -3380,12 +3380,12 @@ public final class HostHelper {
 												Json.write(m("id", rid, "type", type, "grant", grant, "reason", reason))))); res = Json.str(rr.get("result")); m2 = Json.str(rr.get("message")); }
 										catch (IOException ex) { m2 = "Gatekeeper isn't running."; }
 										String shown = m2; boolean tell = !res.equals("ok");
-										SwingUtilities.invokeLater(() -> { if (tell) JOptionPane.showMessageDialog(f,
+										SwingUtilities.invokeLater(() -> { if (tell) dev.gatehouse.look.InWindow.showMessageDialog(f,
 												"<html><div style='width:420px'>" + shown + "</div></html>", "Gatekeeper", JOptionPane.PLAIN_MESSAGE); refreshLater[0].run(); });
 									}, "answer").start();
 									yes.addActionListener(ev -> answer.accept(true, ""));
 									no.addActionListener(ev -> {
-										Object why = JOptionPane.showInputDialog(f,
+										Object why = dev.gatehouse.look.InWindow.showInputDialog(f,
 												"<html><div style='width:380px'>Dismiss this request? You can give a reason for the launcher to show (or leave it empty).</div></html>", "Dismiss", JOptionPane.PLAIN_MESSAGE, null, null, "");
 										if (why != null) answer.accept(false, why.toString());
 									});
@@ -3438,12 +3438,12 @@ public final class HostHelper {
 				}
 			}, "refresh").start();
 			java.util.function.BiConsumer<String, String> act = (what, body) -> new Thread(() -> {
-				try { call("POST", what, body); } catch (IOException e) { SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, "Gatekeeper isn't running.")); }
+				try { call("POST", what, body); } catch (IOException e) { SwingUtilities.invokeLater(() -> dev.gatehouse.look.InWindow.showMessageDialog(f, "Gatekeeper isn't running.")); }
 				refresh.run();
 			}, "act").start();
 			java.util.function.Supplier<String> chosen = () -> {
 				int r = table.getSelectedRow();
-				if (r < 0) { JOptionPane.showMessageDialog(f, "Pick a launcher in the list first."); return null; }
+				if (r < 0) { dev.gatehouse.look.InWindow.showMessageDialog(f, "Pick a launcher in the list first."); return null; }
 				return ids.get(r);
 			};
 			// Each button flips its permission for the selected launcher, and says which way it will go.
@@ -3477,7 +3477,7 @@ public final class HostHelper {
 							"value", on))))); res = Json.str(rr.get("result")); msg = Json.str(rr.get("message")); }
 					catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 					String m2 = msg; boolean bad = !res.equals("ok");
-					SwingUtilities.invokeLater(() -> { if (bad) JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + m2
+					SwingUtilities.invokeLater(() -> { if (bad) dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:420px'>" + m2
 							+ "</div></html>", "Whitelist", JOptionPane.PLAIN_MESSAGE); });
 					refresh.run();
 				}, "whitelist").start();
@@ -3495,7 +3495,7 @@ public final class HostHelper {
 				int k = i;
 				pB[i].addActionListener(e -> {
 					int r = ptable.getSelectedRow();
-					if (r < 0 || r >= pnames.size()) { JOptionPane.showMessageDialog(f, "Pick a player in the list first."); return; }
+					if (r < 0 || r >= pnames.size()) { dev.gatehouse.look.InWindow.showMessageDialog(f, "Pick a player in the list first."); return; }
 					String name = pnames.get(r);
 					boolean v = !pallow.getOrDefault(name, new boolean[4])[k];
 					new Thread(() -> {
@@ -3503,7 +3503,7 @@ public final class HostHelper {
 						try { msg = Json.str(Json.map(Json.parse(call("POST", "/admin/player/perm", Json.write(m("player", name, "perm",
 								pkeys[k], "value", v))))).get("message")); } catch (IOException ex) { msg = "Gatekeeper isn't running."; }
 						String m2 = msg;
-						SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f, "<html><div style='width:420px'>" + m2
+						SwingUtilities.invokeLater(() -> dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:420px'>" + m2
 								+ "</div></html>", "Players", JOptionPane.PLAIN_MESSAGE));
 						refresh.run();
 					}, "player-perm").start();

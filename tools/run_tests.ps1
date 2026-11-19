@@ -9,6 +9,7 @@
 #   2. notes and icons: boxes, the what's-new summary, a list opening at its top, the shortcut icon
 #   2b. server folders: a never-started Fabric server is read as Fabric, with its Minecraft and loader versions
 #   2c. controller makers: the button pictures follow a PlayStation or Nintendo controller that is connected
+#   2d. links in chat: the link a message offers, a page's own title, and that private addresses are never fetched
 #   3. a frozen Gatekeeper: one made to lock up the way it did on 2026-11-17 is noticed and restarted by its watchdog
 #   4. a busy Gatekeeper: many calls at once for a while, and it still answers, with no freeze noticed
 #   4b. its doors: requests from web pages (Origin, Sec-Fetch-*, another host name) are refused, oversized and deeply
@@ -50,6 +51,9 @@ try {
     # 2b. server folders (R91): a Fabric server that hasn't started yet is still a Fabric server of its version
     & "$jdk\java.exe" -cp "$jar;$work\c" dev.octoberjourney.host.TestServers
     Result 'server folders' ($LASTEXITCODE -eq 0)
+    # 2d. links in chat (R85): which link a message offers, what a page says, and the addresses never fetched
+    & "$jdk\java.exe" -cp "$jar;$work\c" dev.gatehouse.TestLinks
+    Result 'links in chat' ($LASTEXITCODE -eq 0)
     # 2c. controller makers (R90): PlayStation or Nintendo buttons while such a controller is connected
     & "$jdk\java.exe" '-Djava.awt.headless=true' -cp "$jar;$work\c" dev.octoberjourney.popup.TestPad
     Result 'controller makers' ($LASTEXITCODE -eq 0)

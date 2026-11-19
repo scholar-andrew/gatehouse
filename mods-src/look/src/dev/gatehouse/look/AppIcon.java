@@ -21,9 +21,9 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * The icon both programs show on their windows and on the taskbar: the gatehouse from the Steam artwork, drawn here
- * at whatever size is asked for (so it is sharp from 16 pixels up, and nothing has to be shipped as a picture).
- * Gatehouse has it with a blue gate, Gatekeeper with an amber one, so the two can be told apart side by side.
+ * The icon both programs show on their windows, on the taskbar and on their desktop shortcuts: drawn here at whatever
+ * size is asked for (so it is sharp from 16 pixels up, and nothing has to be shipped as a picture). R98: it is the
+ * castle the programs show inside, in their own colours (Gatehouse yellow, Gatekeeper blue) on a dark tile.
  *
  * It also carries what is waiting: a red circle with a number (messages: for Gatekeeper, launchers' requests; for
  * Gatehouse, the owner's answers not looked at yet) and a green circle (an update for the program is ready).
@@ -64,45 +64,10 @@ public final class AppIcon {
 		g.fill(new Ellipse2D.Double(-size * 0.3, -size * 0.75, size * 1.6, size * 1.2));
 		g.setClip(null);
 
-		// the gatehouse: two towers, the wall between them, and the gate
-		double m = small ? 30 : 20, top = small ? 112 : 116;       // (a merlon's width and where the battlements start)
-		Area castle = new Area();
-		for (double x0 : new double[] {76, 336}) {
-			castle.add(new Area(new Rectangle2D.Double(x0, 156, 100, 280)));
-			if (small) { castle.add(new Area(new Rectangle2D.Double(x0, top, m, 46))); castle.add(new Area(new Rectangle2D.Double(x0 + 100 - m, top, m, 46))); }
-			else for (double x = x0; x <= x0 + 80; x += 40) castle.add(new Area(new Rectangle2D.Double(x, top, m, 42)));
-		}
-		Area wall = new Area(new Rectangle2D.Double(176, 216, 160, 220));
-		if (small) wall.add(new Area(new Rectangle2D.Double(236, 184, 40, 34)));
-		else for (double x = 186; x <= 306; x += 40) wall.add(new Area(new Rectangle2D.Double(x, 188, m, 30)));
-		Path2D gate = new Path2D.Double();
-		gate.moveTo(208, 436); gate.lineTo(208, 316); gate.curveTo(208, 252, 304, 252, 304, 316); gate.lineTo(304, 436); gate.closePath();
-		Area gateArea = new Area(gate);
-		java.awt.geom.AffineTransform scale = java.awt.geom.AffineTransform.getScaleInstance(k, k);
-		Area all = new Area(castle); all.add(wall);
-		// (a soft shadow under it)
-		g.setColor(new Color(0, 0, 0, 70));
-		g.fill(all.createTransformedArea(java.awt.geom.AffineTransform.getTranslateInstance(0, 10)).createTransformedArea(scale));
-		g.setPaint(new GradientPaint(0, (float) (188 * k), stoneDark, 0, (float) (436 * k), new Color(0xAEBDCD)));
-		g.fill(wall.createTransformedArea(scale));
-		g.setPaint(new GradientPaint(0, (float) (116 * k), new Color(0xF4F7FB), 0, (float) (436 * k), stone));
-		g.fill(castle.createTransformedArea(scale));
-		// the stripe along the foot, and the gate with its portcullis
-		g.setColor(accent);
-		g.fill(new Rectangle2D.Double(76 * k, 414 * k, 360 * k, 22 * k));
-		g.setColor(ink);
-		g.fill(gateArea.createTransformedArea(scale));
-		g.setClip(gateArea.createTransformedArea(scale));
-		g.setColor(accent);
-		double bar = small ? 14 : 8;
-		for (double x : small ? new double[] {232, 266} : new double[] {222, 244, 266, 288}) g.fill(new Rectangle2D.Double(x * k, 260 * k,
-				bar * k, (small ? 120 : 92) * k));
-		g.fill(new Rectangle2D.Double(200 * k, (small ? 318 : 308) * k, 112 * k, (small ? 12 : 7) * k));
-		g.setClip(null);
-		if (!small) {
-			g.setColor(ink);
-			for (double x : new double[] {116, 376}) g.fill(new RoundRectangle2D.Double(x * k, 216 * k, 20 * k, 50 * k, 8 * k, 8 * k));
-		}
+		// R98: the same castle the programs show inside (GameShell.castle), in the program's own colour: Gatehouse's
+		// yellow, Gatekeeper's blue, on the dark tile
+		double cw = size * (small ? 0.84 : 0.74);
+		GameShell.castle(g, (size - cw) / 2, (size - cw * 5 / 6) / 2 + size * 0.01, cw, accent);
 		g.setColor(new Color(255, 255, 255, 40));
 		g.setStroke(new BasicStroke((float) Math.max(1, 3 * k)));
 		g.draw(new RoundRectangle2D.Double(1.5 * k, 1.5 * k, size - 3 * k, size - 3 * k, 110 * k, 110 * k));

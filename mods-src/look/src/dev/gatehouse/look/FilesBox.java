@@ -35,7 +35,7 @@ public final class FilesBox {
 
 	public static void show(Component over, String room, String limit, Supplier<List<String[]>> list, Function<String, byte[]> fetch,
 			BiFunction<String, byte[], String> send) {
-		JDialog d = new JDialog(SwingUtilities.getWindowAncestor(over), "Files: " + room, JDialog.ModalityType.APPLICATION_MODAL);
+		InWindow.Sheet d = new InWindow.Sheet(over, "Files: " + room, true);   // (R97)
 		DefaultTableModel model = new DefaultTableModel(new Object[] {"File", "Size", "From", "When"},
 				0) { @Override public boolean isCellEditable(int r, int c) { return false; } };
 		JTable table = new JTable(model);
@@ -56,7 +56,7 @@ public final class FilesBox {
 			JFileChooser fc = new JFileChooser();
 			fc.setDialogTitle("Save a copy of " + r[1]);
 			fc.setSelectedFile(new File(r[1]));
-			if (fc.showSaveDialog(d) != JFileChooser.APPROVE_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showSaveDialog(fc, d) != JFileChooser.APPROVE_OPTION) return;
 			File to = fc.getSelectedFile();
 			said.setText("Fetching…");
 			new Thread(() -> {
@@ -70,7 +70,7 @@ public final class FilesBox {
 		offer.addActionListener(e -> {
 			JFileChooser fc = new JFileChooser();
 			fc.setDialogTitle("Offer a file to " + room);
-			if (fc.showOpenDialog(d) != JFileChooser.APPROVE_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showOpenDialog(fc, d) != JFileChooser.APPROVE_OPTION) return;
 			File from = fc.getSelectedFile();
 			said.setText("Sending…");
 			new Thread(() -> {
@@ -91,7 +91,7 @@ public final class FilesBox {
 		p.setBorder(BorderFactory.createEmptyBorder(12, 14, 12, 14));
 		p.add(new JScrollPane(table), BorderLayout.CENTER); p.add(bottom, BorderLayout.SOUTH);
 		d.setContentPane(p);
-		d.setSize(620, 420);
+		d.setPreferredSize(new java.awt.Dimension(620, 420));   // (R97: the size it asks for, inside the window)
 		d.setLocationRelativeTo(over);
 		load.run();
 		d.setVisible(true);

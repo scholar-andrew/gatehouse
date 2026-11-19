@@ -380,6 +380,7 @@ final class Packs {
 		if (Json.str(s.get("id")).isEmpty()) { reply(x, 200, m("result", "refused", "message", "No such server.")); return true; }
 		String id = Json.str(s.get("id"));
 		if (ModList.admin(x, path, s)) return true;
+		if (PackFinder.admin(x, path)) return true;   // (R83: under /admin/pack/, which the window gives three minutes)
 		if (path.equals("/admin/pack") && !post) reply(x, 200, state(s));
 		else if (path.equals("/admin/pack/visibility") && post) result(x, Invites.setMode(s, Json.str(body(x).get("mode"))));
 		else if (path.equals("/admin/pack/invite") && post) reply(x, 200, Invites.make(s, "host", "the owner"));

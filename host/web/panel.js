@@ -453,8 +453,20 @@ async function drawChat() {
   if (st.room) { st.next = r.next || 0; markSeen(st.room, st.next); }
   chatBadge(r.rooms);
 }
+// R85: web links in a message can be opened (in a new tab, or the site's own app on a phone)
+function linked(text) {
+  const out = [], re = /https?:\/\/[^\s<>"']+/gi; let at = 0, m;
+  while ((m = re.exec(text))) {
+    let u = m[0]; while (/[.,;:!?)\]}'"]$/.test(u)) u = u.slice(0, -1);
+    if (m.index > at) out.push(document.createTextNode(text.slice(at, m.index)));
+    const a = el('a', 'msglink', u); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; out.push(a);
+    at = m.index + u.length; re.lastIndex = at;
+  }
+  if (at < text.length) out.push(document.createTextNode(text.slice(at)));
+  return out;
+}
 function bubble(m) {
-  const mine = m.who === 'Host', b = el('div', 'bubble', m.file ? null : m.text);
+  const mine = m.who === 'Host', b = el('div', 'bubble', null, m.file ? null : linked(String(m.text || '')));
   if (m.file) {
     const f = m.file, url = '/panel/file?id=' + encodeURIComponent(f.id || '');
     b.appendChild(el('div', '', mine ? 'Offered a file' : 'Offers a file'));

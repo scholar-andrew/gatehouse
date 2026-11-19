@@ -370,7 +370,7 @@ public final class Main {
 		boolean up = keeperDoor() > 0, hasHost = keeper != null || up;
 		JPanel both = new JPanel(new GridLayout(1, 2, 12, 0));
 		java.util.function.BiConsumer<Boolean, String> setUpIt = (host, name) -> {
-			if (JOptionPane.showConfirmDialog(owner, "<html><div style='width:400px'>Set up " + name
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(owner, "<html><div style='width:400px'>Set up " + name
 					+ " on this device? Its setup opens in a window of its own, says what it will do, and asks before it fetches anything.</div></html>", "Set up " + name, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			String trouble;
 			try { trouble = run(setUp(host)); } catch (IOException e) { trouble = e.getMessage(); }
@@ -407,7 +407,7 @@ public final class Main {
 			if (script == null) { choose(owner); return; }
 			trouble = run(openPlay(script));
 		}
-		if (!trouble.isEmpty()) JOptionPane.showMessageDialog(owner, "<html><div style='width:380px'>Couldn't open " + (host ? "Gatekeeper" : "Gatehouse") + ": "
+		if (!trouble.isEmpty()) dev.gatehouse.look.InWindow.showMessageDialog(owner, "<html><div style='width:380px'>Couldn't open " + (host ? "Gatekeeper" : "Gatehouse") + ": "
 				+ trouble.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>", host ? "Gatekeeper" : "Gatehouse", JOptionPane.PLAIN_MESSAGE);
 	}
 
@@ -454,7 +454,7 @@ public final class Main {
 				f.setContentPane(p); f.pack(); f.setLocationRelativeTo(null); f.setVisible(true);
 				again.start();
 			} else {
-				JDialog d = new JDialog(owner, "Gatehouse: Play or Host", java.awt.Dialog.ModalityType.MODELESS);
+				dev.gatehouse.look.InWindow.Sheet d = new dev.gatehouse.look.InWindow.Sheet(owner, "Gatehouse: Play or Host", false);   // (R97)
 				d.setContentPane(p); d.pack(); d.setLocationRelativeTo(owner);
 				d.addWindowListener(new java.awt.event.WindowAdapter() { @Override public void windowClosed(java.awt.event.WindowEvent e) { again.stop(); } });
 				d.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);

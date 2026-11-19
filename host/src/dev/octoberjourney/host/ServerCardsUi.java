@@ -129,7 +129,7 @@ final class ServerCardsUi {
 				manageB.setEnabled(!busy);
 				manageB.setToolTipText(on ? "Stops this server: anyone playing is disconnected (the world is saved first)" : "Starts this server");
 				manageB.addActionListener(ev -> {
-					if (on && JOptionPane.showConfirmDialog(f, "Stop " + nm + "? Anyone playing is disconnected (the world is saved first).",
+					if (on && dev.gatehouse.look.InWindow.showConfirmDialog(f, "Stop " + nm + "? Anyone playing is disconnected (the world is saved first).",
 							"Minecraft server", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 					manageB.setEnabled(false);
 					new Thread(() -> {
@@ -137,7 +137,7 @@ final class ServerCardsUi {
 						try { did = Json.map(Json.parse(call("POST", (on ? "/admin/server/stop" : "/admin/server/start") + "?server=" + id, "{}"))); }
 						catch (Exception ex) { did = Map.of("message", "Couldn't ask Gatekeeper: is it running?"); }
 						String said = Json.str(did.get("message")), result = Json.str(did.get("result"));
-						if (!result.equals("ok") && !said.isEmpty()) SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(f,
+						if (!result.equals("ok") && !said.isEmpty()) SwingUtilities.invokeLater(() -> dev.gatehouse.look.InWindow.showMessageDialog(f,
 								"<html><div style='width:380px'>" + said.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>", nm, JOptionPane.PLAIN_MESSAGE));
 					}, "card-run").start();
 				});
@@ -168,7 +168,7 @@ final class ServerCardsUi {
 					manageB.setText("Remove from Gatekeeper"); manageB.setEnabled(true); dev.gatehouse.look.SteamLook.danger(manageB);
 					manageB.setToolTipText("Takes it off Gatekeeper's list. There are no files left to delete.");
 					manageB.addActionListener(ev -> {
-						if (JOptionPane.showConfirmDialog(f, "Remove " + nm + " from Gatekeeper? MCSS has already deleted it.",
+						if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "Remove " + nm + " from Gatekeeper? MCSS has already deleted it.",
 								"Remove from Gatekeeper", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 						new Thread(() -> {
 							String msg;
@@ -176,7 +176,7 @@ final class ServerCardsUi {
 									"{\"files\":false}"))).get("message")); } catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
 							String m2 = msg;
 							try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview",
-									null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); }); } catch (Exception ignored) { Quiet.seen(ignored); }
+									null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:380px'>" + m2.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"); }); } catch (Exception ignored) { Quiet.seen(ignored); }
 						}, "remove-gone").start();
 					});
 				}
@@ -211,7 +211,7 @@ final class ServerCardsUi {
 							own.isSelected()))))).get("message")); } catch (Exception ex) { msg = "Couldn't ask Gatekeeper: is it running?"; }
 					String m2 = msg;
 					try { Map<String, Object> again = Json.map(Json.parse(call("GET", "/admin/overview",
-							null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); JOptionPane.showMessageDialog(f, "<html><div style='width:380px'>" + m2 + "</div></html>", "Servers run by Gatekeeper", JOptionPane.PLAIN_MESSAGE); }); } catch (Exception ignored) { Quiet.seen(ignored); }
+							null))); SwingUtilities.invokeLater(() -> { if (!inServer[0]) fillOverviewRef[0].accept(again); dev.gatehouse.look.InWindow.showMessageDialog(f, "<html><div style='width:380px'>" + m2 + "</div></html>", "Servers run by Gatekeeper", JOptionPane.PLAIN_MESSAGE); }); } catch (Exception ignored) { Quiet.seen(ignored); }
 				}, "native").start());
 				setupLine.add(own);
 				if (!natOk) { JLabel inMcss = new JLabel("Until then, New server and Manage are done in MC Server Soft"); inMcss.setForeground(new Color(0xA9B5C1)); setupLine.add(inMcss); }
@@ -235,7 +235,7 @@ final class ServerCardsUi {
 		});
 		serverRun.addActionListener(e -> {
 			boolean up = serverUpNow[0];
-			if (up && JOptionPane.showConfirmDialog(f,
+			if (up && dev.gatehouse.look.InWindow.showConfirmDialog(f,
 					"Stop the Minecraft server? Anyone playing is disconnected (the world is saved first).", "Minecraft server",
 					JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 			new Thread(() -> {

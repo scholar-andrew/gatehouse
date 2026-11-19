@@ -169,9 +169,9 @@ final class HostSetupUi {
 		}, "https").start();
 		httpsBox.addActionListener(e -> { if (!httpsFilling[0]) httpsPost.accept(m("https", httpsBox.isSelected())); });
 		pubSave.addActionListener(e -> httpsPost.accept(m("public", pubF.getText().trim())));
-		newKey.addActionListener(e -> { if (JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Make a new join key? Pairings and packs handed out before then no longer let new launchers in; launchers already in stay in.</div></html>",
+		newKey.addActionListener(e -> { if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:420px'>Make a new join key? Pairings and packs handed out before then no longer let new launchers in; launchers already in stay in.</div></html>",
 				"New join key", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) httpsPost.accept(m("join_key", "new")); });
-		renewB.addActionListener(e -> { if (JOptionPane.showConfirmDialog(f, "<html><div style='width:420px'>Make a new certificate? Every launcher and Gatekeeper that knows this one needs the new pairing afterwards.</div></html>",
+		renewB.addActionListener(e -> { if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:420px'>Make a new certificate? Every launcher and Gatekeeper that knows this one needs the new pairing afterwards.</div></html>",
 				"New certificate", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) httpsPost.accept(m("renew", true)); });
 		netLoad.run();
 		fieldRows.add(netRow); fieldRows.add(httpsRow); fieldRows.add(pubRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4));
@@ -250,7 +250,7 @@ final class HostSetupUi {
 				if (action.equals("whitelist_on")) {
 					JButton does = new JButton(Json.str(s.get("action_label")));
 					does.addActionListener(ev -> {
-						if (JOptionPane.showConfirmDialog(f, "<html><div style='width:440px'>" + actionAsk.replace("&",
+						if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:440px'>" + actionAsk.replace("&",
 								"&amp;").replace("<", "&lt;") + "</div></html>", "Host setup", JOptionPane.OK_CANCEL_OPTION,
 								JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 						does.setEnabled(false);

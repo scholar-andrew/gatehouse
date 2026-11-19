@@ -262,6 +262,6 @@ final class SystemsBox {
 		JPanel foot = new JPanel(new BorderLayout()); foot.add(buttons, BorderLayout.WEST); foot.add(said, BorderLayout.CENTER);
 		lp.add(foot, BorderLayout.SOUTH);
 		load[0].run();
-		JOptionPane.showMessageDialog(over, lp, "Systems", JOptionPane.PLAIN_MESSAGE);
+		dev.gatehouse.look.InWindow.showMessageDialog(over, lp, "Systems", JOptionPane.PLAIN_MESSAGE);
 	}
 }

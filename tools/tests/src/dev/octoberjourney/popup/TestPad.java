@@ -17,6 +17,20 @@ public final class TestPad {
 			Files.writeString(sys.resolve("input9/id/vendor"), "057e\n");
 			t.check("a Nintendo one shows Nintendo's", "nintendo".equals(Pad.linuxFamily(sys)));
 			t.check("no input devices at all: Xbox's", "xbox".equals(Pad.linuxFamily(sys.resolve("missing"))));
+			// R90 follow-up: the controller pressed last wins; plugging one in or out decides only until then
+			dev(sys, "js0/device", "054c"); dev(sys, "js1/device", "28de"); dev(sys, "js2/device", "045e");   // (jsN/device is its input device)
+			t.check("a PlayStation joystick device is PlayStation", "playstation".equals(Pad.jsFamily(sys.resolve("js0"))));
+			t.check("Steam's virtual pad says nothing", "".equals(Pad.jsFamily(sys.resolve("js1"))));
+			t.check("an Xbox one is Xbox", "xbox".equals(Pad.jsFamily(sys.resolve("js2"))));
+			String[] seen = {null, null};
+			Pad.connected(seen, "playstation");
+			t.check("plugging a PlayStation controller in shows its shapes", "playstation".equals(dev.gatehouse.look.GameShell.family()));
+			Pad.pressedBy(seen, "xbox");
+			t.check("pressing the Deck's own buttons then shows Xbox's", "xbox".equals(dev.gatehouse.look.GameShell.family()));
+			Pad.connected(seen, "playstation");
+			t.check("and it stays so while nothing is plugged in or out", "xbox".equals(dev.gatehouse.look.GameShell.family()));
+			Pad.pressedBy(seen, "playstation");
+			t.check("pressing the PlayStation controller switches back", "playstation".equals(dev.gatehouse.look.GameShell.family()));
 			dev.gatehouse.look.GameShell.family("playstation");
 			t.check("the windows are told", "playstation".equals(dev.gatehouse.look.GameShell.family()));
 			dev.gatehouse.look.GameShell.family("something else");

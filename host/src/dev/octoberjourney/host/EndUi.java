@@ -45,7 +45,7 @@ final class EndUi {
 		endRow.add(endB); endRow.add(javax.swing.Box.createHorizontalStrut(10)); endRow.add(endSaid); endRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		options.add(endRow);
 		endB.addActionListener(ev -> {
-			if (JOptionPane.showConfirmDialog(f,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f,
 					"<html><div style='width:400px'>End Gatekeeper on this machine now?<br><br>Launchers lose sight of its servers until it is started again. Servers MC Server Soft runs keep running. This window closes too.</div></html>", "End Gatekeeper", JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
 			new Thread(() -> {
 				Map<String, Object> r;
@@ -83,7 +83,7 @@ final class EndUi {
 			askConfirm.add(new JLabel("<html><div style='width:400px'>This removes Gatekeeper from this machine"
 					+ (forgetSettings.isSelected() ? ", with its settings" : "") + ". Type <b>confirm</b> to go ahead.</div></html>"), BorderLayout.NORTH);
 			askConfirm.add(typed, BorderLayout.CENTER);
-			if (JOptionPane.showConfirmDialog(f, askConfirm, "Uninstall Gatekeeper", JOptionPane.OK_CANCEL_OPTION,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f, askConfirm, "Uninstall Gatekeeper", JOptionPane.OK_CANCEL_OPTION,
 					JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 			if (!typed.getText().trim().equalsIgnoreCase("confirm")) { uninstallSaid.setText("Nothing was removed: the word typed wasn't \"confirm\"."); return; }
 			try {

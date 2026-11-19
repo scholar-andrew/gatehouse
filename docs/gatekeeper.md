@@ -38,6 +38,8 @@ The **menu** at the top left has the rest:
 | **Setup guide**, **Open Gatehouse** (yellow castle) | The steps one at a time; Gatehouse on this machine, or the first screen to set it up (3.54.0; it was Play or Host). |
 | **User guide**, **GitHub page** | Open the [user guide](user-guide.md) or the program's GitHub page in your browser (the web panel's menu has them too). |
 
+Questions, messages, choosing a file and pages such as New server, a server's pack and Add a Gatekeeper open inside the window on a dimmed layer (3.56.0), not in windows of their own; **Close**, Esc or B goes back. The desktop and taskbar icon is the blue castle the window shows.
+
 ## Servers
 
 **Open** on a server's card opens its own page:
@@ -50,7 +52,7 @@ The **menu** at the top left has the rest:
 | **Game settings** | The server's own `server.properties`. *Same.* |
 | **Backups** | A zip of the world or of the whole folder, keeping the newest few. With the server on, it is told to hold its saving while the copy is made. *Same.* |
 | **Tasks** | Restart, stop, start, back up or type commands, every day at a time or every so many minutes. *Same.* |
-| **Pack** | The pack players get for this server, in four sub-tabs (3.54.0): **Pack** (its state, New version, Build again, Bring in), **Mods** (Mods players get, Find mods on Modrinth), **Who it's for** (its visibility and invites) and **Pictures** ([below](#packs-gatekeeper-builds)). |
+| **Pack** | The pack players get for this server, in sub-tabs (3.54.0): **Pack** (its state, New version, Build again, Bring in), **Mods** (Mods players get, Find mods on Modrinth), **Who it's for** (its visibility and invites), **Pictures** ([below](#packs-gatekeeper-builds)) and **Find a modpack** (3.56.0): say what you want in your own words, and this Gatekeeper's AI (Ollama or the built-in one, whichever is set up and on; otherwise it says what to switch on) turns it into Modrinth searches, then picks the Fabric modpacks that fit best from Modrinth's facts about them, each with why, pros, cons and Open on Modrinth, and says which it would choose. It installs nothing. Sent to Modrinth: the search words; to the AI: your words and those facts. A small AI's notes can be wrong, so check the pack's page. |
 
 **Crash watch.** Once a minute Gatekeeper looks at each server. One that was on and is now off without Gatekeeper
 being asked to stop it went down: you are told (activity log, and your phone when notifications are on), and a server

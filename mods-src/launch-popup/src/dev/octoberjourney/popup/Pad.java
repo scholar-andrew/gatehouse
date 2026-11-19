@@ -46,12 +46,13 @@ final class Pad {
 		} catch (Throwable t) { source = "none (this Java can't read XInput: " + t.getClass().getSimpleName() + ")"; }
 		else { linux(); deckPad(listener); }
 		java.util.function.Supplier<int[]> xi = xinput;
-		java.lang.reflect.Method[] maker = {null};   // (R90: PadWin.family(), looked up by name like PadWin itself)
-		if (xi != null) try { maker[0] = xi.getClass().getMethod("family"); } catch (ReflectiveOperationException | RuntimeException e) { Quiet.seen(e); }
+		java.lang.reflect.Method[] maker = {null, null};   // (R90: PadWin.family() and pressed(), looked up by name like PadWin itself)
+		if (xi != null) try { maker[0] = xi.getClass().getMethod("family"); maker[1] = xi.getClass().getMethod("pressed"); } catch (ReflectiveOperationException | RuntimeException e) { Quiet.seen(e); }
 		Thread t = new Thread(() -> {
 			boolean[] was = new boolean[COUNT];
 			long[] since = new long[COUNT], last = new long[COUNT];
 			long makerLooked = 0;
+			String[] seen = {null, null};   // (what is connected, and who pressed last, as last told)
 			while (true) {
 				try {
 					boolean showing = false;
@@ -59,8 +60,9 @@ final class Pad {
 					if (!showing && System.getenv("OJ_PAD_TEST") == null) { Thread.sleep(400); java.util.Arrays.fill(was, false); continue; }
 					if (maker[0] != null && System.currentTimeMillis() - makerLooked > 3000) {
 						makerLooked = System.currentTimeMillis();
-						try { family(String.valueOf(maker[0].invoke(xi))); } catch (ReflectiveOperationException | RuntimeException e) { Quiet.seen(e); }
+						try { connected(seen, String.valueOf(maker[0].invoke(xi))); } catch (ReflectiveOperationException | RuntimeException e) { Quiet.seen(e); }
 					}
+					if (maker[1] != null) try { Object p = maker[1].invoke(xi); if (p != null) pressedBy(seen, String.valueOf(p)); } catch (ReflectiveOperationException | RuntimeException e) { Quiet.seen(e); }
 					if (xi != null) {
 						int[] s = xi.get();   // {buttons, right trigger 0-255, left stick x, left stick y} or null
 						synchronized (held) {
@@ -115,6 +117,24 @@ final class Pad {
 		return familyOf(sony, nintendo);
 	}
 	private static void family(String f) { try { dev.gatehouse.look.GameShell.family(f); } catch (Throwable t) { Quiet.seen(t); } }
+	/** R90: the pictures follow the controller pressed last; what is connected only decides them when that changes (a
+	 *  controller plugged in or out), so pressing the Deck's own buttons with a PlayStation one plugged in shows Xbox's.
+	 *  seen: {connected, pressed}, as last told. */
+	static synchronized void connected(String[] seen, String f) {
+		if (f.equals(seen[0])) return;
+		seen[0] = f; seen[1] = null; family(f);
+	}
+	static synchronized void pressedBy(String[] seen, String f) {
+		if (f.equals(seen[1])) return;
+		seen[1] = f; family(f);
+	}
+	private static final String[] linuxSeen = {null, null};
+	/** Linux: the maker of a joystick device (/sys/class/input/jsN/device/id/vendor), or "" when it's Steam's own
+	 *  virtual pad (28de: it stands for whichever controller Steam is passing on, so it says nothing). */
+	static String jsFamily(Path sysJs) {
+		String v = readSmall(sysJs.resolve("device/id/vendor")).strip().toLowerCase(java.util.Locale.ROOT);
+		return v.equals("054c") ? "playstation" : v.equals("057e") ? "nintendo" : v.isEmpty() || v.equals("28de") ? "" : "xbox";
+	}
 
 	/** Pixels to scroll this tick for a stick pushed this far past its dead zone: faster the further it is pushed. */
 	static int speed(int v) {
@@ -167,6 +187,9 @@ final class Pad {
 				int n = test ? in.readNBytes(b, 0, 64) : in.read(b);
 				if (n < 24) { if (n < 0 || test) break; continue; }
 				if (b[0] != 1 || b[2] != 9) continue;   // (not the Deck's state report)
+				// (R90: bytes 8-15 are its buttons; one pressed means the Deck's own controls are in use: Xbox's pictures)
+				boolean any = false; for (int i = 8; i < 16; i++) any |= b[i] != 0;
+				if (any && !test) pressedBy(linuxSeen, "xbox");
 				int x = (short) ((b[16] & 0xFF) | (b[17] << 8)), y = (short) ((b[18] & 0xFF) | (b[19] << 8));
 				boolean touched = x != 0 || y != 0;
 				if (touched && was) {
@@ -201,7 +224,7 @@ final class Pad {
 		Thread finder = new Thread(() -> {
 			while (true) {
 				try {
-					family(linuxFamily(Path.of(System.getenv().getOrDefault("OJ_PAD_SYS", "/sys/class/input"))));   // (R90)
+					connected(linuxSeen, linuxFamily(Path.of(System.getenv().getOrDefault("OJ_PAD_SYS", "/sys/class/input"))));   // (R90)
 					List<Path> devs = new ArrayList<>();
 					String only = System.getenv("OJ_PAD_DEV");   // (testing: a file of recorded events)
 					if (only != null) devs.add(Path.of(only));
@@ -211,10 +234,12 @@ final class Pad {
 						source = "joystick devices (" + String.join(", ", open) + ")";
 						Thread r = new Thread(() -> {
 							boolean[] stickX = new boolean[2], stickY = new boolean[2], hatX = new boolean[2], hatY = new boolean[2];
+							String maker = jsFamily(Path.of(System.getenv().getOrDefault("OJ_PAD_SYS", "/sys/class/input"), d.getFileName().toString()));   // (R90)
 							try (InputStream in = Files.newInputStream(d)) {
 								byte[] e = new byte[8];
 								while (in.readNBytes(e, 0, 8) == 8) {
 									int value = (short) ((e[4] & 0xFF) | (e[5] << 8)), type = e[6] & 0x7F, n = e[7] & 0xFF;
+									if (type == 1 && value != 0 && (e[6] & 0x80) == 0 && !maker.isEmpty()) pressedBy(linuxSeen, maker);   // (R90: this controller was pressed)
 									synchronized (held) {
 										if (type == 1) {
 											int k = n == 0 ? A : n == 1 ? B : n == 2 ? X : n == 3 ? Y : n == 4 ? LB : n == 5 ? RB : n == 6 ? BACK : n == 7 ? START : -1;

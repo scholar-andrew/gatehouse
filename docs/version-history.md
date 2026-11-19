@@ -7,6 +7,14 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.56.0 - 2026-11-19
+
+- Nothing opens a window of its own any more: questions, messages, choosing a file, and pages like Connect, Files, New server, a server's pack and Add a Gatekeeper open on a dimmed layer inside the window. Close, Esc or B goes back; a controller moves only among their buttons while they're open.
+- Links in chat: Open link (Watch on YouTube or Vimeo), and Show preview, which fetches the page from its own site only when pressed and shows its title, picture and description. A link straight to a video or sound file can be played in the chat. Links to your own networks are never fetched. In the web panel, links can be opened.
+- Gatekeeper's Pack tab has Find a modpack: say what you want, and its AI (whichever is set up and on) searches Modrinth and picks the Fabric modpacks that fit best, with why, pros and cons. It installs nothing.
+- The desktop, taskbar and window icons are the castle the programs show inside, in their colours: yellow for Gatehouse, blue for Gatekeeper.
+- With more than one controller, the button pictures follow the one pressed last: the Deck's own buttons show Xbox's letters, the PlayStation controller its shapes.
+
 ## 3.55.0 - 2026-11-19
 
 - The chat's player uses the usual media icons for its buttons, and is as wide as the video it plays (or, for a sound, its name) instead of the whole chat, never so narrow that a button is hidden. The same in the web panel.

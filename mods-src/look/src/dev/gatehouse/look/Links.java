@@ -59,7 +59,7 @@ public final class Links {
 		JPanel p = new JPanel(new java.awt.BorderLayout(6, 8));
 		p.add(new javax.swing.JLabel("<html><div style='width:420px'>This system didn't open a browser for it. Here is the address, to open on this or another device:</div></html>"), java.awt.BorderLayout.NORTH);
 		p.add(field, java.awt.BorderLayout.CENTER); p.add(copy, java.awt.BorderLayout.EAST);
-		JOptionPane.showMessageDialog(parent, p, "Open this page", JOptionPane.PLAIN_MESSAGE);
+		dev.gatehouse.look.InWindow.showMessageDialog(parent, p, "Open this page", JOptionPane.PLAIN_MESSAGE);
 	}
 
 	// ------------------------------------------------------------------ R54: a link that doesn't work says why
@@ -85,7 +85,7 @@ public final class Links {
 				+ why.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>"), java.awt.BorderLayout.NORTH);
 		p.add(field, java.awt.BorderLayout.CENTER);
 		Object[] options = {"Try again", "Open anyway", "Copy the address", "Close"};
-		int c = JOptionPane.showOptionDialog(parent, p, "Link not working", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
+		int c = dev.gatehouse.look.InWindow.showOptionDialog(parent, p, "Link not working", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
 		if (c == 0) openChecked(parent, url);
 		else if (c == 1) openOrShow(parent, url);
 		else if (c == 2) java.awt.Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new java.awt.datatransfer.StringSelection(url), null);

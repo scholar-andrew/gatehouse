@@ -138,7 +138,7 @@ final class Connect {
 		openTs.addActionListener(e -> {
 			Path app = tailscaleApp();
 			try { if (app == null) throw new IOException("Tailscale's program wasn't found"); new ProcessBuilder(app.toString()).start(); }
-			catch (IOException ex) { javax.swing.JOptionPane.showMessageDialog(openTs,
+			catch (IOException ex) { dev.gatehouse.look.InWindow.showMessageDialog(openTs,
 					"<html><div style='width:380px'>Tailscale couldn't be opened from here (" + ex.getMessage()
 					+ "). Open it yourself: it is in the Start menu, and by the clock when it is running.</div></html>", "Open Tailscale",
 					javax.swing.JOptionPane.PLAIN_MESSAGE); }
@@ -194,7 +194,7 @@ final class Connect {
 		boolean[][] state = {{false, false, false}};
 		JPanel steps = panel(url, name, share, fill, state, owner);
 		fill[0].run();
-		JDialog d = new JDialog(owner, "Connect to " + (name.isEmpty() ? "this Gatekeeper" : name), true);
+		dev.gatehouse.look.InWindow.Sheet d = new dev.gatehouse.look.InWindow.Sheet(owner, "Connect to " + (name.isEmpty() ? "this Gatekeeper" : name), true);   // (R97)
 		JButton close = new JButton("Close");
 		close.addActionListener(e -> d.dispose());
 		JLabel note = new JLabel("Looking\u2026");

@@ -780,7 +780,7 @@ public final class LaunchPopup {
 					// (Inside Prism's Flatpak the launcher can't see whether Steam is running: the player says.)
 					int[] answer = {javax.swing.JOptionPane.CANCEL_OPTION};
 					try {
-						SwingUtilities.invokeAndWait(() -> answer[0] = javax.swing.JOptionPane.showConfirmDialog(f,
+						SwingUtilities.invokeAndWait(() -> answer[0] = dev.gatehouse.look.InWindow.showConfirmDialog(f,
 								"<html><div style='width:400px'>Steam has to be closed for this, or it undoes the change when it exits.<br><br>"
 								+ "On a Steam Deck: switch to Desktop Mode, quit Steam there (Steam menu, Exit), start this pack from Prism Launcher, and press this button.<br><br>Is Steam closed now?</div></html>",
 								label, javax.swing.JOptionPane.YES_NO_OPTION, javax.swing.JOptionPane.QUESTION_MESSAGE));
@@ -1304,7 +1304,7 @@ public final class LaunchPopup {
 		stop.addActionListener(e -> {
 			hold.run();
 			// Stopping disconnects everyone playing: asked first.
-			int ok = javax.swing.JOptionPane.showConfirmDialog(f, "Stop the server? Anyone playing is disconnected (the world is saved first).",
+			int ok = dev.gatehouse.look.InWindow.showConfirmDialog(f, "Stop the server? Anyone playing is disconnected (the world is saved first).",
 					"Stop server", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE);
 			if (ok != javax.swing.JOptionPane.OK_OPTION) return;
 			new Thread(() -> {
@@ -1388,7 +1388,7 @@ public final class LaunchPopup {
 		java.util.function.Function<Boolean, Runnable> mcssAct = startIt -> () -> {
 			hold.run();
 			boolean force = forceMode[0];
-			if (!startIt && javax.swing.JOptionPane.showConfirmDialog(f, force
+			if (!startIt && dev.gatehouse.look.InWindow.showConfirmDialog(f, force
 					? "Force close MCSS on the server machine? Its X button is set to hide it, so it will be ended rather than closed normally. (Only once the Minecraft server is stopped.)"
 					: "Close MCSS on the server machine? It closes normally, like its X button. (Only once the Minecraft server is stopped.)",
 					force ? "Force close MCSS" : "Close MCSS", javax.swing.JOptionPane.OK_CANCEL_OPTION,
@@ -1407,7 +1407,7 @@ public final class LaunchPopup {
 		mStart.addActionListener(e -> mcssAct.apply(true).run());
 		pcSleep.addActionListener(e -> {
 			hold.run();
-			if (javax.swing.JOptionPane.showConfirmDialog(f,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f,
 					"Put the server machine to sleep? MCSS stays open and carries on when it wakes. Wake server machine wakes it again from the home network.",
 					"Sleep server machine", javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.WARNING_MESSAGE) != javax.swing.JOptionPane.OK_OPTION) return;
 			pcNote.setText("Asking the server machine to sleep\u2026");
@@ -1852,7 +1852,7 @@ public final class LaunchPopup {
 			if (who == null) return;
 			String reason = "";
 			if (!kind.isEmpty()) {
-				String typed = javax.swing.JOptionPane.showInputDialog(f, "A reason the player is shown (optional):", title, javax.swing.JOptionPane.PLAIN_MESSAGE);
+				String typed = dev.gatehouse.look.InWindow.showInputDialog(f, "A reason the player is shown (optional):", title, javax.swing.JOptionPane.PLAIN_MESSAGE);
 				if (typed == null) return;
 				reason = typed.trim();
 			}
@@ -1870,13 +1870,13 @@ public final class LaunchPopup {
 		forget.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			if (javax.swing.JOptionPane.showConfirmDialog(f, "Forget this launcher? It can ask again later.", "Forget",
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "Forget this launcher? It can ask again later.", "Forget",
 					javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/forget", "{\"id\":\"" + ids.get(r) + "\"}");
 		});
 		revoke.addActionListener(e -> {
 			int r = table.getSelectedRow();
 			if (r < 0 || r >= ids.size()) { note.setText("Pick a launcher in the list first."); return; }
-			if (javax.swing.JOptionPane.showConfirmDialog(f,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f,
 					wrap("Remove this launcher's server access? Its server and MCSS control are switched off, and it's told to forget any sign-in or key it has saved."),
 					"Remove server access",
 							javax.swing.JOptionPane.OK_CANCEL_OPTION) == javax.swing.JOptionPane.OK_OPTION) act.accept("/v1/admin/revoke", "{\"id\":\"" + ids.get(r) + "\"}");
@@ -2142,7 +2142,7 @@ public final class LaunchPopup {
 				+ (here ? " There is a Gatekeeper on this machine: Open Gatekeeper shows its own window." : " Its own window is on the server machine; its Access Manager can be used from here.") + "</div></html>");
 		JButton open = dev.gatehouse.look.SteamLook.main(new JButton("Open Gatekeeper"));
 		open.setVisible(here);
-		open.addActionListener(e -> { String t = dev.gatehouse.Main.openGatekeeper(); if (!t.isEmpty()) javax.swing.JOptionPane.showMessageDialog(p,
+		open.addActionListener(e -> { String t = dev.gatehouse.Main.openGatekeeper(); if (!t.isEmpty()) dev.gatehouse.look.InWindow.showMessageDialog(p,
 				"Couldn't open Gatekeeper: " + t, "Gatekeeper", javax.swing.JOptionPane.PLAIN_MESSAGE); });
 		JButton show = new JButton("Show the Access Manager here");
 		full.setVisible(false);
@@ -2490,7 +2490,7 @@ public final class LaunchPopup {
 				else {
 					String message = "";
 					if (m.equals("unblacklist") || m.equals("unsuspend")) {
-						String typed = javax.swing.JOptionPane.showInputDialog(f, "A message for the owner (optional):", play.getText(), javax.swing.JOptionPane.PLAIN_MESSAGE);
+						String typed = dev.gatehouse.look.InWindow.showInputDialog(f, "A message for the owner (optional):", play.getText(), javax.swing.JOptionPane.PLAIN_MESSAGE);
 						if (typed == null) return;
 						message = typed.trim();
 					}

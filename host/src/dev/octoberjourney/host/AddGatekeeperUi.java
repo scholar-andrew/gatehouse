@@ -54,7 +54,7 @@ final class AddGatekeeperUi {
 
 	/** Opens the walk-through over the window. after: run when it is closed (the page looks again). */
 	static void open(java.awt.Component over, Runnable after) {
-		JDialog d = new JDialog(SwingUtilities.getWindowAncestor(over), "Add a Gatekeeper", java.awt.Dialog.ModalityType.MODELESS);
+		dev.gatehouse.look.InWindow.Sheet d = new dev.gatehouse.look.InWindow.Sheet(over, "Add a Gatekeeper", false);   // (R97)
 		CardLayout cards = new CardLayout();
 		JPanel deck = new JPanel(cards);
 		Color dim = new Color(0xA9B5C1), good = new Color(0x8BD46E), warn = new Color(0xE9B949);
@@ -219,7 +219,7 @@ final class AddGatekeeperUi {
 	private static java.awt.Component Box(int h) { return javax.swing.Box.createVerticalStrut(h); }
 
 	/** Testing only (OJ_PANEL_PNG): a picture of each step. */
-	private static void shots(JDialog d, JPanel deck, CardLayout cards, JLabel p2say, String myName) {
+	private static void shots(dev.gatehouse.look.InWindow.Sheet d, JPanel deck, CardLayout cards, JLabel p2say, String myName) {
 		String base = System.getenv("OJ_PANEL_PNG");
 		toManage(p2say, "Steam Deck", true);
 		for (String s : new String[] {"0", "1", "2", "3"}) {

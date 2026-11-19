@@ -110,7 +110,7 @@ final class ChatUi {
 		clear.addActionListener(e -> {
 			String room = view[0].chosen();
 			if (room.isEmpty()) return;
-			if (JOptionPane.showConfirmDialog(f,
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(f,
 					"Empty this room? What was said in it is removed for everyone, and can't be brought back.", "Empty this room",
 					JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
 			ServerToolsUi.later(() -> { ServerToolsUi.ask("POST", "/admin/chat/clear", m("room", room)); view[0].reset(); });

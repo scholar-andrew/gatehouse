@@ -200,6 +200,8 @@ public final class Nav {
 	/** Everything in the window the selection can land on. */
 	static List<Component> stops(Container root) {
 		List<Component> out = new ArrayList<>();
+		// (R97: while a question is shown inside the window, only its buttons can be chosen)
+		if (root instanceof javax.swing.RootPaneContainer rp && rp.getRootPane().getClientProperty("navModal") instanceof Container box && box.isShowing()) root = box;
 		collect(root, out);
 		return out;
 	}

@@ -135,7 +135,7 @@ final class ServerToolsUi {
 		browse.addActionListener(e -> { JFileChooser fc = new JFileChooser(fileF.getText().isBlank() || fileF.getText().equals(NO_FILE)
 				? System.getProperty("user.home", "")
 				: fileF.getText()); fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Jar files",
-				"jar")); if (fc.showOpenDialog(owner) == JFileChooser.APPROVE_OPTION) fileF.setText(fc.getSelectedFile().getPath()); });
+				"jar")); if (dev.gatehouse.look.InWindow.showOpenDialog(fc, owner) == JFileChooser.APPROVE_OPTION) fileF.setText(fc.getSelectedFile().getPath()); });
 		eulaB.addActionListener(e -> dev.gatehouse.look.Links.openChecked(owner, "https://aka.ms/MinecraftEULA"));
 		Timer[] poll = {null};
 		// (R34 stage 2: a game described by a file: its port, world name, password, terms, and SteamCMD installing it)
@@ -227,7 +227,7 @@ final class ServerToolsUi {
 	static java.util.function.Consumer<Runnable> newServerPage;
 	static void newServer(JFrame f, Runnable after) {
 		if (newServerPage != null) { newServerPage.accept(after); return; }
-		JDialog d = new JDialog(f, "New server", false);
+		dev.gatehouse.look.InWindow.Sheet d = new dev.gatehouse.look.InWindow.Sheet(f, "New server", false);   // (R97)
 		d.setContentPane(newForm(d, after));
 		d.pack(); d.setLocationRelativeTo(f); d.setVisible(true);
 	}
@@ -287,13 +287,13 @@ final class ServerToolsUi {
 		typed.addActionListener(e -> sendIt.run());
 		java.util.function.BiConsumer<String, Object> act = (path, body) -> later(() -> { Map<String, Object> r = ask("POST", path + q,
 				body); SwingUtilities.invokeLater(() -> say(conSaid, r)); readConsole.run(); });
-		runB.addActionListener(e -> { if (up[0] && JOptionPane.showConfirmDialog(owner,
+		runB.addActionListener(e -> { if (up[0] && dev.gatehouse.look.InWindow.showConfirmDialog(owner,
 				"Stop the Minecraft server? Anyone playing is disconnected (the world is saved first).", "Minecraft server",
 				JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return; act.accept(up[0] ? "/admin/server/stop" : "/admin/server/start", m()); });
-		restartB.addActionListener(e -> { if (JOptionPane.showConfirmDialog(owner,
+		restartB.addActionListener(e -> { if (dev.gatehouse.look.InWindow.showConfirmDialog(owner,
 				"Restart the server? Anyone playing is disconnected until it is back.", "Minecraft server",
 				JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) act.accept("/admin/tools/action", m("action", "restart")); });
-		killB.addActionListener(e -> { if (JOptionPane.showConfirmDialog(owner,
+		killB.addActionListener(e -> { if (dev.gatehouse.look.InWindow.showConfirmDialog(owner,
 				"End the server at once, without saving? Whatever it hadn't saved yet is lost. Use Stop unless it no longer answers.",
 				"End it now", JOptionPane.OK_CANCEL_OPTION,
 				JOptionPane.WARNING_MESSAGE) == JOptionPane.OK_OPTION) act.accept("/admin/tools/action", m("action", "kill")); });
@@ -359,12 +359,12 @@ final class ServerToolsUi {
 					+ Json.str(first.get("dir"))
 					+ ". Deleting it can't be undone; backups Gatekeeper made are kept. To delete for good, type the server's name:",
 					460)), typedName}) { c.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); form.add(c); form.add(javax.swing.Box.createVerticalStrut(6)); }
-			if (JOptionPane.showConfirmDialog(owner, form, "Delete " + nm, JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
+			if (dev.gatehouse.look.InWindow.showConfirmDialog(owner, form, "Delete " + nm, JOptionPane.OK_CANCEL_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.OK_OPTION) return;
 			later(() -> {
 				Map<String, Object> r = ask("POST", "/admin/tools/delete" + q, m("files", all.isSelected(), "name", typedName.getText()));
 				SwingUtilities.invokeLater(() -> {
 					if (!Json.str(r.get("result")).equals("ok")) { say(setSaid, r); return; }
-					JOptionPane.showMessageDialog(owner, wrap(Json.str(r.get("message")), 420), "Delete " + nm, JOptionPane.PLAIN_MESSAGE);
+					dev.gatehouse.look.InWindow.showMessageDialog(owner, wrap(Json.str(r.get("message")), 420), "Delete " + nm, JOptionPane.PLAIN_MESSAGE);
 					java.awt.Window w = SwingUtilities.getWindowAncestor(tabs);
 					if (w instanceof JDialog) w.dispose();
 				});

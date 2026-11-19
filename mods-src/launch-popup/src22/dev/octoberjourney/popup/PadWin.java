@@ -52,9 +52,11 @@ public final class PadWin implements java.util.function.Supplier<int[]> {
 			for (int i = 0; i < 4; i++) {
 				int r = (int) getState.invokeExact(i, state);
 				if (r != 0) continue;
-				return new int[] {state.get(ValueLayout.JAVA_SHORT, 4) & 0xFFFF, state.get(ValueLayout.JAVA_BYTE, 7) & 0xFF,
+				int[] s = {state.get(ValueLayout.JAVA_SHORT, 4) & 0xFFFF, state.get(ValueLayout.JAVA_BYTE, 7) & 0xFF,
 						state.get(ValueLayout.JAVA_SHORT, 8), state.get(ValueLayout.JAVA_SHORT, 10), state.get(ValueLayout.JAVA_SHORT, 12),
 						state.get(ValueLayout.JAVA_SHORT, 14)};
+				if (s[0] != 0) pressed = whoPressed();   // (R90: which controller that press came from)
+				return s;
 			}
 		} catch (Throwable t) { /* no controller this time */ }
 		return joystick();
@@ -75,6 +77,7 @@ public final class PadWin implements java.util.function.Supplier<int[]> {
 				if (joyId < 0) return null;
 			}
 			if (!pos(joyId)) { joyId = -1; return null; }
+			if (info.get(ValueLayout.JAVA_INT, 32) != 0) pressed = Pad.familyOf(joyVendor == 0x054C, joyVendor == 0x057E);   // (R90)
 			return translate(joyVendor, info.get(ValueLayout.JAVA_INT, 32), info.get(ValueLayout.JAVA_INT, 40), info.get(ValueLayout.JAVA_INT, 8),
 					info.get(ValueLayout.JAVA_INT, 12), info.get(ValueLayout.JAVA_INT, 16), info.get(ValueLayout.JAVA_INT, 20));
 		} catch (Throwable t) { joyId = -1; return null; }
@@ -84,14 +87,30 @@ public final class PadWin implements java.util.function.Supplier<int[]> {
 	public String family() {
 		if (joyPos == null) return "xbox";
 		boolean sony = false, nintendo = false;
+		int s = -1, n = -1;
 		try {
 			for (int id = 0; id < 16; id++) {
 				if (!pos(id) || (int) joyCaps.invokeExact((long) id, caps, 728) != 0) continue;
 				int v = caps.get(ValueLayout.JAVA_SHORT, 0) & 0xFFFF;
-				sony |= v == 0x054C; nintendo |= v == 0x057E;
+				if (v == 0x054C && s < 0) s = id;
+				if (v == 0x057E && n < 0) n = id;
 			}
 		} catch (Throwable t) { return "xbox"; }
-		return Pad.familyOf(sony, nintendo);
+		sonyId = s; nintendoId = n;
+		return Pad.familyOf(s >= 0, n >= 0);
+	}
+	private volatile int sonyId = -1, nintendoId = -1;
+	private volatile String pressed;
+	/** R90: the maker of the controller pressed last ("playstation", "nintendo" or "xbox"), or null before any press. */
+	public String pressed() { return pressed; }
+	/** A press XInput reported: from the PlayStation (or Nintendo) controller if Windows sees that one's buttons held
+	 *  right now (Steam passes it on to XInput as an Xbox one), else from an Xbox-style controller. */
+	private String whoPressed() {
+		try {
+			if (sonyId >= 0 && pos(sonyId) && info.get(ValueLayout.JAVA_INT, 32) != 0) return "playstation";
+			if (nintendoId >= 0 && pos(nintendoId) && info.get(ValueLayout.JAVA_INT, 32) != 0) return "nintendo";
+		} catch (Throwable t) { return pressed; }
+		return "xbox";
 	}
 	private boolean pos(int id) throws Throwable {
 		info.set(ValueLayout.JAVA_INT, 0, 52);    // dwSize

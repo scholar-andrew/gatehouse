@@ -1,4 +1,7 @@
 [
+ {"version": "1.89.0", "date": "2026-11-19", "notes": [
+  "Gatehouse 3.56.0: everything inside the window, chat link previews, a modpack helper, new icons, and controller pictures that follow the last one pressed. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.88.0", "date": "2026-11-19", "notes": [
   "Gatehouse 3.55.0: the chat player's icons and size, Fabric servers seen before their first start, and PlayStation button pictures. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},
