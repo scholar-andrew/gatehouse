@@ -1,4 +1,7 @@
 [
+ {"version": "1.91.0", "date": "2026-11-19", "notes": [
+  "Gatehouse 3.58.0: chat times in your own time, moving GIFs, clearing chat media, Host setup in tabs and web panel castles. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.90.0", "date": "2026-11-19", "notes": [
   "Gatehouse 3.57.0: YouTube videos play in the chat, and X posts show their photos and videos. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},

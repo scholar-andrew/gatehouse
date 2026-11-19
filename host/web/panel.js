@@ -127,7 +127,7 @@ const views = {
     const g = r.gatekeeper, v = el('div');
     newestSeen = g.newest && g.version && older(g.version, g.newest) ? g.newest : (g.version || g.newest || '');
     // this machine: its Gatekeeper (and its own Gatehouse, when it has one), and what waits on its owner
-    const hero = el('div', 'card hero', null, [el('div', 'top', null, [el('div', 'glyph', null, [icon(ICONS.keeper)]),
+    const hero = el('div', 'card hero', null, [el('div', 'top', null, [el('div', 'glyph', null, [castle(true, !!g.gatehouse)]),
       el('div', 'grow', null, [el('div', 'name', null, [el('h3', '', g.name), el('span', 'tag', 'This machine')]), halvesLine(true, !!g.gatehouse), el('div', 'note small', g.system + (modeWord(g.mode) ? ' · ' + modeWord(g.mode) + ' updates' : ''))])])]);
     hero.appendChild(halfLine('Gatekeeper', { now: 'Online', version: g.version }));
     if (g.gatehouse) hero.appendChild(halfLine('Gatehouse', g.gatehouse));
@@ -373,11 +373,26 @@ let newestSeen = '';
 const older = (a, b) => { const x = a.split('.').map(n => parseInt(n, 10) || 0), y = b.split('.').map(n => parseInt(n, 10) || 0); for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) < (y[i] || 0); } return false; };
 const offline = m => (!m.gatehouse || m.gatehouse.now === 'Offline') && (!m.gatekeeper || m.gatekeeper.now === 'Offline');
 function rank(m) { return m.gatehouse && m.gatehouse.now === 'In game' ? 0 : offline(m) ? 2 : 1; }
+// R105: a machine's castle in its programs' colours: Gatehouse yellow, Gatekeeper blue, and with both, half each,
+// joined along a 45-degree seam.
+let castleN = 0;
+function castle(keeper, house) {
+  const s = document.createElementNS(SVGNS, 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); s.setAttribute('class', 'castle');
+  const p = document.createElementNS(SVGNS, 'path'); p.setAttribute('d', ICONS.keeper);
+  if (keeper && house) {
+    const id = 'cg' + (++castleN), defs = document.createElementNS(SVGNS, 'defs'), g = document.createElementNS(SVGNS, 'linearGradient');
+    g.setAttribute('id', id); g.setAttribute('x1', '0'); g.setAttribute('y1', '0'); g.setAttribute('x2', '1'); g.setAttribute('y2', '1');
+    [['0', '#f5be1e'], ['0.5', '#f5be1e'], ['0.5', '#66c0f4'], ['1', '#66c0f4']].forEach(([o, c]) => { const st = document.createElementNS(SVGNS, 'stop'); st.setAttribute('offset', o); st.setAttribute('stop-color', c); g.appendChild(st); });
+    defs.appendChild(g); s.appendChild(defs); p.setAttribute('fill', 'url(#' + id + ')');
+  } else p.setAttribute('fill', keeper ? '#66c0f4' : '#f5be1e');
+  s.appendChild(p);
+  return s;
+}
 // Which halves a machine has, as badges: Gatehouse, Gatekeeper, or both.
 function halvesLine(keeper, house) {
   const l = el('div', 'halves');
-  if (house) l.appendChild(el('span', 'half house', null, [icon(ICONS.launcher), el('span', '', 'Gatehouse')]));
-  if (keeper) l.appendChild(el('span', 'half keeper', null, [icon(ICONS.keeper), el('span', '', 'Gatekeeper')]));
+  if (house) l.appendChild(el('span', 'half house', null, [castle(false, true), el('span', '', 'Gatehouse')]));
+  if (keeper) l.appendChild(el('span', 'half keeper', null, [castle(true, false), el('span', '', 'Gatekeeper')]));
   return l;
 }
 // One half's line: where it is now (in game on which server, in the launcher, online, offline), its version and update mode.
@@ -397,7 +412,7 @@ function machineCard(m) {
   const name = el('div', 'name', m.name);
   if (m.via) name.appendChild(el('span', 'tag', 'via ' + m.via));
   if (m.membership === 'asked') name.appendChild(el('span', 'tag', 'Asked to join'));
-  c.appendChild(el('div', 'glyph', null, [icon(keeper ? ICONS.keeper : ICONS.launcher)]));
+  c.appendChild(el('div', 'glyph', null, [castle(!!keeper, !!house)]));   // (R105)
   c.appendChild(el('div', '', null, [name, halvesLine(!!keeper, !!house), el('div', 'sub', m.system || '')]));
   const lines = el('div', 'lines');
   if (keeper) lines.appendChild(halfLine('Gatekeeper', keeper));
@@ -481,7 +496,10 @@ function bubble(m) {
       b.appendChild(chip(url, f));
     }
   }
-  return el('div', 'msg' + (mine ? ' mine' : ''), null, [el('div', 'meta', (mine ? 'You (Host)' : m.who) + ' · ' + m.when), b]);
+  // (R100: the message's moment in this device's own time; the Gatekeeper's text for older messages)
+  const at = Number(m.at) > 0 ? new Date(Number(m.at)) : null;
+  const when = at ? at.toLocaleString([], at.toDateString() === new Date().toDateString() ? { timeStyle: 'short' } : { dateStyle: 'medium', timeStyle: 'short' }) : m.when;
+  return el('div', 'msg' + (mine ? ' mine' : ''), null, [el('div', 'meta', (mine ? 'You (Host)' : m.who) + ' · ' + when), b]);
 }
 function chip(url, f) {
   const a = el('a', 'filechip', null, [icon(ICONS.file)]); a.href = url; a.download = f.name || 'file';
@@ -653,6 +671,7 @@ function start(who) {
   ['app', 'signout', 'strip', 'tabbar'].forEach(k => $(k).classList.remove('hidden'));
   $('whoami').textContent = me.user + (me.admin ? ' (admin)' : '');
   $('standing').textContent = 'Gatekeeper ' + me.version + ' · ' + me.gatekeeper + ' · ' + me.system;
+  if (me.gatekeeper) document.title = me.gatekeeper + ' · Gatekeeper';   // (R111: which Gatekeeper this tab is for)
   mine = Object.keys(views).filter(k => views[k].needs === 'admin' ? me.admin : can(views[k].needs));
   const nav = $('nav'), bar = $('tabbar'); nav.replaceChildren(); bar.replaceChildren();
   SECTIONS.forEach(s => {

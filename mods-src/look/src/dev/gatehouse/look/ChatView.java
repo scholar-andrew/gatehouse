@@ -62,6 +62,17 @@ public final class ChatView extends JPanel {
 	public record Msg(long n, String when, String who, String text, String fileId, String fileName, long fileSize) {}
 	/** What a room answered: its messages after the one asked from, the number of its newest, and what to tell (a refusal). */
 	public record Batch(List<Msg> msgs, long next, String said) {}
+	/** R100: a message's time as this device shows it: its moment ("at", milliseconds since 1970 UTC) in this device's
+	 *  own time zone, today as just the time; else the text Gatekeeper sent (older Gatekeepers, in their own time). */
+	public static String localTime(Object at, String when) {
+		long ms;
+		try { ms = at instanceof Number n ? n.longValue() : at == null || String.valueOf(at).isBlank() ? -1 : (long) Double.parseDouble(String.valueOf(at)); }
+		catch (NumberFormatException e) { ms = -1; }
+		if (ms <= 0) return when == null ? "" : when;
+		java.time.ZonedDateTime t = java.time.Instant.ofEpochMilli(ms).atZone(java.time.ZoneId.systemDefault());
+		boolean today = t.toLocalDate().equals(java.time.LocalDate.now());
+		return t.format(java.time.format.DateTimeFormatter.ofPattern(today ? "HH:mm" : t.getYear() == java.time.LocalDate.now().getYear() ? "d MMM, HH:mm" : "d MMM yyyy, HH:mm", java.util.Locale.ENGLISH));
+	}
 	public interface Backend {
 		List<Room> rooms() throws Exception;
 		Batch talk(Room room, long after, String text) throws Exception;
@@ -131,7 +142,11 @@ public final class ChatView extends JPanel {
 		bottom.add(line, BorderLayout.CENTER); bottom.add(buttons, BorderLayout.EAST);
 		JPanel under = new JPanel(new BorderLayout()); under.setOpaque(false);
 		said.setForeground(GameShell.DIM);
-		under.add(said, BorderLayout.CENTER); under.add(sound, BorderLayout.EAST);
+		JButton purgeB = new JButton("Clear chat media");   // (R102)
+		purgeB.setToolTipText("Deletes the chat pictures, videos and sounds this device has fetched (they stay in the chat)");
+		purgeB.addActionListener(e -> purge());
+		JPanel east = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0)); east.setOpaque(false); east.add(purgeB); east.add(sound);
+		under.add(said, BorderLayout.CENTER); under.add(east, BorderLayout.EAST);
 		bottom.add(under, BorderLayout.SOUTH);
 		add(top, BorderLayout.NORTH); add(scroll, BorderLayout.CENTER); add(bottom, BorderLayout.SOUTH);
 		empty("Looking for rooms…");
@@ -471,7 +486,17 @@ public final class ChatView extends JPanel {
 				: playable ? "Fetches it and plays it in Gatehouse's player: pause, skip 10 seconds, volume, theater and full screen"
 				: "Fetches it and opens it with this device's own program for it");
 		keep.setToolTipText("Fetches it and saves it where you choose");
-		row.add(what); row.add(view); row.add(keep);
+		// (R102: once it has been fetched here, it can be taken off this device again; it stays in the chat)
+		JButton forget = new JButton("Remove from this device"); forget.setVisible(false);
+		forget.setToolTipText("Deletes this device's copy and puts the message back as it was. It stays in the chat: View or Play fetches it again while its Gatekeeper keeps it");
+		row.add(what); row.add(view); row.add(keep); row.add(forget);
+		onFetched.put(m.fileId(), () -> forget.setVisible(true));
+		forget.addActionListener(e -> {
+			if (view.getClientProperty("player") != null) view.doClick();   // (a player in it is closed first)
+			java.awt.Container parent = box.getParent();
+			if (parent != null) { parent.remove(box); parent.add(attachment(r, m), BorderLayout.CENTER); parent.revalidate(); parent.repaint(); list.revalidate(); }
+			SwingUtilities.invokeLater(() -> later(900, () -> { int n = forgetLocal(m.fileId()); tell(n > 0 ? "Removed from this device: " + m.fileName() + "." : "Removed from this device."); }));
+		});
 		box.add(row, BorderLayout.NORTH);
 		JLabel shownPic = new JLabel(); box.add(shownPic, BorderLayout.CENTER);
 		view.addActionListener(e -> {
@@ -483,7 +508,13 @@ public final class ChatView extends JPanel {
 						BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(bytes));
 						if (img == null) throw new java.io.IOException("not a picture this can show");
 						double sc = Math.min(1.0, Math.min(460.0 / img.getWidth(), 300.0 / img.getHeight()));
-						Image small = img.getScaledInstance(Math.max(1, (int) (img.getWidth() * sc)), Math.max(1, (int) (img.getHeight() * sc)), Image.SCALE_SMOOTH);
+						int w = Math.max(1, (int) (img.getWidth() * sc)), h = Math.max(1, (int) (img.getHeight() * sc));
+						Image small;
+						if (m.fileName().toLowerCase(java.util.Locale.ROOT).endsWith(".gif")) {
+							// (R101: a GIF moves: the toolkit's own picture of it animates, and its plain scaling keeps every frame)
+							Image anim = java.awt.Toolkit.getDefaultToolkit().createImage(bytes);
+							small = sc >= 1.0 ? anim : anim.getScaledInstance(w, h, Image.SCALE_DEFAULT);
+						} else small = img.getScaledInstance(w, h, Image.SCALE_SMOOTH);
 						shownPic.setIcon(new javax.swing.ImageIcon(small));
 						view.setText("Open"); view.setEnabled(true);
 						for (java.awt.event.ActionListener al : view.getActionListeners()) view.removeActionListener(al);
@@ -512,7 +543,7 @@ public final class ChatView extends JPanel {
 				byte[] b = link != null ? (byte[]) LinkPreview.get(link, 200 * 1024 * 1024, 30)[0] : backend.file(r, m.fileId());
 				if (b == null) throw new java.io.IOException("it is no longer kept (a file is kept for a day)");
 				tell(" ");
-				SwingUtilities.invokeLater(() -> then.accept(b));
+				SwingUtilities.invokeLater(() -> { then.accept(b); Runnable h = onFetched.get(m.fileId()); if (h != null) h.run(); });
 			} catch (Exception e) { tell("Couldn't fetch " + m.fileName() + ": " + why(e)); SwingUtilities.invokeLater(failed); }
 		}, "chat-file");
 		t.setDaemon(true); t.start();
@@ -615,6 +646,46 @@ public final class ChatView extends JPanel {
 		}, "chat-youtube");
 		t.setDaemon(true); t.start();
 	}
+	// ---------------------------------------------------------------- R102: chat media on this device
+	private final Map<String, Runnable> onFetched = new java.util.concurrent.ConcurrentHashMap<>();   // (a file's id -> shows its Remove button)
+	private static Path mediaDir() { return Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-chat"); }
+	/** Deletes this device's copies of one file (by its id); how many went. A copy still in use is deleted when the program ends. */
+	private static int forgetLocal(String fileId) {
+		String pre = fileId.replaceAll("[^A-Za-z0-9\\-]", "") + "-";
+		int n = 0;
+		try (java.util.stream.Stream<Path> s = Files.list(mediaDir())) {
+			for (Path f : (Iterable<Path>) s::iterator) if (f.getFileName().toString().startsWith(pre)) n += gone(f);
+		} catch (java.io.IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+		return n;
+	}
+	private static int gone(Path f) {
+		try { Files.deleteIfExists(f); return 1; } catch (java.io.IOException e) { f.toFile().deleteOnExit(); return 1; }
+	}
+	/** How much chat media this device keeps, in bytes. */
+	private static long mediaBytes() {
+		long n = 0;
+		try (java.util.stream.Stream<Path> s = Files.list(mediaDir())) { for (Path f : (Iterable<Path>) s::iterator) try { n += Files.size(f); } catch (java.io.IOException ignored) { Quiet.seen(ignored); } }
+		catch (java.io.IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+		return n;
+	}
+	/** Clear chat media: every picture, video and sound this device fetched from chat is deleted here (not from the
+	 *  chat); the room is shown afresh, so nothing fetched is showing. Asked first. */
+	private void purge() {
+		long bytes = mediaBytes();
+		if (bytes == 0) { tell("This device keeps no chat media."); return; }
+		int a = InWindow.showConfirmDialog(this, "<html><body style='width:380px'>Delete the " + size(bytes) + " of chat pictures, videos and sounds this device has fetched?"
+				+ "<br><br>They stay in the chat: View or Play fetches one again, while its Gatekeeper still keeps it (a day).</body></html>",
+				"Clear chat media", javax.swing.JOptionPane.YES_NO_OPTION);
+		if (a != javax.swing.JOptionPane.YES_OPTION) return;
+		reset();   // (closes any player, so its file can go)
+		later(1200, () -> {
+			int n = 0;
+			try (java.util.stream.Stream<Path> s = Files.list(mediaDir())) { for (Path f : (Iterable<Path>) s::iterator) n += gone(f); }
+			catch (java.io.IOException | RuntimeException ignored) { Quiet.seen(ignored); }
+			tell("Cleared " + size(bytes) + " of chat media from this device (" + n + (n == 1 ? " file" : " files") + ").");
+		});
+	}
+	private static void later(int ms, Runnable r) { javax.swing.Timer t = new javax.swing.Timer(ms, e -> r.run()); t.setRepeats(false); t.start(); }
 	/** A fetched file in a folder of its own in the temporary files. */
 	private static Path temp(Msg m, byte[] bytes) throws java.io.IOException {
 		Path d = Path.of(System.getProperty("java.io.tmpdir"), "gatehouse-chat");

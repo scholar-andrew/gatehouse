@@ -1,8 +1,15 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.57.0",
+ "version": "3.58.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.58.0", "date": "2026-11-19", "notes": [
+   "Chat times show in each device's own time (a message's moment is sent along, not just the Gatekeeper's clock).",
+   "GIFs move when you View them in chat.",
+   "Remove from this device takes a fetched picture, video or sound off this device again (it stays in the chat), and Clear chat media clears them all, after asking.",
+   "Gatekeeper's Host setup is in sub-tabs: Steps, Network and Name.",
+   "Web panel: the tab is named after its Gatekeeper, and on Systems each machine's castle is in its programs' colours (half of each for a machine with both)."
+  ]},
   {"version": "3.57.0", "date": "2026-11-19", "notes": [
    "YouTube videos play right in the chat: a YouTube link gets Play here, in YouTube's own privacy-enhanced player. The web view it needs is fetched once, the first time, asked first (about 35 MB on Windows, 45 MB on Linux and the Steam Deck). Vimeo still opens in the browser.",
    "X (Twitter) posts in chat: Show preview shows the post's author and words, and Show media its photos and its video, which plays in the chat's own player."

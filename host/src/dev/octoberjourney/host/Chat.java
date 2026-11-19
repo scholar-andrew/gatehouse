@@ -73,7 +73,9 @@ final class Chat {
 		if (was != null && now - was < 1000) return "One message a second at most.";
 		lastSaid.put(key, now);
 		List<Object> l = room(roomId);
-		Map<String, Object> msg = m("n", last(roomId) + 1, "when", LocalDateTime.now().format(TIME), "who", who.length() > 40
+		// (R100: "at" is the moment itself, in milliseconds since 1970 UTC, which each device shows in its own local time;
+		// "when" stays for older launchers, in this machine's time)
+		Map<String, Object> msg = m("n", last(roomId) + 1, "at", now, "when", LocalDateTime.now().format(TIME), "who", who.length() > 40
 				? who.substring(0, 40) : who, "text", t);
 		if (file != null) msg.put("file", file);
 		l.add(msg);

@@ -75,7 +75,7 @@ final class ChatUi {
 					Map<String, Object> e = Json.map(o), fl = Json.map(e.get("file"));
 					long n, size; try { n = (long) Double.parseDouble(Json.str(e.get("n"))); } catch (RuntimeException x) { n = 0; }
 					try { size = (long) Double.parseDouble(Json.str(fl.get("size"))); } catch (RuntimeException x) { size = 0; }
-					ms.add(new ChatView.Msg(n, Json.str(e.get("when")), Json.str(e.get("who")), Json.str(e.get("text")),
+					ms.add(new ChatView.Msg(n, ChatView.localTime(e.get("at"), Json.str(e.get("when"))), Json.str(e.get("who")), Json.str(e.get("text")),
 							Json.str(fl.get("id")), Json.str(fl.get("name")), size));
 				}
 				long next; try { next = (long) Double.parseDouble(Json.str(r.get("next"))); } catch (RuntimeException x) { next = after; }

@@ -109,8 +109,8 @@ h3 { font-size: 17px; margin: 0; }
 .halves { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
 .half { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px 3px 7px; border-radius: 8px; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
 .half svg { width: 14px; height: 14px; fill: currentColor; }
-.half.house { color: #8fd3ff; background: rgba(102, 192, 244, .13); box-shadow: inset 0 0 0 1px rgba(102, 192, 244, .3); }
-.half.keeper { color: #f2c66d; background: rgba(233, 185, 73, .12); box-shadow: inset 0 0 0 1px rgba(233, 185, 73, .3); }
+.half.house { color: #f5cf5e; background: rgba(245, 190, 30, .12); box-shadow: inset 0 0 0 1px rgba(245, 190, 30, .32); }   /* (R105: Gatehouse yellow) */
+.half.keeper { color: #8fd3ff; background: rgba(102, 192, 244, .13); box-shadow: inset 0 0 0 1px rgba(102, 192, 244, .3); }   /* (Gatekeeper blue) */
 .sys .lines, .hero .halfline { grid-column: 2; }
 .sys .lines { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
 .halfline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-size: 14px; }
@@ -279,3 +279,4 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); backdrop-filter: blur(3px); }
 .notify ol.steps { margin: 4px 0 8px; padding: 12px 14px 12px 34px; background: rgba(102, 192, 244, .08); border: 1px solid rgba(102, 192, 244, .3); border-radius: 12px; display: flex; flex-direction: column; gap: 6px; }
 .bubble .msglink { color: var(--acc); text-decoration: underline; overflow-wrap: anywhere; }   /* R85 */
 .msg.mine .bubble .msglink { color: #fff; }
+.hero .glyph svg.castle, .sys .glyph svg.castle { fill: initial; }   /* R105: the castle keeps its own colours */

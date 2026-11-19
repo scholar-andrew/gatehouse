@@ -1810,7 +1810,7 @@ final class Home {
 					List<ChatView.Msg> ms = new ArrayList<>();
 					if (got.get("messages") instanceof List<?> l) for (Object o : l) {
 						Map<String, Object> e = ServerControl.asMap(o), fl = ServerControl.asMap(e.get("file"));
-						ms.add(new ChatView.Msg(numOf.apply(str(e.get("n"))), str(e.get("when")), str(e.get("who")), str(e.get("text")),
+						ms.add(new ChatView.Msg(numOf.apply(str(e.get("n"))), dev.gatehouse.look.ChatView.localTime(e.get("at"), str(e.get("when"))), str(e.get("who")), str(e.get("text")),
 								str(fl.get("id")), str(fl.get("name")), numOf.apply(str(fl.get("size")))));
 					}
 					return new ChatView.Batch(ms, got.containsKey("next") ? numOf.apply(str(got.get("next"))) : after, str(got.get("message")));

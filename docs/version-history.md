@@ -7,6 +7,14 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.58.0 - 2026-11-19
+
+- Chat times show in each device's own time (a message's moment is sent along, not just the Gatekeeper's clock).
+- GIFs move when you View them in chat.
+- Remove from this device takes a fetched picture, video or sound off this device again (it stays in the chat), and Clear chat media clears them all, after asking.
+- Gatekeeper's Host setup is in sub-tabs: Steps, Network and Name.
+- Web panel: the tab is named after its Gatekeeper, and on Systems each machine's castle is in its programs' colours (half of each for a machine with both).
+
 ## 3.57.0 - 2026-11-19
 
 - YouTube videos play right in the chat: a YouTube link gets Play here, in YouTube's own privacy-enhanced player. The web view it needs is fetched once, the first time, asked first (about 35 MB on Windows, 45 MB on Linux and the Steam Deck). Vimeo still opens in the browser.

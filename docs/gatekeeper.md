@@ -219,7 +219,10 @@ turn it on. Under **Web panel**: **New account** (a name, a password of 10 chara
 **Admin** for everything), tick **The web panel is on**, and open the address beside it
 (`http://<this machine's Tailscale address>:25570/panel/`). It is made for a phone first: there the sections are a bar
 along the bottom, within thumb's reach, and wide tables become cards. On a wide screen they run across the top, as in
-the window. A section the account may not use is shown greyed; the rest is in the menu at the top left. A phone can
+the window. A section the account may not use is shown greyed; the rest is in the menu at the top left. Since 3.58.0
+the browser tab is named after the Gatekeeper ("PC · Gatekeeper"), and on **Systems** each machine's castle is in its
+programs' colours: yellow for a Gatehouse, blue for a Gatekeeper, half of each (split on a slant) for a machine with
+both; chat times show in the phone's own time. A phone can
 keep it on its home screen (Share, Add to Home Screen; or the browser's menu, Install), where it opens like an app.
 
 | Section | What is there |
@@ -301,7 +304,7 @@ folders, player names or keys.
 
 ## Without Tailscale (3.49.0)
 
-Host setup has **Devices reach this Gatekeeper over**: **Tailscale** (as before), **Home network** (only devices at
+Host setup is in sub-tabs (3.58.0): **Steps** (what this machine still needs, with Server setup and Share pairing), **Network** (how devices reach it, HTTPS, the public name and Tailscale's invite link) and **Name** (what launchers call it). Its **Network** tab has **Devices reach this Gatekeeper over**: **Tailscale** (as before), **Home network** (only devices at
 home, on the same Wi-Fi or cable), or **Another private network** (ZeroTier, NetBird, Headscale, Radmin VPN and the
 like, untried here). Choose it and one of this machine's addresses on it (listed with its network adapter), and Save;
 launchers paired before need the new pairing (Share pairing). Off Tailscale, Tailscale's own setup steps and its

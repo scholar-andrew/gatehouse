@@ -174,13 +174,24 @@ final class HostSetupUi {
 		renewB.addActionListener(e -> { if (dev.gatehouse.look.InWindow.showConfirmDialog(f, "<html><div style='width:420px'>Make a new certificate? Every launcher and Gatekeeper that knows this one needs the new pairing afterwards.</div></html>",
 				"New certificate", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) httpsPost.accept(m("renew", true)); });
 		netLoad.run();
-		fieldRows.add(netRow); fieldRows.add(httpsRow); fieldRows.add(pubRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4));
-		fieldRows.add(nameRow); fieldRows.add(javax.swing.Box.createVerticalStrut(4)); fieldRows.add(shareRow);
-		JPanel shareBox = new JPanel(new BorderLayout(0, 2));
-		shareBox.add(checkedLab, BorderLayout.NORTH);
-		shareBox.add(fieldRows, BorderLayout.CENTER);
-		shareBox.add(shareSaid, BorderLayout.SOUTH);
-		hostSetup.add(stepScroll, BorderLayout.CENTER); hostSetup.add(shareBox, BorderLayout.SOUTH);
+		// R109: in sub-tabs: Steps (what this machine still needs), Network (how devices reach it), Name (in launchers)
+		fieldRows.add(netRow); fieldRows.add(httpsRow); fieldRows.add(pubRow); fieldRows.add(javax.swing.Box.createVerticalStrut(6)); fieldRows.add(shareRow);
+		JPanel nameRows = new JPanel(); nameRows.setLayout(new javax.swing.BoxLayout(nameRows, javax.swing.BoxLayout.Y_AXIS)); nameRows.add(nameRow);
+		JLabel netNote = new JLabel("<html><div style='width:820px'>How launchers and other Gatekeepers reach this one, and with which of this machine's addresses. "
+				+ "After a change, launchers need the new pairing (Share pairing, on Steps).</div></html>"); netNote.setForeground(new Color(0xA9B5C1));
+		JLabel nameNote = new JLabel("<html><div style='width:820px'>What launchers call this Gatekeeper in their list. Open launchers pick a change up within a few seconds.</div></html>");
+		nameNote.setForeground(new Color(0xA9B5C1));
+		netNote.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); nameNote.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
+		JPanel netTab = new JPanel(new BorderLayout(0, 8)); netTab.setBorder(BorderFactory.createEmptyBorder(8, 4, 4, 4)); netTab.add(netNote, BorderLayout.NORTH); netTab.add(fieldRows, BorderLayout.CENTER);
+		JPanel nameTab = new JPanel(new BorderLayout(0, 8)); nameTab.setBorder(BorderFactory.createEmptyBorder(8, 4, 4, 4)); nameTab.add(nameNote, BorderLayout.NORTH); nameTab.add(nameRows, BorderLayout.CENTER);
+		JPanel netHold = new JPanel(new BorderLayout()); netHold.add(netTab, BorderLayout.NORTH);
+		JPanel nameHold = new JPanel(new BorderLayout()); nameHold.add(nameTab, BorderLayout.NORTH);
+		JPanel stepsTab = new JPanel(new BorderLayout(0, 6));
+		stepsTab.add(checkedLab, BorderLayout.SOUTH);
+		stepsTab.add(stepScroll, BorderLayout.CENTER);
+		JTabbedPane setupTabs = new JTabbedPane();
+		setupTabs.addTab("Steps", stepsTab); setupTabs.addTab("Network", netHold); setupTabs.addTab("Name", nameHold);
+		hostSetup.add(setupTabs, BorderLayout.CENTER); hostSetup.add(shareSaid, BorderLayout.SOUTH);
 		// Server setup and Share pairing live here, beside the steps that ask for them (R38: they used to be only on a
 		// server's Server Status tab, which the steps called "the Servers tab").
 		Runnable serverSetup = ServerSetupUi.dialog(f);
@@ -196,7 +207,7 @@ final class HostSetupUi {
 		toolRow.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT); machineRows.setAlignmentX(java.awt.Component.LEFT_ALIGNMENT);
 		machineRows.setBorder(BorderFactory.createEmptyBorder(8, 6, 6, 0));
 		hostTop.add(toolRow); hostTop.add(machineRows);
-		hostSetup.add(hostTop, BorderLayout.NORTH);
+		stepsTab.add(hostTop, BorderLayout.NORTH);   // (R109: with the steps they help with)
 		// The list looks again by itself every few seconds while this tab is open, so a change made elsewhere (in
 		// MCSS, in Tailscale, in a file) shows here without pressing anything. The line at the bottom says when it
 		// last looked; a step that has just turned to Done says so for a minute, and the list is only redrawn when
