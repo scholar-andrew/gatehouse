@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.53.2 - 2026-11-19
+
+- Chat videos with HE-AAC sound (common in small, low-bitrate files) play at the right pitch and speed on the Steam Deck and other Linux machines. The player there took the sound's rate from the wrong place and played it an octave low, skipping to keep up; Gatehouse now corrects that in its own copy of the file before playing.
+
 ## 3.53.1 - 2026-11-19
 
 - Chat video on the Steam Deck, third try: the larger sound buffer from 3.53.0 never reached Gatehouse inside Prism's Flatpak, so Gatehouse now sets it in its own process before the player starts, and its measurement says which values the sound library actually saw.

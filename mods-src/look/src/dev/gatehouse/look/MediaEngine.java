@@ -198,6 +198,9 @@ public final class MediaEngine {
 	 */
 	public static java.awt.Component embed(Path file, String name, Consumer<String> problem) throws Exception {
 		try {
+			// (R80: on Linux, HE-AAC sound otherwise plays an octave low and skips; see HeAac. file is the chat's own copy)
+			if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).startsWith("linux")
+					&& name.toLowerCase(java.util.Locale.ROOT).matches(".*\\.(mp4|m4a|m4v|mov)$")) { String did = HeAac.fix(file); if (!did.isEmpty()) log(name + ": " + did); }
 			Class<?> c = Class.forName("dev.gatehouse.media.Player", true, load());
 			Consumer<String> told = why -> { log("can't play " + name + ": " + why); problem.accept(why); };
 			return (java.awt.Component) c.getMethod("embed", Path.class, String.class, boolean.class, Consumer.class).invoke(null, file, name, isVideo(name), told);

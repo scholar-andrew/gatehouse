@@ -1,7 +1,10 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.53.1",
+ "version": "3.53.2",
  "changes": [
+  {"version": "3.53.2", "date": "2026-11-19", "notes": [
+   "Chat videos with HE-AAC sound (common in small, low-bitrate files) play at the right pitch and speed on the Steam Deck and other Linux machines. The player there took the sound's rate from the wrong place and played it an octave low, skipping to keep up; Gatehouse now corrects that in its own copy of the file before playing."
+  ]},
   {"version": "3.53.1", "date": "2026-11-19", "notes": [
    "Chat video on the Steam Deck, third try: the larger sound buffer from 3.53.0 never reached Gatehouse inside Prism's Flatpak, so Gatehouse now sets it in its own process before the player starts, and its measurement says which values the sound library actually saw."
   ]},

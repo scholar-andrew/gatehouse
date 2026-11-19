@@ -1,4 +1,7 @@
 [
+ {"version": "1.86.2", "date": "2026-11-19", "notes": [
+  "Gatehouse 3.53.2: HE-AAC chat videos play right on the Steam Deck. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
+ ]},
  {"version": "1.86.1", "date": "2026-11-19", "notes": [
   "Gatehouse 3.53.1: chat video on the Steam Deck, third try. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play."
  ]},
