@@ -3590,7 +3590,7 @@ public final class HostHelper {
 			shell.menu("Constellation", "history", "History of servers", () -> pickSection.accept("HISTORY"));
 			shell.menu("Gatekeeper", "options", "Options", () -> pickSection.accept("OPTIONS"));
 			shell.menu("Gatekeeper", "guide", "Setup guide", () -> pickSection.accept("GUIDE"));
-			shell.menu("Gatekeeper", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
+			shell.menu("Gatekeeper", "playhost", "Open Gatehouse", () -> dev.gatehouse.Main.openOther(f, false), dev.gatehouse.look.GameShell.GATEHOUSE);   // (R88)
 			shell.menu("Help", "userguide", "User guide", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.GUIDE));
 			shell.menu("Help", "github", "GitHub page", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.REPO));
 			shell.menu("Help", "ai", "Ask Gatekeeper AI" + "\u2026", () -> NotifyUi.askDialog(f));
@@ -3805,6 +3805,21 @@ public final class HostHelper {
 							java.awt.image.BufferedImage si = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 							java.awt.Graphics2D sg = si.createGraphics(); shell.paint(sg); sg.dispose();
 							javax.imageio.ImageIO.write(si, "png", new java.io.File(shot + "-serverpack.png"));
+							{   // (R84: each of the Pack tab's sub-tabs: <file>-serverpack-2.png ...)
+								java.util.ArrayDeque<java.awt.Container> todo = new java.util.ArrayDeque<>(java.util.List.of(shell));
+								javax.swing.JTabbedPane subT = null;
+								while (!todo.isEmpty() && subT == null) for (java.awt.Component c : todo.pop().getComponents()) {
+									if (c instanceof JPanel jp && jp.getClientProperty("subtabs") instanceof javax.swing.JTabbedPane st) { subT = st; break; }
+									if (c instanceof java.awt.Container k) todo.push(k);
+								}
+								if (subT != null) for (int sti = 1; sti < subT.getTabCount(); sti++) {
+									subT.setSelectedIndex(sti); sync.run(); shell.validate();
+									java.awt.image.BufferedImage sti2 = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+									java.awt.Graphics2D sg2 = sti2.createGraphics(); shell.paint(sg2); sg2.dispose();
+									javax.imageio.ImageIO.write(sti2, "png", new java.io.File(shot + "-serverpack-" + (sti + 1) + ".png"));
+								}
+								if (subT != null) subT.setSelectedIndex(0);
+							}
 							tabs.setSelectedIndex(0); { java.awt.SecondaryLoop ovWait = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop(); javax.swing.Timer ovStop = new javax.swing.Timer(4500, ev3 -> ovWait.exit()); ovStop.setRepeats(false); ovStop.start(); ovWait.enter(); } sync.run(); shell.validate();
 							java.awt.image.BufferedImage soi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 							java.awt.Graphics2D sog = soi.createGraphics(); shell.paint(sog); sog.dispose();

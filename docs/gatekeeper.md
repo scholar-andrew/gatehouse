@@ -35,7 +35,7 @@ The **menu** at the top left has the rest:
 | **Web panel** | Turning the panel on, and its accounts ([below](#the-web-panel-the-status-page-and-phone-notifications)). |
 | **Gatekeepers**, **Constellation**, **Systems**, **History of servers** | [Below](#updates-and-constellations). |
 | **Options** | Pictures, update mode, notifications, the status page, starting servers with Gatekeeper, ending and uninstalling. |
-| **Setup guide**, **Play or Host** | The steps one at a time; which halves this machine has. |
+| **Setup guide**, **Open Gatehouse** (yellow castle) | The steps one at a time; Gatehouse on this machine, or the first screen to set it up (3.54.0; it was Play or Host). |
 | **User guide**, **GitHub page** | Open the [user guide](user-guide.md) or the program's GitHub page in your browser (the web panel's menu has them too). |
 
 ## Servers
@@ -50,7 +50,7 @@ The **menu** at the top left has the rest:
 | **Game settings** | The server's own `server.properties`. *Same.* |
 | **Backups** | A zip of the world or of the whole folder, keeping the newest few. With the server on, it is told to hold its saving while the copy is made. *Same.* |
 | **Tasks** | Restart, stop, start, back up or type commands, every day at a time or every so many minutes. *Same.* |
-| **Pack** | The pack players get for this server, its visibility and invites ([below](#packs-gatekeeper-builds)). |
+| **Pack** | The pack players get for this server, in four sub-tabs (3.54.0): **Pack** (its state, New version, Build again, Bring in), **Mods** (Mods players get, Find mods on Modrinth), **Who it's for** (its visibility and invites) and **Pictures** ([below](#packs-gatekeeper-builds)). |
 
 **Crash watch.** Once a minute Gatekeeper looks at each server. One that was on and is now off without Gatekeeper
 being asked to stop it went down: you are told (activity log, and your phone when notifications are on), and a server
@@ -89,7 +89,7 @@ When a player presses a Request button, this machine chimes and shows who asked,
 
 ## Who a server is for
 
-Each server is **private** (the default), **shareable** or **public**, set on its **Pack** tab:
+Each server is **private** (the default), **shareable** or **public**, set on its **Pack** tab (**Who it's for**):
 
 - **Private:** this machine's launcher, launchers with Gatekeeper or MCSS control, one allowed to start and stop
   this server, one whose player is on its whitelist, and one that used an invite you made.

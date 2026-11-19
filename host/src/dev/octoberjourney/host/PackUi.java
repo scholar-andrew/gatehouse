@@ -249,21 +249,37 @@ final class PackUi {
 			} catch (IOException ex) { said.setForeground(ServerToolsUi.RED); said.setText("That file couldn't be read."); }
 		});
 		back.addActionListener(e -> sendArt.accept(new byte[0]));
-		JPanel form = new JPanel(new GridBagLayout());
+		// R84: four sub-tabs instead of one long page (the pack itself, its mods, who it is for, its pictures); what a
+		// button did is said under them, whichever is open.
+		JPanel packF = new JPanel(new GridBagLayout()), modsF = new JPanel(new GridBagLayout()), whoF = new JPanel(new GridBagLayout()), picF = new JPanel(new GridBagLayout());
 		int y = 0;
-		row(form, y++, null,
+		row(packF, y++, null,
 				ServerToolsUi.note(ServerToolsUi.wrap("A pack is what players' launchers install and keep current for this server: its mods, their settings, and the pictures Steam shows for its shortcut. Gatekeeper builds it and hands it to launchers itself.", 560)));
-		row(form, y++, "Who it is for", line(whoBox, inviteB, takeBackB));
-		row(form, y++, "", invitedSaid);
-		row(form, y++, null, stands);
-		row(form, y++, null, line(make, modsB, findB, release, build, bring));
-		row(form, y++, null, said);
-		row(form, y++, null,
+		row(packF, y++, null, stands);
+		row(packF, y++, null, line(make, release, build, bring));
+		y = 0;
+		row(modsF, y++, null, ServerToolsUi.note(ServerToolsUi.wrap("Which of the server's mods players are sent, and finding more on Modrinth. A change reaches players with the pack's next version.", 560)));
+		row(modsF, y++, null, line(modsB, findB));
+		y = 0;
+		row(whoF, y++, null, ServerToolsUi.note(ServerToolsUi.wrap("Who this server and its pack are for, and invites for anyone else.", 560)));
+		row(whoF, y++, "Who it is for", line(whoBox, inviteB, takeBackB));
+		row(whoF, y++, "", invitedSaid);
+		y = 0;
+		row(picF, y++, null,
 				ServerToolsUi.note(ServerToolsUi.wrap("Pictures: the one launchers show on this server's card (it changes at once), and the ones Steam shows for the pack's shortcut. Each Steam one is one you choose (brought to the right size here) or one Gatekeeper makes, and a change to it goes out with the next build.", 560)));
-		row(form, y++, "Picture", line(slotBox, choose, back));
-		row(form, y++, "", preview);
-		row(form, y++, "", artSaid);
-		p.add(form, BorderLayout.NORTH);
+		row(picF, y++, "Picture", line(slotBox, choose, back));
+		row(picF, y++, "", preview);
+		row(picF, y++, "", artSaid);
+		javax.swing.JTabbedPane sub = new javax.swing.JTabbedPane();
+		for (Object[] t : new Object[][] {{"Pack", packF}, {"Mods", modsF}, {"Who it's for", whoF}, {"Pictures", picF}}) {
+			JPanel holder = new JPanel(new BorderLayout()); holder.setBorder(BorderFactory.createEmptyBorder(6, 2, 4, 2));
+			holder.add((JPanel) t[1], BorderLayout.NORTH);
+			sub.addTab((String) t[0], holder);
+		}
+		JPanel saidRow = new JPanel(new BorderLayout()); saidRow.setBorder(BorderFactory.createEmptyBorder(6, 8, 0, 8)); saidRow.add(said, BorderLayout.NORTH);
+		p.add(sub, BorderLayout.NORTH);
+		p.add(saidRow, BorderLayout.CENTER);
+		p.putClientProperty("subtabs", sub);   // (for pictures of each)
 		show.accept(ServerToolsUi.ask("GET", "/admin/pack" + q, null));
 		opening[0] = false;
 		return p;

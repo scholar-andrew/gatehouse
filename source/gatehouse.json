@@ -1,7 +1,11 @@
 {
  "_about": "Gatehouse (the launcher) has its own version and its own notes, apart from any pack's. tools/build_program.ps1 puts this file inside the launcher, which shows it under Gatehouse updates on its main window; Gatekeeper shows it too. Newest first.",
- "version": "3.53.2",
+ "version": "3.54.0",
  "changes": [
+  {"version": "3.54.0", "date": "2026-11-19", "notes": [
+   "A server's Pack tab is split into four: Pack (its state and versions), Mods, Who it's for (visibility and invites) and Pictures.",
+   "The menu's Play or Host is now the other program's own button: Open Gatehouse (yellow castle) in Gatekeeper, Open Gatekeeper (blue castle) in Gatehouse. Where that program isn't set up yet, it opens the first screen to set it up."
+  ]},
   {"version": "3.53.2", "date": "2026-11-19", "notes": [
    "Chat videos with HE-AAC sound (common in small, low-bitrate files) play at the right pitch and speed on the Steam Deck and other Linux machines. The player there took the sound's rate from the wrong place and played it an octave low, skipping to keep up; Gatehouse now corrects that in its own copy of the file before playing."
   ]},

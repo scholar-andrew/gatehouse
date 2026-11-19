@@ -395,6 +395,22 @@ public final class Main {
 		return both;
 	}
 
+	/** R88: opens the other program straight away (host: Gatekeeper, else Gatehouse); when it isn't set up on this
+	 *  device, the first screen instead, which offers to set it up. A problem is said in a small message. */
+	public static void openOther(Window owner, boolean host) {
+		String trouble;
+		if (host) {
+			if (keeperDir() == null && keeperDoor() <= 0) { choose(owner); return; }
+			trouble = openGatekeeper();
+		} else {
+			Path script = playScript();
+			if (script == null) { choose(owner); return; }
+			trouble = run(openPlay(script));
+		}
+		if (!trouble.isEmpty()) JOptionPane.showMessageDialog(owner, "<html><div style='width:380px'>Couldn't open " + (host ? "Gatekeeper" : "Gatehouse") + ": "
+				+ trouble.replace("&", "&amp;").replace("<", "&lt;") + "</div></html>", host ? "Gatekeeper" : "Gatehouse", JOptionPane.PLAIN_MESSAGE);
+	}
+
 	/** Shows the first screen: in a window of its own (owner null: the program was opened for it), or over a half's window. */
 	public static void choose(Window owner) {
 		if (GraphicsEnvironment.isHeadless()) {

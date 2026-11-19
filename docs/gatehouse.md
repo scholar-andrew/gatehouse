@@ -28,7 +28,7 @@ The **menu** (the three lines at the top left, a controller's View button, or **
 | **Systems** | The other machines in a constellation with this one, and the ones you remember ([Using Gatekeeper: systems](gatekeeper.md#systems-and-the-history-of-servers)). |
 | **Options** | About this Gatehouse, and Uninstall. |
 | **Setup guide** | The steps from nothing to playing, each ticking by itself when done. |
-| **Play or Host** | Which halves this device has, opening either, and setting up the one it doesn't have yet. |
+| **Open Gatekeeper** (blue castle) | Opens Gatekeeper on this device, or, where it isn't set up yet, the first screen that offers to set it up (3.54.0; it was Play or Host). |
 | **User guide**, **GitHub page** | Open the [user guide](user-guide.md) or the program's GitHub page in your browser. |
 
 A strip along the bottom shows the version and update mode on the left, and what the buttons do on the right: **A**

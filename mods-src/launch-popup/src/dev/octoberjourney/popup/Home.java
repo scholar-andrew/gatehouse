@@ -1958,7 +1958,7 @@ final class Home {
 			shell[0].menu("This device", "systems", "Systems" + "\u2026", () -> SystemsBox.show(f, home, keepers, packs));
 			shell[0].menu("This device", "options", "Options", () -> gear.doClick(0));
 			shell[0].menu("Help", "guide", "Setup guide", () -> { if (openGuide[0] != null) openGuide[0].run(); });
-			shell[0].menu("Help", "playhost", "Play or Host" + "\u2026", () -> dev.gatehouse.Main.choose(f));
+			shell[0].menu("Help", "playhost", "Open Gatekeeper", () -> dev.gatehouse.Main.openOther(f, true), dev.gatehouse.look.GameShell.ACC);   // (R88)
 			shell[0].menu("Help", "userguide", "User guide", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.GUIDE));
 			shell[0].menu("Help", "github", "GitHub page", () -> dev.gatehouse.look.Links.openChecked(f, dev.gatehouse.look.Links.REPO));
 			// Restart and Quit at the bottom of the menu, as in a game's menu, rather than on every screen (R38). Y and

@@ -164,6 +164,7 @@ public final class GameShell extends JPanel {
 	/** One of the menu's pages: its name, a count when something there is waiting, and lit while it is showing. */
 	private final class Item extends JButton {
 		final String id, label; int badge;
+		Color castle;   // (R88: an item that opens the other program carries its castle)
 		Item(String id, String label, Runnable run) {
 			super(label); this.id = id; this.label = label;
 			setContentAreaFilled(false); setBorderPainted(false); setFocusPainted(false); setOpaque(false); setRolloverEnabled(true);
@@ -182,7 +183,8 @@ public final class GameShell extends JPanel {
 					getWidth() - 12, getHeight() - 4, 10, 10)); }
 			if (sel) { g.setColor(ACC); g.fill(new RoundRectangle2D.Double(6, 10, 4, getHeight() - 20, 3, 3)); }
 			g.setFont(font(14.5f, sel)); g.setColor(sel ? TEXT : over ? a(TEXT, 225) : a(TEXT, 190));
-			g.drawString(label, 22, getHeight() / 2 + 5);
+			if (castle != null) { castle(g, 22, getHeight() / 2.0 - 9, 18, castle); g.setColor(sel ? TEXT : over ? a(TEXT, 225) : a(TEXT, 190)); }
+			g.drawString(label, castle != null ? 48 : 22, getHeight() / 2 + 5);
 			if (badge != 0) {
 				String n = badge < 0 ? "" : badge > 99 ? "99" : String.valueOf(badge);
 				int d = badge < 0 ? 9 : 18, x = getWidth() - 18 - d;
@@ -221,6 +223,8 @@ public final class GameShell extends JPanel {
 	}
 
 	/** Adds a page to the menu, under a heading (a new heading starts a new group). */
+	/** R88: a menu page shown with a castle of that colour before its name (the other program's). */
+	public void menu(String heading, String id, String label, Runnable run, Color castle) { menu(heading, id, label, run); Item it = items.get(id); if (it != null) it.castle = castle; }
 	public void menu(String heading, String id, String label, Runnable run) {
 		boolean first = items.isEmpty();
 		String lastHeading = (String) drawerList.getClientProperty("heading");

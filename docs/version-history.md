@@ -7,6 +7,11 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.54.0 - 2026-11-19
+
+- A server's Pack tab is split into four: Pack (its state and versions), Mods, Who it's for (visibility and invites) and Pictures.
+- The menu's Play or Host is now the other program's own button: Open Gatehouse (yellow castle) in Gatekeeper, Open Gatekeeper (blue castle) in Gatehouse. Where that program isn't set up yet, it opens the first screen to set it up.
+
 ## 3.53.2 - 2026-11-19
 
 - Chat videos with HE-AAC sound (common in small, low-bitrate files) play at the right pitch and speed on the Steam Deck and other Linux machines. The player there took the sound's rate from the wrong place and played it an octave low, skipping to keep up; Gatehouse now corrects that in its own copy of the file before playing.
