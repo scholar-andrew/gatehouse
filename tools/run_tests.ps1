@@ -14,6 +14,7 @@
 #   4. a busy Gatekeeper: many calls at once for a while, and it still answers, with no freeze noticed
 #   4b. its doors: requests from web pages (Origin, Sec-Fetch-*, another host name) are refused, oversized and deeply
 #       nested requests do no harm, and Gatekeeper's own window still gets in
+#   4c. waking from outside the home: a relay code, tickets, the router address, and what is refused
 #   5. the update check (tools/update_check.ps1): old versions still update themselves to this build
 # On success the program file's checksum goes in tools/tests/passed.txt.
 param([switch]$Quick)
@@ -119,6 +120,22 @@ try {
     Check 'an oversized request is refused' ((Code "$base/admin/notify" 'POST' @{} ('{"x":"' + ('a' * 1100000) + '"}')) -ge 400)
     Check 'deeply nested JSON does no harm' (((Code "$base/admin/notify" 'POST' @{} (('[' * 20000) + (']' * 20000))) -gt 0) -and (Alive 25592))
     Result 'its doors' $script:ok6
+
+    # 4c. waking from outside the home: a stand-in machine and a stand-in relay whose wake signal comes here
+    Write-Host 'waking from outside the home:'
+    function KeeperAt($port, $bind, $extra) {
+        $h = "$work\keeper-$port"; New-Item -ItemType Directory -Force $h | Out-Null
+        @{ port = $port; bind = $bind; require_current = 'false'; name = "Stand-in $port"; servers = @() } | ConvertTo-Json | Set-Content -Encoding ascii "$h\host.json"
+        $env:OJ_HOST_DIR = $h; foreach ($k in $extra.Keys) { Set-Item "Env:$k" $extra[$k] }
+        $p = Start-Process -PassThru -WindowStyle Hidden "$jdk\java.exe" -ArgumentList '-jar', "`"$jar`"", '--serve'
+        Remove-Item Env:OJ_HOST_DIR; foreach ($k in $extra.Keys) { Remove-Item "Env:$k" }
+        return $p
+    }
+    $started += (KeeperAt 25593 '127.0.0.9' @{}).Id
+    $started += (KeeperAt 25594 '127.0.0.10' @{ OJ_WAKE_TEST = '127.0.0.1:25595' }).Id
+    $t0 = Get-Date; while (((Get-Date) - $t0).TotalSeconds -lt 30 -and -not ((Alive 25593) -and (Alive 25594))) { Start-Sleep 1 }
+    & "$jdk\java.exe" '-Djava.awt.headless=true' "-Duser.home=$work" -cp "$jar;$work\c" dev.octoberjourney.popup.TestWake 25593 25594 25595 25596 $work
+    Result 'waking from outside the home' ($LASTEXITCODE -eq 0)
 } finally {
     foreach ($id in $started) { Stop-Process -Id $id -Force -ErrorAction SilentlyContinue }
     Get-CimInstance Win32_Process -Filter "Name like 'java%'" | Where-Object { $_.CommandLine -like "*$jar*--serve*" -or $_.CommandLine -like "*$work*" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

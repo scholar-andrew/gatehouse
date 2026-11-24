@@ -1,3 +1,5 @@
+== 1.95.0 | 2026-11-24
+- Gatehouse 3.61.0: the host's machine can be woken from outside the home, through the home router or a machine at home that stays awake. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.94.0 | 2026-11-19
 - Gatehouse 3.60.0: chat rooms down the side, quoted X posts, and link previews in the web panel. Nothing in the pack's mods or settings changed, and this update doesn't interrupt play.
 == 1.93.0 | 2026-11-19

@@ -1,8 +1,11 @@
 {
  "_about": "Gatekeeper (the program on the server machine) has its own version and its own notes. tools/build_program.ps1 puts this file inside Gatekeeper, which shows it under Gatekeeper updates and hands it to launchers (GET /v1/about) for the Gatekeeper updates tab in Gatehouse. Newest first.",
- "version": "3.60.0",
+ "version": "3.61.0",
  "needs": "3.13.0",
  "changes": [
+  {"version": "3.61.0", "date": "2026-11-24", "notes": [
+   "Wake from outside the home: Gatekeeper's Host setup has a Wake tab. The host can forward a port on the home router (launchers send the wake signal to the home's public name and that port), or let another machine at home that stays awake and runs Gatekeeper wake this one (a relay: Make a relay code, paste it there). Launchers allowed Machine wake/sleep learn both while the machine is awake and keep them, so Wake works from anywhere afterwards; a relay only wakes the machine for a launcher with a ticket the machine gave it (good for 30 days)."
+  ]},
   {"version": "3.60.0", "date": "2026-11-19", "notes": [
    "Chat on a wide screen (the Steam Deck, a PC) has its rooms in a column down the left, with Clear chat media and the sound switch under them, so the messages get the whole height; the page heading and the Steam config strip are gone from the Chat page. On a narrow window the rooms are one row that scrolls sideways.",
    "An X post's link has one button, Show post: it shows the post in the chat, who wrote it, what, and its photos and video (a video plays in Gatehouse's player), with the post it quotes as a card of its own under it, its photos and video too. When X won't give the quoted post, it's a plain link.",

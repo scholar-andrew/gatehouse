@@ -44,6 +44,14 @@ final class ServerControl {
 	final List<String> broadcasts = new ArrayList<>();
 	final int wakePort;
 	String apiKey, wakeAddress, username;
+	/** How to wake the server machine from outside the home, as its Gatekeeper last said (GET /v1/mcss "wake", only
+	 *  for a launcher allowed machine wake and sleep), kept in server-access.json so it works while the machine sleeps:
+	 *  mac, broadcasts, router ("name:port" the home router forwards on), relays [{relay, name, url, fp, exp, sig}]
+	 *  (Gatekeepers at home that stay awake, each with this launcher's ticket). Empty: none. */
+	volatile Map<String, Object> wakeInfo = new java.util.LinkedHashMap<>();
+	long wakeSavedAt;
+	/** What the relays said the last time Wake was pressed (for the message under the button). */
+	volatile String wakeNote = "";
 	/** This launcher's identity for Gatekeeper: an id and a secret it made itself (kept in server-access.json). */
 	String deviceId, deviceToken;
 	/** The profile's name for its server on the host machine (extras/server-control.json "server"), sent to the host
@@ -115,6 +123,8 @@ final class ServerControl {
 		Map<String, Object> a = asMap(LaunchPopup.parseJson(LaunchPopup.readFile(access())));
 		apiKey = str(a.get("api_key"));
 		wakeAddress = str(a.get("wake_address"));
+		wakeInfo = new java.util.LinkedHashMap<>(asMap(a.get("wake_info")));
+		try { wakeSavedAt = (long) Double.parseDouble(str(a.get("wake_saved_at"))); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
 		username = str(a.get("username"));
 		deviceId = str(a.get("device_id"));
 		deviceToken = str(a.get("device_token"));
@@ -193,7 +203,21 @@ final class ServerControl {
 	String helperLabel() { return helperUrl.replaceFirst("(?i)^https?://", "").replaceAll("/+$", ""); }
 
 	boolean configured() { return !panelUrl.isEmpty() || !mac.isEmpty() || !minecraft.isEmpty(); }
-	boolean canWake() { return mac.replaceAll("[^0-9A-Fa-f]", "").length() == 12; }
+	boolean canWake() { return !wakeMac().isEmpty(); }
+	/** The network card to wake: the one the pack names, else the one the machine's Gatekeeper told this launcher. */
+	String wakeMac() {
+		String p = mac.replaceAll("[^0-9A-Fa-f]", "");
+		if (p.length() == 12) return p;
+		String g = str(wakeInfo.get("mac")).replaceAll("[^0-9A-Fa-f]", "");
+		return g.length() == 12 ? g : "";
+	}
+	/** Whether Wake also reaches the machine from outside the home (a router address or a relay). */
+	boolean wakesFromOutside() { return !wakeAddress.isEmpty() || !str(wakeInfo.get("router")).isEmpty() || !relays().isEmpty(); }
+	List<Map<String, Object>> relays() {
+		List<Map<String, Object>> out = new ArrayList<>();
+		if (wakeInfo.get("relays") instanceof List<?> l) for (Object o : l) if (!str(asMap(o).get("url")).isEmpty()) out.add(asMap(o));
+		return out;
+	}
 	boolean hasKey() { return !apiKey.isEmpty() && !serverId.isEmpty() && !panelUrl.isEmpty(); }
 	/** Server control through Gatekeeper: the owner allowed it, so no panel sign-in or key is needed here. */
 	boolean viaHelper() { return hasHelper() && permServer; }
@@ -250,7 +274,8 @@ final class ServerControl {
 				+ "\", \"device_token\": \"" + jsonEsc(str(deviceToken)) + "\", \"perm_mcss\": " + permMcss + ", \"perm_sleep\": " + permSleep
 				+ ", \"perm_server\": " + permServer + ", \"perm_admin\": " + permAdmin
 				+ ", \"ban\": \"" + jsonEsc(ban) + "\", \"ban_scope\": \"" + jsonEsc(banScope) + "\", \"ban_reason\": \"" + jsonEsc(banReason) + "\""
-				+ ", \"keeper_url\": \"" + jsonEsc(keeperUrl) + "\", \"identities\": {" + ids + "}}\n", StandardCharsets.UTF_8);
+				+ ", \"keeper_url\": \"" + jsonEsc(keeperUrl) + "\", \"identities\": {" + ids + "}"
+				+ ", \"wake_info\": " + SystemsBox.json(wakeInfo) + ", \"wake_saved_at\": \"" + wakeSavedAt + "\"}\n", StandardCharsets.UTF_8);
 	}
 
 	/** Signs in to the panel with the player's own account, as the panel's web page does (POST /auth), and keeps the
@@ -278,9 +303,44 @@ final class ServerControl {
 
 	/** Sends the wake signal (a "magic packet": 6 x FF, then the network card's address 16 times) to each home
 	 *  broadcast address, and to the internet wake address if this device has one. Returns where it went. */
+	/** The wake details without the tickets' changing parts, to tell a real change from a fresh ticket. */
+	private static String shape(Map<String, Object> w) {
+		Map<String, Object> c = new java.util.LinkedHashMap<>(w);
+		List<Object> rs = new ArrayList<>();
+		if (c.get("relays") instanceof List<?> l) for (Object o : l) { Map<String, Object> r = new java.util.LinkedHashMap<>(asMap(o)); r.remove("exp"); r.remove("sig"); rs.add(r); }
+		c.put("relays", rs);
+		return SystemsBox.json(c);
+	}
+
+	/** Asks each relay (a Gatekeeper at home that stays awake) to wake the machine, with this launcher's ticket.
+	 *  Returns the names of those that did; what they said goes in wakeNote. */
+	List<String> askRelays() {
+		List<String> did = new ArrayList<>(), notes = new ArrayList<>();
+		for (Map<String, Object> r : relays()) {
+			String url = str(r.get("url")).replaceAll("/+$", ""), name = str(r.get("name")).isEmpty() ? "the relay" : str(r.get("name"));
+			try {
+				if (url.startsWith("https:") && !str(r.get("fp")).isEmpty()) Pins.pin(Pins.hostPort(url), str(r.get("fp")));
+				HttpURLConnection c = (HttpURLConnection) new URL(url + "/v1/wake").openConnection();
+				c.setConnectTimeout(4000); c.setReadTimeout(8000);
+				c.setRequestMethod("POST"); c.setDoOutput(true);
+				c.setRequestProperty("Content-Type", "application/json");
+				String body = SystemsBox.json(Map.of("relay", str(r.get("relay")), "launcher", deviceId, "exp", str(r.get("exp")), "sig", str(r.get("sig"))));
+				try (OutputStream o = c.getOutputStream()) { o.write(body.getBytes(StandardCharsets.UTF_8)); }
+				int code = c.getResponseCode();
+				InputStream in = code < 400 ? c.getInputStream() : c.getErrorStream();
+				Map<String, Object> said = asMap(LaunchPopup.parseJson(in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8)));
+				if (code == 200 && "ok".equals(str(said.get("result")))) did.add(name);
+				else notes.add(name + ": " + (str(said.get("message")).isEmpty() ? "answered " + code : str(said.get("message"))));
+			} catch (IOException | RuntimeException e) { notes.add(name + " didn't answer"); }
+		}
+		wakeNote = String.join("; ", notes);
+		return did;
+	}
+
 	List<String> wake() throws IOException {
 		byte[] m = new byte[6];
-		String hex = mac.replaceAll("[^0-9A-Fa-f]", "");
+		String hex = wakeMac();
+		if (hex.isEmpty()) throw new IOException("the server machine's network card isn't known yet (its Gatekeeper tells this device while the machine is awake)");
 		for (int i = 0; i < 6; i++) m[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
 		byte[] packet = new byte[6 + 16 * 6];
 		for (int i = 0; i < 6; i++) packet[i] = (byte) 0xFF;
@@ -290,8 +350,13 @@ final class ServerControl {
 		try (DatagramSocket s = new DatagramSocket()) {
 			s.setBroadcast(true);
 			List<String> targets = new ArrayList<>();
-			for (String b : broadcasts) { targets.add(b + ":" + wakePort); if (wakePort != 7) targets.add(b + ":7"); }
+			List<String> homes = new ArrayList<>(broadcasts);
+			if (wakeInfo.get("broadcasts") instanceof List<?> l) for (Object o : l) if (!homes.contains(str(o))) homes.add(str(o));
+			if (homes.isEmpty()) homes.add("255.255.255.255");
+			for (String b : homes) { targets.add(b + ":" + wakePort); if (wakePort != 7) targets.add(b + ":7"); }
 			if (!wakeAddress.isEmpty()) targets.add(wakeAddress.contains(":") ? wakeAddress : wakeAddress + ":" + wakePort);
+			String router = str(wakeInfo.get("router"));   // (the home router, forwarding the signal into the home network)
+			if (!router.isEmpty() && !targets.contains(router)) targets.add(router.contains(":") ? router : router + ":9");
 			String test = System.getenv("OJ_WAKE_TEST");   // testing: also send to this host:port
 			if (test != null && !test.isEmpty()) targets.add(test);
 			for (String t : targets) {
@@ -302,6 +367,7 @@ final class ServerControl {
 				} catch (IOException | RuntimeException e) { last = e instanceof IOException io ? io : new IOException(e.getMessage()); }
 			}
 		}
+		for (String r : askRelays()) sent.add("relay " + r);
 		if (sent.isEmpty() && last != null) throw last;
 		return sent;
 	}
@@ -425,7 +491,7 @@ final class ServerControl {
 				+ (canControlServer() ? "" : " (panel access in Server config lets you start it)"), "off", "", ""};
 		if (pc) return new String[] {"off", "The server machine is awake, but MCSS isn't running: start it with Start MCSS below, then the server", "nomcss", "", ""};
 		return new String[] {"off", "Not answering: the server machine is asleep or off" + (canWake()
-				? " (Wake server machine works from the home network)" : ""), "asleep", "", ""};
+				? (wakesFromOutside() ? " (Wake server machine wakes it, from home or outside)" : " (Wake server machine works from the home network)") : ""), "asleep", "", ""};
 	}
 
 	private static String[] phase(int st, String ping, String players) {
@@ -549,6 +615,16 @@ final class ServerControl {
 				try { save(apiKey, wakeAddress); } catch (IOException ignored) { Quiet.seen(ignored); }
 			}
 			requestStatus = str(r.get("request"));
+			// How to wake the machine from outside (a Gatekeeper from before this says nothing: what is kept stays). Saved when
+			// it changes, and once a day for fresh tickets (each answer carries new ones, good for 30 days).
+			if (r.containsKey("wake")) {
+				Map<String, Object> w = r.get("wake") == null ? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(asMap(r.get("wake")));
+				long now = System.currentTimeMillis();
+				if (!shape(w).equals(shape(wakeInfo)) || (!w.isEmpty() && now - wakeSavedAt > 24 * 3600_000L)) {
+					wakeInfo = w; wakeSavedAt = now;
+					try { save(apiKey, wakeAddress); } catch (IOException ignored) { Quiet.seen(ignored); }
+				}
+			}
 			// Shut out or not, the whitelist, each permission's state, and what became of this launcher's requests.
 			String nb = str(r.get("ban")), ns = str(r.get("ban_scope")), nr = str(r.get("ban_reason"));
 			boolean banChanged = !nb.equals(ban) || !ns.equals(banScope) || !nr.equals(banReason);

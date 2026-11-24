@@ -7,6 +7,10 @@ pack's own versions are in [CHANGELOG.md](../CHANGELOG.md).
 This page is written by `tools/build_pack.py` from `source/gatehouse.json` and `source/gatekeeper.json`; edit
 those, not this.
 
+## 3.61.0 - 2026-11-24
+
+- Wake from outside the home: Gatekeeper's Host setup has a Wake tab. The host can forward a port on the home router (launchers send the wake signal to the home's public name and that port), or let another machine at home that stays awake and runs Gatekeeper wake this one (a relay: Make a relay code, paste it there). Launchers allowed Machine wake/sleep learn both while the machine is awake and keep them, so Wake works from anywhere afterwards; a relay only wakes the machine for a launcher with a ticket the machine gave it (good for 30 days).
+
 ## 3.60.0 - 2026-11-19
 
 - Chat on a wide screen (the Steam Deck, a PC) has its rooms in a column down the left, with Clear chat media and the sound switch under them, so the messages get the whole height; the page heading and the Steam config strip are gone from the Chat page. On a narrow window the rooms are one row that scrolls sideways.

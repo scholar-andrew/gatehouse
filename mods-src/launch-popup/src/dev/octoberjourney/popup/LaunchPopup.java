@@ -1256,7 +1256,7 @@ public final class LaunchPopup {
 				stop.setEnabled(c.canControlServer() && phase.equals("online"));
 				// Wake only while the PC isn't answering at all (neither the game server nor the panel): asleep or off.
 				wake.setEnabled(c.canWake() && phase.equals("asleep") && (c.permSleep || !c.hasHelper()) && c.ban.isEmpty());
-				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (works from the home network)" : "The server machine is awake");
+				wake.setToolTipText(phase.equals("asleep") ? "Send the wake signal (" + (c.wakesFromOutside() ? "works from anywhere: the owner set up waking from outside the home" : "works from the home network") + ")" : "The server machine is awake");
 				String ping = s.length > 3 ? s[3] : "";
 				int ms = -1;
 				try { ms = Integer.parseInt(ping); } catch (NumberFormatException ignored) { Quiet.seen(ignored); }
@@ -1279,8 +1279,10 @@ public final class LaunchPopup {
 			hold.run();
 			new Thread(() -> {
 				String msg;
-				try { msg = "Wake signal sent (" + c.wake().size() + " addresses)" + (c.wakeAddress.isEmpty()
-						? ": works from the home network" : ", including your internet wake address"); wokeAt[0] = System.currentTimeMillis(); }
+				try { List<String> went = c.wake(); long relayed = went.stream().filter(w -> w.startsWith("relay ")).count();
+					msg = "Wake signal sent (" + (went.size() - relayed) + " addresses" + (relayed > 0 ? ", and the relay at home passed it on" : "") + ")"
+						+ (c.wakesFromOutside() ? ": it also works from outside the home" : ": works from the home network")
+						+ (c.wakeNote.isEmpty() ? "" : ". " + c.wakeNote); wokeAt[0] = System.currentTimeMillis(); }
 				catch (IOException | RuntimeException ex) { msg = "Couldn't send the wake signal: " + ex.getMessage(); }
 				String m = msg;
 				SwingUtilities.invokeLater(() -> pcNote.setText(wrap(m)));

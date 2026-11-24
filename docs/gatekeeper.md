@@ -324,6 +324,30 @@ setup steps list them (Gatekeeper's port and each Minecraft server's) and the ad
 always on, new launchers need the pairing (it carries a join key) or an invite, requests are limited per address, and
 the web panel and status page stay off. **New join key...** stops old pairings letting newcomers in.
 
+## Waking this machine from outside the home (3.61.0)
+
+A sleeping machine only hears its wake signal inside its own home network, so something there has to pass a request
+from outside on to it. **Host setup**, **Wake** sets up two ways, and they work together. Launchers whose player has
+**Machine wake/sleep** learn them while this machine is awake and keep them, so their **Wake** button works from
+anywhere after that. On Windows the network card has to be allowed to wake the computer (Device Manager, the adapter,
+Power Management, "Allow this device to wake the computer" and "Only allow a magic packet"), and often the BIOS too.
+
+- **Network card**: the adapter that listens. Gatekeeper finds the one on the home network by itself; fill it in only
+  if it picked the wrong one.
+- **Through your router**: forward a UDP port (9 is usual) in your router to the home network's broadcast address
+  (192.168.0.255, say), or to this machine's address if the router keeps a fixed entry for it (many routers forget a
+  sleeping machine otherwise). Then fill in your home's public name and that port, like `myhome.duckdns.org:9`. No
+  other device is needed, but not every router allows it, and the signal carries no secret: anyone who finds the port
+  can wake the machine (and do nothing else).
+- **Through a machine that stays awake (a relay)**: another machine at home that is always on (a laptop, a Raspberry
+  Pi, an old PC) runs Gatekeeper and wakes this one. Press **Make a relay code...** here and paste the code into that
+  machine's Gatekeeper (Host setup, Wake, **Wake another machine from here**) while this machine is awake; the relay
+  then tells this machine where it is. Launchers reach the relay the way they reach any Gatekeeper: over Tailscale, or,
+  facing the internet, with the relay's own Gatekeeper port forwarded in your router (a different port from this
+  machine's). Each launcher gets a ticket for each relay that is good for 30 days and only for that launcher; the relay
+  checks it and sends nothing otherwise. **Remove** on either side ends it. The code holds the relay's secret: send it
+  only to yourself.
+
 ## Times (3.59.0)
 
 Every time Gatekeeper keeps or sends is a unix time: the exact moment, in milliseconds since 1970 (UTC), in a field

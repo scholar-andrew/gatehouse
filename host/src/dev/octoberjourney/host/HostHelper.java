@@ -1380,6 +1380,10 @@ public final class HostHelper {
 					path); return; }   // (only for whom the pack is for: Invites.packFor)
 			// (the Gatekeeper this one joined, managing this one with the secret it was given for that: see Manage)
 			if (path.startsWith("/v1/manage/") && x.getRequestHeaders().getFirst("X-Manage") != null) { Manage.serve(x, path, null); return; }
+			// (waking a machine from outside: as a relay, a launcher's wake ticket is its proof; on the machine itself, a
+			// relay saying where it is, with the proof its relay code gives. Neither needs an identity here: see Wake.)
+			if (path.equals("/v1/wake") && x.getRequestMethod().equals("POST")) { Wake.relayWake(x, ip); return; }
+			if (path.equals("/v1/wake/register") && x.getRequestMethod().equals("POST")) { Wake.register(x, ip); return; }
 			if (path.equals("/v1/hello") && x.getRequestMethod().equals("POST")) {
 				Map<String, Object> b = body(x);
 				String id = Json.str(b.get("id")), token = Json.str(b.get("token"));
@@ -1565,7 +1569,8 @@ public final class HostHelper {
 								"server", !ban[0].isEmpty() ? "none" : permState(d, "mcss").equals("allowed") ? "allowed" : permState(d, "server")),
 						"ban", ban[0], "ban_scope", ban[1], "ban_reason", ban[2],
 						"whitelisted", Json.str(d.get("player")).isEmpty() ? "unknown" : whitelisted(Json.str(d.get("player"))) ? "yes" : "no",
-						"requests", requestStates(id, false), "request_reasons", requestStates(id, true)));
+						"requests", requestStates(id, false), "request_reasons", requestStates(id, true),
+						"wake", Wake.forLauncher(id, canSleep && sleepSupported())));   // (how to wake this machine from outside, for a launcher allowed to)
 				return;
 			}
 			if (path.startsWith("/v1/admin/")) {
@@ -2495,7 +2500,7 @@ public final class HostHelper {
 			} else if (!Notify.admin(x, path) && !StatusPage.admin(x, path) && !ServerTools.admin(x, path) && !WebPanel.admin(x, path)
 					&& !LocalLink.admin(x, path) && !AutoUpdate.admin(x, path) && !UpdateLog.admin(x, path) && !Device.admin(x, path)
 					&& !Peer.admin(x, path) && !Icons.admin(x, path) && !Chat.admin(x, path) && !Share.admin(x, path) && !Manage.admin(x,
-					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path) && !Ai.admin(x, path) && !Ai.builtinAdmin(x, path) && !ModBrowser.admin(x, path) && !Net.admin(x, path)) reply(x, 404, m("error", "no such call"));
+					path) && !Packs.admin(x, path) && !History.admin(x, path) && !Systems.admin(x, path) && !Glance.admin(x, path) && !Ai.admin(x, path) && !Ai.builtinAdmin(x, path) && !ModBrowser.admin(x, path) && !Net.admin(x, path) && !Wake.admin(x, path)) reply(x, 404, m("error", "no such call"));
 		} catch (Exception e) {
 			try { reply(x, 500, m("error", e.toString())); } catch (IOException ignored) { Quiet.seen(ignored); }
 		}
@@ -3735,6 +3740,24 @@ public final class HostHelper {
 						java.awt.image.BufferedImage hi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D hg = hi.createGraphics(); shell.paint(hg); hg.dispose();
 						javax.imageio.ImageIO.write(hi, "png", new java.io.File(shot + "-hostsetup.png"));
+						{   // (Host setup's Wake tab: <file>-hostwake.png)
+							java.util.ArrayDeque<java.awt.Container> todo = new java.util.ArrayDeque<>(java.util.List.of(shell));
+							javax.swing.JTabbedPane wakeTabs = null;
+							while (!todo.isEmpty() && wakeTabs == null) for (java.awt.Component c : todo.pop().getComponents()) {
+								if (c instanceof javax.swing.JTabbedPane tp && tp.indexOfTab("Wake") >= 0) { wakeTabs = tp; break; }
+								if (c instanceof java.awt.Container k) todo.push(k);
+							}
+							if (wakeTabs != null) {
+								wakeTabs.setSelectedIndex(wakeTabs.indexOfTab("Wake"));
+								java.awt.SecondaryLoop wait = java.awt.Toolkit.getDefaultToolkit().getSystemEventQueue().createSecondaryLoop();
+								javax.swing.Timer stop = new javax.swing.Timer(1500, ev2 -> wait.exit()); stop.setRepeats(false); stop.start(); wait.enter();
+								shell.validate();
+								java.awt.image.BufferedImage wki = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
+								java.awt.Graphics2D wkg = wki.createGraphics(); shell.paint(wkg); wkg.dispose();
+								javax.imageio.ImageIO.write(wki, "png", new java.io.File(shot + "-hostwake.png"));
+								wakeTabs.setSelectedIndex(0);
+							}
+						}
 						firstTabs.setSelectedIndex(4); sync.run(); shell.validate();
 						java.awt.image.BufferedImage wpi = new java.awt.image.BufferedImage(shell.getWidth(), shell.getHeight(), java.awt.image.BufferedImage.TYPE_INT_RGB);
 						java.awt.Graphics2D wpg = wpi.createGraphics(); shell.paint(wpg); wpg.dispose();

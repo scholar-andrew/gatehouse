@@ -181,7 +181,14 @@ Microsoft password.
 - **Unsigned updates are still accepted** from the owner's own sources by default, because GitHub signs a minute or
   two after each publish. A Gatekeeper with `require_signed` set takes only signed program updates; requiring
   signatures everywhere is planned.
-- **The Wake on LAN signal** is a broadcast, so it only reaches the host's PC from its home network.
+- **The Wake on LAN signal** is a broadcast, so it only reaches the host's PC from its home network, unless the owner
+  sets up waking from outside (3.61.0, Host setup, Wake). Through the router, the signal carries no secret: anyone who
+  finds the forwarded port can wake the PC (nothing more). Through a relay (another Gatekeeper at home), a launcher
+  needs a ticket the PC gave it: HMAC-SHA256 with that relay's own secret over the relay, the launcher's id and an
+  expiry 30 days on, handed only to launchers allowed machine wake/sleep and not shut out. A launcher that loses the
+  permission gets no new ticket, but the one it has keeps working until it runs out; removing the relay (on either
+  side) ends every ticket for it at once. The relay refuses changed, foreign and run-out tickets, wakes at most once
+  every 15 seconds, and after 10 wrong tickets in a minute stops listening to that address for the minute.
 - **A Tailscale account** that is signed out (key expiry) cuts players off until the host signs in again; turn key
   expiry off for the host's machine.
 - **Files on the host's machine** are protected only by that machine's own sign-in.

@@ -1387,7 +1387,7 @@ final class Home {
 									"<html><div style='width:380px'>" + text + "</div></html>", title, JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) == JOptionPane.OK_OPTION;
 							// the machine
 							JButton wakeB = new JButton("Wake"), sleepB = new JButton("Sleep");
-							wakeB.setToolTipText("Wakes the server machine (Wake on LAN: works from the owner's home network)");
+							wakeB.setToolTipText("Wakes the server machine (Wake on LAN: from the owner's home network, and from outside it when the owner set that up)");
 							sleepB.setToolTipText("Puts the server machine to sleep. Only while no server is running.");
 							Object[] mr = row.apply("Server machine", new Component[] {wakeB, sleepB});
 							set.accept((JLabel) mr[2], answering ? new String[] {"ok", "Awake"} : new String[] {"off", "Not answering: asleep or off"});

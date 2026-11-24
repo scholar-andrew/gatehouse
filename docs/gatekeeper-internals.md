@@ -116,6 +116,15 @@ Content-Security-Policy (`default-src 'self'`; the script builds the page with `
   it names (`view`, `control`, `console`, `manage`, `access`, `machine`, `updates`, or `admin`). A body with a `MACHINE_ONLY`
   key (`start`, `java`, `backup_dir`, `file`, `add`, `remove`) is refused, as is `tools/new` of kind `forge`/`file`:
   nothing reachable from the web can name a program or a path on the machine. Each POST is logged with the account.
+- **Waking this machine from outside (`Wake`, `WakeUi`, 3.61.0)**: `wake_mac` (else found from the home-network
+  adapter), `wake_router` (`name:port`) and `wake_relays` [{id, secret, name, url, fp, made_at, joined_at}] on the
+  machine; `wake_for` [{id, secret, name, mac, keeper, joined_at, woke_at}] on a relay. `GET /v1/mcss` carries `wake`
+  {mac, broadcasts, router, relays: [{relay, name, url, fp, exp, sig}]} for a launcher with machine wake/sleep (null
+  otherwise), sig = HMAC-SHA256(secret, `wake|relay|launcher|exp`). `POST /v1/wake` (relay) and `POST
+  /v1/wake/register` (machine; proof = HMAC of `register|id|url|fp`) take no device identity. The window uses `GET`/`POST
+  /admin/wake/outside`. A relay code is `gatehouse-wake:` + base64url JSON {id, secret, mac, name, doors, fp}. The
+  launcher keeps `wake_info` in `server-access.json` (saved on a change, else once a day for fresh tickets).
+  `OJ_WAKE_TEST=host:port` sends the relay's signal there instead (tests).
 - **Wake**: `wake_devices` in `host.json` (name, MAC); `WebPanel.wake` sends the 102-byte magic packet to UDP 9 and 7
   on each interface's broadcast address. `/admin/sleep` is `sleepPc()`.
 

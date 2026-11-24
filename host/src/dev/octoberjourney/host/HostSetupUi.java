@@ -191,6 +191,8 @@ final class HostSetupUi {
 		stepsTab.add(stepScroll, BorderLayout.CENTER);
 		JTabbedPane setupTabs = new JTabbedPane();
 		setupTabs.addTab("Steps", stepsTab); setupTabs.addTab("Network", netHold); setupTabs.addTab("Name", nameHold);
+		JScrollPane wakeScroll = new JScrollPane(WakeUi.tab(f)); wakeScroll.setBorder(null); wakeScroll.getVerticalScrollBar().setUnitIncrement(16);
+		setupTabs.addTab("Wake", wakeScroll);   // (waking this machine from outside the home, and being another's relay)
 		hostSetup.add(setupTabs, BorderLayout.CENTER); hostSetup.add(shareSaid, BorderLayout.SOUTH);
 		// Server setup and Share pairing live here, beside the steps that ask for them (R38: they used to be only on a
 		// server's Server Status tab, which the steps called "the Servers tab").
